@@ -1,0 +1,30 @@
+import os, sys, time
+from glob import glob
+
+env = Environment()
+
+# cxxflags passed to g++ only
+cxxflags = ['-std=c++11']
+ccflags = ['-O2', '-g3', '-Wall']
+ccdefines = {'_FILE_OFFSET_BITS' : '64', 'DEBUG' : 1, }
+
+if sys.platform == 'darwin':
+    env['CXX'] = 'clang++'
+    env['CC'] = 'clang'
+    ccflags.append('-fno-pie')
+
+env.Append(CPPFLAGS = ccflags)
+env.Append(CXXFLAGS = cxxflags)
+env.Append(CPPDEFINES = ccdefines)
+env.Append(CPPPATH = ['/usr/local/include', '../'])
+
+source_files = glob('../base/*.cc') + glob('../base/*/*.cc') + \
+               glob('../base/co/impl/*.cc') 
+source_files += ['../base/co/context/context.S']
+
+print("souce code list: >>")
+for s in source_files:
+	print(os.path.realpath(s))
+print('')
+
+env.Library('base', source_files)

@@ -1,0 +1,142 @@
+#include "base/unitest.h"
+#include "base/json.h"
+
+namespace test {
+
+DEF_test(json) {
+    DEF_case(base) {
+        json::Value n;
+        EXPECT(n.is_null());
+        EXPECT_EQ(n.str(), "null");
+        EXPECT_EQ(n.pretty(), "null");
+
+        json::Value i = 123;
+        EXPECT(i.is_int());
+        EXPECT_EQ(i.str(), "123");
+        EXPECT_EQ(i.pretty(), "123");
+
+        json::Value i64 = (int64) 12345;
+        EXPECT(i64.is_int());
+        EXPECT_EQ(i64.str(), "12345");
+        EXPECT_EQ(i64.pretty(), "12345");
+
+        json::Value b = true;
+        EXPECT(b.is_bool());
+        EXPECT_EQ(b.str(), "true");
+        EXPECT_EQ(b.pretty(), "true");
+
+        json::Value d = 3.14;
+        EXPECT(d.is_double());
+        EXPECT_EQ(d.str(), "3.14");
+        EXPECT_EQ(d.pretty(), "3.14");
+
+        json::Value cs = "hello world";
+        EXPECT(cs.is_string());
+        EXPECT_EQ(cs.str(), "\"hello world\"");
+        EXPECT_EQ(cs.pretty(), "\"hello world\"");
+
+        json::Value s = std::string("hello world");
+        EXPECT(s.is_string());
+        EXPECT_EQ(s.str(), "\"hello world\"");
+        EXPECT_EQ(s.pretty(), "\"hello world\"");
+
+        json::Value a = json::empty_array();
+        EXPECT(a.is_array());
+        EXPECT(a.empty());
+        EXPECT_EQ(a.str(), "[]");
+        EXPECT_EQ(a.pretty(), "[]");
+
+        json::Value o = json::empty_object();
+        EXPECT(o.is_object());
+        EXPECT(o.empty());
+        EXPECT_EQ(o.str(), "{}");
+        EXPECT_EQ(o.pretty(), "{}");
+    }
+
+    DEF_case(array) {
+        json::Value v;
+        v.push_back(1);
+        v.push_back("hello");
+        v.push_back(1.23);
+
+        EXPECT(v.is_array());
+        EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v.str(), "[1,\"hello\",1.23]");
+    }
+
+    DEF_case(object) {
+        json::Value v;
+        v["name"] = "vin";
+        v["age"] = 29;
+        v["phone"] = "1234567";
+
+        EXPECT(v.is_object());
+        EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v.str(), "{\"name\":\"vin\",\"age\":29,\"phone\":\"1234567\"}");
+
+        json::Value u = json::parse(v.str());
+        EXPECT(u.is_object());
+        EXPECT_EQ(u.size(), 3);
+
+        u = json::parse(v.pretty());
+        EXPECT(u.is_object());
+        EXPECT_EQ(u.size(), 3);
+    }
+
+    DEF_case(parse) {
+        EXPECT(json::parse("{").is_null());
+        json::Value v;
+
+        v.parse_from("");
+        EXPECT(v.is_null());
+
+        v = json::parse("{}");
+        EXPECT_EQ(v.str(), "{}");
+
+        v.parse_from("{ \"a\":23, \n \r \t  \"b\":\"str\", \r\n }");
+        EXPECT_EQ(v.str(), "{\"a\":23,\"b\":\"str\"}");
+
+        v = json::parse("{ \"s\":\"\\\\s\" }");
+        EXPECT_EQ(v.str(), "{\"s\":\"\\\\s\"}")
+
+        v = json::parse("{ \"s\":\"s\\\"\" }");
+        EXPECT_EQ(v.str(), "{\"s\":\"s\\\"\"}");
+
+        v = json::parse("{\"key\":23 45}");
+        EXPECT(v.is_null());
+
+        v = json::parse("{\"key\": 23 }");
+        EXPECT(v.is_object());
+        EXPECT_EQ(v["key"].get_int(), 23);
+
+        v = json::parse("{ \"key\" : null }");
+        EXPECT(v.is_object());
+        EXPECT(v["key"].is_null());
+
+        v = json::parse("{ \"key\" : 23 } xx");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : 23 }  { \"key\" : 23 }");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : false88 }");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : true88 }");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : null88 }");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : abcc }");
+        EXPECT(v.is_null());
+
+        v = json::parse("{ \"key\" : false }");
+        EXPECT_EQ(v["key"].get_bool(), false);
+
+        v = json::parse("{ \"key\" : true }");
+        EXPECT_EQ(v["key"].get_bool(), true);
+    }
+}
+
+} // namespace test

@@ -1,0 +1,254 @@
+#ifndef _WIN32
+
+#include "stack_trace.h"
+#include "../fs.h"
+#include "../os.h"
+#include "../fastream.h"
+
+#include <signal.h>
+#include <unistd.h>
+#include <execinfo.h>
+#include <sys/wait.h>
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <dlfcn.h>
+
+namespace {
+
+typedef void (*sig_handler_t)(int);
+
+bool set_sig_handler(int sig, sig_handler_t handler, int flag) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
+
+    if (flag > 0) sa.sa_flags = flag;
+    sa.sa_handler = handler;
+    return sigaction(sig, &sa, NULL) == 0;
+}
+
+struct Param {
+    Param() : f(0), cb(0), s(8 * 1024) {
+        memset((char*)s.data(), 0, s.capacity());
+        exe = os::exepath();
+    }
+
+    ~Param() {
+        memset((char*)s.data(), 0, s.capacity());
+    }
+
+    fs::file* f;
+    void (*cb)();
+    fastream s;
+    fastring exe;
+};
+
+class StackTraceImpl : public StackTrace {
+  public:
+    StackTraceImpl();
+    virtual ~StackTraceImpl();
+
+    virtual void set_file(void* f) {
+        kParam->f = (fs::file*) f;
+    }
+
+    virtual void set_callback(void (*cb)()) {
+        kParam->cb = cb;
+    }
+
+  private:
+    static Param* kParam;
+
+    static void on_signal(int sig);
+};
+
+Param* StackTraceImpl::kParam = 0;
+
+StackTraceImpl::StackTraceImpl() {
+    kParam = new Param;
+    const int flag = SA_RESTART | SA_ONSTACK;
+    set_sig_handler(SIGSEGV, &StackTraceImpl::on_signal, flag);
+    set_sig_handler(SIGABRT, &StackTraceImpl::on_signal, flag);
+    set_sig_handler(SIGFPE, &StackTraceImpl::on_signal, flag);
+    set_sig_handler(SIGBUS, &StackTraceImpl::on_signal, flag);
+    set_sig_handler(SIGILL, &StackTraceImpl::on_signal, flag);
+    set_sig_handler(SIGPIPE, SIG_IGN, 0);
+}
+
+StackTraceImpl::~StackTraceImpl() {
+    set_sig_handler(SIGSEGV, SIG_DFL, 0);
+    set_sig_handler(SIGABRT, SIG_DFL, 0);
+    set_sig_handler(SIGFPE, SIG_DFL, 0);
+    set_sig_handler(SIGBUS, SIG_DFL, 0);
+    set_sig_handler(SIGILL, SIG_DFL, 0);
+    delete kParam;
+}
+
+#define write_msg(msg, len, f) \
+    do { \
+        fwrite(msg, 1, len, stderr); \
+        if (f) f->write(msg, len); \
+    } while (0)
+
+#define safe_abort(n) \
+    do { \
+        kill(getppid(), SIGCONT); \
+        set_sig_handler(SIGABRT, SIG_DFL, 0); \
+        abort(); \
+    } while (n)
+
+#define abort_if(cond, msg) \
+    if (cond) { \
+        fwrite(msg, 1, strlen(msg), stderr); \
+        safe_abort(0); \
+    }
+
+static void addr2line(const char* exe, const char* addr, char* buf, size_t len) {
+    int pipefd[2];
+    abort_if(pipe(pipefd) != 0, "create pipe failed");
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+
+      #ifdef __linux__
+        int r = execlp("addr2line", "addr2line", addr, "-f", "-C", "-e", exe, (void*)0);
+        abort_if(r == -1, "execlp addr2line failed");
+      #else
+        int r = execlp("atos", "atos", "-o", exe, addr, (void*)0);
+        abort_if(r == -1, "execlp atos failed");
+      #endif
+    }
+
+    close(pipefd[1]);
+    abort_if(waitpid(pid, NULL, 0) != pid, "waitpid failed");
+
+    ssize_t r = read(pipefd[0], buf, len - 1);
+    close(pipefd[0]);
+    buf[r > 0 ? r : 0] = '\0';
+}
+
+void StackTraceImpl::on_signal(int sig) {
+    if (kParam->cb) kParam->cb();
+
+    // fork and stop the parent process, stack trace will be done in the child process
+    pid_t pid = fork();
+    if (pid != 0) {
+        int status;
+        kill(getpid(), SIGSTOP);
+        waitpid(pid, &status, WNOHANG);
+        set_sig_handler(SIGABRT, SIG_DFL, 0);
+        abort();
+    }
+
+    fs::file* file = kParam->f;
+    fastream& fs = kParam->s;
+    bool check_failed = (sig == SIGABRT && !kParam->cb);
+
+    do {
+        switch (sig) {
+          case SIGSEGV:
+            fs.append("SIGSEGV: segmentation fault\n");
+            break;
+          case SIGABRT:
+            if (!check_failed) fs.append("SIGABRT: aborted\n");
+            break;
+          case SIGFPE:
+            fs.append("SIGFPE: floating point exception\n");
+            break;
+          case SIGBUS:
+            fs.append("SIGBUS: bus error\n");
+            break;
+          case SIGILL:
+            fs.append("SIGILL: illegal instruction\n");
+            break;
+          default:
+            fs.append("caught unexpected signal\n");
+            break;
+        }
+    } while (0);
+
+    // backtrace and turn addrs to function names, line numbers
+    fastring& exe = kParam->exe;
+
+    void** addrs = (void**) (fs.data() + fs.capacity() - 4096); // last 4k
+    int nframes = backtrace(addrs, 128);
+    int nskip = nframes > 2 ? 2 : 0;
+    if (check_failed && nframes > 7) nskip = 7;
+
+    int maxaddrlen = 0;
+    char* buf = ((char*)addrs) + nframes * sizeof(void*);
+    size_t buflen = 4096 - nframes * sizeof(void*);
+
+    for (int i = nskip; i < nframes; ++i) {
+        fs << '#' << (i - nskip) << "  ";
+
+        size_t prelen = fs.size();
+        char* line = buf;
+
+        Dl_info di;
+        if (dladdr(addrs[i], &di) == 0 || di.dli_fname[0] != '/' || exe == di.dli_fname) {
+            fs << addrs[i];
+            if (maxaddrlen == 0) maxaddrlen = (int) (fs.size() - prelen);
+            int n = maxaddrlen - (int) (fs.size() - prelen);
+            if (n > 0) fs.append(n, ' ');
+            addr2line(exe.c_str(), fs.c_str() + prelen, buf, buflen);
+        } else {
+            void* p = (void*) ((char*)addrs[i] - (char*)di.dli_fbase);
+            fs << p;
+            if (maxaddrlen == 0) maxaddrlen = (int) (fs.size() - prelen);
+            int n = maxaddrlen - (int) (fs.size() - prelen);
+            if (n > 0) fs.append(n, ' ');
+            addr2line(di.dli_fname, fs.c_str() + prelen, buf, buflen);
+        }
+
+        fs << " in ";
+
+      #ifdef __linux__
+        char* fend = strchr(line, '\n');
+        if (fend) {
+            *fend = '\0';
+            fs << line << " at "; // function name
+            line = fend + 1;
+            *line != '?' ? (fs << line) : (fs << exe << '\n');
+        } else {
+            fs << "???\n"; // addr2line returns nothing ?
+        }
+
+      #else
+        fs << (*line ? line : "???\n");
+      #endif
+
+        if (check_failed && i == nskip) fwrite("\n", 1, 1, stderr);
+        write_msg(fs.data(), fs.size(), file);
+        fs.clear();
+    }
+
+    if (nframes == 0) {
+        fs << "frames not found by backtrace..\n";
+        write_msg(fs.data(), fs.size(), file);
+    }
+
+    if (file) {
+        file->write('\n');
+        file->close();
+    }
+
+    kill(getppid(), SIGCONT);
+    _Exit(EXIT_SUCCESS);
+}
+
+#undef write_msg
+#undef safe_abort
+#undef abort_if
+}
+
+StackTrace* new_stack_trace() {
+    return new StackTraceImpl;
+}
+
+#endif

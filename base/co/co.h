@@ -1,0 +1,299 @@
+#pragma once
+
+#include "../def.h"
+#include "../closure.h"
+#include "../byte_order.h"
+#include "../fastring.h"
+#include "../thread.h"
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <ws2tcpip.h> // for inet_ntop...
+#include <MSWSock.h>
+#pragma comment(lib, "Ws2_32.lib")
+
+typedef SOCKET sock_t;
+
+#else
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>  // basic socket api, struct linger
+#include <netinet/in.h>  // for struct sockaddr_in
+#include <netinet/tcp.h> // for TCP_NODELAY...
+#include <arpa/inet.h>   // for inet_ntop...
+#include <netdb.h>
+
+typedef int sock_t;
+#endif
+
+namespace co {
+
+// Add a task, which will run as a coroutine.
+// Supported function types:
+//   void f();
+//   void f(void*);          // func with a param
+//   void T::f();            // method in a class
+//   std::function<void()>;
+
+void go(Closure* cb);
+
+inline void go(void (*f)()) {
+    go(new_callback(f));
+}
+
+inline void go(void (*f)(void*), void* p) {
+    go(new_callback(f, p));
+}
+
+template<typename T>
+inline void go(void (T::*f)(), T* p) {
+    go(new_callback(f, p));
+}
+
+// !! Performance of std::function is poor. Try to avoid it.
+inline void go(const std::function<void()>& f) {
+    go(new_callback(f));
+}
+
+inline void go(std::function<void()>&& f) {
+    go(new_callback(std::move(f)));
+}
+
+void sleep(unsigned int ms);
+
+// stop coroutine schedulers
+void stop();
+
+// for communications between coroutines
+class Event {
+  public:
+    Event();
+    ~Event();
+
+    Event(Event&& e) : _p(e._p) { e._p = 0; }
+
+    Event(const Event&) = delete;
+    void operator=(const Event&) = delete;
+
+    void wait();                     // must be called in coroutine
+
+    // return false if timeout
+    bool wait(unsigned int ms);      // must be called in coroutine
+
+    // wakeup all waiting coroutines
+    void signal();                   // can be called from anywhere
+
+  private:
+    void* _p;
+};
+
+class Mutex {
+  public:
+    Mutex();
+    ~Mutex();
+
+    Mutex(Mutex&& m) : _p(m._p) { m._p = 0; }
+
+    Mutex(const Mutex&) = delete;
+    void operator=(const Mutex&) = delete;
+
+    void lock();     // must be called in coroutine
+
+    void unlock();   // can be called from anywhere
+
+    bool try_lock(); // can be called from anywhere
+
+  private:
+    void* _p;
+};
+
+typedef LockGuard<co::Mutex> MutexGuard;
+
+class Pool {
+  public:
+    Pool();
+    ~Pool();
+
+    Pool(Pool&& p) : _p(p._p) { p._p = 0; }
+
+    // ccb is for creating a new element when the pool is empty
+    // dcb is for destroying elements in the pool when it is destroyed
+    // Pool p(
+    //     [] { return new T; },
+    //     [](void* p) { delete (T*) p; }
+    // );
+    Pool(const std::function<void*()>& ccb, const std::function<void(void*)>& dcb=0);
+
+    Pool(const Pool&) = delete;
+    void operator=(const Pool&) = delete;
+
+    // 1. pop an element from the pool if it is not empty
+    // 2. call ccb to create a new element if the pool is empty and ccb is set
+    // 3. otherwise return NULL
+    void* pop();                         // must be called in coroutine
+
+    // push back an element to the pool
+    void push(void*);                    // must be called in coroutine
+
+  private:
+    void* _p;
+};
+
+// return a non-blocking socket on Linux & Mac, an overlapped socket on windows
+sock_t tcp_socket(int v=4); // 4 for ipv4, 6 for ipv6
+sock_t udp_socket(int v=4); // 4 for ipv4, 6 for ipv6
+
+int close(sock_t fd);
+
+ // close the fd @ms milliseconds later
+int close(sock_t fd, int ms);
+
+// @c:  'r' for SHUT_RD, 'w' for SHUT_WR, 'b' for SHUT_RDWR
+int shutdown(sock_t fd, char c='b');
+
+int bind(sock_t fd, const void* addr, int addrlen);
+
+int listen(sock_t fd, int backlog);
+
+// return a non-blocking socket on Linux & Mac, an overlapped socket on windows
+sock_t accept(sock_t fd, void* addr, int* addrlen);
+
+// connect until connection is done or any error occured
+int connect(sock_t fd, const void* addr, int addrlen);
+
+// connect until connection is done or timeout in @ms, or any error occured
+int connect(sock_t fd, const void* addr, int addrlen, int ms);
+
+// recv until 0 or more bytes are received or any error occured
+int recv(sock_t fd, void* buf, int n);
+
+// recv until 0 or more bytes are received or timeout in @ms, or any error occured
+int recv(sock_t fd, void* buf, int n, int ms);
+
+// recv until all @n bytes are done or any error occured
+int recvn(sock_t fd, void* buf, int n);
+
+// recv until all @n bytes are done or timeout in @ms, or any error occured
+int recvn(sock_t fd, void* buf, int n, int ms);
+
+int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen);
+int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms);
+
+// send until all @n bytes are done or any error occured
+int send(sock_t fd, const void* buf, int n);
+
+// send until all @n bytes are done or timeout in @ms, or any error occured
+int send(sock_t fd, const void* buf, int n, int ms);
+
+// for udp, max(n) == 65507
+int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen);
+int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms);
+
+#ifdef _WIN32
+inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
+    return ::getsockopt(fd, lv, opt, (char*)optval, optlen);
+}
+
+inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
+    return ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
+}
+#else
+inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
+    return ::getsockopt(fd, lv, opt, optval, (socklen_t*)optlen);
+}
+
+inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
+    return ::setsockopt(fd, lv, opt, optval, (socklen_t)optlen);
+}
+#endif
+
+inline void set_reuseaddr(sock_t fd) {
+    int v = 1;
+    co::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
+}
+
+// !! send/recv buffer size must be set before the socket is connected.
+inline void set_send_buffer_size(sock_t fd, int n) {
+    co::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &n, sizeof(n));
+}
+
+inline void set_recv_buffer_size(sock_t fd, int n) {
+    co::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n));
+}
+
+inline void set_tcp_nodelay(sock_t fd) {
+    int v = 1;
+    co::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+}
+
+inline void set_tcp_keepalive(sock_t fd) {
+    int v = 1;
+    co::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v));
+}
+
+inline void reset_tcp_socket(sock_t fd) {
+    struct linger v = { 1, 0 }; // 1: enables linger option  0: timeout in sec
+    co::setsockopt(fd, SOL_SOCKET, SO_LINGER, &v, sizeof(v));
+    co::close(fd);
+}
+
+// reset tcp connection @n milliseconds later
+inline void reset_tcp_socket(sock_t fd, int n) {
+    struct linger v = { 1, 0 };
+    co::setsockopt(fd, SOL_SOCKET, SO_LINGER, &v, sizeof(v));
+    co::close(fd, n);
+}
+
+#ifndef _WIN32
+inline void set_nonblock(sock_t fd) {
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+}
+
+inline void set_cloexec(sock_t fd) {
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_EXCL);
+}
+#endif
+
+inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
+    memset(addr, 0, sizeof(*addr));
+    addr->sin_family = AF_INET;
+    addr->sin_port = hton16((uint16) port);
+    return inet_pton(AF_INET, ip, &addr->sin_addr) == 1;
+}
+
+inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
+    memset(addr, 0, sizeof(*addr));
+    addr->sin6_family = AF_INET6;
+    addr->sin6_port = hton16((uint16) port);
+    return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
+}
+
+inline fastring ip_str(struct sockaddr_in* addr) {
+    char s[INET_ADDRSTRLEN] = { 0 };
+    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    return fastring(s);
+}
+
+inline fastring ip_str(struct sockaddr_in6* addr) {
+    char s[INET6_ADDRSTRLEN] = { 0 };
+    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    return fastring(s);
+}
+
+#ifdef _WIN32
+inline int error() { return WSAGetLastError(); }
+#else
+inline int error() { return errno; }
+#endif
+
+const char* strerror(int err); // this function is thread-safe
+
+inline const char* strerror() {
+    return co::strerror(co::error());
+}
+
+} // namespace co
+
+using co::go;

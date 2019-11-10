@@ -1,0 +1,34 @@
+import os, sys, time
+from glob import glob
+
+env = Environment()
+
+# cxxflags passed to g++ only
+cxxflags = ['-std=c++11']
+ccflags = ['-O2', '-g3', '-Wno-sign-compare']
+ccdefines = {'_FILE_OFFSET_BITS' : '64', 'DEBUG' : 1, }
+
+if sys.platform == 'darwin':
+    env['CXX'] = 'clang++'
+    env['CC'] = 'clang'
+    ccflags.append('-fno-pie')
+
+env.Append(CPPFLAGS = ccflags)
+env.Append(CXXFLAGS = cxxflags)
+env.Append(CPPPATH = ['/usr/local/include'])
+env.Append(CPPDEFINES = ccdefines)
+
+env.Append(CPPPATH = ['..', '/usr/local/include'])
+env.Append(LIBPATH = ['../lib', '/usr/local/lib'])
+
+libs = ['base', 'pthread', 'dl']
+env.Append(LIBS=libs)
+
+source_files = glob('../unitest/base/*.cc')
+
+print("souce code list: >>")
+for s in source_files:
+	print(os.path.realpath(s))
+print('')
+
+env.Program('unitest', source_files)
