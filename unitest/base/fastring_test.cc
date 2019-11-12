@@ -69,20 +69,36 @@ DEF_test(fastring) {
     DEF_case(cmp) {
         fastring s = "88888888";
         EXPECT_EQ(s.size(), 8);
+        EXPECT_EQ("88888888", s);
         EXPECT_EQ(s, "88888888");
+        EXPECT_EQ(s, fastring("88888888"));
+
+        EXPECT_NE("8888888", s);
         EXPECT_NE(s, "8888888");
+        EXPECT_NE(s, fastring("8888888"));
         EXPECT_NE(s, "888888888");
         EXPECT_NE(s, "xxxxxx");
 
-        EXPECT_GT(s, "7777777")
-        EXPECT_GT(s, "77777777")
-        EXPECT_GT(s, "777777777")
+        EXPECT_LT("7777777", s);
+        EXPECT_GT(s, "7777777");
+        EXPECT_GT(s, fastring("7777777"));
+        EXPECT_GT(s, "77777777");
+        EXPECT_GT(s, "777777777");
+
+        EXPECT_GT("9999999", s);
         EXPECT_LT(s, "9999999");
+        EXPECT_LT(s, fastring("9999999"));
         EXPECT_LT(s, "99999999");
         EXPECT_LT(s, "999999999");
+
+        EXPECT_LE("88888888", s);
         EXPECT_GE(s, "88888888");
+        EXPECT_GE(s, fastring("88888888"));
         EXPECT_GE(s, "777777777")
+
+        EXPECT_GE("88888888", s);
         EXPECT_LE(s, "88888888");
+        EXPECT_LE(s, fastring("88888888"));
         EXPECT_LE(s, "9999999");
     }
 

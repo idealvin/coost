@@ -1,6 +1,7 @@
 #include "flag.h"
 #include "log.h"
 #include "fs.h"
+#include "os.h"
 #include "str.h"
 
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 
 DEF_string(config, "", ".path of config file");
 DEF_bool(mkconf, false, ".generate config file");
+DEF_bool(daemon, false, "run program as a daemon");
 
 namespace flag {
 namespace xx {
@@ -191,7 +193,7 @@ void mkconf(const fastring& exe) {
         flag_groups[fastring(it->second.file)].insert(*it);
     }
 
-    fastring fname(exe);
+    fastring fname(exe.clone());
     if (fname.ends_with(".exe")) fname.resize(fname.size() - 4);
     fname += ".conf";
 
@@ -201,11 +203,13 @@ void mkconf(const fastring& exe) {
         return;
     }
 
-    size_t p = fname.rfind('\\');
-    if (p == fname.npos) p = fname.rfind('/');
-    fastring config_name = (p != fname.npos ? fname.substr(p + 1) : fname);
-    f << "###  " << config_name << '\n'
-      << "###  # or // for comments\n";
+    size_t p = exe.rfind('\\');
+    if (p == exe.npos) p = exe.rfind('/');
+    fastring exe_name = (p != exe.npos ? exe.substr(p + 1) : exe);
+    f << fastring(49, '#') << '\n'
+      << "###  config for " << exe_name << '\n'
+      << "###  # or // for comments\n"
+      << fastring(49, '#') << "\n\n";
 
     for (auto it = flag_groups.begin(); it != flag_groups.end(); ++it) {
         const auto& flags = it->second;
@@ -430,6 +434,7 @@ std::vector<fastring> init(int argc, char** argv) {
         xx::parse_config(FLG_config);
     }
 
+    if (FLG_daemon) os::daemon();
     return v;
 }
 

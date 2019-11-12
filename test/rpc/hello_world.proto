@@ -11,6 +11,6 @@ hello_world.req {
 
 hello_world.res {
     "method": "hello_world",
-    "err", 200,
-    "errmsg", "200 ok"
+    "err": 200,
+    "errmsg": "200 ok"
 }

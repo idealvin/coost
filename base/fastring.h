@@ -339,16 +339,6 @@ inline fastring operator+(const char* a, const fastring& b) {
     return fastring(b.size() + n + 1).append(a, n).append(b);
 }
 
-template<typename S>
-inline fastring operator+(const fastring& a, const S& b) {
-    return fastring(a.size() + b.size() + 1).append(a).append(b);
-}
-
-template<typename S>
-inline fastring operator+(const S& a, const fastring& b) {
-    return fastring(a.size() + b.size() + 1).append(a).append(b);
-}
-
 inline bool operator==(const fastring& a, const fastring& b) {
     if (a.size() != b.size()) return false;
     return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
@@ -359,14 +349,7 @@ inline bool operator==(const fastring& a, const char* b) {
     return a.size() == 0 || memcmp(a.data(), b, a.size()) == 0;
 }
 
-template<typename S>
-inline bool operator==(const fastring& a, const S& b) {
-    if (a.size() != b.size()) return false;
-    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
-}
-
-template<typename S>
-inline bool operator==(const S& a, const fastring& b) {
+inline bool operator==(const char* a, const fastring& b) {
     return b == a;
 }
 
@@ -378,13 +361,7 @@ inline bool operator!=(const fastring& a, const char* b) {
     return !(a == b);
 }
 
-template<typename S>
-inline bool operator!=(const fastring& a, const S& b) {
-    return !(a == b);
-}
-
-template<typename S>
-inline bool operator!=(const S& a, const fastring& b) {
+inline bool operator!=(const char* a, const fastring& b) {
     return b != a;
 }
 
@@ -405,15 +382,6 @@ inline bool operator<(const fastring& a, const char* b) {
     }
 }
 
-template<typename S>
-inline bool operator<(const fastring& a, const S& b) {
-    if (a.size() < b.size()) {
-        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
-    } else {
-        return memcmp(a.data(), b.data(), b.size()) < 0;
-    }
-}
-
 inline bool operator>(const fastring& a, const fastring& b) {
     if (a.size() > b.size()) {
         return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
@@ -431,42 +399,35 @@ inline bool operator>(const fastring& a, const char* b) {
     }
 }
 
-template<typename S>
-inline bool operator>(const fastring& a, const S& b) {
-    if (a.size() > b.size()) {
-        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
-    } else {
-        return memcmp(a.data(), b.data(), a.size()) > 0;
-    }
-}
-
-template<typename S>
-inline bool operator<(const S& a, const fastring& b) {
+inline bool operator<(const char* a, const fastring& b) {
     return b > a;
 }
 
-template<typename S>
-inline bool operator>(const S& a, const fastring& b) {
+inline bool operator>(const char* a, const fastring& b) {
     return b < a;
 }
 
-template<typename S>
-inline bool operator<=(const fastring& a, const S& b) {
+inline bool operator<=(const fastring& a, const fastring& b) {
     return !(a > b);
 }
 
-template<typename S>
-inline bool operator<=(const S& a, const fastring& b) {
+inline bool operator<=(const fastring& a, const char* b) {
+    return !(a > b);
+}
+
+inline bool operator<=(const char* a, const fastring& b) {
     return !(b < a);
 }
 
-template<typename S>
-inline bool operator>=(const fastring& a, const S& b) {
+inline bool operator>=(const fastring& a, const fastring& b) {
     return !(a < b);
 }
 
-template<typename S>
-inline bool operator>=(const S& a, const fastring& b) {
+inline bool operator>=(const fastring& a, const char* b) {
+    return !(a < b);
+}
+
+inline bool operator>=(const char* a, const fastring& b) {
     return !(b > a);
 }
 
