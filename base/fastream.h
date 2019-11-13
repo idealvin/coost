@@ -109,6 +109,12 @@ class fastream {
         fs.swap(*this);
     }
 
+    fastream& append(char c) {
+        this->_Ensure(1);
+        _p[_size++] = c;
+        return *this;
+    }
+
     fastream& append(const void* p, size_t n) {
         this->_Ensure(n);
         memcpy(_p + _size, p, n);
@@ -154,9 +160,7 @@ class fastream {
     }
 
     fastream& operator<<(char v) {
-        this->_Ensure(1);
-        _p[_size++] = v;
-        return *this;
+        return this->append(v);
     }
 
     fastream& operator<<(unsigned char v) {

@@ -3,12 +3,13 @@
 
 namespace json {
 
-bool Value::has_member(Key key) const {
-    assert(this->is_object());
-    for (auto it = this->begin(); it != this->end(); ++it) {
-        if (strcmp(it->key, key) == 0) return true;
+Value Value::find(Key key) const {
+    if (this->is_object()) {
+        for (auto it = this->begin(); it != this->end(); ++it) {
+            if (strcmp(it->key, key) == 0) return it->value;
+        }
     }
-    return false;
+    return Value();
 }
 
 Value& Value::operator[](Key key) const {

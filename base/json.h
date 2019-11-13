@@ -291,7 +291,11 @@ class Value {
         return this->size() == 0;
     }
 
-    bool has_member(Key key) const;
+    Value find(Key key) const;
+
+    bool has_member(Key key) const {
+        return !this->find(key).is_null();
+    }
 
     // add_member(key, val) is faster than obj[key] = val
     void add_member(Key key, Value&& val) {
