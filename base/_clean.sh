@@ -5,7 +5,10 @@ if [[ "$OSTYPE" == "msys" ]]; then
     exit 0
 fi
 
+cd "$(dirname "$0")"
+
 src=`ls *.{h,cc} */*.{h,cc,cpp} */*/*.{h,cc}`
+
 for x in $src
 do
     if [ -f $x ]; then
