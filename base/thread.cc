@@ -190,7 +190,7 @@ void TaskSchedImpl::_Run() {
 
         int sec = 0;
         if (ms >= 1000) {
-            sec = ms / 1000;
+            sec = (int) (ms / 1000);
             ms -= sec * 1000;
         }
 

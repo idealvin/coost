@@ -15,7 +15,7 @@
 DEF_string(log_dir, "logs", "log dir, will be created if not exists");
 DEF_string(log_file_name, "", "name of log file, using exename if empty");
 DEF_int32(min_log_level, 0, "write logs at or above this level");
-DEF_int64(max_log_file_size, 128 << 20, "max size of log file, default: 128MB");
+DEF_int64(max_log_file_size, 256 << 20, "max size of log file, default: 256MB");
 DEF_uint32(max_log_file_num, 8, "max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "max size of log buffer, default: 32MB");
 

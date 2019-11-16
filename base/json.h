@@ -168,8 +168,7 @@ class Value {
         this->_Set_string(v, strlen(v));
     }
 
-    template<typename S>
-    Value(const S& v) {
+    Value(const fastring& v) {
         this->_Set_string(v.data(), v.size());
     }
 
@@ -210,9 +209,17 @@ class Value {
         return _mem->b;
     }
 
-    int64 get_int() const {
+    int64 get_int64() const {
         assert(this->is_int());
         return _mem->i;
+    }
+
+    int32 get_int32() const {
+        return (int32) this->get_int64();
+    }
+
+    int get_int() const {
+        return (int) this->get_int64();
     }
 
     double get_double() const {
@@ -359,8 +366,7 @@ class Value {
         return this->parse_from(s, strlen(s));
     }
 
-    template<typename S>
-    bool parse_from(const S& s) {
+    bool parse_from(const fastring& s) {
         return this->parse_from(s.data(), s.size());
     }
 
@@ -453,8 +459,7 @@ inline Value parse(const char* s) {
     return parse(s, strlen(s));
 }
 
-template<typename S>
-inline Value parse(const S& s) {
+inline Value parse(const fastring& s) {
     return parse(s.data(), s.size());
 }
 

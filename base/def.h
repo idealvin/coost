@@ -13,7 +13,7 @@ typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 
 #ifndef __thread
-#define __thread __declspec( thread )
+#define __thread __declspec(thread)
 #endif
 
 #else
