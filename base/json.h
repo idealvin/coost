@@ -332,20 +332,23 @@ class Value {
 
     Value& operator[](Key key) const;
 
+    // json to string
     fastring str(uint32 cap = 256) const {
         magicstream ms(cap);
         this->_Json2str(ms.stream());
         return ms.str();
     }
 
+    // append json string to @fs
+    void str(fastream& fs) const {
+        this->_Json2str(fs);
+    }
+
+    // convert json to pretty string
     fastring pretty(int indent = 4, uint32 cap = 256) const {
         magicstream ms(cap);
         this->_Json2pretty(indent, indent, ms.stream());
         return ms.str();
-    }
-
-    void str(fastream& fs) const {
-        this->_Json2str(fs);
     }
 
     bool parse_from(const char* s, size_t n);
@@ -425,18 +428,21 @@ struct Value::MemberItem {
     Value value;
 };
 
-inline Value empty_array() {
+// return an empty array
+inline Value array() {
     Value v;
     v.set_array();
     return v;
 }
 
-inline Value empty_object() {
+// return an empty object
+inline Value object() {
     Value v;
     v.set_object();
     return v;
 }
 
+// parse json from string
 inline Value parse(const char* s, size_t n) {
     Value v;
     if (v.parse_from(s, n)) return v;

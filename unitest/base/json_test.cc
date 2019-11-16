@@ -50,13 +50,13 @@ DEF_test(json) {
         EXPECT_EQ(s.str(), "\"hello world\"");
         EXPECT_EQ(s.pretty(), "\"hello world\"");
 
-        Json a = json::empty_array();
+        Json a = json::array();
         EXPECT(a.is_array());
         EXPECT(a.empty());
         EXPECT_EQ(a.str(), "[]");
         EXPECT_EQ(a.pretty(), "[]");
 
-        Json o = json::empty_object();
+        Json o = json::object();
         EXPECT(o.is_object());
         EXPECT(o.empty());
         EXPECT_EQ(o.str(), "{}");
