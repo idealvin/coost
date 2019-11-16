@@ -171,6 +171,7 @@ void show_help_info(const fastring& exe) {
          << "    " << s << " --                   print flags info\n"
          << "    " << s << " --help               print this help info\n"
          << "    " << s << " --mkconf             generate config file\n"
+         << "    " << s << " --daemon             run as a daemon (Linux)\n"
          << "    " << s << " xx.conf              run with config file\n"
          << "    " << s << " config=xx.conf       run with config file\n"
          << "    " << s << " -x -i=8k -s=ok       run with commandline flags\n"

@@ -249,26 +249,20 @@ class Value {
         new (&_mem) Array(kArray, 8);
     }
 
+    void __push_back(void* v) {
+        this->_Init_array();
+        _Array().push_back(v);
+    }
+
     // for array:  a.push_back(v),  a[index],  a.size()
     void push_back(Value&& v) {
-        this->_Init_array();
-        _Array().push_back(v._mem);
+        this->__push_back(v._mem);
         v._mem = 0;
     }
 
     void push_back(const Value& v) {
-        this->_Init_array();
-        _Array().push_back(v._mem);
+        this->__push_back(v._mem);
         if (v._mem) ++v._mem->refn;
-    }
-
-    void push_back(const char* v) {
-        this->push_back(Value(v));
-    }
-
-    void push_back(void* v) {
-        this->_Init_array();
-        _Array().push_back(v);
     }
 
     Value& operator[](uint32 i) const {

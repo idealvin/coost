@@ -392,7 +392,7 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
         }
 
         if (b == 0) return 0;
-        res->push_back(v);
+        res->__push_back(v);
 
         for (++b; b < e; ++b) {
             if (unlikely(is_white_char(*b))) continue;
