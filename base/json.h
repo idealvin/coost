@@ -298,39 +298,33 @@ class Value {
         return this->size() == 0;
     }
 
+    // find() is more efficient than has_member() and operator[].
+    // return null if not found
+    //   Json obj;
+    //   Json x = obj.find(key);
+    //   if (!x.is_null()) do_something();
+    //   if (!(x = obj.find(another_key)).is_null()) do_something();
     Value find(Key key) const;
 
     bool has_member(Key key) const {
         return !this->find(key).is_null();
     }
 
-    // add_member(key, val) is faster than obj[key] = val
-    void add_member(Key key, Value&& val) {
-        this->_Init_object();
-        _Array().push_back(key);
-        _Array().push_back(val._mem);
-        val._mem = 0;
-    }
-
-    void add_member(Key key, const Value& val) {
-        this->_Init_object();
-        _Array().push_back(key);
-        _Array().push_back(val._mem);
-        if (val._mem) ++val._mem->refn;
-    }
-
-    void add_member(Key key, const char* val) {
-        this->add_member(key, Value(val));
-    }
-
-    void add_member(Key key, void* val) {
+    void __add_member(Key key, void* val) {
         this->_Init_object();
         _Array().push_back(key);
         _Array().push_back(val);
     }
 
-    void add_member(Key key, int n) {
-        this->add_member(key, Value(n));
+    // add_member(key, val) is faster than obj[key] = val
+    void add_member(Key key, Value&& val) {
+        this->__add_member(key, val._mem);
+        val._mem = 0;
+    }
+
+    void add_member(Key key, const Value& val) {
+        this->__add_member(key, val._mem);
+        if (val._mem) ++val._mem->refn;
     }
 
     iterator begin() const {

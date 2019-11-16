@@ -359,7 +359,7 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
             }
 
             if (b == 0) return 0;
-            res->add_member(key, v);
+            res->__add_member(key, v);
             break;
         }
 
@@ -409,7 +409,7 @@ bool Value::parse_from(const char* s, size_t n) {
     if (unlikely(n < 2)) return false;
 
     this->reset();
-    this->add_member((const char*)0, (void*)0); // the first element for save keys
+    this->__add_member((const char*)0, (void*)0); // the first element for save keys
 
     char buf[sizeof(fastream)];
     fastream* keys = new (buf) fastream((n >> 1) + 1);
