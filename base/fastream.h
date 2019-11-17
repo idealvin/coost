@@ -267,8 +267,8 @@ class fastream {
 class magicstream {
   public:
     explicit magicstream(size_t cap = 16) {
-        new (_buf) fastream(cap + 16);
-        _fs.resize(16);
+        new (_buf) fastream(cap + fastring::header_size());
+        _fs.resize(fastring::header_size());
     }
     ~magicstream() {}
 
@@ -283,11 +283,7 @@ class magicstream {
     }
 
     fastring str() const {
-        unsigned* p = (unsigned*) _fs.data();
-        p[0] = (unsigned) _fs.capacity() - 16;
-        p[1] = (unsigned) _fs.size() - 16;
-        p[2] = 1;
-        return *(fastring*)&p;
+        return fastring((char*)_fs.data(), _fs.capacity(), _fs.size());
     }
 
   private:

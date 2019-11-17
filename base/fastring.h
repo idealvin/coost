@@ -37,6 +37,17 @@ class fastring {
         memset(_p->s, c, n);
     }
 
+    static const size_t header_size() {
+        return sizeof(_Mem);
+    }
+
+    fastring(char* p, size_t cap, size_t size) {
+        _p = (_Mem*) p;
+        _p->cap = cap - this->header_size();
+        _p->size = size - this->header_size();
+        _p->refn = 1;
+    }
+
     ~fastring() {
         if (!_p) return;
         if (--_p->refn == 0) free(_p);

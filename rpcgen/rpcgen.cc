@@ -2,10 +2,7 @@
 #include "base/str.h"
 #include "base/fs.h"
 #include "base/flag.h"
-
-#include <iostream>
-using std::cout;
-using std::endl;
+#include "base/log.h"
 
 DEF_bool(cc, false, "generate code for cpp");
 DEF_bool(cpp, false, "generate code for cpp");
@@ -47,7 +44,7 @@ void generate(const fastring& gen_file, const fastring& pkg, const fastring& ser
         fs << fastring(' ', 8) << "Json& method = req[\"method\"];\n";
         fs << fastring(' ', 8) << "if (!method.is_string()) {\n";
         fs << fastring(' ', 12) << "res.add_member(\"err\", 400);\n";
-        fs << fastring(' ', 12) << "res.add_member(\"errmsg\", \"400 method not set\");\n";
+        fs << fastring(' ', 12) << "res.add_member(\"errmsg\", \"400 req has no method\");\n";
         fs << fastring(' ', 12) << "return;\n";
         fs << fastring(' ', 8) << "}\n\n";
 
@@ -81,7 +78,7 @@ void generate(const fastring& gen_file, const fastring& pkg, const fastring& ser
 void parse(const char* path) {
     fs::file f;
     if (!f.open(path, 'r')) {
-        cout << "failed to open file: " << path << endl;
+        COUT << "failed to open file: " << path;
         exit(-1);
     }
 
@@ -91,7 +88,7 @@ void parse(const char* path) {
     const char* e = strrchr(path, '.');
 
     if (e == 0 || e <= b) {
-        cout << "invalid proto file name: " << path << endl;
+        COUT << "invalid proto file name: " << path;
         exit(-1);
     }
 
@@ -114,7 +111,7 @@ void parse(const char* path) {
 
         if (x.starts_with("package ")) {
             if (!pkg.empty()) {
-                cout << "find multiple package name in file: " << path << endl;
+                COUT << "find multiple package name in file: " << path;
                 exit(-1);
             }
 
@@ -127,7 +124,7 @@ void parse(const char* path) {
 
         if (x.starts_with("service ")) {
             if (!serv.empty()) {
-                cout << "find multiple service in file: " << path << endl;
+                COUT << "find multiple service in file: " << path;
                 exit(-1);
             }
 
@@ -140,24 +137,24 @@ void parse(const char* path) {
                 const char* p = strstr(l[k].c_str(), "//");
                 if (p) l[k].resize(p - l[k].data());
  
-                if (l[k].find('}')) {
-                    auto m = str::strip(l[k], " \t\r\n,};");
+                if (l[k].find('}') != l[k].npos) {
+                    auto m = str::strip(l[k], " \t\r\n,;{}");
                     if (!m.empty()) methods.push_back(m);
                     if (methods.empty()) {
-                        cout << "no method found in service: " << serv << endl;
+                        COUT << "no method found in service: " << serv;
                         exit(-1);
                     }
 
                     generate(gen_file, pkg, serv, methods);
-                    cout << "generate " << gen_file << " success" << endl;
+                    COUT << "generate " << gen_file << " success";
                     return;
                 } else {
-                    auto m = str::strip(l[k], " \t\r\n,;");
+                    auto m = str::strip(l[k], " \t\r\n,;{");
                     if (!m.empty()) methods.push_back(m);
                 }
             }
 
-            cout << "ending '}' not found for service: " << serv << endl;
+            COUT << "ending '}' not found for service: " << serv;
             exit(-1);
         }
     }
@@ -165,8 +162,9 @@ void parse(const char* path) {
 
 int main(int argc, char** argv) {
     auto v = flag::init(argc, argv);
+    log::init();
     if (v.empty()) {
-        cout << "usage: rpcgen xx.proto" << endl;
+        COUT << "usage: rpcgen xx.proto";
         return 0;
     }
 

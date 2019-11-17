@@ -13,8 +13,14 @@ DEF_string(serv_ip, "127.0.0.1", "server ip");
 
 namespace xx {
 
-void HelloWorld::hello_world(const json::Value& req, json::Value& res) {
-    res.add_member("method", "hello_world");
+void HelloWorld::hello(const Json& req, Json& res) {
+    res.add_member("method", "hello");
+    res.add_member("err", 200);
+    res.add_member("errmsg", "200 ok");
+}
+
+void HelloWorld::world(const Json& req, Json& res) {
+    res.add_member("method", "world");
     res.add_member("err", 200);
     res.add_member("errmsg", "200 ok");
 }
@@ -25,8 +31,8 @@ void client_fun() {
     rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
 
     for (int i = 0; i < FLG_n; ++i) {
-        json::Value req, res;
-        req.add_member("method", "hello_world");
+        Json req, res;
+        req.add_member("method", "hello");
         c->call(req, res);
     }
 

@@ -11,7 +11,8 @@ class HelloWorld : public rpc::Service {
     typedef void (HelloWorld::*Fun)(const Json&, Json&);
 
     HelloWorld() {
-        _methods[hash64("hello_world")] = &HelloWorld::hello_world;
+        _methods[hash64("hello")] = &HelloWorld::hello;
+        _methods[hash64("world")] = &HelloWorld::world;
     }
 
     virtual ~HelloWorld() {}
@@ -20,7 +21,7 @@ class HelloWorld : public rpc::Service {
         Json& method = req["method"];
         if (!method.is_string()) {
             res.add_member("err", 400);
-            res.add_member("errmsg", "400 method not set");
+            res.add_member("errmsg", "400 req has no method");
             return;
         }
 
@@ -34,7 +35,9 @@ class HelloWorld : public rpc::Service {
         (this->*it->second)(req, res);
     }
 
-    void hello_world(const Json& req, Json& res);
+    void hello(const Json& req, Json& res);
+
+    void world(const Json& req, Json& res);
 
   private:
     std::unordered_map<uint64, Fun> _methods;

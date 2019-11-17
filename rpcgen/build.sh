@@ -9,7 +9,7 @@ if [[ -z "$1" ]]; then
 fi
 
 src="$1"
-sub=".exe"
+sub=""
 OUT="${src/.cc/$sub}"
 
 platform=`uname -m`
@@ -42,14 +42,6 @@ else
     CCFLAGS="-std=c++11"
 	LIBS="-lpthread"
     LIBBASE="libbase.a"
-fi
-
-if [[ ! -d "../build" ]]; then
-    mkdir ../build
-fi
-
-if [[ ! -f "../lib/$OS/$PLAT/$LIBBASE" ]]; then
-    ../base/_build.sh
 fi
 
 $CC $CCFLAGS -O2 -o ../build/$OUT $src ../lib/$LIBBASE -I.. $LIBS -ldl

@@ -231,7 +231,7 @@ bool LevelLogger::open_log_file(int level) {
     fastring path = path::join(log_dir, name);
 
     if (FLG_max_log_file_num <= 0) FLG_max_log_file_num = 8;
-    if (FLG_max_log_file_size <= 0) FLG_max_log_file_size = 128 << 20;
+    if (FLG_max_log_file_size <= 0) FLG_max_log_file_size = 256 << 20;
 
     // Rename files: xx -> xx.1, xx.1 -> xx.2, xx.2 -> xx.3 ...
     if (fs::fsize(path) >= FLG_max_log_file_size) {
