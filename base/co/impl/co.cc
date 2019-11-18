@@ -163,51 +163,36 @@ bool Mutex::try_lock() {
 // coroutine Pool implementation
 class PoolImpl {
   public:
-    PoolImpl()
-        : _pool(os::cpunum()) {
-    }
- 
-    PoolImpl(const std::function<void*()>& ccb, const std::function<void(void*)>& dcb)
-        : _pool(os::cpunum()), _ccb(ccb), _dcb(dcb) {
-    }
-   
-    ~PoolImpl() {
-        if (!_dcb) return;
-        for (size_t i = 0; i < _pool.size(); ++i) {
-            auto& v = _pool[i];
-            for (size_t k = 0; k < v.size(); ++k) _dcb(v[k]);
-            v.clear();
-        }
-    }
+    PoolImpl() : _pool(os::cpunum()) {}
+    ~PoolImpl() = default;
 
     void* pop() {
         auto& v = _pool[gSched->id()];
         if (!v.empty()) {
             void* p = v.back();
             v.pop_back();
-            if (p) return p;
+            return p;
         }
-
-        return _ccb ? _ccb() : 0;
+        return 0;
     }
 
     void push(void* p) {
-        return _pool[gSched->id()].push_back(p);
+        if (p) _pool[gSched->id()].push_back(p);
+    }
+
+    void clear(const std::function<void(void*)>& cb) {
+        if (!gSched) return;
+        auto& v = _pool[gSched->id()];
+        if (cb) for (size_t i = 0; i < v.size(); ++i) cb(v[i]);
+        v.clear();
     }
 
   private:
     std::vector<std::vector<void*>> _pool;
-    std::function<void*()> _ccb;
-    std::function<void(void*)> _dcb;
-    static const int sMax;
 };
 
 Pool::Pool() {
     _p = new PoolImpl;
-}
-
-Pool::Pool(const std::function<void*()>& ccb, const std::function<void(void*)>& dcb) {
-    _p = new PoolImpl(ccb, dcb);
 }
 
 Pool::~Pool() {
@@ -220,6 +205,10 @@ void* Pool::pop() {
 
 void Pool::push(void* p) {
     ((PoolImpl*)_p)->push(p);
+}
+
+void Pool::clear(const std::function<void(void*)>& cb) {
+    ((PoolImpl*)_p)->clear(cb);
 }
 
 } // co

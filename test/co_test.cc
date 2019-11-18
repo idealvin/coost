@@ -5,7 +5,6 @@
 co::Event ev;
 co::Mutex mtx;
 co::Pool pool;
-//co::Pool pool([] { return new int; }, [](void* p) { delete (int*) p; });
 
 int v = 0;
 int n = 0;

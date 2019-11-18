@@ -111,6 +111,8 @@ class Mutex {
 
 typedef LockGuard<co::Mutex> MutexGuard;
 
+// pop/push is coroutine-safe, lock is not necessary.
+// pop/push must be called in coroutine.
 class Pool {
   public:
     Pool();
@@ -118,24 +120,19 @@ class Pool {
 
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
-    // ccb is for creating a new element when the pool is empty
-    // dcb is for destroying elements in the pool when it is destroyed
-    // Pool p(
-    //     [] { return new T; },
-    //     [](void* p) { delete (T*) p; }
-    // );
-    Pool(const std::function<void*()>& ccb, const std::function<void(void*)>& dcb=0);
-
     Pool(const Pool&) = delete;
     void operator=(const Pool&) = delete;
 
-    // 1. pop an element from the pool if it is not empty
-    // 2. call ccb to create a new element if the pool is empty and ccb is set
-    // 3. otherwise return NULL
-    void* pop();                         // must be called in coroutine
+    // pop an element from the pool, return NULL if the pool is empty
+    void* pop();
 
-    // push back an element to the pool
-    void push(void*);                    // must be called in coroutine
+    // push an element to the pool, nothing is done if p == NULL
+    void push(void* p);
+
+    // clear pool for the current thread.
+    // a callback may be set to destroy elements in the pool:
+    //   [](void* p) { delete (T*) p; }
+    void clear(const std::function<void(void*)>& cb=0);
 
   private:
     void* _p;

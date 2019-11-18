@@ -127,7 +127,7 @@ void ServerImpl::on_connection(Connection* conn) {
         return;
     }
 
-    LOG << "accept new connection: " << *conn << ", conn fd: " << fd
+    LOG << "rpc server accept new connection: " << *conn << ", conn fd: " << fd
         << ", conn num: " << atomic_inc(&_conn_num); // << " now: " << now::us();
 
     int r = 0, len = 0;
