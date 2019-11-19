@@ -10,6 +10,7 @@ cd "$(dirname "$0")"
 rm -rf ../inc
 mkdir -p ../inc/base
 cp *.h ../inc/base/
+cp ../LICENSE ../inc/base/
 
 dirs='co hash unix win'
 
