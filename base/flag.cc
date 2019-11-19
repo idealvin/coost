@@ -259,6 +259,15 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
             show_flags_info();
             exit(0);
         }
+
+        if (!arg.starts_with('-') && arg.find('=') == arg.npos) {
+            if (arg.ends_with(".conf") || arg.ends_with("config")) {
+                if (fs::exists(arg)) {
+                    FLG_config = arg;
+                    args.clear();
+                }
+            }
+        }
     }
 
     fastring name, value;
@@ -266,16 +275,6 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
 
     for (size_t i = 0; i < args.size(); ++i) {
         const fastring& arg = args[i];
-
-        if (i == 0 && !arg.starts_with('-') && arg.find('=') == arg.npos) {
-            if (arg.ends_with(".conf") || arg.ends_with("config")) {
-                if (fs::exists(arg)) {
-                    FLG_config = arg;
-                    continue;
-                }
-            }
-        }
-
         size_t bp = arg.find_first_not_of('-');
         size_t ep = arg.find('=');
 
