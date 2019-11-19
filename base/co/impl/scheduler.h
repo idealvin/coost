@@ -319,7 +319,7 @@ class EvRead {
         ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
 
         _id = null_timer_id;
-        WSASetLastError(err); // -1 for recv timeout
+        WSASetLastError(ETIMEDOUT);
         return false;
     }
 
@@ -353,7 +353,7 @@ class EvWrite {
         ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
 
         _id = null_timer_id;
-        WSASetLastError(err); // -2 for send timeout
+        WSASetLastError(ETIMEDOUT);
         return false;
     }
 
@@ -387,7 +387,7 @@ class EvRead {
 
         gSched->del_ev_read(_fd);
         _id = null_timer_id;
-        errno = err; // -1 for recv timeout
+        errno = ETIMEDOUT;
         return false;
     }
 
@@ -424,7 +424,7 @@ class EvWrite {
         if (!gSched->timeout()) return true;
 
         _id = null_timer_id;
-        errno = err; // -2 for send timeout
+        errno = ETIMEDOUT;
         return false;
     }
 

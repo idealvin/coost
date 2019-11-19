@@ -182,7 +182,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        if (!ev.wait(ms, WSAETIMEDOUT)) return -1; // timeout
+        if (!ev.wait(ms, ETIMEDOUT)) return -1; // timeout
     }
 
     r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
@@ -559,11 +559,10 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
 }
 
 const char* strerror(int err) {
-    static const char* kTimeOutErr[3] = { "", "recv timeout", "send timeout" };
     static __thread std::unordered_map<int, const char*>* kErrStr = 0;
     if (!kErrStr) kErrStr = new std::unordered_map<int, const char*>();
 
-    if (err < 0) return kTimeOutErr[-err];
+    if (err == ETIMEDOUT) return "timedout";
     auto& e = (*kErrStr)[err];
     if (e) return e;
 

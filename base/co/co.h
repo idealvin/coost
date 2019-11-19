@@ -285,7 +285,8 @@ inline int error() { return WSAGetLastError(); }
 inline int error() { return errno; }
 #endif
 
-const char* strerror(int err); // this function is thread-safe
+// thread-safe strerror
+const char* strerror(int err);
 
 inline const char* strerror() {
     return co::strerror(co::error());
