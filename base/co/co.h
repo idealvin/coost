@@ -138,6 +138,42 @@ class Pool {
     void* _p;
 };
 
+template<typename T>
+class Kakalot {
+  public:
+    explicit Kakalot(Pool& pool) : _pool(pool) {
+        _p = (T*) _pool.pop();
+    }
+
+    explicit Kakalot(Pool* pool) : _pool(*pool) {
+        _p = (T*) _pool.pop();
+    }
+
+    ~Kakalot() {
+        _pool.push(_p);
+    }
+
+    bool operator==(T* p) const {
+        return _p == p;
+    }
+
+    bool operator!() const {
+        return !_p;
+    }
+
+    void operator=(T* p) {
+        if (_p != p) { delete _p; _p = p; }
+    }
+
+    T* operator->() const {
+        return _p;
+    }
+
+  private:
+    Pool& _pool;
+    T* _p;
+};
+
 // return a non-blocking socket on Linux & Mac, an overlapped socket on windows
 sock_t tcp_socket(int v=4); // 4 for ipv4, 6 for ipv6
 sock_t udp_socket(int v=4); // 4 for ipv4, 6 for ipv6
