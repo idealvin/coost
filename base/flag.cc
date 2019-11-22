@@ -438,7 +438,4 @@ std::vector<fastring> init(int argc, char** argv) {
     return v;
 }
 
-fastring set_value(const fastring& name, const fastring& value) {
-    return xx::set_flag_value(name, value);
-}
 } // namespace flag

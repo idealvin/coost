@@ -17,11 +17,6 @@ namespace flag {
 // Return non-flag elements.
 std::vector<fastring> init(int argc, char** argv);
 
-// Set value of flag by name.
-// set_value("xx", "true")  ->  -xx=true
-// Return error message on any error.
-fastring set_value(const fastring& name, const fastring& value);
-
 namespace xx {
 typedef fastring string;
 
