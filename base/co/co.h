@@ -182,7 +182,7 @@ sock_t udp_socket(int v=4); // 4 for ipv4, 6 for ipv6
 
 int close(sock_t fd);
 
- // close the fd @ms milliseconds later
+// close the fd @ms milliseconds later
 int close(sock_t fd, int ms);
 
 // @c:  'r' for SHUT_RD, 'w' for SHUT_WR, 'b' for SHUT_RDWR

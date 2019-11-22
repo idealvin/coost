@@ -14,7 +14,7 @@
 DEF_int32(rpc_max_msg_size, 8 << 20, "max size of rpc message, default: 8M");
 DEF_int32(rpc_recv_timeout, 1024, "recv timeout in ms");
 DEF_int32(rpc_send_timeout, 1024, "send timeout in ms");
-DEF_int32(rpc_conn_timeout, 2048, "connect timeout in ms");
+DEF_int32(rpc_conn_timeout, 3000, "connect timeout in ms");
 DEF_bool(rpc_tcp_nodelay, true, "enable tcp nodelay if true");
 DEF_bool(rpc_log, true, "enable rpc log if true");
 
@@ -363,11 +363,10 @@ ClientImpl::ClientImpl(const char* serv_ip, int serv_port, const char* passwd)
     : _serv_ip(serv_ip), _serv_port(serv_port), _fd(-1) {
     if (!_serv_ip || !*_serv_ip) _serv_ip = "127.0.0.1";
     if (passwd && *passwd) _passwd = md5sum(passwd);
-    this->connect();
 }
 
 ClientImpl::~ClientImpl() {
-    this->disconnect();
+    if (co::sched_id() != -1) this->disconnect();
 }
 
 void ClientImpl::disconnect() {
