@@ -260,4 +260,8 @@ std::vector<Scheduler*>& schedulers() {
     return sched_mgr().schedulers();
 }
 
+int sched_id() {
+    return gSched->id();
+}
+
 } // co

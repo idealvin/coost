@@ -66,6 +66,9 @@ void sleep(unsigned int ms);
 // stop coroutine schedulers
 void stop();
 
+// scheduler id, return -1 if the current thread is not a coroutine scheduler.
+int sched_id();
+
 // for communications between coroutines
 class Event {
   public:
@@ -111,8 +114,7 @@ class Mutex {
 
 typedef LockGuard<co::Mutex> MutexGuard;
 
-// pop/push is coroutine-safe, lock is not necessary.
-// pop/push must be called in coroutine.
+// pop/push is coroutine-safe, must be called in coroutine.
 class Pool {
   public:
     Pool();
