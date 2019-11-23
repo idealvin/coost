@@ -4,10 +4,10 @@
 
 `CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，仅使用了少量 C++11 特性。
 
-- CO 实现的功能组件：
+- CO 包含如下的功能组件：
     - 基本定义(def)
     - 原子操作(atomic)
-    - 快速伪随机数生成器(ramdom)
+    - 快速随机数生成器(ramdom)
     - LruMap
     - 基本类型快速转字符串(fast)
     - 高效字符流(fastream)
@@ -19,50 +19,20 @@
     - 时间库(time)
     - 线程库(thread)
     - 协程库(co)
-    - 高效 json 库(json)
-    - 高性能 json rpc 框架(rpc)
-    - hash 库(hash)
-    - path 库(path)
+    - 高效 json 库
+    - 高性能 json rpc 框架
+    - hash 库
+    - path 库
     - 文件系统操作(fs)
     - 系统操作(os)
 
-## 编译与运行
+## 参考文档
 
-windows 平台推荐用 `vs2015` 编译，linux、mac 平台推荐用 [scons](http://scons.org/) 编译。
+- [md](https://github.com/idealvin/co/blob/master/docs.md)
+- [pdf](https://code.aliyun.com/idealvin/docs/blob/de01e49fe5f971d9ce24d196ecd46dc93a0644d3/pdf/co.pdf)
 
-- 编译器
-    - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
-    - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-    - Windows: [vs2015](https://visualstudio.microsoft.com/)
+## 友情合作
 
-- 安装 `scons`
-
-```sh
-python setup.py install --prefix=/usr/local --no-version-script --no-install-man
-```
-
-- 编译 `libbase`
-
-```sh
-# co/lib 目录中生成 libbase.a 或 base.lib
-cd co/base && scons -j4
-```
-
-- 编译 `unitest` 代码
-
-```sh
-# 生成 build/unitest
-cd co/unitest/base && scons -j4
-
-# 运行所有测试用例
-./unitest -a
-```
-
-- 编译 `test` 代码
-
-```sh
-cd co/test
-./_build.sh log_test.cc   # 生成 build/log.exe
-./_build.sh flag_test.cc  # 生成 build/flag.exe
-... ...
-```
+- 有问题请提交到 [github](https://github.com/idealvin/co/).
+- 赞助、商务合作请联系 `idealvin@qq.com`.
+- 捐他一个亿！请用微信扫 [co.pdf](https://code.aliyun.com/idealvin/docs/blob/de01e49fe5f971d9ce24d196ecd46dc93a0644d3/pdf/co.pdf) 中的二维码.
