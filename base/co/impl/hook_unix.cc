@@ -446,7 +446,7 @@ int select(int nfds, fd_set* r, fd_set* w, fd_set* e, struct timeval* tv) {
         return 0;
     }
 
-    // it's boring to hook the stupid select, just check select every 16 ms
+    // it's boring to hook select, just check select every 16 ms
     struct timeval o = { 0, 0 };
     do {
         int x = fp_select(nfds, r, w, e, &o);
