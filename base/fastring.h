@@ -58,7 +58,7 @@ class fastring {
         s._p = 0;
     }
 
-    fastring(const fastring& s) _p(s._p) {
+    fastring(const fastring& s) : _p(s._p) {
         if (_p) ++_p->refn;
     }
 
