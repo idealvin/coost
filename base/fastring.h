@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma warning (disable:4200)
 #endif
 
@@ -14,7 +14,7 @@ class fastring {
   public:
     static const size_t npos = (size_t)-1;
 
-    fastring() : _p(0) {}
+    constexpr fastring() noexcept : _p(0) {}
 
     explicit fastring(size_t cap) {
         this->_Init(cap);
@@ -54,17 +54,15 @@ class fastring {
         _p = 0;
     }
 
-    fastring(fastring&& s) {
-        _p = s._p;
+    fastring(fastring&& s) noexcept : _p(s._p) {
         s._p = 0;
     }
 
-    fastring(const fastring& s) {
-        _p = s._p;
+    fastring(const fastring& s) : _p(s._p) {
         if (_p) ++_p->refn;
     }
 
-    fastring& operator=(fastring&& s) {
+    fastring& operator=(fastring&& s) noexcept {
         if (_p && --_p->refn == 0) free(_p);
         _p = s._p;
         s._p = 0;
@@ -281,15 +279,13 @@ class fastring {
         return this->empty() ? fastring() : fastring(_p->s, _p->size).tolower();
     }
 
-    void swap(fastring& s) {
-        if (&s != this) {
-            _Mem* p = _p;
-            _p = s._p;
-            s._p = p;
-        }
+    void swap(fastring& s) noexcept {
+        _Mem* p = _p;
+        _p = s._p;
+        s._p = p;
     }
 
-    void swap(fastring&& s) {
+    void swap(fastring&& s) noexcept {
         s.swap(*this);
     }
 
@@ -440,6 +436,10 @@ inline bool operator>=(const fastring& a, const char* b) {
 
 inline bool operator>=(const char* a, const fastring& b) {
     return !(b > a);
+}
+
+inline void swap(fastring& lhs, fastring& rhs) noexcept {
+    lhs.swap(rhs);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const fastring& s) {
