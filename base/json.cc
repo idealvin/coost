@@ -225,7 +225,7 @@ inline const char* read_string(const char* b, const char* e, void** v) {
         fs.append(b, p - b);
         if (unlikely(++p == e)) return 0;
 
-        if (*p == '"' || *p == '\\') {
+        if (*p == '"' || *p == '\\' || *p == '/') {
             fs.append(*p);
         } else if (*p == 'n') {
             fs.append('\n');
