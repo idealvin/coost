@@ -146,6 +146,9 @@ DEF_test(json) {
 
         v = json::parse("{ \"key\" : true }");
         EXPECT_EQ(v["key"].get_bool(), true);
+
+        v = json::parse("{ \"key\": \"\\r\\n\\t\\b\\f\" }");
+        EXPECT_EQ(fastring(v["key"].get_string()), "\r\n\t\b\f");
     }
 }
 

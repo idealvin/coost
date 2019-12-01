@@ -53,7 +53,7 @@ void Value::_Json2str(fastream& fs) const {
     if (_mem->type == kString) {
         fs << '"';
         const char* cs = (const char*)(_mem + 1);
-        const char* p = strpbrk(cs, "\r\n\t\"\\");
+        const char* p = strpbrk(cs, "\r\n\t\b\f\"\\");
         if (!p) {
             fs.append(cs, _mem->slen);
         } else {
@@ -65,12 +65,16 @@ void Value::_Json2str(fastream& fs) const {
                     fs.append('n');
                 } else if (*p == '\r') {
                     fs.append('r');
-                } else {
+                } else if (*p == '\t') {
                     fs.append('t');
+                } else if (*p == '\b') {
+                    fs.append('b');
+                } else {
+                    fs.append('f');
                 }
 
                 cs = p + 1;
-                p = strpbrk(cs, "\r\n\t\"\\");
+                p = strpbrk(cs, "\r\n\t\b\f\"\\");
 
                 if (!p) {
                     fs.append(cs);
@@ -229,6 +233,10 @@ inline const char* read_string(const char* b, const char* e, void** v) {
             fs.append('\r');
         } else if (*p == 't') {
             fs.append('\t');
+        } else if (*p == 'b') {
+            fs.append('\b');
+        } else if (*p == 'f') {
+            fs.append('\f');
         } else {
             return 0;
         }
