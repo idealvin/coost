@@ -212,6 +212,72 @@ inline bool is_white_char(char c) {
     return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
 }
 
+// Read unicode sequences as a UTF8 string.
+// The following function is neally taken from jsoncpp, all rights belongs to JSONCPP.
+// See more details on https://github.com/open-source-parsers/jsoncpp.
+const char* read_unicode(const char* b, const char* e, fastream& fs) {
+    if (unlikely(e < b + 3)) return 0;
+
+    unsigned int v = 0;
+    for (int i = 0; i < 4; ++i) {
+        v <<= 4;
+        char c = *b++;
+        if ('0' <= c && c <= '9') {
+            v += c - '0';
+        } else if ('a' <= c && c <= 'f') {
+            v += c - 'a' + 10;
+        } else if ('A' <= c && c <= 'F') {
+            v += c - 'A' + 10;
+        } else {
+            return 0;
+        }
+    }
+
+    if (0xd800 <= v && v <= 0xdbff) {
+        if (unlikely(e < b + 5)) return 0;
+        if (unlikely(*b++ != '\\' || *b++ != 'u')) return 0;
+
+        unsigned int u = 0;
+        for (int i = 0; i < 4; ++i) {
+            u <<= 4;
+            char c = *b++;
+            if ('0' <= c && c <= '9') {
+                u += c - '0';
+            } else if ('a' <= c && c <= 'f') {
+                u += c - 'a' + 10;
+            } else if ('A' <= c && c <= 'F') {
+                u += c - 'A' + 10;
+            } else {
+                return 0;
+            }
+        }
+
+        if (unlikely(u < 0xdc00 || u > 0xdfff)) return 0; 
+        v = 0x10000 + ((v & 0x3ff) << 10) + (u & 0x3ff);
+    }
+
+    // convert to UTF8
+    if (v <= 0x7f) {
+        fs.append((char) v);
+    } else if (v <= 0x7ff) {
+        fs.append((char) (0xc0 | (0x1f & (v >> 6))));
+        fs.append((char) (0x80 | (0x3f & v)));
+    } else if (v <= 0xffff) {
+        fs.append((char) (0xe0 | (0x0f & (v >> 12))));
+        fs.append((char) (0x80 | (0x3f & (v >> 6))));
+        fs.append((char) (0x80 | (0x3f & v)));
+    } else if (v <= 0x10ffff) {
+        fs.append((char) (0xf0 | (0x07 & (v >> 18))));
+        fs.append((char) (0x80 | (0x3f & (v >> 12))));
+        fs.append((char) (0x80 | (0x3f & (v >> 6))));
+        fs.append((char) (0x80 | (0x3f & v)));
+    } else {
+        return 0;
+    }
+
+    return b - 1;
+}
+
 inline const char* read_string(const char* b, const char* e, void** v) {
     const char* p = strpbrk(b, "\"\\"); // find the first '\\' or '"'
     if (unlikely(!p || p >= e)) return 0;
@@ -227,6 +293,9 @@ inline const char* read_string(const char* b, const char* e, void** v) {
 
         if (*p == '"' || *p == '\\' || *p == '/') {
             fs.append(*p);
+        } else if (*p == 'u') {
+            p = read_unicode(p + 1, e, fs);
+            if (!p) return 0;
         } else if (*p == 'n') {
             fs.append('\n');
         } else if (*p == 'r') {
