@@ -26,6 +26,10 @@
     - 文件系统操作(fs)
     - 系统操作(os)
 
+## 特别致谢
+
+- co 协程库切换 context 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+
 ## 参考文档
 
 - [md](https://github.com/idealvin/co/blob/master/docs.md)
@@ -48,15 +52,15 @@
 | mac ssd | 17MB/s | 450MB/s |
 | linux ssd | 54MB/s | 1023MB/s |
 
-上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/base/log.h) 几乎甩了 [glog](https://github.com/google/glog) 两条街。
+上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/base/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
 为何如此快？一是 log 库内部基于比 sprintf 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
 - **[json](https://github.com/idealvin/co/blob/master/base/json.h)**
 
-这是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的速度能达到 rapidjson 的两倍。
+这是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
 
-co/json 虽不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
+co/json 目前对 json 标准的支持远不如 rapidjson 全面，仅能满足程序员的基本需求，但更容易使用。
 
 - **[co](https://github.com/idealvin/co/tree/master/base/co)**
 
@@ -84,6 +88,13 @@ void f() {
 go(f);
 ```
 
+## 贡献代码
+
+1. `co/base` 目录下修改或新增代码，确保 `libbase` 编译通过.
+2. 若有必要，在 `co/unitest/base` 目录下修改或新增单元测试用例，确保单元测试全部通过.
+3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
+
+编译方法请参考上述 pdf 参考文档，非常感谢大家的支持！
 
 ## 友情合作
 
