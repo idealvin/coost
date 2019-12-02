@@ -23,7 +23,7 @@ namespace ___ {
 namespace log {
 namespace xx {
 
-__thread fastream* _Log = NULL;
+__thread fastream* xxLog = NULL;
 
 // failure handler for SIGSEGV SIGABRT SIGFPE SIGBUS.
 void on_failure();

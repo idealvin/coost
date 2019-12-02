@@ -24,7 +24,7 @@ namespace xx {
 void push_fatal_log(fastream* fs);
 void push_level_log(fastream* fs, int level);
 
-extern __thread fastream* _Log;
+extern __thread fastream* xxLog;
 
 enum LogLevel {
     debug = 0,
@@ -37,21 +37,21 @@ enum LogLevel {
 class LevelLogSaver {
   public:
     LevelLogSaver(const char* file, unsigned line, int level) : _level(level) {
-        if (_Log == 0) _Log = new fastream(128);
-        _Log->clear();
+        if (xxLog == 0) xxLog = new fastream(128);
+        xxLog->clear();
 
-        (*_Log) << "DIWEF"[level];
-        _Log->resize(14); // make room for time: 1108 18:16:08
-        (*_Log) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
+        (*xxLog) << "DIWEF"[level];
+        xxLog->resize(14); // make room for time: 1108 18:16:08
+        (*xxLog) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~LevelLogSaver() {
-        (*_Log) << '\n';
-        push_level_log(_Log, _level);
+        (*xxLog) << '\n';
+        push_level_log(xxLog, _level);
     }
 
     fastream& fs() {
-        return *_Log;
+        return *xxLog;
     }
 
   private:
@@ -61,18 +61,18 @@ class LevelLogSaver {
 class FatalLogSaver {
   public:
     FatalLogSaver(const char* file, unsigned int line) {
-        if (_Log == 0) _Log = new fastream(128);
-        _Log->clear();
-        (*_Log) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
+        if (xxLog == 0) xxLog = new fastream(128);
+        xxLog->clear();
+        (*xxLog) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~FatalLogSaver() {
-        (*_Log) << '\n';
-        push_fatal_log(_Log);
+        (*xxLog) << '\n';
+        push_fatal_log(xxLog);
     }
 
     fastream& fs() {
-        return *_Log;
+        return *xxLog;
     }
 };
 
@@ -132,8 +132,8 @@ using namespace ___;
 #define CHECK(cond) \
     if (!(cond)) _FLOG << "check failed: " #cond "! "
 
-#define CHECK_NOT0(p) \
-    if ((p) == 0) _FLOG << "check failed: " #p " mustn't be 0! "
+#define CHECK_NOTNULL(p) \
+    if ((p) == 0) _FLOG << "check failed: " #p " mustn't be NULL! "
 
 #define _CHECK_OP(a, b, op) \
     for (auto _x_ = std::make_pair(a, b); !(_x_.first op _x_.second);) \
@@ -148,17 +148,17 @@ using namespace ___;
 #define CHECK_LT(a, b) _CHECK_OP(a, b, <)
 
 // Occasional Log.
-#define _LOG_COUNTER_NAME(x, n) _LOG_COUNTER_NAME_CONCAT(x, n)
-#define _LOG_COUNTER_NAME_CONCAT(x, n) x##n
-#define _LOG_COUNTER _LOG_COUNTER_NAME(_Log_counter_, __LINE__)
+#define XX_LOG_COUNTER_NAME(x, n) XX_LOG_COUNTER_NAME_CONCAT(x, n)
+#define XX_LOG_COUNTER_NAME_CONCAT(x, n) x##n
+#define XX_LOG_COUNTER XX_LOG_COUNTER_NAME(XX_log_counter_, __LINE__)
 
 #define _LOG_EVERY_N(n, what) \
-    static unsigned int _Log_counter_ = 0; \
-    if (atomic_fetch_inc(&_Log_counter_) % (n) == 0) what
+    static unsigned int XX_LOG_COUNTER = 0; \
+    if (atomic_fetch_inc(&XX_LOG_COUNTER) % (n) == 0) what
 
 #define _LOG_FIRST_N(n, what) \
-    static int _Log_counter_ = 0; \
-    if (_Log_counter_ < (n) && atomic_fetch_inc(&_Log_counter_) < (n)) what
+    static int XX_LOG_COUNTER = 0; \
+    if (XX_LOG_COUNTER < (n) && atomic_fetch_inc(&XX_LOG_COUNTER) < (n)) what
 
 #define DLOG_EVERY_N(n) _LOG_EVERY_N(n, DLOG)
 #define  LOG_EVERY_N(n) _LOG_EVERY_N(n, LOG)

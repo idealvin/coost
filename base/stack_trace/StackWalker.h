@@ -1,5 +1,4 @@
-#ifndef __STACKWALKER_H__
-#define __STACKWALKER_H__
+#pragma once
 
 #if defined(_MSC_VER)
 
@@ -39,7 +38,7 @@
  * **********************************************************************/
 // #pragma once is supported starting with _MSC_VER 1000,
 // so we need not to check the version (because we only support _MSC_VER >= 1100)!
-#pragma once
+// modified by Alvin at 2019.12.02
 
 #include <windows.h>
 
@@ -251,5 +250,3 @@ protected:
 #endif
 
 #endif //defined(_MSC_VER)
-
-#endif // __STACKWALKER_H__
