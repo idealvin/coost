@@ -44,6 +44,10 @@ else
     LIBBASE="libbase.a"
 fi
 
+if [[ ! -d "../build" ]]; then
+    mkdir ../build
+fi
+
 $CC $CCFLAGS -O2 -o ../build/$OUT $src ../lib/$LIBBASE -I.. $LIBS -ldl
 echo create build/$OUT ok
 
