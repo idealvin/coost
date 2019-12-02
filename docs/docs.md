@@ -2151,7 +2151,7 @@ fs::mkdir("a/b", true);     // mkdir -p a/b
 
 fs::remove("x/x.txt");      // rm x/x.txt
 fs::remove("a/b");          // rmdir a/b   删除空目录
-fs::reomve("a/b", true);    // rm -rf a/b     
+fs::remove("a/b", true);    // rm -rf a/b
 
 fs::rename("a/b", "a/c");   // 重命名
 fs::symlink("/usr", "x");   // 软链接 x -> /usr，windows 需要 admin 权限
