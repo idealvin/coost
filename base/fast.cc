@@ -36,7 +36,7 @@ int init_table() {
     return 0;
 }
 
-static int _initialized = init_table();
+static int xxInitialized = init_table();
 
 int u32toh(uint32 v, char* buf) {
     uint16 b[4], *p = b + 4;
@@ -152,7 +152,7 @@ __thread LruMap<uint64, fastring>* double_cache = 0;
 #endif
 
 int dtoa(float v, char* buf) {
-    (void) _initialized;
+    (void) xxInitialized;
     uint32 key = *(uint32*)&v;
 
     if (float_cache) {

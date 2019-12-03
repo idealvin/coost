@@ -172,16 +172,16 @@ class Thread {
 };
 
 namespace xx {
-unsigned int __gettid(); // get current thread id
+unsigned int xxGettid(); // get current thread id
 } // xx
 
-inline unsigned int __gettid() {
+inline unsigned int xxGettid() {
     static __thread unsigned int id = 0;
     if (id != 0) return id;
-    return id = xx::__gettid();
+    return id = xx::xxGettid();
 }
 
-#define gettid __gettid
+#define gettid xxGettid
 
 // thread_ptr is based on TLS. Each thread sets and holds its own pointer.
 // It is easy to use, just like the std::unique_ptr.
