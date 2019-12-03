@@ -2,7 +2,9 @@
 
 class Random {
   public:
-    explicit Random(unsigned int seed = 1) : _seed(seed & 0x7fffffffu) {
+    Random() : Random(1u) {}
+
+    explicit Random(unsigned int seed) : _seed(seed & 0x7fffffffu) {
         if (_seed == 0 || _seed == 2147483647L) _seed = 1;
     }
 
