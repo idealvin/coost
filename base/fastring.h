@@ -43,8 +43,8 @@ class fastring {
 
     fastring(char* p, size_t cap, size_t size) {
         _p = (_Mem*) p;
-        _p->cap = cap - this->header_size();
-        _p->size = size - this->header_size();
+        _p->cap = (unsigned) (cap - this->header_size());
+        _p->size = (unsigned) (size - this->header_size());
         _p->refn = 1;
     }
 
