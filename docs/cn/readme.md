@@ -16,7 +16,7 @@ idealvin@qq.com
 - [1.概览](1.概览.md)
 - [2.基本定义(def)](2.基本定义(def).md)
 - [3.原子操作(atomic)](3.原子操作(atomic).md)
-- [4.随机数生成器(ramdom)](4.随机数生成器(random).md)
+- [4.随机数生成器(random)](4.随机数生成器(random).md)
 - [5.LruMap](5.LRU-map.md)
 - [6.基本类型快速转字符串(fast)](6.基本类型快速转字符串(fast).md)
 - [7.高效字符流(fastream)](7.高效字符流(fastream).md)
