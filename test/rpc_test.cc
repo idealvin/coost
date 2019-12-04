@@ -13,17 +13,23 @@ DEF_string(serv_ip, "127.0.0.1", "server ip");
 
 namespace xx {
 
-void HelloWorld::hello(const Json& req, Json& res) {
-    res.add_member("method", "hello");
-    res.add_member("err", 200);
-    res.add_member("errmsg", "200 ok");
-}
+class HelloWorldImpl : public HelloWorld {
+  public:
+    HelloWorldImpl() = default;
+    virtual ~HelloWorldImpl() = default;
 
-void HelloWorld::world(const Json& req, Json& res) {
-    res.add_member("method", "world");
-    res.add_member("err", 200);
-    res.add_member("errmsg", "200 ok");
-}
+    virtual void hello(const Json& req, Json& res) {
+        res.add_member("method", "hello");
+        res.add_member("err", 200);
+        res.add_member("errmsg", "200 ok");
+    }
+
+    virtual void world(const Json& req, Json& res) {
+        res.add_member("method", "world");
+        res.add_member("err", 200);
+        res.add_member("errmsg", "200 ok");
+    }
+};
 
 } // xx
 
@@ -44,7 +50,7 @@ int main(int argc, char** argv) {
 
     if (!FLG_c) {
         rpc::Server* server = rpc::new_server("", 7788, FLG_passwd.c_str()); 
-        server->add_service(new xx::HelloWorld);
+        server->add_service(new xx::HelloWorldImpl);
         server->start();
 
     } else {
