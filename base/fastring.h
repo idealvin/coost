@@ -5,6 +5,7 @@
 #endif
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ostream>
@@ -43,8 +44,8 @@ class fastring {
 
     fastring(char* p, size_t cap, size_t size) {
         _p = (_Mem*) p;
-        _p->cap = (unsigned) (cap - this->header_size());
-        _p->size = (unsigned) (size - this->header_size());
+        _p->cap = (uint32_t) (cap - this->header_size());
+        _p->size = (uint32_t) (size - this->header_size());
         _p->refn = 1;
     }
 
@@ -110,7 +111,7 @@ class fastring {
     // !! newly allocated memory is not initialized
     void resize(size_t n) {
         _p ? this->_Reserve(n) : this->_Init(n);
-        _p->size = (unsigned) n;
+        _p->size = (uint32_t) n;
     }
 
     void reserve(size_t n) {
@@ -146,7 +147,7 @@ class fastring {
     fastring& append(char c, size_t n) {
         _p ? this->_Ensure(n) : this->_Init(n + 1);
         memset(_p->s + _p->size, c, n);
-        _p->size += (unsigned) n;
+        _p->size += (uint32_t) n;
         return *this;
     }
 
@@ -219,7 +220,7 @@ class fastring {
     size_t find_last_not_of(const char* s) const;
     size_t find_last_not_of(char c) const;
 
-    void replace(const char* sub, const char* to, unsigned maxreplace=-1);
+    void replace(const char* sub, const char* to, uint32_t maxreplace=-1);
 
     void strip(const char* s=" \t\r\n", char d='b');
     
@@ -294,8 +295,8 @@ class fastring {
     void _Reserve(size_t n);
 
     void _Ensure(size_t n) {
-        if (_p->cap < _p->size + (unsigned)n) {
-            this->_Reserve((_p->cap * 3 >> 1) + (unsigned)n);
+        if (_p->cap < _p->size + (uint32_t)n) {
+            this->_Reserve((_p->cap * 3 >> 1) + (uint32_t)n);
         }
     }
 
@@ -306,7 +307,7 @@ class fastring {
     fastring& _Append(const void* p, size_t n) {
         _p ? this->_Ensure(n): this->_Init(n + 1);
         memcpy(_p->s + _p->size, p, n);
-        _p->size += (unsigned) n;
+        _p->size += (uint32_t) n;
         return *this;
     }
 
@@ -314,10 +315,10 @@ class fastring {
 
   private:
     struct _Mem {
-        unsigned cap;
-        unsigned size;
-        unsigned refn;
-        unsigned ____;
+        uint32_t cap;
+        uint32_t size;
+        uint32_t refn;
+        uint32_t ____;
         char s[];
     }; // 16 bytes
 

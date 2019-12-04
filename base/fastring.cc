@@ -2,8 +2,8 @@
 
 void fastring::_Init(size_t cap, size_t size) {
     _p = (_Mem*) malloc(sizeof(_Mem) + cap);
-    _p->cap = (unsigned) cap;
-    _p->size = (unsigned) size;
+    _p->cap = (uint32_t) cap;
+    _p->size = (uint32_t) size;
     _p->refn = 1;
 }
 
@@ -22,11 +22,11 @@ fastring& fastring::operator=(const char* s) {
         if (!this->_Inside(s)) {
             this->_Reserve(n + 1);
             memcpy(_p->s, s, n + 1);
-            _p->size = (unsigned) n;
+            _p->size = (uint32_t) n;
         } else if (s != _p->s) {
             assert(n <= _p->size);
             memmove(_p->s, s, n + 1); // memory may overlap
-            _p->size = (unsigned) n;
+            _p->size = (uint32_t) n;
         }
     } else {
         this->_Init(n + 1, n);
@@ -77,23 +77,23 @@ size_t fastring::rfind(char c) const {
 }
 
 size_t fastring::rfind(const char* sub) const {
-    unsigned int m = (unsigned int) strlen(sub);
+    uint32_t m = (uint32_t) strlen(sub);
     if (m == 1) return this->rfind(*sub);
 
-    unsigned int n = (unsigned int) this->size();
+    uint32_t n = (uint32_t) this->size();
     if (n < m) return npos;
 
     const unsigned char* s = (const unsigned char*) _p->s;
     const unsigned char* p = (const unsigned char*) sub;
 
-    unsigned int tbl[256] = { 0 };
-    for (unsigned int i = m; i > 0; --i) tbl[p[i - 1]] = i;
+    uint32_t tbl[256] = { 0 };
+    for (uint32_t i = m; i > 0; --i) tbl[p[i - 1]] = i;
 
-    for (unsigned int j = n - m;;) {
+    for (uint32_t j = n - m;;) {
         if (memcmp(p, s + j, m) == 0) return j;
         if (j == 0) return npos;
 
-        unsigned int x = tbl[s[j - 1]];
+        uint32_t x = tbl[s[j - 1]];
         if (x == 0) x = m + 1;
         if (j < x) return npos;
         j -= x;
@@ -126,7 +126,7 @@ size_t fastring::find_last_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (unsigned i = _p->size; i > 0;) {
+    for (uint32_t i = _p->size; i > 0;) {
         if (bs[(u8) (_p->s[--i])]) return i;
     }
 
@@ -140,7 +140,7 @@ size_t fastring::find_last_not_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (unsigned i = _p->size; i > 0;) {
+    for (uint32_t i = _p->size; i > 0;) {
         if (!bs[(u8) (_p->s[--i])]) return i;
     }
 
@@ -149,13 +149,13 @@ size_t fastring::find_last_not_of(const char* s) const {
 
 size_t fastring::find_last_not_of(char c) const {
     if (!_p) return npos;
-    for (unsigned i = _p->size; i > 0;) {
+    for (uint32_t i = _p->size; i > 0;) {
         if (_p->s[--i] != c) return i;
     }
     return npos;
 }
 
-void fastring::replace(const char* sub, const char* to, unsigned maxreplace) {
+void fastring::replace(const char* sub, const char* to, uint32_t maxreplace) {
     if (!_p) return;
 
     const char* from = this->c_str();
@@ -186,23 +186,23 @@ void fastring::strip(const char* s, char d) {
     while (*s) bs[(const u8) (*s++)] = 1;
 
     if (d == 'l' || d == 'L') {
-        unsigned b = 0;
+        uint32_t b = 0;
         while (b < _p->size && bs[(u8)(_p->s[b])]) ++b;
         if (b == 0 || (_p->size -= b) == 0) return;
         memmove(_p->s, _p->s + b, _p->size);
 
     } else if (d == 'r' || d == 'R') {
-        unsigned e = _p->size;
+        uint32_t e = _p->size;
         while (e > 0 && bs[(u8)(_p->s[e - 1])]) --e;
         if (e != _p->size) _p->size = e;
 
     } else {
-        unsigned e = _p->size;
+        uint32_t e = _p->size;
         while (e > 0 && bs[(u8)(_p->s[e - 1])]) --e;
         if (e != _p->size) _p->size = e;
         if (e == 0) return;
 
-        unsigned b = 0;
+        uint32_t b = 0;
         while (b < _p->size && bs[(u8)(_p->s[b])]) ++b;
         if (b == 0 || (_p->size -= b) == 0) return;
         memmove(_p->s, _p->s + b, _p->size);
@@ -227,7 +227,7 @@ bool fastring::match(const char* p) const {
 
 fastring& fastring::toupper() {
     if (!_p) return *this;
-    for (unsigned i = 0; i < _p->size; ++i) {
+    for (uint32_t i = 0; i < _p->size; ++i) {
         char& c = _p->s[i];
         if ('a' <= c && c <= 'z') c ^= 32;
     }
@@ -236,7 +236,7 @@ fastring& fastring::toupper() {
 
 fastring& fastring::tolower() {
     if (!_p) return *this;
-    for (unsigned i = 0; i < _p->size; ++i) {
+    for (uint32_t i = 0; i < _p->size; ++i) {
         char& c = _p->s[i];
         if ('A' <= c && c <= 'Z') c ^= 32;
     }
@@ -248,7 +248,7 @@ void fastring::_Reserve(size_t n) {
         if (_p->refn == 1) {
             _p = (_Mem*) realloc(_p, n + sizeof(_Mem));
             assert(_p);
-            _p->cap = (unsigned) n;
+            _p->cap = (uint32_t) n;
         } else {
             --_p->refn;
             char* s = _p->s;
@@ -270,7 +270,7 @@ fastring& fastring::_Append_safe(const void* x, size_t n) {
             this->_Ensure(n);
             memcpy(_p->s + _p->size, _p->s + pos, n);
         }
-        _p->size += (unsigned) n;
+        _p->size += (uint32_t) n;
     } else {
         this->_Init(n + 1, n);
         memcpy(_p->s, p, n);

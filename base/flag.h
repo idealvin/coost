@@ -1,10 +1,7 @@
 #pragma once
 
 #include "fastring.h"
-
-#ifndef _MSC_VER
 #include <stdint.h>
-#endif
 #include <vector>
 
 // FLAG is a library similar to Google's gflags.
@@ -13,24 +10,16 @@
 
 namespace flag {
 
-// Parse flags from command line or from a config file specified by -config.
+// Parse command line flags or config file specified by -config.
 // Return non-flag elements.
 std::vector<fastring> init(int argc, char** argv);
 
 namespace xx {
 typedef fastring string;
-
-#ifdef _MSC_VER
-typedef __int32 int32;
-typedef __int64 int64;
-typedef unsigned __int32 uint32;
-typedef unsigned __int64 uint64;
-#else
 typedef int32_t int32;
 typedef int64_t int64;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
-#endif
 
 enum {
     TYPE_bool,

@@ -1,22 +1,5 @@
 #pragma once
 
-#ifdef _MSC_VER
-
-typedef __int8  int8;
-typedef __int16 int16;
-typedef __int32 int32;
-typedef __int64 int64;
-
-typedef unsigned __int8  uint8;
-typedef unsigned __int16 uint16;
-typedef unsigned __int32 uint32;
-typedef unsigned __int64 uint64;
-
-#ifndef __thread
-#define __thread __declspec(thread)
-#endif
-
-#else
 #include <stdint.h>
 
 typedef int8_t  int8;
@@ -29,10 +12,10 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
-#ifndef __forceinline
+#ifdef _MSC_VER
+#define __thread __declspec(thread)
+#else
 #define __forceinline __attribute__((always_inline))
-#endif
-
 #endif
 
 #define load8(p)     (*(const uint8*) (p))
