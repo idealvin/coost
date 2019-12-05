@@ -435,7 +435,11 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
                 b = read_token(b, e, &v);
             }
 
-            if (b == 0) return 0;
+            if (unlikely(b == 0)) {
+                if (v) ((Value*)&v)->~Value();
+                return 0;
+            }
+
             res->__add_member(key, v);
             break;
         }
@@ -469,7 +473,11 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
             b = read_token(b, e, &v);
         }
 
-        if (b == 0) return 0;
+        if (unlikely(b == 0)) {
+            if (v) ((Value*)&v)->~Value();
+            return 0;
+        }
+
         res->__push_back(v);
 
         for (++b; b < e; ++b) {
