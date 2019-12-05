@@ -103,6 +103,16 @@ DEF_test(json) {
         v = json::parse("{}");
         EXPECT_EQ(v.str(), "{}");
 
+        v = json::parse("{\"key\": []}");
+        EXPECT(v.is_object());
+        EXPECT(v["key"].is_array());
+        EXPECT_EQ(v["key"].str(), "[]");
+
+        v = json::parse("{\"key\": {}}");
+        EXPECT(v.is_object());
+        EXPECT(v["key"].is_object());
+        EXPECT_EQ(v["key"].str(), "{}");
+
         v.parse_from("{ \"a\":23, \n \r \t  \"b\":\"str\", \r\n }");
         EXPECT_EQ(v.str(), "{\"a\":23,\"b\":\"str\"}");
 

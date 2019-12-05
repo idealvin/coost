@@ -234,7 +234,7 @@ class Value {
     }
 
     void set_object() {
-        if (_mem ) {
+        if (_mem) {
             if (_mem->type == kObject) return;
             this->reset();
         }

@@ -453,6 +453,7 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
 }
 
 static const char* parse_array(const char* b, const char* e, Value* res, fastream& s) {
+    res->set_array();
     for (; b < e; ++b) {
         if (unlikely(is_white_char(*b))) continue;
         if (*b == ']') return b; // ARR_END
