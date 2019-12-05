@@ -127,11 +127,15 @@ class Epoll {
     }
 
     static bool has_ev_read(const epoll_event& ev) {
-        return ev.events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLPRI);
+        return ev.events & EPOLLIN;
     }
 
     static bool has_ev_write(const epoll_event& ev) {
-        return ev.events & (EPOLLOUT | EPOLLERR | EPOLLHUP);
+        return ev.events & EPOLLOUT;
+    }
+
+    static bool has_ev_error(const epoll_event& ev) {
+        return ev.events & (EPOLLERR | EPOLLHUP);
     }
 
     static bool has_ev_pipe(const epoll_event& ev) {
