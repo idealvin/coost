@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma warning (disable:4624)
 #endif
 
@@ -13,14 +13,13 @@
 #include <string.h>
 #include <string>
 #include <new>
+#include <utility>
 
 class fastream {
   public:
-    explicit fastream(size_t capacity = 32) {
-        _cap = capacity;
-        _size = 0;
-        _p = (char*) malloc(capacity);
-    }
+    fastream() : fastream(32) {}
+    
+    explicit fastream(size_t capacity) : _cap(capacity), _size(0), _p((char*) malloc(capacity)) {}
 
     ~fastream() {
         free(_p);
@@ -29,15 +28,21 @@ class fastream {
     fastream(const fastream&) = delete;
     void operator=(const fastream&) = delete;
 
-    fastream(fastream&& fs) {
-        memcpy(this, &fs, sizeof(fs));
+    fastream(fastream&& fs) noexcept : _cap(fs._cap), _size(_fs.size), _p(_fs.cap) {
+        fs._cap = 0;
+        fs._size = 0;
         fs._p = 0;
     }
 
-    fastream& operator=(fastream&& fs) {
-        free(_p);
-        memcpy(this, &fs, sizeof(fs));
-        fs._p = 0;
+    fastream& operator=(fastream&& fs) noexcept {
+        if (&_fs != this) {
+            _cap = fs._cap;
+            _size = fs._size;
+            _p = fs._p;
+            fs._cap = 0;
+            fs._size = 0;
+            fs._p = 0;
+        }
         return *this;
     }
 
@@ -96,16 +101,13 @@ class fastream {
         }
     }
 
-    void swap(fastream& fs) {
-        if (&fs != this) {
-            char buf[sizeof(fastream)];
-            memcpy(buf, this, sizeof(fastream));
-            memcpy(this, &fs, sizeof(fastream));
-            memcpy(&fs, buf, sizeof(fastream));
-        }
+    void swap(fastream& fs) noexcept {
+        std::swap(fs._cap, _cap);
+        std::swap(fs._size, _size);
+        std::swap(fs._p, _p);
     }
 
-    void swap(fastream&& fs) {
+    void swap(fastream&& fs) noexcept {
         fs.swap(*this);
     }
 
@@ -255,6 +257,9 @@ class fastream {
     void _Ensure(size_t n) {
         if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
     }
+    
+    // enable more efficient control of the underlying buffer
+    friend class magicstream;
 
   private:
     size_t _cap;
@@ -264,13 +269,23 @@ class fastream {
 
 // magicstream is for creating a fastring without memory copy
 //   fastring s = (magicstream() << "hello" << 123).str();
+// intermediate use of any non-special member function
+// between str() and reconstruct() results in unspecified behavior
 class magicstream {
   public:
-    explicit magicstream(size_t cap = 16) {
-        new (_buf) fastream(cap + fastring::header_size());
-        _fs.resize(fastring::header_size());
+    magicstream() : magicstream(16) {}
+    
+    explicit magicstream(size_t cap) : _fs(cap + fastring::header_size()) {
+        _fs._size = fastring::header_size();
     }
-    ~magicstream() {}
+
+    void swap(magicstream& rhs) noexcept {
+        _fs.swap(rhs._fs);
+    }
+
+    void swap(magicstream&& rhs) noexcept {
+        rhs.swap(*this);
+    }
 
     template<typename T>
     magicstream& operator<<(const T& t) {
@@ -278,17 +293,35 @@ class magicstream {
         return *this;
     }
 
-    fastream& stream() {
+    fastream& stream() noexcept {
         return _fs;
     }
 
-    fastring str() const {
-        return fastring((char*)_fs.data(), _fs.capacity(), _fs.size());
+    const fastream& stream() const noexcept {
+        return _fs;
+    }
+
+    fastring str() {
+        fastring result(_fs._p, _fs._cap, _fs.size);
+        _fs._cap = 0;
+        _fs._size = 0;
+        _fs._p = 0;
+        return result;
+    }
+    
+    void reconstruct(size_t cap = 16) {
+        _fs.reserve(cap + fastring::header_size());
+        _fs._size = fastring::header_size();
     }
 
   private:
-    union {
-        char _buf[sizeof(fastream)];
-        fastream _fs;
-    };
+    fastream _fs;
 };
+
+inline void swap(fastream& lhs, fastream& rhs) noexcept {
+    lhs.swap(rhs);
+}
+
+inline void swap(magicstream& lhs, magicstream& rhs) noexcept {
+    lhs.swap(rhs);
+}
