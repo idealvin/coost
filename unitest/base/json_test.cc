@@ -143,6 +143,12 @@ DEF_test(json) {
         v = json::parse("{\"key\":23 45}");
         EXPECT(v.is_null());
 
+        v = json::parse("{\"key\": 23,");
+        EXPECT(v.is_null());
+
+        v = json::parse("{\"key\": ,}");
+        EXPECT(v.is_null());
+
         v = json::parse("{\"key\": 23 }");
         EXPECT(v.is_object());
         EXPECT_EQ(v["key"].get_int(), 23);

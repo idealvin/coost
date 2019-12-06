@@ -347,6 +347,7 @@ inline int64 fastatoi(const char* s, size_t n) {
 inline const char* read_token(const char* b, const char* e, void** v) {
     int dots = 0;
     const char* p = b++;
+
     for (; b < e; ++b) {
         char c = *b;
 
@@ -361,18 +362,14 @@ inline const char* read_token(const char* b, const char* e, void** v) {
                 if (b - p != 4 || memcmp(p, "null", 4) != 0) return 0;
                 new (v) Value();
             } else {
-                if (dots == 0) {
-                    try {
+                try {
+                    if (dots == 0) {
                         new (v) Value(fastatoi(p, b - p));
-                    } catch (...) {
-                        return 0; // invalid int
-                    }
-                } else {
-                    try {
+                    } else {
                         new (v) Value(str::to_double(fastring(p, b - p)));
-                    } catch (...) {
-                        return 0; // invalid double
                     }
+                } catch (...) {
+                    return 0; // invalid number
                 }
             }
             return b - 1;
@@ -391,15 +388,16 @@ inline const char* read_token(const char* b, const char* e, void** v) {
  * res: parse result
  * s: save the keys
  */
-static const char* parse_array(const char* b, const char* e, Value* res, fastream* s, size_t n=0);
+static const char* parse_array(const char* b, const char* e, Value* res, fastream* s);
 
-static const char* parse_json(const char* b, const char* e, Value* res, fastream* s, size_t n=0) {
+static const char* parse_json(const char* b, const char* e, Value* res, fastream* s) {
     const char* key;
     char buf[sizeof(fastream)];
     if (s) {
         res->set_object();
     } else {
-        s = new (buf) fastream((n >> 2) + 8);
+        size_t n = ((e - b) >> 2) + 8;
+        s = new (buf) fastream(n <= 128 ? n : 128);
         res->__add_member(0, (void*) s->data());
     }
 
@@ -456,7 +454,7 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
     return 0;
 }
 
-static const char* parse_array(const char* b, const char* e, Value* res, fastream* s, size_t n) {
+static const char* parse_array(const char* b, const char* e, Value* res, fastream* s) {
     res->set_array();
 
     for (; b < e; ++b) {
@@ -467,9 +465,9 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
         if (*b == '"') {
             b = read_string(b + 1, e, &v);
         } else if (*b == '{') {
-            b = parse_json(b + 1, e, (Value*)&v, s, n);
+            b = parse_json(b + 1, e, (Value*)&v, s);
         } else if (*b == '[') {
-            b = parse_array(b + 1, e, (Value*)&v, s, n);
+            b = parse_array(b + 1, e, (Value*)&v, s);
         } else {
             b = read_token(b, e, &v);
         }
@@ -494,18 +492,16 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
 
 bool Value::parse_from(const char* s, size_t n) {
     this->reset();
-    if (unlikely(n < 2)) return false;
 
     const char* p = s;
     const char* e = s + n;
-    for (; p < e; ++p) {
-        if (!is_white_char(*p)) break;
-    }
+    while (p < e && is_white_char(*p)) ++p;
+    if (unlikely(p == e)) return false;
 
     if (*p == '{') {
-        p = parse_json(p + 1, e, this, 0, n);
+        p = parse_json(p + 1, e, this, 0);
     } else if (*p == '[') {
-        p = parse_array(p + 1, e, this, 0, n);
+        p = parse_array(p + 1, e, this, 0);
     } else {
         return false;
     }
