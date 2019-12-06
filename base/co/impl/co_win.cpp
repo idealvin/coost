@@ -576,8 +576,12 @@ const char* strerror(int err) {
         MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
         (LPTSTR)&s, 0, 0
     );
+
     assert(s);
-    return e = s;
+    e = _strdup(s);
+    char* p = (char*) strchr(e, '\r');
+    if (p) *p = '\0';
+    return e;
 }
 
 bool _Can_skip_iocp_on_success() {
