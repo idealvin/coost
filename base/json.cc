@@ -391,16 +391,16 @@ inline const char* read_token(const char* b, const char* e, void** v) {
  * res: parse result
  * s: save the keys
  */
-static const char* parse_array(const char* b, const char* e, Value* res, fastream& s);
+static const char* parse_array(const char* b, const char* e, Value* res, fastream* s, size_t n=0);
 
-static const char* parse_json(const char* b, const char* e, Value* res, fastream& s) {
+static const char* parse_json(const char* b, const char* e, Value* res, fastream* s, size_t n=0) {
     const char* key;
-
-    for (; b < e; ++b) {
-        if (unlikely(is_white_char(*b))) continue;
-        if (*b++ != '{') return 0; // not object
+    char buf[sizeof(fastream)];
+    if (s) {
         res->set_object();
-        break;
+    } else {
+        s = new (buf) fastream((n >> 2) + 8);
+        res->__add_member(0, (void*) s->data());
     }
 
     for (; b < e; ++b) {
@@ -409,8 +409,8 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
         if (*b != '"') return 0;   // not key
 
         // read key
-        key = s.data() + s.size(); // pointer to the key
-        b = read_key(b + 1, e, s);
+        key = s->data() + s->size(); // pointer to the key
+        b = read_key(b + 1, e, *s);
         if (b == 0) return 0;
 
         // read ':'
@@ -428,7 +428,7 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
             if (*b == '"') {
                 b = read_string(b + 1, e, &v);
             } else if (*b == '{') {
-                b = parse_json(b, e, (Value*)&v, s);
+                b = parse_json(b + 1, e, (Value*)&v, s);
             } else if (*b == '[') {
                 b = parse_array(b + 1, e, (Value*)&v, s);
             } else {
@@ -456,8 +456,9 @@ static const char* parse_json(const char* b, const char* e, Value* res, fastream
     return 0;
 }
 
-static const char* parse_array(const char* b, const char* e, Value* res, fastream& s) {
+static const char* parse_array(const char* b, const char* e, Value* res, fastream* s, size_t n) {
     res->set_array();
+
     for (; b < e; ++b) {
         if (unlikely(is_white_char(*b))) continue;
         if (*b == ']') return b; // ARR_END
@@ -466,9 +467,9 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
         if (*b == '"') {
             b = read_string(b + 1, e, &v);
         } else if (*b == '{') {
-            b = parse_json(b, e, (Value*)&v, s);
+            b = parse_json(b + 1, e, (Value*)&v, s, n);
         } else if (*b == '[') {
-            b = parse_array(b + 1, e, (Value*)&v, s);
+            b = parse_array(b + 1, e, (Value*)&v, s, n);
         } else {
             b = read_token(b, e, &v);
         }
@@ -492,27 +493,29 @@ static const char* parse_array(const char* b, const char* e, Value* res, fastrea
 }
 
 bool Value::parse_from(const char* s, size_t n) {
+    this->reset();
     if (unlikely(n < 2)) return false;
 
-    this->reset();
-    this->__add_member((const char*)0, (void*)0); // the first element for save keys
+    const char* p = s;
+    const char* e = s + n;
+    for (; p < e; ++p) {
+        if (!is_white_char(*p)) break;
+    }
 
-    char buf[sizeof(fastream)];
-    fastream* keys = new (buf) fastream((n >> 1) + 1);
-
-    const char* p = parse_json(s, s + n, this,  *keys);
-    if (unlikely(p == 0)) {
-        keys->~fastream();
+    if (*p == '{') {
+        p = parse_json(p + 1, e, this, 0, n);
+    } else if (*p == '[') {
+        p = parse_array(p + 1, e, this, 0, n);
+    } else {
         return false;
     }
 
-    for (const char* x = p + 1; x < s + n; ++x) {
-        if (is_white_char(*x)) continue;
-        keys->~fastream();
-        return false;
+    if (!p) return false;
+
+    for (; ++p < e;) {
+        if (!is_white_char(*p)) return false;
     }
 
-    _Array()[1] = keys->data();
     return true;
 }
 

@@ -95,13 +95,31 @@ DEF_test(json) {
 
     DEF_case(parse) {
         EXPECT(json::parse("{").is_null());
-        Json v;
 
+        Json v;
         v.parse_from("");
         EXPECT(v.is_null());
 
         v = json::parse("{}");
+        EXPECT(v.is_object());
         EXPECT_EQ(v.str(), "{}");
+
+        v = json::parse("[]");
+        EXPECT(v.is_array());
+        EXPECT_EQ(v.str(), "[]");
+
+        v = json::parse("[ 1, 2 , \"hello\" ]");
+        EXPECT(v.is_array());
+        EXPECT_EQ(v[0].get_int(), 1);
+        EXPECT_EQ(v[1].get_int(), 2);
+        EXPECT_EQ(v[2].get_string(), fastring("hello"));
+
+        v = json::parse("[ 1, 2 , \"hello\", { \"7\": 7, \"8\": 8 } ]");
+        EXPECT(v.is_array());
+        EXPECT(v[3].is_object());
+        EXPECT_EQ(v[3].size(), 2);
+        EXPECT_EQ(v[3]["7"].get_int(), 7);
+        EXPECT_EQ(v[3]["8"].get_int(), 8);
 
         v = json::parse("{\"key\": []}");
         EXPECT(v.is_object());

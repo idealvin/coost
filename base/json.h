@@ -270,6 +270,10 @@ class Value {
         return *(Value*) &_Array()[i];
     }
 
+    Value& operator[](int i) const {
+        return this->operator[]((uint32)i);
+    }
+
     // for array and object, return number of the elements.
     // for string, return the length
     // for other types, return sizeof(type)
