@@ -107,18 +107,8 @@ void Scheduler::loop() {
             PerIoInfo* info = (PerIoInfo*) _epoll.ud(ev);
             info->n = ev.dwNumberOfBytesTransferred;
             this->resume(info->co);
-
           #elif defined(__linux__)
-            uint64 ud = _epoll.ud(ev);
-            if (_epoll.has_ev_read(ev)) {
-                this->resume(_co_pool[ud >> 32]);
-            } else if (_epoll.has_ev_write(ev)) {
-                this->resume(_co_pool[(uint32)ud]);
-            } else {
-                uint32 wd = (uint32) ud;
-                this->resume(_co_pool[wd ? wd : (ud >> 32)]);
-            }
-
+            this->resume(_co_pool[_epoll.ud(ev)]);
           #else
             this->resume((Coroutine*)_epoll.ud(ev));
           #endif

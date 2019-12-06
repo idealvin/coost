@@ -142,8 +142,9 @@ class Epoll {
         return ev.data.u64 == 0;
     }
 
-    static uint64 ud(const epoll_event& ev) {
-        return ev.data.u64;
+    static uint32 ud(const epoll_event& ev) {
+        const uint64 x = ev.data.u64;
+        return ((uint32)x) == 0 ? ((uint32)(x >> 32)) : ((uint32)x);
     }
 
     void signal(char c = 'x') {
