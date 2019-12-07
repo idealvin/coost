@@ -278,7 +278,7 @@ class magicstream {
         return *this;
     }
 
-    fastream& stream() {
+    fastream& stream() noexcept {
         return _fs;
     }
 
