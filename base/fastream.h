@@ -19,7 +19,9 @@ class fastream {
   public:
     fastream() : fastream(32) {}
     
-    explicit fastream(size_t capacity) : _cap(capacity), _size(0), _p((char*) malloc(capacity)) {}
+    explicit fastream(size_t capacity)
+        : _cap(capacity), _size(0), _p((char*) malloc(capacity)) {
+    }
 
     ~fastream() {
         free(_p);
@@ -28,22 +30,9 @@ class fastream {
     fastream(const fastream&) = delete;
     void operator=(const fastream&) = delete;
 
-    fastream(fastream&& fs) noexcept : _cap(fs._cap), _size(_fs.size), _p(_fs.cap) {
-        fs._cap = 0;
-        fs._size = 0;
+    fastream(fastream&& fs) noexcept
+        : _cap(fs._cap), _size(fs._size), _p(fs._p) {
         fs._p = 0;
-    }
-
-    fastream& operator=(fastream&& fs) noexcept {
-        if (&_fs != this) {
-            _cap = fs._cap;
-            _size = fs._size;
-            _p = fs._p;
-            fs._cap = 0;
-            fs._size = 0;
-            fs._p = 0;
-        }
-        return *this;
     }
 
     const char* data() const {
@@ -267,25 +256,21 @@ class fastream {
     char* _p;
 };
 
-// magicstream is for creating a fastring without memory copy
+// magicstream is for internal use only.
+// DO NOT TOUCH it before you figure out what it is doing.
+// 
+// create a fastring without memory copy:
 //   fastring s = (magicstream() << "hello" << 123).str();
-// intermediate use of any non-special member function
-// between str() and reconstruct() results in unspecified behavior
 class magicstream {
   public:
     magicstream() : magicstream(16) {}
-    
-    explicit magicstream(size_t cap) : _fs(cap + fastring::header_size()) {
+
+    explicit magicstream(size_t cap) {
+        new (_buf) fastream(cap + fastring::header_size());
         _fs._size = fastring::header_size();
     }
 
-    void swap(magicstream& rhs) noexcept {
-        _fs.swap(rhs._fs);
-    }
-
-    void swap(magicstream&& rhs) noexcept {
-        rhs.swap(*this);
-    }
+    ~magicstream() {}
 
     template<typename T>
     magicstream& operator<<(const T& t) {
@@ -293,35 +278,21 @@ class magicstream {
         return *this;
     }
 
-    fastream& stream() noexcept {
+    fastream& stream() {
         return _fs;
     }
 
-    const fastream& stream() const noexcept {
-        return _fs;
-    }
-
-    fastring str() {
-        fastring result(_fs._p, _fs._cap, _fs.size);
-        _fs._cap = 0;
-        _fs._size = 0;
-        _fs._p = 0;
-        return result;
-    }
-    
-    void reconstruct(size_t cap = 16) {
-        _fs.reserve(cap + fastring::header_size());
-        _fs._size = fastring::header_size();
+    fastring str() const {
+        return fastring((char*)_fs.data(), _fs.capacity(), _fs.size());
     }
 
   private:
-    fastream _fs;
+    union {
+        char _buf[sizeof(fastream)];
+        fastream _fs;
+    };
 };
 
 inline void swap(fastream& lhs, fastream& rhs) noexcept {
-    lhs.swap(rhs);
-}
-
-inline void swap(magicstream& lhs, magicstream& rhs) noexcept {
     lhs.swap(rhs);
 }
