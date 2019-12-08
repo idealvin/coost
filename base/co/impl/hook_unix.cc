@@ -1,3 +1,5 @@
+#ifndef _WIN32
+
 #include "hook.h"
 #include "scheduler.h"
 #include <dlfcn.h>
@@ -707,3 +709,5 @@ bool init_hook() {
 }
 
 } // co
+
+#endif
