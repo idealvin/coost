@@ -88,7 +88,8 @@
 #include <stdlib.h>
 #include <tchar.h>
 #include <windows.h>
-#pragma comment(lib, "version.lib") // for "VerQueryValue"
+#pragma comment(lib, "version.lib")  // for "VerQueryValue"
+#pragma comment(lib, "Advapi32.lib") // for "GetUserNameA"
 #pragma warning(disable : 4826)
 
 
