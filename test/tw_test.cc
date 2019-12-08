@@ -6,6 +6,10 @@
 #include "base/time.h"
 #include <algorithm>
 
+#ifndef _WIN32
+#define max std::max
+#endif
+
 int64 QS(const char* s, int64 n, const char* x, int64 m) {
     if (n < m) return -1;
 
@@ -139,7 +143,7 @@ int64 tw_find(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 p
     if (memcmp(x, x + per, ell + 1) == 0) {
         j = 0, memory = -1;
         while (j <= n - m) {
-            i = std::max(ell, memory) + 1;
+            i = max(ell, memory) + 1;
             while (i < m && x[i] == s[i + j]) ++i;
             if (i >= m) {
                 i = ell;
@@ -154,7 +158,7 @@ int64 tw_find(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 p
         }
 
     } else {
-        per = std::max(ell + 1, m - ell - 1) + 1;
+        per = max(ell + 1, m - ell - 1) + 1;
         j = 0;
         while (j <= n - m) {
             i = ell + 1;
@@ -230,7 +234,7 @@ int64 tw_rfind(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 
     if (memcmp(ex, ex - per, ee) == 0) {
         j = nn, memory = -1;
         while (j >= mm) {
-            i = std::max(ell, memory) + 1;
+            i = max(ell, memory) + 1;
             while (i < m && x[mm - i] == s[j - i]) ++i;
             if (i >= m) {
                 i = ell;
@@ -245,7 +249,7 @@ int64 tw_rfind(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 
         }
 
     } else {
-        per = std::max(ee, m - ee) + 1;
+        per = max(ee, m - ee) + 1;
         j = nn;
         while (j >= mm) {
             i = ee;

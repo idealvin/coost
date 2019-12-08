@@ -3,6 +3,9 @@
 #include "base/str.h"
 #include "base/fastream.h"
 #include <time.h>
+#ifndef _WIN32
+#include <sys/time.h>
+#endif
 
 // speed testing
 // mac: 
