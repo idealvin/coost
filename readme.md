@@ -30,10 +30,13 @@
 
 - co 协程库切换 context 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
 
+- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai) 翻译，特别表示感谢！
+
 ## 参考文档
 
-- [md](https://github.com/idealvin/co/blob/master/docs.md)
-- [pdf](https://code.aliyun.com/idealvin/docs/blob/de01e49fe5f971d9ce24d196ecd46dc93a0644d3/pdf/co.pdf)
+- [English md](https://github.com/idealvin/co/tree/master/docs/en)
+- [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
+- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/de01e49fe5f971d9ce24d196ecd46dc93a0644d3/pdf/co.pdf)
 
 ## 亮点功能
 
