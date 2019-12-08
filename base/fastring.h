@@ -4,6 +4,7 @@
 #pragma warning (disable:4200)
 #endif
 
+#include "atomic.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,16 +43,18 @@ class fastring {
         return sizeof(_Mem);
     }
 
-    fastring(char* p, size_t cap, size_t size) {
-        _p = (_Mem*) p;
-        _p->cap = (uint32_t) (cap - this->header_size());
-        _p->size = (uint32_t) (size - this->header_size());
-        _p->refn = 1;
+    static fastring from_raw_buffer(char* p, size_t cap, size_t size) {
+        fastring s;
+        s._p = (_Mem*) p;
+        s._p->cap = (uint32_t) (cap - sizeof(_Mem));
+        s._p->size = (uint32_t) (size - sizeof(_Mem));
+        s._p->refn = 1;
+        return s;
     }
 
     ~fastring() {
         if (!_p) return;
-        if (--_p->refn == 0) free(_p);
+        if (atomic_dec(&_p->refn) == 0) free(_p);
         _p = 0;
     }
 
@@ -60,11 +63,11 @@ class fastring {
     }
 
     fastring(const fastring& s) : _p(s._p) {
-        if (_p) ++_p->refn;
+        if (_p) atomic_inc(&_p->refn);
     }
 
     fastring& operator=(fastring&& s) noexcept {
-        if (_p && --_p->refn == 0) free(_p);
+        if (_p && atomic_dec(&_p->refn) == 0) free(_p);
         _p = s._p;
         s._p = 0;
         return *this;
@@ -72,9 +75,9 @@ class fastring {
 
     fastring& operator=(const fastring& s) {
         if (&s != this) {
-            if (_p && --_p->refn == 0) free(_p);
+            if (_p && atomic_dec(&_p->refn) == 0) free(_p);
             _p = s._p;
-            if (_p) ++_p->refn;
+            if (_p) atomic_inc(&_p->refn);
         }
         return *this;
     }

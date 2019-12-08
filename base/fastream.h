@@ -283,7 +283,7 @@ class magicstream {
     }
 
     fastring str() const {
-        return fastring((char*)_fs.data(), _fs.capacity(), _fs.size());
+        return fastring::from_raw_buffer(_fs._p, _fs._cap, _fs._size);
     }
 
   private:

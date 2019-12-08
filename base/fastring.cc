@@ -250,7 +250,7 @@ void fastring::_Reserve(size_t n) {
             assert(_p);
             _p->cap = (uint32_t) n;
         } else {
-            --_p->refn;
+            atomic_dec(&_p->refn);
             char* s = _p->s;
             this->_Init(n, _p->size);
             memcpy(_p->s, s, _p->size);
