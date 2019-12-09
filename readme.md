@@ -63,15 +63,15 @@
 
 这是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
 
-co/json 目前对 json 标准的支持远不如 rapidjson 全面，仅能满足程序员的基本需求，但更容易使用。
+co/json 对 json 标准的支持不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
 
 - **[co](https://github.com/idealvin/co/tree/master/base/co)**
 
-这是一个 [golang](https://github.com/golang/go) 风格的协程库，内置多线程调度，是网络编程之良品，居家必备。
+这是一个 [golang](https://github.com/golang/go) 风格的协程库，内置多线程调度，是网络编程之利器。
 
 - **[json rpc](https://github.com/idealvin/co/blob/master/base/rpc.h)**
 
-这是一个基于协程与 json 的高性能 rpc 框架，支持代码生成，简单易用，单线程 qps 能达到 12w+。
+这是一个基于协程与 json 的高性能 rpc 框架，支持代码自动生成，简单易用，单线程 qps 能达到 12w+。
 
 - **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/base/co/co.h)**
 
@@ -91,13 +91,84 @@ void f() {
 go(f);
 ```
 
+## 编译执行
+
+`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，后续可能放弃 <s>[scons](https://scons.org/)</s>, <s>[vs project](https://visualstudio.microsoft.com/)</s>。
+
+- 安装 xmake
+
+windows 与 debian/ubuntu 系统可以直接去 xmake 的 [release](https://github.com/xmake-io/xmake/releases) 页面下载相应的安装包，其他系统请参考 xmake 的 [Installation](https://github.com/xmake-io/xmake) 说明。
+
+Linux 系统上，xmake 默认禁止 root 用户编译，[ruki](https://github.com/waruqi) 说 root 不安全，但可以在 `~/.bashrc` 中加上下面的一行，启用 root 编译:
+```sh
+export XMAKE_ROOT=y
+```
+
+- 编译 co/base 库
+
+[co/base](https://github.com/idealvin/co/tree/master/base) 是核心基础库，其他工具都依赖于 base 库。
+
+```sh
+# 在 co/lib 目录下生成 libbase.a 或 base.lib
+cd co/base
+xmake
+```
+
+- 编译 co/unitest
+
+[co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) 是单元测试代码，可以检验 base 库功能的正确性。
+
+```sh
+# 在 co/build 目录下生成可执行文件 unitest 或 unitest.exe
+cd co/unitest/base
+xmake
+
+cd ../../build
+./unitest -a      # 执行所有单元测试
+./unitest -os     # 执行 os 单元测试
+./unitest -json   # 执行 json 单元测试
+```
+
+- 编译 co/test
+
+[co/test](https://github.com/idealvin/co/tree/master/test) 是一些测试代码。
+
+```sh
+# 在 co/build 目录下生成相应的可执行文件
+cd co/test
+xmake             # 编译 test 目录下的全部目标代码
+xmake -b log      # 编译 log_test.cc
+xmake -b flag     # 编译 flag_test.cc
+xmake build flag  # 编译 flag_test.cc
+
+cd ../build
+./log.exe -perf   # log 库性能测试
+./rpc.exe -c=0    # 启动 rpc server
+./rpc.exe -c=1    # 启动 rpc client
+```
+
+- 编译 rpcgen
+
+[rpcgen](https://github.com/idealvin/co/tree/master/rpcgen) 是 `json rpc` 的代码生成器，根据指定的 proto 文件，自动生成相应的代码。
+
+```sh
+# 在 co/build 目录下生成 rpcgen 或 rpcgen.exe
+cd co/rpcgen
+xmake
+
+# 根据 proto 文件生成代码
+rpcgen hello_world.proto
+```
+
+`proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
+
+
 ## 贡献代码
 
-1. `co/base` 目录下修改或新增代码，确保 `libbase` 编译通过.
+1. `co/base` 目录下修改或新增代码，确保 `base` 库编译通过.
 2. 若有必要，在 `co/unitest/base` 目录下修改或新增单元测试用例，确保单元测试全部通过.
 3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
 
-编译方法请参考上述 pdf 参考文档，非常感谢大家的支持！
 
 ## 友情合作
 
