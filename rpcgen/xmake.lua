@@ -14,15 +14,13 @@ target("rpcgen")
         if is_plat("macosx") then
             add_cxflags("-fno-pie")
         end
-        add_links("pthread", "dl")
-        after_build(function ()
-            os.run("rm -rf build")
-        end)
+        add_syslinks("pthread", "dl")
     end
 
     if is_plat("windows") then
         add_cxflags("-Ox", "-fp:fast", "-EHsc")
-        after_build(function ()
-            os.run("cmd /k rd /s /q build; exit")
-        end)
     end
+
+    after_build(function ()
+        os.rm("build")
+    end)

@@ -4,7 +4,6 @@ target("base")
     set_optimize("faster")  -- -O2
     set_warnings("all")     -- -Wall
     set_targetdir("../lib")
-    add_includedirs("..")
     add_files("**.cc")
 
     if is_plat("macosx", "linux") then
@@ -13,9 +12,6 @@ target("base")
             add_cxflags("-fno-pie")
         end
         add_files("co/context/context.S")
-        after_build(function ()
-            os.run("rm -rf build")
-        end)
     end
 
     if is_plat("windows") then
@@ -26,8 +22,8 @@ target("base")
         else
             add_files("co/context/context_x86.asm")
         end
-        after_build(function ()
-            os.run("cmd /k rd /s /q build; exit")
-        end)
     end
 
+    after_build(function ()
+        os.rm("build")
+    end)
