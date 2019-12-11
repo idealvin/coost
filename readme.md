@@ -36,7 +36,7 @@
 
 - [English md](https://github.com/idealvin/co/tree/master/docs/en)
 - [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
-- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/de01e49fe5f971d9ce24d196ecd46dc93a0644d3/pdf/co.pdf)
+- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/f39646ab1e312ca07962e0f32b9f443e7186ab34/pdf/co.pdf)
 
 ## 亮点功能
 
