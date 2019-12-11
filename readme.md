@@ -93,7 +93,7 @@ go(f);
 
 ## 编译执行
 
-`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，后续可能放弃 <s>[scons](https://scons.org/)</s>, <s>[vs project](https://visualstudio.microsoft.com/)</s>。
+`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，后续可能放弃 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
 
 - 安装 xmake
 
@@ -156,7 +156,8 @@ cd ../build
 cd co/rpcgen
 xmake
 
-# 可以将 rpcgen 放到系统目录下
+# 建议将 rpcgen 放到系统目录下(/usr/local/bin/).
+# 有些 linux 系统自带了一个 rpcgen，为避免冲突，可能需要重命名 rpcgen.
 rpcgen hello_world.proto
 ```
 
