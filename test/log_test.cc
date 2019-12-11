@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
         LOG  << "This is LOG  (info).. " << 23;
         WLOG << "This is WLOG (warning).. " << 23;
         ELOG << "This is ELOG (error).. " << 23;
-        FLOG << "This is FLOG (fatal).. " << 23;
+        //FLOG << "This is FLOG (fatal).. " << 23;
     }
 
     return 0;
