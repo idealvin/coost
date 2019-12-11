@@ -29,7 +29,7 @@ class Client {
     virtual void call(const Json& req, Json& res) = 0;
 };
 
-Server* new_server(const char* ip, int port, const char* passwd);
-Client* new_client(const char* ip, int port, const char* passwd);
+Server* new_server(const char* ip, int port, const char* passwd="");
+Client* new_client(const char* ip, int port, const char* passwd="");
 
 } // rpc
