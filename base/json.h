@@ -249,19 +249,14 @@ class Value {
         new (&_mem) Array(kArray, 8);
     }
 
-    void __push_back(void* v) {
-        this->_Init_array();
-        _Array().push_back(v);
-    }
-
     // for array:  a.push_back(v),  a[index],  a.size()
     void push_back(Value&& v) {
-        this->__push_back(v._mem);
+        this->_Push_back(v._mem);
         v._mem = 0;
     }
 
     void push_back(const Value& v) {
-        this->__push_back(v._mem);
+        this->_Push_back(v._mem);
         if (v._mem) ++v._mem->refn;
     }
 
@@ -296,32 +291,24 @@ class Value {
         return this->size() == 0;
     }
 
-    // find() is more efficient than has_member() and operator[].
-    // return null if not found
-    //   Json obj;
+    // prefer to use find() than has_member() and operator[].
+    // return null if the key not found.
     //   Json x = obj.find(key);
     //   if (!x.is_null()) do_something();
-    //   if (!(x = obj.find(another_key)).is_null()) do_something();
     Value find(Key key) const;
 
     bool has_member(Key key) const {
         return !this->find(key).is_null();
     }
 
-    void __add_member(Key key, void* val) {
-        this->_Init_object();
-        _Array().push_back(key);
-        _Array().push_back(val);
-    }
-
     // add_member(key, val) is faster than obj[key] = val
     void add_member(Key key, Value&& val) {
-        this->__add_member(key, val._mem);
+        this->_Add_member(key, val._mem);
         val._mem = 0;
     }
 
     void add_member(Key key, const Value& val) {
-        this->__add_member(key, val._mem);
+        this->_Add_member(key, val._mem);
         if (val._mem) ++val._mem->refn;
     }
 
@@ -408,8 +395,22 @@ class Value {
         }
     }
 
+    void _Push_back(void* v) {
+        this->_Init_array();
+        _Array().push_back(v);
+    }
+
+    void _Add_member(Key key, void* val) {
+        this->_Init_object();
+        _Array().push_back(key);
+        _Array().push_back(val);
+    }
+
     void _Json2str(fastream& fs) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
+
+    friend const char* parse_array(const char*, const char*, json::Value*, fastream&, json::Value**);
+    friend const char* parse_json(const char*, const char*, json::Value*, fastream&, json::Value**);
 
   private:
     struct _Mem {
