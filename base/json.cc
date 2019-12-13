@@ -1,6 +1,5 @@
 #include "json.h"
 #include "str.h"
-#include "log.h"
 
 namespace json {
 
@@ -389,15 +388,15 @@ inline const char* read_token(const char* b, const char* e, void** v) {
  * res: parse result
  * s: save the keys
  */
-const char* parse_array(const char* b, const char* e, Value* res, fastream& s, Value** ks);
+const char* parse_array(const char* b, const char* e, Value* res, fastream* s);
 
-const char* parse_json(const char* b, const char* e, Value* res, fastream& s, Value** ks) {
+const char* parse_json(const char* b, const char* e, Value* res, fastream* s) {
     const char* key;
     res->set_object();
-    if (!*ks) {
+    if (s->capacity() == 0) {
+        new (s) fastream(e - b);
         res->_Array().push_back(0);
-        res->_Array().push_back(0);
-        *ks = res;
+        res->_Array().push_back(s->data());
     }
 
     for (; b < e; ++b) {
@@ -406,8 +405,8 @@ const char* parse_json(const char* b, const char* e, Value* res, fastream& s, Va
         if (*b != '"') return 0;   // not key
 
         // read key
-        key = s.data() + s.size(); // pointer to the key
-        b = read_key(b + 1, e, s);
+        key = s->data() + s->size(); // pointer to the key
+        b = read_key(b + 1, e, *s);
         if (b == 0) return 0;
 
         // read ':'
@@ -425,9 +424,9 @@ const char* parse_json(const char* b, const char* e, Value* res, fastream& s, Va
             if (*b == '"') {
                 b = read_string(b + 1, e, &v);
             } else if (*b == '{') {
-                b = parse_json(b + 1, e, (Value*)&v, s, ks);
+                b = parse_json(b + 1, e, (Value*)&v, s);
             } else if (*b == '[') {
-                b = parse_array(b + 1, e, (Value*)&v, s, ks);
+                b = parse_array(b + 1, e, (Value*)&v, s);
             } else {
                 b = read_token(b, e, &v);
             }
@@ -454,7 +453,7 @@ const char* parse_json(const char* b, const char* e, Value* res, fastream& s, Va
     return 0;
 }
 
-const char* parse_array(const char* b, const char* e, Value* res, fastream& s, Value** ks) {
+const char* parse_array(const char* b, const char* e, Value* res, fastream* s) {
     res->set_array();
 
     for (; b < e; ++b) {
@@ -465,9 +464,9 @@ const char* parse_array(const char* b, const char* e, Value* res, fastream& s, V
         if (*b == '"') {
             b = read_string(b + 1, e, &v);
         } else if (*b == '{') {
-            b = parse_json(b + 1, e, (Value*)&v, s, ks);
+            b = parse_json(b + 1, e, (Value*)&v, s);
         } else if (*b == '[') {
-            b = parse_array(b + 1, e, (Value*)&v, s, ks);
+            b = parse_array(b + 1, e, (Value*)&v, s);
         } else {
             b = read_token(b, e, &v);
         }
@@ -491,41 +490,30 @@ const char* parse_array(const char* b, const char* e, Value* res, fastream& s, V
 }
 
 bool Value::parse_from(const char* s, size_t n) {
-    this->reset();
+    if (unlikely(_mem)) this->reset();
 
     const char* p = s;
     const char* e = s + n;
     while (p < e && is_white_char(*p)) ++p;
     if (unlikely(p == e)) return false;
 
-    char buf[sizeof(fastream)];
-    fastream* keys = new (buf) fastream(n);
+    char buf[sizeof(fastream)] = { 0 };
 
-    Value* ks = 0;
     if (*p == '{') {
-        p = parse_json(p + 1, e, this, *keys, &ks);
+        p = parse_json(p + 1, e, this, (fastream*)buf);
     } else if (*p == '[') {
-        p = parse_array(p + 1, e, this, *keys, &ks);
+        p = parse_array(p + 1, e, this, (fastream*)buf);
     } else {
-        goto err;
+        return false;
     }
 
-    if (!p) goto err;
+    if (!p) return false;
 
     for (; ++p < e;) {
-        if (!is_white_char(*p)) goto err;
+        if (!is_white_char(*p)) return false;
     }
 
-    if (ks) {
-        ks->_Array()[1] = keys->data();
-    } else {
-        keys->~fastream();
-    }
     return true;
-
-  err:
-    keys->~fastream();
-    return false;
 }
 
 } // namespace json

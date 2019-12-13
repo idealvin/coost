@@ -352,14 +352,13 @@ class Value {
         return this->parse_from(s.data(), s.size());
     }
 
-    void swap(Value& v) {
-        if (&v == this) return;
+    void swap(Value& v) noexcept {
         _Mem* mem = _mem;
         _mem = v._mem;
         v._mem = mem;
     }
 
-    void swap(Value&& v) {
+    void swap(Value&& v) noexcept {
         v.swap(*this);
     }
 
@@ -409,8 +408,8 @@ class Value {
     void _Json2str(fastream& fs) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
 
-    friend const char* parse_array(const char*, const char*, json::Value*, fastream&, json::Value**);
-    friend const char* parse_json(const char*, const char*, json::Value*, fastream&, json::Value**);
+    friend const char* parse_json (const char*, const char*, Value*, fastream*);
+    friend const char* parse_array(const char*, const char*, Value*, fastream*);
 
   private:
     struct _Mem {
