@@ -155,7 +155,9 @@ class fstream {
         : _s(std::move(fs._s)), _f(std::move(fs._f)) {
     }
 
-    ~fstream() = default;
+    ~fstream() {
+        this->close();
+    }
 
     operator bool() const {
         return _f;
