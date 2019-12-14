@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <memory>
+#include <unistd.h>
 #ifdef __linux__
 #include <sys/types.h>
 #endif
