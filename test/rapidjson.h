@@ -9,6 +9,8 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/prettywriter.h"
 
+#include <string>
+
 namespace rapidjson {
 
 inline std::string str(const Document& doc) {
