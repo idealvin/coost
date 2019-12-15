@@ -8,10 +8,6 @@
 #include <pthread.h>
 #include <assert.h>
 #include <memory>
-#include <unistd.h>
-#ifdef __linux__
-#include <sys/types.h>
-#endif
 
 class Mutex {
   public:
@@ -173,16 +169,15 @@ class Thread {
 };
 
 namespace xx {
-unsigned int xxGettid(); // get current thread id
+unsigned int gettid(); // get current thread id
 } // xx
 
-inline unsigned int xxGettid() {
+// using current_thread_id here as glibc 2.30 already has a gettid
+inline unsigned int current_thread_id() {
     static __thread unsigned int id = 0;
     if (id != 0) return id;
-    return id = xx::xxGettid();
+    return id = xx::gettid();
 }
-
-#define gettid xxGettid
 
 // thread_ptr is based on TLS. Each thread sets and holds its own pointer.
 // It is easy to use, just like the std::unique_ptr.
@@ -218,7 +213,7 @@ class thread_ptr {
 
         {
             MutexGuard g(_mtx);
-            _objs[gettid()] = p;
+            _objs[current_thread_id()] = p;
         }
     }
 
@@ -231,7 +226,7 @@ class thread_ptr {
         pthread_setspecific(_key, 0);
         {
             MutexGuard g(_mtx);
-            _objs[gettid()] = 0;
+            _objs[current_thread_id()] = 0;
         }
         return obj;
     }

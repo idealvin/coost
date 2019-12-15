@@ -60,7 +60,7 @@ DEF_test(thread) {
     }
 
     DEF_case(gettid) {
-        EXPECT_NE(gettid(), -1);
+        EXPECT_NE(current_thread_id(), -1);
     }
 
     DEF_case(thread_ptr) {

@@ -165,7 +165,7 @@ class Thread {
     }
 };
 
-inline unsigned int gettid() {
+inline unsigned int current_thread_id() {
     static __thread unsigned int id = 0;
     if (id != 0) return id;
     return id = GetCurrentThreadId();
@@ -203,7 +203,7 @@ class thread_ptr {
 
         {
             MutexGuard g(_mtx);
-            _objs[gettid()] = p;
+            _objs[current_thread_id()] = p;
         }
     }
 
@@ -216,7 +216,7 @@ class thread_ptr {
         TlsSetValue(_key, 0);
         {
             MutexGuard g(_mtx);
-            _objs[gettid()] = 0;
+            _objs[current_thread_id()] = 0;
         }
         return obj;
     }

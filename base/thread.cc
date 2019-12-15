@@ -18,12 +18,12 @@ namespace xx {
 #define SYS_gettid __NR_gettid
 #endif
 
-unsigned int xxGettid() {
+unsigned int gettid() {
     return syscall(SYS_gettid);
 }
 
 #else /* for mac, bsd */
-unsigned int xxGettid() {
+unsigned int gettid() {
     uint64 x;
     pthread_threadid_np(0, &x);
     return (unsigned int) x;

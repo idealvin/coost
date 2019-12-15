@@ -42,7 +42,7 @@ class LevelLogSaver {
 
         (*xxLog) << "DIWEF"[level];
         xxLog->resize(14); // make room for time: 1108 18:16:08
-        (*xxLog) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
+        (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~LevelLogSaver() {
@@ -63,7 +63,7 @@ class FatalLogSaver {
     FatalLogSaver(const char* file, unsigned int line) {
         if (xxLog == 0) xxLog = new fastream(128);
         xxLog->clear();
-        (*xxLog) << ' ' << gettid() << ' ' << file << ':' << line << ']' << ' ';
+        (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~FatalLogSaver() {
