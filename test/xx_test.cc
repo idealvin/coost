@@ -12,6 +12,7 @@
 #include "base/thread.h"
 #include "base/time.h"
 #include "base/co.h"
+#include "base/json.h"
 
 template<size_t N>
 inline size_t cslen(const char(&)[N]) {
@@ -56,6 +57,12 @@ void g() {
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+
+    fastring ss = "{ \"hello\":23, \"world\": { \"xx\": 99 } }";
+    COUT << "ss.size: " << ss.size();
+    Json x = json::parse(ss.data(), ss.size(), 20);
+    COUT << x;
+    return 0;
 
     CLOG << "hello world";
 

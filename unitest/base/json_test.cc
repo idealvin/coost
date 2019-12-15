@@ -181,6 +181,15 @@ DEF_test(json) {
         v = json::parse("{ \"key\" : true }");
         EXPECT_EQ(v["key"].get_bool(), true);
 
+        fastring ss = "{ \"hello\":23, \"world\": { \"xxx\": 99 } }";
+        v = json::parse(ss.data(), ss.size(), 20);
+        EXPECT(v.is_object());
+        EXPECT_EQ(v["hello"].get_int(), 23);
+
+        Json xx = v["world"];
+        v = Json();
+        EXPECT_EQ(xx["xxx"].str(), "99");
+
         v = json::parse("{ \"key\": \"\\/\\r\\n\\t\\b\\f\" }");
         EXPECT_EQ(fastring(v["key"].get_string()), "/\r\n\t\b\f");
 

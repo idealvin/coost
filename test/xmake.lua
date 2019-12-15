@@ -5,6 +5,7 @@ set_warnings("all")     -- -Wall
 set_targetdir("../build")
 add_includedirs("..")
 add_linkdirs("../lib")
+--add_links("base", "jemalloc")
 add_links("base")
 
 after_build(function ()

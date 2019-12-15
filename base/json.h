@@ -342,7 +342,11 @@ class Value {
         return ms.str();
     }
 
-    bool parse_from(const char* s, size_t n);
+    bool parse_from(const char* s, size_t n, size_t keys_len);
+
+    bool parse_from(const char* s, size_t n) {
+        return this->parse_from(s, n, 0);
+    }
 
     bool parse_from(const char* s) {
         return this->parse_from(s, strlen(s));
@@ -408,8 +412,8 @@ class Value {
     void _Json2str(fastream& fs) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
 
-    friend const char* parse_json (const char*, const char*, Value*, fastream*);
-    friend const char* parse_array(const char*, const char*, Value*, fastream*);
+    friend const char* parse_json (const char*, const char*, Value*, fastream*, size_t);
+    friend const char* parse_array(const char*, const char*, Value*, fastream*, size_t);
 
   private:
     struct _Mem {
@@ -447,10 +451,15 @@ inline Value object() {
 }
 
 // parse json from string
-inline Value parse(const char* s, size_t n) {
+
+inline Value parse(const char* s, size_t n, size_t keys_len) {
     Value v;
-    if (v.parse_from(s, n)) return v;
+    if (v.parse_from(s, n, keys_len)) return v;
     return Value();
+}
+
+inline Value parse(const char* s, size_t n) {
+    return parse(s, n, 0);
 }
 
 inline Value parse(const char* s) {
