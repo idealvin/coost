@@ -451,7 +451,10 @@ inline Value object() {
 }
 
 // parse json from string
-
+// @keys_len  size of memory allocated for saving all the keys, it must be at least
+//            total length of all keys(tailing '\0' included), plus another 4 bytes 
+//            for saving reference counts.
+// if @keys_len is 0, then @n bytes will be allocated for saving all the keys.
 inline Value parse(const char* s, size_t n, size_t keys_len) {
     Value v;
     if (v.parse_from(s, n, keys_len)) return v;
