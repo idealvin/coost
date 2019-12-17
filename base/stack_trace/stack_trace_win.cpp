@@ -191,7 +191,8 @@ LONG WINAPI StackTraceImpl::on_exception(PEXCEPTION_POINTERS p) {
         break;
       default:
         strcat(s, "Error: Unrecognized Exception\n");
-        break;
+        // just ignore unrecognized exception here
+        return EXCEPTION_CONTINUE_SEARCH;
     }
 
     fs::file* f = kParam->f;
