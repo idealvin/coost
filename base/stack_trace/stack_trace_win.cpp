@@ -123,8 +123,6 @@ void StackTraceImpl::on_signal(int sig) {
 }
 
 LONG WINAPI StackTraceImpl::on_exception(PEXCEPTION_POINTERS p) {
-    if (kParam->cb) kParam->cb();
-
     char* s = kParam->s;
     s[0] = '\0';
 
@@ -195,6 +193,7 @@ LONG WINAPI StackTraceImpl::on_exception(PEXCEPTION_POINTERS p) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
+    if (kParam->cb) kParam->cb();
     fs::file* f = kParam->f;
     if (s[0]) write_msg(s, strlen(s), f);
 
