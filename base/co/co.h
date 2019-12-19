@@ -287,7 +287,7 @@ inline void set_nonblock(sock_t fd) {
 }
 
 inline void set_cloexec(sock_t fd) {
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_EXCL);
+    fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 }
 #endif
 

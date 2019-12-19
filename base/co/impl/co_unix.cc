@@ -20,13 +20,19 @@ sock_t udp_socket(int v) {
 #else
 sock_t tcp_socket(int v) {
     sock_t fd = ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_STREAM, IPPROTO_TCP);
-    if (fd != -1) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | (O_NONBLOCK | O_EXCL));
+    if (fd != -1) {
+        co::set_nonblock(fd);
+        co::set_cloexec(fd);
+    }
     return fd;
 }
 
 sock_t udp_socket(int v) {
     sock_t fd = ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_DGRAM, IPPROTO_UDP);
-    if (fd != -1) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | (O_NONBLOCK | O_EXCL));
+    if (fd != -1) {
+        co::set_nonblock(fd);
+        co::set_cloexec(fd);
+    }
     return fd;
 }
 #endif
@@ -75,7 +81,8 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
       #else
         sock_t conn_fd = fp_accept(fd, (sockaddr*)addr, (socklen_t*)addrlen);
         if (conn_fd != -1) {
-            fcntl(conn_fd, F_SETFL, fcntl(conn_fd, F_GETFL) | (O_NONBLOCK | O_EXCL));
+            co::set_nonblock(conn_fd);
+            co::set_cloexec(conn_fd);
             return conn_fd;
         }
       #endif
