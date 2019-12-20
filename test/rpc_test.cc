@@ -10,6 +10,7 @@ DEF_int32(conn, 1, "conn num");
 DEF_string(user, "", "username");
 DEF_string(passwd, "", "passwd");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
+DEF_bool(ping, false, "test rpc ping");
 
 namespace xx {
 
@@ -45,6 +46,15 @@ void client_fun() {
     delete c;
 }
 
+void test_ping() {
+    rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
+    for (int i = 0; i < 7; ++i) {
+        c->ping();
+        co::sleep(1000);
+    }
+    delete c;
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
@@ -57,6 +67,8 @@ int main(int argc, char** argv) {
         for (int i = 0; i < FLG_conn; ++i) {
             go(&client_fun);
         }
+
+        if (FLG_ping) go(&test_ping);
     }
 
     while (true) {

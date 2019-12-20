@@ -26,6 +26,7 @@ class Client {
     Client() = default;
     virtual ~Client() = default;
 
+    virtual void ping() = 0; // send a heartbeat
     virtual void call(const Json& req, Json& res) = 0;
 };
 

@@ -340,6 +340,7 @@ bool ServerImpl::auth(Connection* conn) {
     return false;
 }
 
+
 class ClientImpl : public Client {
   public:
     ClientImpl(const char* serv_ip, int serv_port, const char* passwd);
@@ -347,6 +348,7 @@ class ClientImpl : public Client {
 
     bool connect();
     void disconnect();
+    virtual void ping();
     virtual void call(const Json& req, Json& res);
 
   private:
@@ -405,6 +407,12 @@ bool ClientImpl::connect() {
 
     LOG << "connect to server " << _serv_ip << ':' << _serv_port << " success";
     return true;
+}
+
+void ClientImpl::ping() {
+    Json req, res;
+    req.add_member("method", "ping");
+    this->call(req, res);
 }
 
 void ClientImpl::call(const Json& req, Json& res) {
