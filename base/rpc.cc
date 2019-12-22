@@ -146,9 +146,8 @@ void ServerImpl::on_connection(Connection* conn) {
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r == -1)) {
                 if (co::error() != ETIMEDOUT) goto recv_err;
-                LOG << "recv timeout: " << *c;
                 if (_conn_num > FLG_rpc_max_idle_conn) goto idle_err;
-                fs.swap(fastream()); // free the memory
+                if (fs.capacity() > 0) fs.swap(fastream()); // free the memory
                 goto recv_beg;
             }
 

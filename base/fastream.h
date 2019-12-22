@@ -17,7 +17,7 @@
 
 class fastream {
   public:
-    fastream() : fastream(32) {}
+    fastream() : _cap(0), _size(0), _p(0) {}
     
     explicit fastream(size_t capacity)
         : _cap(capacity), _size(0), _p((char*) malloc(capacity)) {
