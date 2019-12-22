@@ -312,6 +312,7 @@ class EvRead {
         if (_id == null_timer_id) {
             _id = (err == -1 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
         }
+
         gSched->yield();
         if (!gSched->timeout()) return true;
 
@@ -347,6 +348,7 @@ class EvWrite {
         if (_id == null_timer_id) {
             _id = (err == -2 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
         }
+
         gSched->yield();
         if (!gSched->timeout()) return true;
 

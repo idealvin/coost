@@ -106,7 +106,7 @@ void Scheduler::loop() {
           #if defined(_WIN32)
             PerIoInfo* info = (PerIoInfo*) _epoll.ud(ev);
             info->n = ev.dwNumberOfBytesTransferred;
-            this->resume(info->co);
+            if (info->co) this->resume(info->co);
           #elif defined(__linux__)
             this->resume(_co_pool[_epoll.ud(ev)]);
           #else

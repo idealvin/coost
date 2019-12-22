@@ -25,8 +25,7 @@ bool Epoll::_Add_event(sock_t fd, int ev) {
             x = ev | 4;
             return true;
         }
-        ELOG << "iocp add fd " << fd << " failed: " << GetLastError()
-        << " " << co::strerror();
+        ELOG << "iocp add fd " << fd << " failed: " << GetLastError() << " " << co::strerror();
         return false;
     }
 }

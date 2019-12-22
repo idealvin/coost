@@ -240,7 +240,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) return -1;
+        if (!ev.wait(ms)) { info->co = 0; return -1; }
     } else {
         return -1;
     }
@@ -294,11 +294,10 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
 
     do {
         int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
-
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) return -1;
+            if (!ev.wait(ms)) { info->co = 0; return -1; }
         } else {
             return -1;
         }
@@ -406,7 +405,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) return -1;
+        if (!ev.wait(ms)) { info->co = 0; return -1; }
     } else {
         return -1;
     }
@@ -470,7 +469,7 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) return -1;
+            if (!ev.wait(ms)) { info->co = 0; return -1; }
         } else {
             return -1;
         }
@@ -549,7 +548,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
         if (r == 0) {
             if (!can_skip_iocp_on_success) gSched->yield();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) return -1;
+            if (!ev.wait(ms)) { info->co = 0; return -1; }
         } else {
             return -1;
         }
