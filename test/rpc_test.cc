@@ -48,10 +48,9 @@ void client_fun() {
 
 void test_ping() {
     rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
-    for (int i = 0; i < 7; ++i) {
-        c->ping();
-        co::sleep(1000);
-    }
+    c->ping();
+    co::sleep(12000);
+    c->ping();
     delete c;
 }
 

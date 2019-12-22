@@ -15,6 +15,8 @@ DEF_int32(rpc_max_msg_size, 8 << 20, "max size of rpc message, default: 8M");
 DEF_int32(rpc_recv_timeout, 1024, "recv timeout in ms");
 DEF_int32(rpc_send_timeout, 1024, "send timeout in ms");
 DEF_int32(rpc_conn_timeout, 3000, "connect timeout in ms");
+DEF_int32(rpc_conn_idle_sec, 180, "connection may be closed if no data was recieved for n seconds");
+DEF_int32(rpc_max_idle_conn, 1024, "max idle connections");
 DEF_bool(rpc_tcp_nodelay, true, "enable tcp nodelay if true");
 DEF_bool(rpc_log, true, "enable rpc log if true");
 
@@ -133,14 +135,23 @@ void ServerImpl::on_connection(Connection* conn) {
     int r = 0, len = 0;
     Header header;
     fastream fs;
-    Json req, res, x;
+    Json req, res;
 
     while (true) {
         // recv req from the client
         do {
-            r = co::recvn(fd, &header, sizeof(header)); // no timeout
+          recv_beg:
+            r = co::recvn(fd, &header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
+
             if (unlikely(r == 0)) goto recv_zero_err;
-            if (unlikely(r == -1)) goto recv_err;
+            if (unlikely(r == -1)) {
+                if (co::error() != ETIMEDOUT) goto recv_err;
+                LOG << "recv timeout: " << *c;
+                if (_conn_num > FLG_rpc_max_idle_conn) goto idle_err;
+                fs.swap(fastream()); // free the memory
+                goto recv_beg;
+            }
+
             if (unlikely(ntoh32(header.magic) != 0xbaddad)) goto magic_err;
 
             len = ntoh32(header.len);
@@ -173,36 +184,34 @@ void ServerImpl::on_connection(Connection* conn) {
         } while (0);
     }
 
-  magic_err:
-    ELOG << "recv error: bad magic number";
-    co::reset_tcp_socket(fd, 3000);
-    atomic_dec(&_conn_num);
-    return ;
-  msg_too_long_err:
-    ELOG << "recv error: body too long: " << len;
-    co::reset_tcp_socket(fd, 3000);
-    atomic_dec(&_conn_num);
-    return ;
   recv_zero_err:
     LOG << "client close the connection: " << *c; // << " now: " << now::us();
     co::close(fd);
     atomic_dec(&_conn_num);
     return ;
+  idle_err:
+    ELOG << "close idle connection: " << *c;
+    co::reset_tcp_socket(fd);
+    atomic_dec(&_conn_num);
+    return ;
+  magic_err:
+    ELOG << "recv error: bad magic number";
+    goto err_end;
+  msg_too_long_err:
+    ELOG << "recv error: body too long: " << len;
+    goto err_end;
   recv_err:
     ELOG << "recv error: " << co::strerror();
-    co::reset_tcp_socket(fd, 3000);
-    atomic_dec(&_conn_num);
-    return ;
+    goto err_end;
   send_err:
     ELOG << "send error: " << co::strerror();
-    co::reset_tcp_socket(fd, 3000);
-    atomic_dec(&_conn_num);
-    return ;
+    goto err_end;
   json_parse_err:
     ELOG << "json parse error: " << fs;
+    goto err_end;
+  err_end:
     co::reset_tcp_socket(fd, 3000);
     atomic_dec(&_conn_num);
-    return ;
 }
 
 bool ServerImpl::auth(Connection* conn) {
