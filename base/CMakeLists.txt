@@ -12,6 +12,7 @@ if(MSVC)
   if(${CMAKE_VS_PLATFORM_NAME} STREQUAL "x64")
     set(ASM_FILES co/context/context_x64.asm)
   endif()
+  set_property(SOURCE ${ASM_FILES} PROPERTY LANGUAGE ASM_MASM)
   add_library(base ${CC_FILES}
     ${CPP_FILES}
     ${ASM_FILES}

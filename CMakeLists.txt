@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.1)
-project(co CXX ASM)
+project(co)
+if(MSVC)
+  enable_language(C CXX ASM_MASM)
+else()
+  enable_language(C CXX ASM)
+endif()
 
 set(CMAKE_CXX_STANDARD 11)
 option(BUILD_SHARED_LIBS "Let us build static libs" OFF)
