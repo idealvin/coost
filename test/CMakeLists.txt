@@ -1,5 +1,3 @@
-file(GLOB TESTS *.cc)
-
 include_directories(${CMAKE_SOURCE_DIR})
 
 list(APPEND LIBS_TO_LINK base)
