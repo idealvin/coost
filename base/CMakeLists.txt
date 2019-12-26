@@ -9,7 +9,7 @@ endif()
 if(MSVC)
   file(GLOB_RECURSE CPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
   set(ASM_FILES co/context/context_x86.asm)
-  if(${CMAKE_GENERATOR_PLATFORM} EQUAL "x64")
+  if(${CMAKE_VS_PLATFORM_NAME} STREQUAL "x64")
     set(ASM_FILES co/context/context_x64.asm)
   endif()
   add_library(base ${CC_FILES}
@@ -20,7 +20,7 @@ endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   DESTINATION include/${PROJECT_NAME}
-  FILES_MATCHING PATTERN "*h"
+  FILES_MATCHING PATTERN "*.h"
   )
 install(TARGETS base
   EXPORT ${PROJECT_NAME}Targets

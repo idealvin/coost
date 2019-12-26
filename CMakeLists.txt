@@ -8,6 +8,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
 
+set(CMAKE_DEBUG_POSTFIX "d")
+
 if(UNIX)
   add_compile_options(-Wall -O2 -g3)
   if(APPLE)
@@ -19,7 +21,7 @@ if(UNIX)
 endif()
 
 if(MSVC)
-  add_compile_options(/W4 /Ox /fp:fast /EHsc)
+  add_compile_options(/W4 /fp:fast /EHsc)
 endif()
 
 add_subdirectory(base)
