@@ -11,6 +11,7 @@ DEF_string(user, "", "username");
 DEF_string(passwd, "", "passwd");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
 DEF_bool(ping, false, "test rpc ping");
+DEF_int32(hb, 10000, "heartbeat");
 
 namespace xx {
 
@@ -48,9 +49,10 @@ void client_fun() {
 
 void test_ping() {
     rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
-    c->ping();
-    co::sleep(12000);
-    c->ping();
+    while (true) {
+        c->ping();
+        co::sleep(FLG_hb);
+    }
     delete c;
 }
 
@@ -63,11 +65,13 @@ int main(int argc, char** argv) {
         server->start();
 
     } else {
-        for (int i = 0; i < FLG_conn; ++i) {
-            go(&client_fun);
+        if (FLG_ping) {
+            go(&test_ping);
+        } else {
+            for (int i = 0; i < FLG_conn; ++i) {
+                go(&client_fun);
+            }
         }
-
-        if (FLG_ping) go(&test_ping);
     }
 
     while (true) {

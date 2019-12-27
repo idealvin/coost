@@ -186,7 +186,7 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
         }
 
         if (it != _timed_wait.begin()) {
-            if (_it != _timed_wait.end() && _it->first > now_ms) {
+            if (_it != _timed_wait.end() && _it->first <= now_ms) {
                 _it = it;
             }
             _timed_wait.erase(_timed_wait.begin(), it);
