@@ -109,8 +109,7 @@ export XMAKE_ROOT=y
 [co/base](https://github.com/idealvin/co/tree/master/base) 是 CO 提供的核心基础库，其他工具都依赖于 base 库。
 
 ```sh
-# 在 co/lib 目录下生成 libbase.a 或 base.lib
-cd co/base
+# 在 lib 目录下生成 libbase.a 或 base.lib
 xmake
 ```
 
@@ -119,14 +118,12 @@ xmake
 [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) 是单元测试代码，用于检验 base 库功能的正确性。
 
 ```sh
-# 在 co/build 目录下生成可执行文件 unitest 或 unitest.exe
-cd co/unitest/base
-xmake
+# 在 build 目录下生成可执行文件 unitest 或 unitest.exe
+xmake build unittest
 
-cd ../../build
-./unitest -a      # 执行所有单元测试
-./unitest -os     # 执行 os 单元测试
-./unitest -json   # 执行 json 单元测试
+xmake run unitest -a      # 执行所有单元测试
+xmake run unitest -os     # 执行 os 单元测试
+xmake run unitest -json   # 执行 json 单元测试
 ```
 
 - 编译 co/test
@@ -134,17 +131,14 @@ cd ../../build
 [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。
 
 ```sh
-# 在 co/build 目录下生成相应的可执行文件
-cd co/test
-xmake             # 编译 test 目录下的全部目标代码
-xmake -b log      # 编译 log_test.cc
-xmake -b flag     # 编译 flag_test.cc
+# 在 build 目录下生成相应的可执行文件
+xmake --all       # 编译 test 目录下的全部目标代码
+xmake build log   # 编译 log_test.cc
 xmake build flag  # 编译 flag_test.cc
 
-cd ../build
-./log.exe -perf   # log 库性能测试
-./rpc.exe -c=0    # 启动 rpc server
-./rpc.exe -c=1    # 启动 rpc client
+xmake run log -perf   # log 库性能测试
+xmake run rpc -c=0    # 启动 rpc server
+xmake run rpc -c=1    # 启动 rpc client
 ```
 
 - 编译 rpcgen
@@ -152,13 +146,12 @@ cd ../build
 [rpcgen](https://github.com/idealvin/co/tree/master/rpcgen) 是 `json rpc` 的代码生成器，根据指定的 proto 文件，自动生成相应的代码。
 
 ```sh
-# 在 co/build 目录下生成 rpcgen 或 rpcgen.exe
-cd co/rpcgen
-xmake
+# 在 build 目录下生成 rpcgen 或 rpcgen.exe
+xmake rpcgen
 
 # 建议将 rpcgen 放到系统目录下(/usr/local/bin/).
 # 有些 linux 系统自带了一个 rpcgen，为避免冲突，可能需要重命名 rpcgen.
-rpcgen hello_world.proto
+xmake run rpcgen test/rpc/hello_world.proto
 ```
 
 `proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
