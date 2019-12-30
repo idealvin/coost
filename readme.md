@@ -147,7 +147,7 @@ xmake run rpc -c=1    # 启动 rpc client
 
 ```sh
 # 在 build 目录下生成 rpcgen 或 rpcgen.exe
-xmake rpcgen
+xmake build rpcgen
 
 # 建议将 rpcgen 放到系统目录下(/usr/local/bin/).
 # 有些 linux 系统自带了一个 rpcgen，为避免冲突，可能需要重命名 rpcgen.
