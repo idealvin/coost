@@ -10,7 +10,7 @@ set_optimize("faster")  -- -O2
 set_warnings("all")     -- -Wall
 
 if is_plat("macosx", "linux") then
-    add_cxflags("-g3")
+    add_cxflags("-g3", "-Wno-narrowing")
     if is_plat("macosx") then
         add_cxflags("-fno-pie")
     end
