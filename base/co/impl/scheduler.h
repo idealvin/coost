@@ -40,8 +40,8 @@ struct Coroutine {
         : id(0), ev(0), ctx(0), stack(0), cb(0) {
     }
 
-    Coroutine(int i, Closure* f)
-        : id(i), ev(0), ctx(0), stack(0), cb(f) {
+    Coroutine(int i, Closure* c)
+        : id(i), ev(0), ctx(0), stack(0), cb(c) {
     }
 
     ~Coroutine() {
@@ -65,17 +65,18 @@ void _Wsa_startup();
 void _Wsa_cleanup();
 
 struct PerIoInfo {
-    PerIoInfo(const void* b, int n, Coroutine* p) : co(p), s(0) {
-        memset(this, 0, sizeof(ol) + sizeof(DWORD) * 2);
-        buf.buf = (char*) b;
-        buf.len = n;
+    PerIoInfo(const void* data, int size, Coroutine* c)
+        : n(0), flags(0), co(c), s(0) {
+        memset(&ol, 0, sizeof(ol));
+        buf.buf = (char*) data;
+        buf.len = size;
     }
 
-    PerIoInfo(int n, Coroutine* p) : co(p) {
-        memset(this, 0, sizeof(ol) + sizeof(DWORD) * 2);
-        s = (char*) malloc(n);
+    PerIoInfo(int size, Coroutine* c)
+        : n(0), flags(0), co(c), s((char*)malloc(size)) {
+        memset(&ol, 0, sizeof(ol));
         buf.buf = s;
-        buf.len = n;
+        buf.len = size;
     }
 
     ~PerIoInfo() {
