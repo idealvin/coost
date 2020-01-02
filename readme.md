@@ -93,7 +93,8 @@ go(f);
 
 ## 编译执行
 
-`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，后续可能放弃 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
+`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，同时提供 [cmake 支持](docs/cn/22.编译.md#cmake-编译)；
+后续可能放弃 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
 
 - 安装 xmake
 
