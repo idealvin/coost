@@ -15,7 +15,7 @@ Scheduler::Scheduler(uint32 id)
     _co_pool.reserve(1024);
     _co_pool.push_back(_main_co);
     _co_ids.reserve(1024);
-    _it = _timed_wait.end();
+    _it = _timer.end();
 }
 
 Scheduler::~Scheduler() {
@@ -85,20 +85,20 @@ void Scheduler::loop() {
     gSched = this;
     std::vector<Closure*> task_cb;
     std::vector<Coroutine*> task_co;
-    std::unordered_map<Coroutine*, timer_id_t> co_ready;
+    std::unordered_map<Coroutine*, timer_id_t> timer_task_co;
 
     while (!_stop) {
         int n = _epoll.wait(_wait_ms);
         if (_stop) break;
 
         if (unlikely(n == -1)) {
-            ELOG << "iocp wait error: " << co::strerror();
+            ELOG << "epoll wait error: " << co::strerror();
             continue;
         }
 
         for (int i = 0; i < n; ++i) {
             auto& ev = _epoll[i];
-            if (_epoll.has_ev_pipe(ev)) {
+            if (_epoll.is_ev_pipe(ev)) {
                 _epoll.handle_ev_pipe();
                 continue;
             }
@@ -138,16 +138,16 @@ void Scheduler::loop() {
 
         do {
             {
-                ::MutexGuard g(_co_mtx);
-                if (!_co.empty()) _co.swap(co_ready);
+                ::MutexGuard g(_timer_task_mtx);
+                if (!_timer_task_co.empty()) _timer_task_co.swap(timer_task_co);
             }
-            if (!co_ready.empty()) {
-                for (auto it = co_ready.begin(); it != co_ready.end(); ++it) {
+            if (!timer_task_co.empty()) {
+                for (auto it = timer_task_co.begin(); it != timer_task_co.end(); ++it) {
                     if (it->first->ev != ev_ready) continue;
-                    if (it->second != null_timer_id) _timed_wait.erase(it->second);
+                    if (it->second != null_timer_id) _timer.erase(it->second);
                     this->resume(it->first);
                 }
-                co_ready.clear();
+                timer_task_co.clear();
             }
         } while (0);
 
@@ -169,7 +169,7 @@ void Scheduler::loop() {
 }
 
 void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
-    if (_timed_wait.empty()) {
+    if (_timer.empty()) {
         if (_wait_ms != (uint32)-1) _wait_ms = -1;
         return;
     }
@@ -177,27 +177,26 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
     do {
         int64 now_ms = now::ms();
 
-        auto it = _timed_wait.begin();
-        for (; it != _timed_wait.end(); ++it) {
+        auto it = _timer.begin();
+        for (; it != _timer.end(); ++it) {
             if (it->first > now_ms) break;
             Coroutine* co = it->second;
             if (co->ev != 0) atomic_swap(&co->ev, 0);
             res.push_back(co);
         }
 
-        if (it != _timed_wait.begin()) {
-            if (_it != _timed_wait.end() && _it->first <= now_ms) {
+        if (it != _timer.begin()) {
+            if (_it != _timer.end() && _it->first <= now_ms) {
                 _it = it;
             }
-            _timed_wait.erase(_timed_wait.begin(), it);
+            _timer.erase(_timer.begin(), it);
         }
 
-        if (!_timed_wait.empty()) {
-            _wait_ms = (int) (_timed_wait.begin()->first - now_ms);
+        if (!_timer.empty()) {
+            _wait_ms = (int) (_timer.begin()->first - now_ms);
         } else {
             if (_wait_ms != (uint32)-1) _wait_ms = -1;
         }
-
     } while (0);
 }
 

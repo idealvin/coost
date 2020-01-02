@@ -121,23 +121,23 @@ class Scheduler {
 
     void sleep(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
-        _timed_wait.insert(std::make_pair(now::ms() + ms, _running));
+        _timer.insert(std::make_pair(now::ms() + ms, _running));
         this->yield();
     }
 
     timer_id_t add_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
-        return _it = _timed_wait.insert(_it, std::make_pair(now::ms() + ms, _running));
+        return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, _running));
     }
 
     timer_id_t add_ev_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
-        return _timed_wait.insert(std::make_pair(now::ms() + ms, _running));
+        return _timer.insert(std::make_pair(now::ms() + ms, _running));
     }
 
     void del_timer(const timer_id_t& id) {
         if (_it == id) ++_it;
-        _timed_wait.erase(id);
+        _timer.erase(id);
     }
 
     void loop();
@@ -217,18 +217,18 @@ class Scheduler {
     Epoll _epoll;
 
     std::vector<Coroutine*> _co_pool; // coroutine pool
-    std::vector<int> _co_ids;
+    std::vector<int> _co_ids;         // id of available coroutines in _co_pool
 
     ::Mutex _task_mtx;
     std::vector<Closure*> _task_cb;   // newly added tasks
     std::vector<Coroutine*> _task_co; // tasks to resume
 
-    ::Mutex _co_mtx;
-    std::unordered_map<Coroutine*, timer_id_t> _co; // coroutines to be waken up
+    std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
+    std::multimap<int64, Coroutine*>::iterator _it; // add_timer() may be faster with it
+    uint32 _wait_ms; // time epoll to wait
 
-    std::multimap<int64, Coroutine*> _timed_wait;   // <time, co>
-    std::multimap<int64, Coroutine*>::iterator _it;
-    uint32 _wait_ms;
+    ::Mutex _timer_task_mtx;
+    std::unordered_map<Coroutine*, timer_id_t> _timer_task_co; // timer tasks to resume
 
     SyncEvent _ev;
     bool _stop;
@@ -268,8 +268,8 @@ inline void Scheduler::add_task(Coroutine* co) {
 
 inline void Scheduler::add_task(Coroutine* co, timer_id_t id) {
     {
-        ::MutexGuard g(_co_mtx);
-        _co.insert(std::make_pair(co, id));
+        ::MutexGuard g(_timer_task_mtx);
+        _timer_task_co.insert(std::make_pair(co, id));
     }
     _epoll.signal();
 }

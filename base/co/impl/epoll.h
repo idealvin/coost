@@ -69,7 +69,7 @@ class Epoll {
         atomic_swap(&_signaled, false);
     }
 
-    static bool has_ev_pipe(const epoll_event& ev) {
+    static bool is_ev_pipe(const epoll_event& ev) {
         return ev.lpOverlapped == 0;
     }
 
@@ -138,7 +138,7 @@ class Epoll {
         return ev.events & (EPOLLERR | EPOLLHUP);
     }
 
-    static bool has_ev_pipe(const epoll_event& ev) {
+    static bool is_ev_pipe(const epoll_event& ev) {
         return ev.data.u64 == 0;
     }
 
@@ -193,7 +193,7 @@ class Epoll {
         return _ev[i];
     }
 
-    static bool has_ev_pipe(const epoll_event& ev) {
+    static bool is_ev_pipe(const epoll_event& ev) {
         return ev.udata == 0;
     }
 
