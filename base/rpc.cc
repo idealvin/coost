@@ -91,20 +91,26 @@ void ServerImpl::loop() {
     sock_t fd = co::tcp_socket();
     co::set_reuseaddr(fd);
 
-    int r;
     sock_t connfd;
+    int addrlen = sizeof(sockaddr_in);
     struct sockaddr_in addr;
 
     co::init_ip_addr(&addr, _ip, _port);
-    r = co::bind(fd, &addr, sizeof(addr));
+    const int r = co::bind(fd, &addr, sizeof(addr));
     CHECK_EQ(r, 0) << "bind (" << _ip << ':' << _port << ") failed: " << co::strerror();
     CHECK_EQ(co::listen(fd, 1024), 0) << "listen error: " << co::strerror();
 
     while (true) {
-        connfd = co::accept(fd, &addr, &r);
+        connfd = co::accept(fd, &addr, &addrlen);
         if (unlikely(connfd == -1)) {
             WLOG << "accept error: " << co::strerror();
             continue;
+        }
+
+        if (unlikely(addrlen != sizeof(sockaddr_in))) {
+            WLOG << "rpc server accept a connection with unexpected addrlen: " << addrlen
+                 << ", addr will not be filled..";
+            memset(&addr, 0, sizeof(addr));
         }
 
         Connection* conn = new Connection;

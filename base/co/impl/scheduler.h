@@ -66,16 +66,9 @@ void _Wsa_cleanup();
 
 struct PerIoInfo {
     PerIoInfo(const void* data, int size, Coroutine* c)
-        : n(0), flags(0), co(c), s(0) {
+        : n(0), flags(0), co(c), s(data ? 0 : (char*)malloc(size)) {
         memset(&ol, 0, sizeof(ol));
-        buf.buf = (char*) data;
-        buf.len = size;
-    }
-
-    PerIoInfo(int size, Coroutine* c)
-        : n(0), flags(0), co(c), s((char*)malloc(size)) {
-        memset(&ol, 0, sizeof(ol));
-        buf.buf = s;
+        buf.buf = data ? (char*)data : s;
         buf.len = size;
     }
 
@@ -102,7 +95,7 @@ struct PerIoInfo {
 #endif
 
 typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
-extern timer_id_t null_timer_id;
+extern const timer_id_t null_timer_id;
 
 class Scheduler {
   public:
@@ -125,13 +118,10 @@ class Scheduler {
         this->yield();
     }
 
-    timer_id_t add_timer(uint32 ms) {
+    // @speedup: if true, do optimization with the iterator _it.
+    timer_id_t add_timer(uint32 ms, bool speedup=true) {
         if (_wait_ms > ms) _wait_ms = ms;
-        return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, _running));
-    }
-
-    timer_id_t add_ev_timer(uint32 ms) {
-        if (_wait_ms > ms) _wait_ms = ms;
+        if (speedup) return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, _running));
         return _timer.insert(std::make_pair(now::ms() + ms, _running));
     }
 
@@ -154,39 +144,21 @@ class Scheduler {
     void add_task(Coroutine* co, timer_id_t id);
 
   #if defined(_WIN32)
-    bool add_ev_read(sock_t fd) {
-        return _epoll.add_ev_read(fd);
+    bool add_event(sock_t fd, int ev) {
+        return _epoll.add_event(fd, ev);
     }
-
-    bool add_ev_write(sock_t fd) {
-        return _epoll.add_ev_write(fd);
-    }
-
   #elif defined(__linux__)
-    bool add_ev_read(sock_t fd) {
-        return _epoll.add_ev_read(fd, _running->id);
+    bool add_event(sock_t fd, int ev) {
+        return _epoll.add_event(fd, ev, _running->id);
     }
-
-    bool add_ev_write(sock_t fd) {
-        return _epoll.add_ev_write(fd, _running->id);
-    }
-
   #else
-    bool add_ev_read(sock_t fd) {
-        return _epoll.add_ev_read(fd, _running);
-    }
-
-    bool add_ev_write(sock_t fd) {
-        return _epoll.add_ev_write(fd, _running);
+    bool add_event(sock_t fd, int ev) {
+        return _epoll.add_event(fd, ev, _running);
     }
   #endif
 
-    void del_ev_read(sock_t fd) {
-        _epoll.del_ev_read(fd);
-    }
-
-    void del_ev_write(sock_t fd) {
-        _epoll.del_ev_write(fd);
+    void del_event(sock_t fd, int ev) {
+        _epoll.del_event(fd, ev);
     }
 
     void del_event(sock_t fd) {
@@ -293,150 +265,5 @@ class SchedulerMgr {
     uint32 _index;
     uint32 _n;
 };
-
-#ifdef _WIN32
-class EvRead {
-  public:
-    EvRead(sock_t fd) : _fd(fd), _id(null_timer_id) {
-        gSched->add_ev_read(fd);
-    }
-
-    ~EvRead() {
-        if (_id != null_timer_id) gSched->del_timer(_id);
-    }
-
-    void wait() {
-        gSched->yield();
-    }
-
-    bool wait(int ms, int err=-1) {
-        if (_id == null_timer_id) {
-            _id = (err == -1 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
-        }
-
-        gSched->yield();
-        if (!gSched->timeout()) return true;
-
-        gSched->del_ev_read(_fd);
-        ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
-
-        _id = null_timer_id;
-        WSASetLastError(ETIMEDOUT);
-        return false;
-    }
-
-  private:
-    sock_t _fd;
-    timer_id_t _id;
-};
-
-class EvWrite {
-  public:
-    EvWrite(sock_t fd) : _fd(fd), _id(null_timer_id) {
-        gSched->add_ev_write(fd);
-    }
-
-    ~EvWrite() {
-        gSched->del_ev_write(_fd);
-        if (_id != null_timer_id) gSched->del_timer(_id);
-    }
-
-    void wait() {
-        gSched->yield();
-    }
-
-    bool wait(int ms, int err=-2) {
-        if (_id == null_timer_id) {
-            _id = (err == -2 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
-        }
-
-        gSched->yield();
-        if (!gSched->timeout()) return true;
-
-        ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
-
-        _id = null_timer_id;
-        WSASetLastError(ETIMEDOUT);
-        return false;
-    }
-
-  private:
-    sock_t _fd;
-    timer_id_t _id;
-};
-
-#else
-class EvRead {
-  public:
-    EvRead(sock_t fd) : _fd(fd), _id(null_timer_id) {}
-
-    ~EvRead() {
-        if (_id != null_timer_id) gSched->del_timer(_id);
-    }
-
-    void wait() {
-        gSched->add_ev_read(_fd);
-        gSched->yield();
-    }
-
-    bool wait(int ms, int err=-1) {
-        if (_id == null_timer_id) {
-            gSched->add_ev_read(_fd);
-            _id = (err == -1 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
-        }
-
-        gSched->yield();
-        if (!gSched->timeout()) return true;
-
-        gSched->del_ev_read(_fd);
-        _id = null_timer_id;
-        errno = ETIMEDOUT;
-        return false;
-    }
-
-  private:
-    sock_t _fd;
-    timer_id_t _id; // must initialize it manually on some platforms.
-};
-
-class EvWrite {
-  public:
-    EvWrite(sock_t fd) : _has_ev(false), _fd(fd), _id(null_timer_id) {}
-
-    ~EvWrite() {
-        if (_has_ev) gSched->del_ev_write(_fd);
-        if (_id != null_timer_id) gSched->del_timer(_id);
-    }
-
-    void wait() {
-        if (!_has_ev) {
-            _has_ev = true;
-            gSched->add_ev_write(_fd);
-        }
-        gSched->yield();
-    }
-
-    bool wait(int ms, int err=-2) {
-        if (!_has_ev) {
-            _has_ev = true;
-            gSched->add_ev_write(_fd);
-            _id = (err == -2 ? gSched->add_timer(ms) : gSched->add_ev_timer(ms));
-        }
-
-        gSched->yield();
-        if (!gSched->timeout()) return true;
-
-        _id = null_timer_id;
-        errno = ETIMEDOUT;
-        return false;
-    }
-
-  private:
-    bool _has_ev;
-    sock_t _fd;
-    timer_id_t _id;
-};
-
-#endif
 
 } // co

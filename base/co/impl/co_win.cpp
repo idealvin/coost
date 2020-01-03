@@ -1,5 +1,7 @@
 #ifdef _WIN32
+
 #include "scheduler.h"
+#include "io_event.h"
 #include <ws2spi.h>
 
 DEF_int32(tcp_max_recv_size, 1024 * 1024, "max size for a single recv");
@@ -28,23 +30,18 @@ sock_t udp_socket(int v) {
     return fd;
 }
 
-int close(sock_t fd) {
-    gSched->del_event(fd);
-    return ::closesocket(fd);
-}
-
 int close(sock_t fd, int ms) {
     gSched->del_event(fd);
-    gSched->sleep(ms);
+    if (ms > 0) gSched->sleep(ms);
     return ::closesocket(fd);
 }
 
 int shutdown(sock_t fd, char c) {
     if (c == 'r') {
-        gSched->del_ev_read(fd);
+        gSched->del_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
     } else if (c == 'w') {
-        gSched->del_ev_write(fd);
+        gSched->del_event(fd, EV_write);
         return ::shutdown(fd, SD_SEND);
     } else {
         gSched->del_event(fd);
@@ -60,22 +57,24 @@ int listen(sock_t fd, int backlog) {
     return ::listen(fd, backlog);
 }
 
+// TODO: support ipv6?
+// I won't do it anyhow. Someone help?  -- by Alvin at 2020.1.3
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
     sock_t connfd = co::tcp_socket();
     if (connfd == INVALID_SOCKET) return connfd;
 
+    const int sockaddr_len = sizeof(sockaddr_in);
     std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo((sizeof(sockaddr_in) + 16) * 2, gSched->running())
+        new PerIoInfo(0, (sockaddr_len + 16) * 2, gSched->running())
     );
 
     sockaddr_in *serv = 0, *peer = 0;
     int serv_len = sizeof(*serv), peer_len = sizeof(*peer);
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
 
     int r = accept_ex(
         fd, connfd, info->s, 0,
-        sizeof(sockaddr_in) + 16,
-        sizeof(sockaddr_in) + 16,
+        sockaddr_len + 16, sockaddr_len + 16,
         0, &info->ol
     );
 
@@ -97,14 +96,15 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 
     get_accept_ex_addrs(
         info->s, 0,
-        sizeof(sockaddr_in) + 16,
-        sizeof(sockaddr_in) + 16,
+        sockaddr_len + 16, sockaddr_len + 16,
         (sockaddr**)&serv, &serv_len,
         (sockaddr**)&peer, &peer_len
     );
 
-    if (addr) memcpy(addr, peer, peer_len);
-    if (addrlen) *addrlen = peer_len;
+    if (addrlen) {
+        if (*addrlen >= peer_len) memcpy(addr, peer, peer_len);
+        *addrlen = peer_len;
+    }
 
     set_skip_iocp_on_success(connfd);
     return connfd;
@@ -114,7 +114,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     return -1;
 }
 
-int connect(sock_t fd, const void* addr, int addrlen) {
+int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(addr, addrlen, gSched->running())
     );
@@ -122,24 +122,26 @@ int connect(sock_t fd, const void* addr, int addrlen) {
     // docs.microsoft.com/zh-cn/windows/win32/api/mswsock/nc-mswsock-lpfn_connectex
     // stackoverflow.com/questions/13598530/connectex-requires-the-socket-to-be-initially-bound-but-to-what
     // @fd must be an unconnected, previously bound socket
-    struct sockaddr_in x;
-    memset(&x, 0, sizeof(x));
-    x.sin_family = AF_INET;
-    if (co::bind(fd, &x, sizeof(x)) != 0) {
-        ELOG << "connectex bind local addr failed..";
-        return -1;
-    }
+    do {
+        struct sockaddr_in x;
+        memset(&x, 0, sizeof(x));
+        x.sin_family = AF_INET;
+        if (co::bind(fd, &x, sizeof(x)) != 0) {
+            ELOG << "connectex bind local addr failed..";
+            return -1;
+        }
+    } while (0);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
 
     int r = connect_ex(
-        fd, (const sockaddr*) addr, addrlen,
+        fd, (const sockaddr*)addr, addrlen,
         0, 0, 0, &info->ol
     );
 
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        ev.wait();
+        if (!ev.wait(ms, false)) return -1; // timeout
     }
 
     r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
@@ -161,80 +163,12 @@ int connect(sock_t fd, const void* addr, int addrlen) {
     }
 }
 
-int connect(sock_t fd, const void* addr, int addrlen, int ms) {
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(addr, addrlen, gSched->running())
-    );
-
-    struct sockaddr_in x;
-    memset(&x, 0, sizeof(x));
-    x.sin_family = AF_INET;
-    if (co::bind(fd, &x, sizeof(x)) != 0) {
-        ELOG << "connectex bind local addr failed..";
-        return -1;
-    }
-
-    EvWrite ev(fd);
-    int r = connect_ex(
-        fd, (const sockaddr*) addr, addrlen,
-        0, 0, 0, &info->ol
-    );
-
-    if (r == FALSE) {
-        if (co::error() != ERROR_IO_PENDING) return -1;
-        if (!ev.wait(ms, ETIMEDOUT)) return -1; // timeout
-    }
-
-    r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
-    if (r != 0) {
-        ELOG << "connectex set SO_UPDATE_ACCEPT_CONTEXT failed..";
-        return -1;
-    }
-
-    int seconds;
-    int len = sizeof(int);
-    r = getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&seconds, &len);
-    if (r == NO_ERROR) {
-        if (seconds == -1) return -1;
-        set_skip_iocp_on_success(fd);
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
-int recv(sock_t fd, void* buf, int n) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
-
-    EvRead ev(fd);
-
-    int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
-    if (r == 0) {
-        if (!can_skip_iocp_on_success) ev.wait();
-    } else if (co::error() == WSA_IO_PENDING) {
-        ev.wait();
-    } else {
-        return -1;
-    }
-
-    if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
-    return (int) info->n;
-}
-
 int recv(sock_t fd, void* buf, int n, int ms) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
+    std::unique_ptr<PerIoInfo> info(
+        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
+    );
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
 
     if (r == 0) {
@@ -249,48 +183,12 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     return (int) info->n;
 }
 
-int recvn(sock_t fd, void* buf, int n) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
-
-    EvRead ev(fd);
-
-    do {
-        int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
-
-        if (r == 0) {
-            if (!can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
-            ev.wait();
-        } else {
-            return -1;
-        }
-
-        if (info->n == (DWORD) info->buf.len) {
-            if (info->s) memcpy(buf, info->s, n);
-            return n;
-        }
-
-        if (info->n == 0) return 0;
-
-        info->move(info->n);
-        info->resetol();
-    } while (true);
-}
-
 int _Recvn(sock_t fd, void* buf, int n, int ms) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
+    std::unique_ptr<PerIoInfo> info(
+        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
+    );
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
 
     do {
         int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
@@ -313,7 +211,6 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
             info->move(info->n);
             info->resetol();
         } while (0);
-
     } while (true);
 }
 
@@ -332,61 +229,14 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
     return r != x ? r : n;
 }
 
-int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
-
-    int r;
-    char* s = 0;
-    EvRead ev(fd);
-
-    if (addr && addrlen) {
-        s = (char*) malloc(*addrlen + 8);
-        *(int*)s = *addrlen;
-        r = WSARecvFrom(
-            fd, &info->buf, 1, &info->n, &info->flags,
-            (sockaddr*)(s + 8), (int*)s, &info->ol, 0
-        );
-    } else {
-        r = WSARecvFrom(
-            fd, &info->buf, 1, &info->n, &info->flags,
-            0, 0, &info->ol, 0
-        );
-    }
-
-    if (r == 0) {
-        if (!can_skip_iocp_on_success) ev.wait();
-    } else if (co::error() == WSA_IO_PENDING) {
-        ev.wait();
-    } else {
-        return -1;
-    }
-
-    if (s) {
-        memcpy(addr, s + 8, *addrlen);
-        *addrlen = *(int*)s;
-        free(s);
-    }
-
-    if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
-    return (int) info->n;
-}
-
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack(buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-    }
+    std::unique_ptr<PerIoInfo> info(
+        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
+    );
 
     int r;
     char* s = 0;
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
 
     if (addr && addrlen) {
         s = (char*) malloc(*addrlen + 8);
@@ -420,48 +270,16 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     return (int) info->n;
 }
 
-int send(sock_t fd, const void* buf, int n) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack((void*)buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-        memcpy(info->s, buf, n);
-    }
-
-    EvWrite ev(fd);
-
-    do {
-        int r = WSASend(fd, &info->buf, 1, &info->n, 0, &info->ol, 0);
-
-        if (r == 0) {
-            if (!can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
-            ev.wait();
-        } else {
-            return -1;
-        }
-
-        do {
-            if (info->n == (DWORD) info->buf.len) return n;
-            if (info->n == 0) return -1;
-            info->move(info->n);
-            info->resetol();
-        } while (0);
-
-    } while (true);
-}
-
 int _Send(sock_t fd, const void* buf, int n, int ms) {
     std::unique_ptr<PerIoInfo> info;
     if (!gSched->on_stack((void*)buf)) {
         info.reset(new PerIoInfo(buf, n, gSched->running()));
     } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
+        info.reset(new PerIoInfo(0, n, gSched->running()));
         memcpy(info->s, buf, n);
     }
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
 
     do {
         int r = WSASend(fd, &info->buf, 1, &info->n, 0, &info->ol, 0);
@@ -480,7 +298,6 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
             info->move(info->n);
             info->resetol();
         } while (0);
-
     } while (true);
 }
 
@@ -499,16 +316,16 @@ int send(sock_t fd, const void* buf, int n, int ms) {
     return r != x ? r : n;
 }
 
-int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen) {
+int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
     std::unique_ptr<PerIoInfo> info;
     if (!gSched->on_stack((void*)buf)) {
         info.reset(new PerIoInfo(buf, n, gSched->running()));
     } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
+        info.reset(new PerIoInfo(0, n, gSched->running()));
         memcpy(info->s, buf, n);
     }
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
 
     do {
         int r = WSASendTo(
@@ -519,36 +336,11 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen) {
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            ev.wait();
-        } else {
-            return -1;
-        }
-
-        return (int) info->n;
-    } while (0);
-}
-
-int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack((void*)buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(n, gSched->running()));
-        memcpy(info->s, buf, n);
-    }
-
-    EvWrite ev(fd);
-
-    do {
-        int r = WSASendTo(
-            fd, &info->buf, 1, &info->n, 0,
-            (const sockaddr*)addr, addrlen, &info->ol, 0
-        );
-
-        if (r == 0) {
-            if (!can_skip_iocp_on_success) gSched->yield();
-        } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) { info->co = 0; return -1; }
+            if (ms >= 0) {
+                if (!ev.wait(ms)) { info->co = 0; return -1; }
+            } else {
+                ev.wait();
+            }
         } else {
             return -1;
         }

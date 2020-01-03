@@ -17,6 +17,11 @@
 
 namespace co {
 
+enum {
+    EV_read = 1,
+    EV_write =2,
+};
+
 #ifdef _WIN32
 typedef OVERLAPPED_ENTRY epoll_event;
 
@@ -26,20 +31,12 @@ class Epoll {
     Epoll();
     ~Epoll();
 
-    bool add_ev_read(sock_t fd) {
-        return this->_Add_event(fd, 1);
+    bool add_event(sock_t fd, int ev) {
+        return this->_Add_event(fd, ev);
     }
 
-    bool add_ev_write(sock_t fd) {
-        return this->_Add_event(fd, 2);
-    }
-
-    void del_ev_read(sock_t fd) {
-        this->_Del_event(fd, 1);
-    }
-
-    void del_ev_write(sock_t fd) {
-        this->_Del_event(fd, 2);
+    void del_event(sock_t fd, int ev) {
+        return this->_Del_event(fd, ev);
     }
 
     void del_event(sock_t fd) {
@@ -101,6 +98,16 @@ class Epoll {
   public:
     Epoll();
     ~Epoll();
+
+    bool add_event(int fd, int ev, int ud) {
+        if (ev == EV_read) return this->add_ev_read(fd, ud);
+        return this->add_ev_write(fd, ud);
+    }
+
+    void del_event(int fd, int ev) {
+        if (ev == EV_read) return this->del_ev_read(fd);
+        return this->del_ev_write(fd);
+    }
 
     bool add_ev_read(int fd, int u);
     bool add_ev_write(int fd, int u);
@@ -171,6 +178,16 @@ class Epoll {
   public:
     Epoll();
     ~Epoll();
+
+    bool add_event(int fd, int ev, void* ud) {
+        if (ev == EV_read) return this->add_ev_read(fd, ud);
+        return this->add_ev_write(fd, ud);
+    }
+
+    bool del_event(int fd, int ev) {
+        if (ev == EV_read) return this->del_ev_read(fd);
+        return this->del_ev_write(fd);
+    }
 
     bool add_ev_read(int fd, void* p);
     bool add_ev_write(int fd, void* p);

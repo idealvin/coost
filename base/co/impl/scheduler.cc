@@ -5,7 +5,7 @@ DEF_uint32(co_stack_size, 1024 * 1024, "size of the stack shared by coroutines, 
 
 namespace co {
 
-timer_id_t null_timer_id;
+const timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
 
 Scheduler::Scheduler(uint32 id)

@@ -39,7 +39,7 @@ bool EventImpl::wait(unsigned int ms) {
     co->ev = ev_wait;
     if (co->s != gSched) co->s = gSched;
 
-    timer_id_t id = gSched->add_ev_timer(ms);
+    timer_id_t id = gSched->add_timer(ms, false);
     {
         ::MutexGuard g(_mtx);
         _co_wait.insert(std::make_pair(co, id));

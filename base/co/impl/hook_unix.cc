@@ -2,6 +2,7 @@
 
 #include "hook.h"
 #include "scheduler.h"
+#include "io_event.h"
 #include <dlfcn.h>
 
 namespace co {
@@ -120,8 +121,9 @@ inline co::Hook& gHook() {
 }
 
 using co::gSched;
-using co::EvRead;
-using co::EvWrite;
+using co::EV_read;
+using co::EV_write;
+using co::IoEvent;
 
 #ifndef __linux__
 co::Mutex gDnsMtx;
@@ -179,6 +181,29 @@ kevent_fp_t fp_kevent = 0;
 #endif
 
 
+#define do_hook(f, ev) \
+    do { \
+        auto r = f; \
+        if (r != -1) return r; \
+        if (errno == EWOULDBLOCK || errno == EAGAIN) { \
+            ev.wait(); \
+        } else if (errno != EINTR) { \
+            return -1; \
+        } \
+    } while (true)
+
+#define do_hook_ms(f, ev, ms) \
+    do { \
+        auto r = f; \
+        if (r != -1) return r; \
+        if (errno == EWOULDBLOCK || errno == EAGAIN) { \
+            if (!ev.wait(ms, EWOULDBLOCK)) return -1; \
+        } else if (errno != EINTR) { \
+            return -1; \
+        } \
+    } while (true)
+
+
 int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
     if (!gSched) return fp_connect(fd, addr, addrlen);
 
@@ -204,13 +229,13 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return fp_accept(fd, addr, addrlen);
 
+    IoEvent ev(fd, EV_read);
     do {
         int conn_fd = fp_accept(fd, addr, addrlen);
         if (conn_fd != -1) return conn_fd;
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_read(fd);
-            gSched->yield();
+            ev.wait();
         } else if (errno != EINTR) {
             return -1;
         }
@@ -218,7 +243,10 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
 }
 
 int close(int fd) {
-    if (!gSched) return fp_close(fd);
+    if (!gSched) {
+        if (!fp_close) fp_close = (close_fp_t) dlsym(RTLD_NEXT, "close");
+        return fp_close(fd);
+    }
 
     auto hi = gHook().find_and_erase(fd);
     if (!hi.hookable()) return fp_close(fd);
@@ -229,36 +257,13 @@ int __close(int fd) {
     return close(fd);
 }
 
-#define do_hook(f, ev) \
-    do { \
-        auto r = f; \
-        if (r != -1) return r; \
-        if (errno == EWOULDBLOCK || errno == EAGAIN) { \
-            ev.wait(); \
-        } else if (errno != EINTR) { \
-            return -1; \
-        } \
-    } while (true)
-
-#define do_hook_ms(f, ev, ms) \
-    do { \
-        auto r = f; \
-        if (r != -1) return r; \
-        if (errno == EWOULDBLOCK || errno == EAGAIN) { \
-            if (!ev.wait(ms, EWOULDBLOCK)) return -1; \
-        } else if (errno != EINTR) { \
-            return -1; \
-        } \
-    } while (true)
-
-
 ssize_t read(int fd, void* buf, size_t count) {
     if (!gSched) return fp_read(fd, buf, count);
 
     auto hi = gHook().get_hook_info(fd, 'r');
     if (!hi.hookable()) return fp_read(fd, buf, count);
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     if (hi.recv_timeout() < 0) {
         do_hook(fp_read(fd, buf, count), ev);
     } else {
@@ -272,7 +277,7 @@ ssize_t readv(int fd, const struct iovec* iov, int iovcnt) {
     auto hi = gHook().get_hook_info(fd, 'r');
     if (!hi.hookable()) return fp_readv(fd, iov, iovcnt);
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     if (hi.recv_timeout() < 0) {
         do_hook(fp_readv(fd, iov, iovcnt), ev);
     } else {
@@ -286,7 +291,7 @@ ssize_t recv(int fd, void* buf, size_t len, int flags) {
     auto hi = gHook().get_hook_info(fd, 'r');
     if (!hi.hookable()) return fp_recv(fd, buf, len, flags);
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     if (hi.recv_timeout() < 0) {
         do_hook(fp_recv(fd, buf, len, flags), ev);
     } else {
@@ -300,7 +305,7 @@ ssize_t recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr
     auto hi = gHook().get_hook_info(fd, 'r');
     if (!hi.hookable()) return fp_recvfrom(fd, buf, len, flags, addr, addrlen);
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     if (hi.recv_timeout() < 0) {
         do_hook(fp_recvfrom(fd, buf, len, flags, addr, addrlen), ev);
     } else {
@@ -314,7 +319,7 @@ ssize_t recvmsg(int fd, struct msghdr* msg, int flags) {
     auto hi = gHook().get_hook_info(fd, 'r');
     if (!hi.hookable()) return fp_recvmsg(fd, msg, flags);
 
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     if (hi.recv_timeout() < 0) {
         do_hook(fp_recvmsg(fd, msg, flags), ev);
     } else {
@@ -323,12 +328,15 @@ ssize_t recvmsg(int fd, struct msghdr* msg, int flags) {
 }
 
 ssize_t write(int fd, const void* buf, size_t count) {
-    if (!gSched) return fp_write(fd, buf, count);
+    if (!gSched) {
+        if (!fp_write) fp_write = (write_fp_t) dlsym(RTLD_NEXT, "write");
+        return fp_write(fd, buf, count);
+    }
 
     auto hi = gHook().get_hook_info(fd, 'w');
     if (!hi.hookable()) return fp_write(fd, buf, count);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
     if (hi.send_timeout() < 0) {
         do_hook(fp_write(fd, buf, count), ev);
     } else {
@@ -342,7 +350,7 @@ ssize_t writev(int fd, const struct iovec* iov, int iovcnt) {
     auto hi = gHook().get_hook_info(fd, 'w');
     if (!hi.hookable()) return fp_writev(fd, iov, iovcnt);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
     if (hi.send_timeout() < 0) {
         do_hook(fp_writev(fd, iov, iovcnt), ev);
     } else {
@@ -356,7 +364,7 @@ ssize_t send(int fd, const void* buf, size_t len, int flags) {
     auto hi = gHook().get_hook_info(fd, 'w');
     if (!hi.hookable()) return fp_send(fd, buf, len, flags);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
     if (hi.send_timeout() < 0) {
         do_hook(fp_send(fd, buf, len, flags), ev);
     } else {
@@ -370,7 +378,7 @@ ssize_t sendto(int fd, const void* buf, size_t len, int flags, const struct sock
     auto hi = gHook().get_hook_info(fd, 'w');
     if (!hi.hookable()) return fp_sendto(fd, buf, len, flags, addr, addrlen);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
     if (hi.send_timeout() < 0) {
         do_hook(fp_sendto(fd, buf, len, flags, addr, addrlen), ev);
     } else {
@@ -384,7 +392,7 @@ ssize_t sendmsg(int fd, const struct msghdr* msg, int flags) {
     auto hi = gHook().get_hook_info(fd, 'w');
     if (!hi.hookable()) return fp_sendmsg(fd, msg, flags);
 
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
     if (hi.send_timeout() < 0) {
         do_hook(fp_sendmsg(fd, msg, flags), ev);
     } else {
@@ -399,15 +407,15 @@ int poll(struct pollfd* fds, nfds_t nfds, int ms) {
         if (nfds == 1) {
             int fd = fds[0].fd;
             if (fds[0].events == POLLIN) {
-                if (!gSched->add_ev_read(fd)) break;
+                if (!gSched->add_event(fd, EV_read)) break;
             } else if (fds[0].events == POLLOUT) {
-                if (!gSched->add_ev_write(fd)) break;
+                if (!gSched->add_event(fd, EV_write)) break;
             } else {
                 break;
             }
 
             co::timer_id_t id = co::null_timer_id;
-            if (ms > 0) id = gSched->add_ev_timer(ms);
+            if (ms > 0) id = gSched->add_timer(ms, false);
 
             gSched->yield();
             gSched->del_event(fd);
@@ -480,15 +488,9 @@ int nanosleep(const struct timespec* req, struct timespec* rem) {
 int epoll_wait(int epfd, struct epoll_event* events, int n, int ms) {
     if (!gSched || ms == 0) return fp_epoll_wait(epfd, events, n, ms);
 
-    if (ms > 0) {
-        EvRead ev(epfd);
-        if (!ev.wait(ms, 0)) return 0; // timeout
-        return fp_epoll_wait(epfd, events, n, 0);
-    } else {
-        gSched->add_ev_read(epfd);
-        gSched->yield();
-        return fp_epoll_wait(epfd, events, n, 0);
-    }
+    IoEvent ev(epfd, EV_read);
+    if (!ev.wait(ms, true)) return 0; // timeout
+    return fp_epoll_wait(epfd, events, n, 0);
 }
 
 int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
@@ -497,13 +499,13 @@ int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return fp_accept4(fd, addr, addrlen, flags);
 
+    IoEvent ev(fd, EV_read);
     do {
         int conn_fd = fp_accept4(fd, addr, addrlen, flags);
         if (conn_fd != -1) return conn_fd;
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_read(fd);
-            gSched->yield();
+            ev.wait();
         } else if (errno != EINTR) {
             return -1;
         }
@@ -614,15 +616,9 @@ int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, con
     if (ts) ms = ts->tv_sec * 1000 + ts->tv_nsec / 1000000;
     if (ms == 0) return fp_kevent(kq, c, nc, e, ne, ts);
 
-    if (ms > 0) {
-        EvRead ev(kq);
-        if (!ev.wait(ms, 0)) return 0; // timeout
-        return fp_kevent(kq, c, nc, e, ne, 0);
-    } else {
-        gSched->add_ev_read(kq);
-        gSched->yield();
-        return fp_kevent(kq, c, nc, e, ne, 0);
-    }
+    IoEvent ev(kq, EV_read);
+    if (!ev.wait(ms, true)) return 0; // timeout
+    return fp_kevent(kq, c, nc, e, ne, 0);
 }
 
 struct hostent* gethostbyname(const char* name) {
