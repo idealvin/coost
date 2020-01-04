@@ -22,12 +22,12 @@ DEF_test(time) {
     DEF_case(str) {
         fastring ymdhms = now::str("%Y%m%d%H%M%S");
         fastring S = now::str("%S");
-        fastring ymd = now::str("%Y%m%d");
-        fastring y = now::str("%Y");
-        fastring m = now::str("%m");
-        fastring d = now::str("%d");
-        fastring H = now::str("%H");
         fastring M = now::str("%M");
+        fastring H = now::str("%H");
+        fastring ymd = now::str("%Y%m%d");
+        fastring d = now::str("%d");
+        fastring m = now::str("%m");
+        fastring y = now::str("%Y");
 
         EXPECT_NE(y, fastring());
         EXPECT_NE(m, fastring());
