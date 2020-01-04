@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "scheduler.h"
+#include "io_event.h"
 #include "hook.h"
 
 DEF_int32(tcp_max_recv_size, 1024 * 1024, "max size for a single recv");
@@ -37,16 +38,9 @@ sock_t udp_socket(int v) {
 }
 #endif
 
-int close(sock_t fd) {
-    gSched->del_event(fd);
-    int r;
-    while ((r = fp_close(fd)) != 0 && errno == EINTR);
-    return r;
-}
-
 int close(sock_t fd, int ms) {
     gSched->del_event(fd);
-    gSched->sleep(ms);
+    if (ms > 0) gSched->sleep(ms);
     int r;
     while ((r = fp_close(fd)) != 0 && errno == EINTR);
     return r;
@@ -54,10 +48,10 @@ int close(sock_t fd, int ms) {
 
 int shutdown(sock_t fd, char c) {
     if (c == 'r') {
-        gSched->del_ev_read(fd);
+        gSched->del_event(fd, EV_read);
         return fp_shutdown(fd, SHUT_RD);
     } else if (c == 'w') {
-        gSched->del_ev_write(fd);
+        gSched->del_event(fd, EV_write);
         return fp_shutdown(fd, SHUT_WR);
     } else {
         gSched->del_event(fd);
@@ -74,44 +68,23 @@ int listen(sock_t fd, int backlog) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
+    IoEvent ev(fd, EV_read);
+
     do {
       #ifdef SOCK_NONBLOCK
-        sock_t conn_fd = fp_accept4(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
-        if (conn_fd != -1) return conn_fd;
+        sock_t connfd = fp_accept4(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+        if (connfd != -1) return connfd;
       #else
-        sock_t conn_fd = fp_accept(fd, (sockaddr*)addr, (socklen_t*)addrlen);
-        if (conn_fd != -1) {
-            co::set_nonblock(conn_fd);
-            co::set_cloexec(conn_fd);
-            return conn_fd;
+        sock_t connfd = fp_accept(fd, (sockaddr*)addr, (socklen_t*)addrlen);
+        if (connfd != -1) {
+            co::set_nonblock(connfd);
+            co::set_cloexec(connfd);
+            return connfd;
         }
       #endif
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_read(fd);
-            gSched->yield();
-        } else if (errno != EINTR) {
-            return -1;
-        }
-    } while (true);
-}
-
-int connect(sock_t fd, const void* addr, int addrlen) {
-    do {
-        int r = fp_connect(fd, (const sockaddr*)addr, (socklen_t)addrlen);
-        if (r == 0) return 0;
-
-        if (errno == EINPROGRESS) {
-            gSched->add_ev_write(fd);
-            gSched->yield();
-            gSched->del_event(fd);
-
-            int err, len = sizeof(err);
-            r = co::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
-            if (r != 0) return -1;
-            if (err == 0) return 0;
-            errno = err;
-            return -1;
+            ev.wait();
         } else if (errno != EINTR) {
             return -1;
         }
@@ -124,32 +97,16 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         if (r == 0) return 0;
 
         if (errno == EINPROGRESS) {
-            EvWrite ev(fd);
-            if (ev.wait(ms, ETIMEDOUT)) {
-                int err, len = sizeof(err);
-                r = co::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
-                if (r != 0) return -1;
-                if (err == 0) return 0;
-                errno = err;
-                return -1;
-            } else {
-                return -1;
-            }
+            IoEvent ev(fd, EV_write);
+            if (!ev.wait(ms, true)) return -1;
 
-        } else if (errno != EINTR) {
+            int err, len = sizeof(err);
+            r = co::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
+            if (r != 0) return -1;
+            if (err == 0) return 0;
+            errno = err;
             return -1;
-        }
-    } while (true);
-}
 
-int recv(sock_t fd, void* buf, int n) {
-    do {
-        int r = (int) fp_recv(fd, buf, n, 0);
-        if (r != -1) return r;
-
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_read(fd);
-            gSched->yield();
         } else if (errno != EINTR) {
             return -1;
         }
@@ -157,7 +114,7 @@ int recv(sock_t fd, void* buf, int n) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
 
     do {
         int r = (int) fp_recv(fd, buf, n, 0);
@@ -171,32 +128,10 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     } while (true);
 }
 
-int recvn(sock_t fd, void* buf, int n) {
-    char* s = (char*) buf;
-    int remain = n;
-    do {
-        int r = (int) fp_recv(fd, s, remain, 0);
-        if (r == remain) return n;
-        if (r == 0) return 0;
-
-        if (r == -1) {
-            if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                gSched->add_ev_read(fd);
-                gSched->yield();
-            } else if (errno != EINTR) {
-                return -1;
-            }
-        } else {
-            remain -= r;
-            s += r;
-        }
-    } while (true);
-}
-
 int _Recvn(sock_t fd, void* buf, int n, int ms) {
     char* s = (char*) buf;
     int remain = n;
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
 
     do {
         int r = (int) fp_recv(fd, s, remain, 0);
@@ -231,22 +166,8 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
     return r != remain ? r : n;
 }
 
-int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen) {
-    do {
-        int r = (int) fp_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
-        if (r != -1) return r;
-
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_read(fd);
-            gSched->yield();
-        } else if (errno != EINTR) {
-            return -1;
-        }
-    } while (true);
-}
-
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    EvRead ev(fd);
+    IoEvent ev(fd, EV_read);
     do {
         int r = (int) fp_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
         if (r != -1) return r;
@@ -259,32 +180,10 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     } while (true);
 }
 
-int send(sock_t fd, const void* buf, int n) {
-    const char* s = (const char*) buf;
-    int remain = n;
-    EvWrite ev(fd);
-
-    do {
-        int r = (int) fp_send(fd, s, remain, 0);
-        if (r == remain) return n;
-
-        if (r == -1) {
-            if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                ev.wait();
-            } else if (errno != EINTR) {
-                return -1;
-            }
-        } else {
-            remain -= r;
-            s += r;
-        }
-    } while (true);
-}
-
 int _Send(sock_t fd, const void* buf, int n, int ms) {
     const char* s = (const char*) buf;
     int remain = n;
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
 
     do {
         int r = (int) fp_send(fd, s, remain, 0);
@@ -318,23 +217,8 @@ int send(sock_t fd, const void* buf, int n, int ms) {
     return r != remain ? r : n;
 }
 
-int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen) {
-    do {
-        int r = (int) fp_sendto(fd, buf, n, 0, (const sockaddr*)addr, (socklen_t)addrlen);
-        if (r != -1) return r;
-
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            gSched->add_ev_write(fd);
-            gSched->yield();
-            gSched->del_ev_write(fd);
-        } else if (errno != EINTR) {
-            return -1;
-        }
-    } while (true);
-}
-
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    EvWrite ev(fd);
+    IoEvent ev(fd, EV_write);
 
     do {
         int r = (int) fp_sendto(fd, buf, n, 0, (const sockaddr*)addr, (socklen_t)addrlen);

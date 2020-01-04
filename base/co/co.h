@@ -180,10 +180,8 @@ class Kakalot {
 sock_t tcp_socket(int v=4); // 4 for ipv4, 6 for ipv6
 sock_t udp_socket(int v=4); // 4 for ipv4, 6 for ipv6
 
-int close(sock_t fd);
-
 // close the fd @ms milliseconds later
-int close(sock_t fd, int ms);
+int close(sock_t fd, int ms=0);
 
 // @c:  'r' for SHUT_RD, 'w' for SHUT_WR, 'b' for SHUT_RDWR
 int shutdown(sock_t fd, char c='b');
@@ -195,36 +193,22 @@ int listen(sock_t fd, int backlog);
 // return a non-blocking socket on Linux & Mac, an overlapped socket on windows
 sock_t accept(sock_t fd, void* addr, int* addrlen);
 
-// connect until connection is done or any error occured
-int connect(sock_t fd, const void* addr, int addrlen);
-
 // connect until connection is done or timeout in @ms, or any error occured
-int connect(sock_t fd, const void* addr, int addrlen, int ms);
-
-// recv until 0 or more bytes are received or any error occured
-int recv(sock_t fd, void* buf, int n);
+int connect(sock_t fd, const void* addr, int addrlen, int ms=-1);
 
 // recv until 0 or more bytes are received or timeout in @ms, or any error occured
-int recv(sock_t fd, void* buf, int n, int ms);
-
-// recv until all @n bytes are done or any error occured
-int recvn(sock_t fd, void* buf, int n);
+int recv(sock_t fd, void* buf, int n, int ms=-1);
 
 // recv until all @n bytes are done or timeout in @ms, or any error occured
-int recvn(sock_t fd, void* buf, int n, int ms);
+int recvn(sock_t fd, void* buf, int n, int ms=-1);
 
-int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen);
-int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms);
-
-// send until all @n bytes are done or any error occured
-int send(sock_t fd, const void* buf, int n);
+int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms=-1);
 
 // send until all @n bytes are done or timeout in @ms, or any error occured
-int send(sock_t fd, const void* buf, int n, int ms);
+int send(sock_t fd, const void* buf, int n, int ms=-1);
 
 // for udp, max(n) == 65507
-int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen);
-int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms);
+int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms=-1);
 
 #ifdef _WIN32
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
@@ -268,17 +252,11 @@ inline void set_tcp_keepalive(sock_t fd) {
     co::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v));
 }
 
-inline void reset_tcp_socket(sock_t fd) {
-    struct linger v = { 1, 0 }; // 1: enables linger option  0: timeout in sec
-    co::setsockopt(fd, SOL_SOCKET, SO_LINGER, &v, sizeof(v));
-    co::close(fd);
-}
-
-// reset tcp connection @n milliseconds later
-inline void reset_tcp_socket(sock_t fd, int n) {
+// reset tcp connection @ms milliseconds later
+inline void reset_tcp_socket(sock_t fd, int ms=0) {
     struct linger v = { 1, 0 };
     co::setsockopt(fd, SOL_SOCKET, SO_LINGER, &v, sizeof(v));
-    co::close(fd, n);
+    co::close(fd, ms);
 }
 
 #ifndef _WIN32
