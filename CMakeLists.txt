@@ -27,6 +27,7 @@ endif()
 
 if(MSVC)
   add_compile_options(/W4 /fp:fast /EHsc)
+  add_link_options(/SAFESEH:NO)
 endif()
 
 add_subdirectory(base)
