@@ -8,6 +8,17 @@
 #ifndef _WIN64
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+extern "C" {
+__int64 _InterlockedCompareExchange64(__int64 volatile* Destination, __int64 Exchange, __int64 Comperand);
+#pragma intrinsic(_InterlockedCompareExchange64)
+}
+#define _InterlockedIncrement64    InterlockedIncrement64
+#define _InterlockedDecrement64    InterlockedDecrement64
+#define _InterlockedExchangeAdd64  InterlockedExchangeAdd64
+#define _InterlockedOr64           InterlockedOr64
+#define _InterlockedAnd64          InterlockedAnd64
+#define _InterlockedXor64          InterlockedXor64
+#define _InterlockedExchange64     InterlockedExchange64
 #endif
 
 namespace xx {
