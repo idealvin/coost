@@ -24,7 +24,7 @@ class fastream {
     }
 
     ~fastream() {
-        free(_p);
+        if (_p) free(_p);
     }
 
     fastream(const fastream&) = delete;
