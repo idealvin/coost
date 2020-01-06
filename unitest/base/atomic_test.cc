@@ -158,6 +158,21 @@ DEF_test(atomic) {
         EXPECT_EQ(atomic_get(&i32), 0);
         EXPECT_EQ(atomic_get(&i64), 0);
     }
+
+    DEF_case(pointer) {
+        typedef void (*func_t)();
+        func_t f = (func_t) 8;
+        void* p = (void*) 0;
+
+        atomic_swap(&p, 8);
+        EXPECT_EQ(p, (void*)8);
+
+        atomic_compare_swap(&p, 8, 0);
+        EXPECT_EQ(p, (void*)0);
+
+        atomic_set(&f, 0);
+        EXPECT_EQ(f, (func_t)0);
+    }
 }
 
 } // namespace test
