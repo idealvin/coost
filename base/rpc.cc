@@ -170,7 +170,7 @@ void ServerImpl::on_connection(Connection* conn) {
             req = json::parse(fs.data(), fs.size());
             if (req.is_null()) goto json_parse_err;
 
-            RPCLOG << "recv request: " << fs;
+            RPCLOG << "recv req: " << fs;
         } while (0);
 
         // call rpc and send response to the client
@@ -185,7 +185,7 @@ void ServerImpl::on_connection(Connection* conn) {
             r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
-            RPCLOG << "send response: " << (fs.c_str() + sizeof(Header));
+            RPCLOG << "send res: " << (fs.c_str() + sizeof(Header));
         } while (0);
     }
 
@@ -444,7 +444,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         r = co::send(_fd, _fs.data(), (int) _fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
-        RPCLOG << "send request: " << (_fs.c_str() + sizeof(Header));
+        RPCLOG << "send req: " << (_fs.c_str() + sizeof(Header));
     } while (0);
 
     // wait for response
@@ -462,7 +462,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        RPCLOG << "recv response: " << _fs;
+        RPCLOG << "recv res: " << _fs;
         res = json::parse(_fs.c_str(), _fs.size());
         if (res.is_null()) goto json_parse_err;
         return;
