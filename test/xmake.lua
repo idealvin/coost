@@ -1,6 +1,8 @@
 
-for _, test in ipairs({"co", "fast", "flag", "hash", 
-                    "json", "rapidjson", "log", "rpc", "str", "time", "tw", "xx"}) do
+for _, test in ipairs({
+    "co", "fast", "flag", "hash", "json", "rapidjson", "log",
+    "rpc", "stack", "str", "task_sched", "time", "tw", "xx"
+}) do
 target(test)
     set_kind("binary")
     set_default(false)
