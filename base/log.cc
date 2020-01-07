@@ -12,6 +12,10 @@
 #include <memory>
 #include <unordered_map>
 
+#ifndef _WIN32
+#include <sys/select.h>
+#endif
+
 DEF_string(log_dir, "logs", "log dir, will be created if not exists");
 DEF_string(log_file_name, "", "name of log file, using exename if empty");
 DEF_int32(min_log_level, 0, "write logs at or above this level");
@@ -30,11 +34,7 @@ __thread fastream* xxLog = NULL;
 void on_failure();
 
 // Signal handler for SIGINT SIGTERM SIGQUIT.
-void on_signal(int sig) {
-    log::close();
-    signal(sig, SIG_DFL);
-    raise(sig);
-}
+void on_signal(int sig);
 
 inline void install_signal_handler() {
     signal(SIGINT, xx::on_signal);
@@ -104,10 +104,13 @@ class LevelLogger {
     // Stop the logging thread and call write() to handle buffered logs.
     void stop();
 
+    void safe_stop();
+
     void on_failure() {
-        log::close();
+        this->safe_stop();
         if (this->open_log_file(fatal)) {
-            _file.write(fastring(16).append(_log_time.get()).append("] "));
+            _file.write(_log_time.get());
+            _file.write("] ");
             _stack_trace->set_file(&_file);
         }
     }
@@ -146,11 +149,31 @@ LevelLogger::LevelLogger()
 }
 
 void LevelLogger::stop() {
-    if (atomic_compare_swap(&_stop, 0, 1) == 1) return;
+    if (atomic_compare_swap(&_stop, 0, 1) != 0) return;
     _log_event.signal();
     _log_thread->join();
 
     MutexGuard g(_log_mutex);
+    if (!_fs->empty()) {
+        this->write(_fs.get());
+        _fs->clear();
+    }
+}
+
+// Try to call only async-signal-safe api in this function according to: 
+//   http://man7.org/linux/man-pages/man7/signal-safety.7.html
+void LevelLogger::safe_stop() {
+    if (atomic_compare_swap(&_stop, 0, 1) != 0) return;
+
+    while (_stop != 2) {
+      #ifdef _WIN32
+        ::Sleep(8);
+      #else
+        struct timeval tv = { 0, 8000 };
+        select(0, 0, 0, 0, &tv);
+      #endif
+    }
+
     if (!_fs->empty()) {
         this->write(_fs.get());
         _fs->clear();
@@ -177,6 +200,8 @@ void LevelLogger::thread_fun() {
             fs->clear();
         }
     }
+
+    atomic_swap(&_stop, 2);
 }
 
 inline void LevelLogger::rotate() {
@@ -271,6 +296,12 @@ inline LevelLogger* level_logger() {
 
 void on_failure() {
     level_logger()->on_failure();
+}
+
+void on_signal(int sig) {
+    level_logger()->safe_stop();
+    signal(sig, SIG_DFL);
+    raise(sig);
 }
 
 void push_fatal_log(fastream* fs) {
