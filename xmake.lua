@@ -8,6 +8,7 @@ set_xmakever("2.2.5")
 set_languages("c++11")
 set_optimize("faster")  -- -O2
 set_warnings("all")     -- -Wall
+set_symbols("debug")    -- dbg symbols
 
 if is_plat("macosx", "linux") then
     add_cxflags("-g3", "-Wno-narrowing")
@@ -18,7 +19,8 @@ if is_plat("macosx", "linux") then
 end
 
 if is_plat("windows") then
-    add_cxflags("-Ox", "-fp:fast", "-EHsc")
+    --add_cxflags("-Ox", "-fp:fast", "-EHsc")
+    add_cxflags("-MD", "-EHsc")
 end
 
 -- include sub-projects
