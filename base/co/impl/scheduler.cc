@@ -108,7 +108,9 @@ void Scheduler::loop() {
             info->n = ev.dwNumberOfBytesTransferred;
             if (info->co) this->resume(info->co);
           #elif defined(__linux__)
-            this->resume(_co_pool[_epoll.ud(ev)]);
+            uint64 ud = _epoll.ud(ev);
+            if (ud >> 32) this->resume(_co_pool[ud >> 32]);
+            if ((uint32)ud) this->resume(_co_pool[(uint32)ud]);
           #else
             this->resume((Coroutine*)_epoll.ud(ev));
           #endif

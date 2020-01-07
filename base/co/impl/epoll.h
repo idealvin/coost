@@ -31,12 +31,11 @@ class Epoll {
     Epoll();
     ~Epoll();
 
-    bool add_event(sock_t fd, int ev) {
-        return this->_Add_event(fd, ev);
-    }
+    bool add_event(sock_t fd, int ev);
 
     void del_event(sock_t fd, int ev) {
-        return this->_Del_event(fd, ev);
+        auto it = _ev_map.find(fd);
+        if (it != _ev_map.end() && (it->second & ev)) it->second &= ~ev;
     }
 
     void del_event(sock_t fd) {
@@ -75,16 +74,6 @@ class Epoll {
     }
 
   private:
-    bool _Add_event(sock_t fd, int ev);
-
-    void _Del_event(sock_t fd, int ev) {
-        auto it = _ev_map.find(fd);
-        if (it != _ev_map.end() && (it->second & ev)) {
-            it->second &= ~ev;
-        }
-    }
-
-  private:
     HANDLE _iocp;
     epoll_event _ev[1024];
     std::unordered_map<sock_t, int> _ev_map;
@@ -109,8 +98,8 @@ class Epoll {
         return this->del_ev_write(fd);
     }
 
-    bool add_ev_read(int fd, int u);
-    bool add_ev_write(int fd, int u);
+    bool add_ev_read(int fd, int ud);
+    bool add_ev_write(int fd, int ud);
 
     void del_ev_read(int fd);
     void del_ev_write(int fd);
@@ -133,25 +122,24 @@ class Epoll {
         return _ev[i];
     }
 
-    static bool has_ev_read(const epoll_event& ev) {
-        return ev.events & EPOLLIN;
-    }
-
-    static bool has_ev_write(const epoll_event& ev) {
-        return ev.events & EPOLLOUT;
-    }
-
-    static bool has_ev_error(const epoll_event& ev) {
-        return ev.events & (EPOLLERR | EPOLLHUP);
-    }
-
     static bool is_ev_pipe(const epoll_event& ev) {
         return ev.data.u64 == 0;
     }
 
-    static uint32 ud(const epoll_event& ev) {
-        const uint64 x = ev.data.u64;
-        return ((uint32)x) == 0 ? ((uint32)(x >> 32)) : ((uint32)x);
+    // @ev.data.u64:
+    //   higher 32 bits: id of read coroutine
+    //    lower 32 bits: id of write coroutine
+    // 
+    //   IN  &   OUT  ->  ev.data.u64
+    //  !IN  &  !OUT  ->  ev.data.u64         (EPOLLERR | EPOLLHUP)
+    //   IN  &  !OUT  ->  ev.data.u64 >> 32   
+    //  !IN  &   OUT  ->  ev.data.u64 << 32
+    static uint64 ud(const epoll_event& ev) {
+        if (ev.events & EPOLLIN) {
+            return (ev.events & EPOLLOUT) ? ev.data.u64 : (ev.data.u64 >> 32);
+        } else {
+            return (ev.events & EPOLLOUT) ? (ev.data.u64 << 32) : ev.data.u64;
+        }
     }
 
     void signal(char c = 'x') {
@@ -179,21 +167,9 @@ class Epoll {
     Epoll();
     ~Epoll();
 
-    bool add_event(int fd, int ev, void* ud) {
-        if (ev == EV_read) return this->add_ev_read(fd, ud);
-        return this->add_ev_write(fd, ud);
-    }
+    bool add_event(int fd, int ev, void* ud);
 
-    bool del_event(int fd, int ev) {
-        if (ev == EV_read) return this->del_ev_read(fd);
-        return this->del_ev_write(fd);
-    }
-
-    bool add_ev_read(int fd, void* p);
-    bool add_ev_write(int fd, void* p);
-
-    void del_ev_read(int fd);
-    void del_ev_write(int fd);
+    bool del_event(int fd, int ev);
 
     void del_event(int fd);
 
