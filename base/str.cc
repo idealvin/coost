@@ -218,27 +218,23 @@ fastring strip(const fastring& s, const fastring& c, char d) {
 bool to_bool(const char* s) {
     if (strcmp(s, "false") == 0 || strcmp(s, "0") == 0) return false;
     if (strcmp(s, "true") == 0 || strcmp(s, "1") == 0) return true;
-    throw "invalid value for bool: " + fastring(s);
+    throw "invalid value for bool";
 }
 
 int32 to_int32(const char* s) {
     int64 x = to_int64(s);
-
     if (x > MAX_INT32 || x < MIN_INT32) {
-        throw fastring("out of range for int32: ") + s;
+        throw "out of range for int32";
     }
-
     return (int32) x;
 }
 
 uint32 to_uint32(const char* s) {
     int64 x = (int64) to_uint64(s);
     int64 absx = x < 0 ? -x : x;
-
     if (absx > MAX_UINT32) {
-        throw fastring("out of range for uint32: ") + s;
+        throw "out of range for uint32";
     }
-
     return (uint32) x;
 }
 
@@ -272,7 +268,7 @@ int64 to_int64(const char* s) {
 
     if (errno == ERANGE && (x == MIN_INT64 || x == MAX_INT64)) {
         errno = 0;
-        throw fastring("out of range for int64: ") + s;
+        throw "out of range for int64";
     }
 
     size_t n = strlen(s);
@@ -284,14 +280,14 @@ int64 to_int64(const char* s) {
             if (x == 0) return 0;
 
             if (x < (MIN_INT64 >> shift) || x > (MAX_INT64 >> shift)) {
-                throw fastring("out of range for int64: ") + s;
+                throw "out of range for int64";
             }
 
             return x << shift;
         }
     }
 
-    throw fastring("invalid value for integer: ") + s;
+    throw "invalid value for integer";
 }
 
 uint64 to_uint64(const char* s) {
@@ -302,7 +298,7 @@ uint64 to_uint64(const char* s) {
 
     if (errno == ERANGE && static_cast<uint64>(x) == MAX_UINT64) {
         errno = 0;
-        throw fastring("out of range for uint64: ") + s;
+        throw "out of range for uint64";
     }
 
     size_t n = strlen(s);
@@ -315,14 +311,14 @@ uint64 to_uint64(const char* s) {
 
             int64 absx = x < 0 ? -x : x;
             if (absx > static_cast<int64>(MAX_UINT64 >> shift)) {
-                throw fastring("out of range for uint64: ") + s;
+                throw "out of range for uint64";
             }
 
             return static_cast<uint64>(x << shift);
         }
     }
 
-    throw fastring("invalid value for integer: ") + s;
+    throw "invalid value for integer";
 }
 
 double to_double(const char* s) {
@@ -331,11 +327,11 @@ double to_double(const char* s) {
 
     if (errno == ERANGE && (x == HUGE_VAL || x == -HUGE_VAL)) {
         errno = 0;
-        throw fastring("out of range for double: ") + s;
+        throw "out of range for double";
     }
 
     if (end != s + strlen(s)) {
-        throw fastring("invalid value for double: ") + s;
+        throw "invalid value for double";
     }
 
     return x;

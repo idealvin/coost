@@ -119,5 +119,5 @@ fastring base64_decode(const void* p, size_t n) {
     return v;
 
   err:
-    throw fastring("base64 decode error: ").append(p, n);
+    throw "base64 decode error";
 }

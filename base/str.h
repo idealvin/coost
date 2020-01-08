@@ -36,7 +36,7 @@ fastring strip(const fastring& s, const char* c=" \t\r\n", char d='b');
 fastring strip(const fastring& s, char c, char d='b');
 fastring strip(const fastring& s, const fastring& c, char d='b');
 
-// convert string to built-in types, throw fastring on any error
+// convert string to built-in types, throw <const char*> on any error
 bool to_bool(const char* s);
 int32 to_int32(const char* s);
 int64 to_int64(const char* s);

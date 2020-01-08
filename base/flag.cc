@@ -59,7 +59,7 @@ void flag_set_value(Flag* flag, const fastring& v) {
         *static_cast<double*>(flag->addr) = str::to_double(v);
         break;
       default:
-        throw fastring("unknown flag type");
+        throw "unknown flag type";
     }
 }
 
@@ -80,7 +80,7 @@ fastring flag_get_value(const Flag* flag) {
       case TYPE_double:
         return str::from(*static_cast<double*>(flag->addr));
       default:
-        throw fastring("unknown flag type");
+        throw "unknown flag type";
     }
 }
 
@@ -102,7 +102,7 @@ void add_flag(const char* type_str, const char* name, const char* value,
     if (!r.second) {
         COUT << "multiple definitions of flag: " << name
              << ", from " << r.first->second.file << " and " << file;
-        exit(-1);
+        exit(0);
     }
 }
 
@@ -116,8 +116,8 @@ fastring set_flag_value(const fastring& name, const fastring& value) {
     try {
         flag_set_value(&it->second, value);
         return fastring();
-    } catch (fastring& e) {
-        return e;
+    } catch (const char* s) {
+        return fastring(s) + ": " + value;
     }
 }
 
@@ -280,7 +280,7 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
 
         if (ep <= bp) {
             COUT << "invalid parameter" << ": " << arg;
-            exit(-1);
+            exit(0);
         }
 
         if (ep == arg.npos) {
@@ -294,7 +294,7 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
             fastring err = set_bool_flags(name);
             if (!err.empty()) {
                 COUT << err;
-                exit(-1);
+                exit(0);
             }
 
         } else {
@@ -303,7 +303,7 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
             fastring err = set_flag_value(name, value);
             if (!err.empty()) {
                 COUT << err;
-                exit(-1);
+                exit(0);
             }
         }
     }
@@ -374,7 +374,7 @@ void parse_config(const fastring& config) {
     fs::file f(config.c_str(), 'r');
     if (!f) {
         COUT << "can't open config file: " << config;
-        exit(-1);
+        exit(0);
     }
 
     fastring data = f.read(f.size());
@@ -399,7 +399,7 @@ void parse_config(const fastring& config) {
         p = find_not_in_qm(s.c_str(), "=");
         if (p == 0 || p == s.npos) {
             COUT << "invalid config: " << s << ", at " << config << ':' << (lineno + 1);
-            exit(-1);
+            exit(0);
         }
 
         fastring flg = str::strip(s.substr(0, p), " \t", 'r');
@@ -415,7 +415,7 @@ void parse_config(const fastring& config) {
         fastring err = set_flag_value(flg, val);
         if (!err.empty()) {
             COUT << err << ", at " << config << ':' << (lineno + 1);
-            exit(-1);
+            exit(0);
         }
     }
 }
