@@ -88,7 +88,7 @@ StackTraceImpl::~StackTraceImpl() {
 
 #define write_msg(msg, len, f) \
     do { \
-        fwrite(msg, 1, len, stderr); \
+        write(STDERR_FILENO, msg, len); \
         if (f) f->write(msg, len); \
     } while (0)
 
@@ -101,7 +101,7 @@ StackTraceImpl::~StackTraceImpl() {
 
 #define abort_if(cond, msg) \
     if (cond) { \
-        fwrite(msg, 1, strlen(msg), stderr); \
+        write(STDERR_FILENO, msg, strlen(msg)); \
         safe_abort(0); \
     }
 
