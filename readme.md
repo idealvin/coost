@@ -29,8 +29,9 @@
 ## 特别致谢
 
 - co 协程库切换 context 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
-
-- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai) 翻译，特别表示感谢！
+- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10) 与 [daidai21](https://github.com/daidai21)(11-15) 翻译，特别表示感谢！
+- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
+- [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
 
 ## 参考文档
 
@@ -93,53 +94,67 @@ go(f);
 
 ## 编译执行
 
-`CO` 已将构建工具切换为 [ruki](https://github.com/waruqi) 的 [xmake](https://github.com/xmake-io/xmake)，同时提供 [cmake 支持](docs/cn/22.编译.md#cmake-编译)；
-后续可能放弃 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
+`CO` 使用 [xmake](https://github.com/xmake-io/xmake) 进行编译，后续可能不再支持 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
+
+[izhengfan](https://github.com/izhengfan) 同学帮忙提供了 cmake 支持，若需要使用 cmake 编译，请参考[这里](./docs/cn/22.编译.md/#cmake-编译)。
+
+- 编译器
+    - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
+    - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
+    - Windows: [vs2015](https://visualstudio.microsoft.com/)
 
 - 安装 xmake
 
-windows 与 debian/ubuntu 可以直接去 xmake 的 [release](https://github.com/xmake-io/xmake/releases) 页面下载安装包，其他系统请参考 xmake 的 [Installation](https://xmake.io/#/guide/installation) 说明。
+windows, mac 与 debian/ubuntu 可以直接去 xmake 的 [release](https://github.com/xmake-io/xmake/releases) 页面下载安装包，其他系统请参考 xmake 的 [Installation](https://xmake.io/#/guide/installation) 说明。
 
 xmake 在 linux 上默认禁止 root 用户编译，[ruki](https://github.com/waruqi) 说 root 不安全，可以在 `~/.bashrc` 中加上下面的一行，启用 root 编译:
 ```sh
 export XMAKE_ROOT=y
 ```
 
-- 编译 co/base 库
+- 编译 libbase
 
-[co/base](https://github.com/idealvin/co/tree/master/base) 是 CO 提供的核心基础库，其他工具都依赖于 base 库。
+[co/base](https://github.com/idealvin/co/tree/master/base) 是 CO 的核心基础库，其他测试程序都依赖于 base 库。
 
 ```sh
-# 在 lib 目录下生成 libbase.a 或 base.lib
-xmake
+# 所有命令都在 co 根目录执行，后面不再说明
+xmake                  # build libbase.a 或者 base.lib
+xmake --all            # build 全部项目
 ```
 
-- 编译 co/unitest
+- 编译及运行 unitest 代码
 
 [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) 是单元测试代码，用于检验 base 库功能的正确性。
 
 ```sh
-# 在 build 目录下生成可执行文件 unitest 或 unitest.exe
-xmake build unittest
-
-xmake run unitest -a      # 执行所有单元测试
-xmake run unitest -os     # 执行 os 单元测试
-xmake run unitest -json   # 执行 json 单元测试
+xmake build unitest       # build 可以简写为 -b
+xmake run unitest -a      # 执行所有单元测试，run 可以简写为 r
+xmake run unitest -os     # 执行单元测试 os
+xmake run unitest -json   # 执行单元测试 json
 ```
 
-- 编译 co/test
+- 编译及运行 test 代码
 
 [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。
 
 ```sh
-# 在 build 目录下生成相应的可执行文件
-xmake --all       # 编译 test 目录下的全部目标代码
-xmake build log   # 编译 log_test.cc
-xmake build flag  # 编译 flag_test.cc
+xmake build log        # 编译 log_test.cc
+xmake build flag       # 编译 flag_test.cc
+xmake build rpc        # 编译 rpc_test.cc
+xmake build stack      # 编译 stack_test.cc
+xmake build json       # 编译 json_test.cc
+xmake build rapidjson  # 编译 rapidjson_test.cc
+                       # 其他的都可以类似编译
 
-xmake run log -perf   # log 库性能测试
-xmake run rpc -c=0    # 启动 rpc server
-xmake run rpc -c=1    # 启动 rpc client
+xmake run log -perf    # log 库性能测试
+xmake run rpc -c=0     # 启动 rpc server
+xmake run rpc -c       # 启动 rpc client
+xmake run flag -xz     # 执行 flag
+xmake run stack        # 测试打印堆栈信息，默认在协程中执行
+xmake run stack -t     # 测试打印堆栈信息，在线程中执行
+xmake run stack -m     # 直接在主线程中执行
+xmake run json         # 测试 json
+xmake run rapidjson    # 测试 rapidjson
 ```
 
 - 编译 rpcgen
@@ -147,15 +162,22 @@ xmake run rpc -c=1    # 启动 rpc client
 [rpcgen](https://github.com/idealvin/co/tree/master/rpcgen) 是 `json rpc` 的代码生成器，根据指定的 proto 文件，自动生成相应的代码。
 
 ```sh
-# 在 build 目录下生成 rpcgen 或 rpcgen.exe
 xmake build rpcgen
 
-# 建议将 rpcgen 放到系统目录下(/usr/local/bin/).
+# 建议将 rpcgen 放到系统目录下(如 /usr/local/bin/).
 # 有些 linux 系统自带了一个 rpcgen，为避免冲突，可能需要重命名 rpcgen.
-xmake run rpcgen test/rpc/hello_world.proto
+rpcgen hello_world.proto
 ```
 
 `proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
+
+- 生成头文件目录
+
+```sh
+cd co/base && ./_inc.sh   # 生成 co/inc 目录
+```
+
+co/inc 目录下的 `base` 目录包含了本库对外提供的全部头文件。
 
 
 ## 贡献代码
