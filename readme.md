@@ -118,8 +118,8 @@ export XMAKE_ROOT=y
 
 ```sh
 # 所有命令都在 co 根目录执行，后面不再说明
-xmake                  # build libbase.a 或者 base.lib
-xmake --all            # build 全部项目
+xmake                  # 默认编译 libbase 与 rpcgen
+xmake --all            # 编译所有项目
 ```
 
 - 编译及运行 unitest 代码
@@ -135,7 +135,7 @@ xmake run unitest -json   # 执行单元测试 json
 
 - 编译及运行 test 代码
 
-[co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。
+[co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
 ```sh
 xmake build log        # 编译 log_test.cc
@@ -150,8 +150,8 @@ xmake run log -perf    # log 库性能测试
 xmake run rpc -c=0     # 启动 rpc server
 xmake run rpc -c       # 启动 rpc client
 xmake run flag -xz     # 执行 flag
-xmake run stack        # 测试打印堆栈信息，默认在协程中执行
-xmake run stack -t     # 测试打印堆栈信息，在线程中执行
+xmake run stack        # 测试程序崩溃时打印堆栈信息，默认在协程中执行
+xmake run stack -t     # 测试程序崩溃时打印堆栈信息，在线程中执行
 xmake run stack -m     # 直接在主线程中执行
 xmake run json         # 测试 json
 xmake run rapidjson    # 测试 rapidjson
@@ -171,14 +171,13 @@ rpcgen hello_world.proto
 
 `proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
 
-- 生成头文件目录
+- 安装
 
 ```sh
-cd co/base && ./_inc.sh   # 生成 co/inc 目录
+# 将相关文件打包安装到 pkg 目录
+# 默认安装头文件、libbase、rpcgen
+xmake install -o pkg 
 ```
-
-co/inc 目录下的 `base` 目录包含了本库对外提供的全部头文件。
-
 
 ## 贡献代码
 

@@ -1,6 +1,5 @@
 target("base")
     set_kind("static")
-    set_targetdir("../lib")
     add_includedirs("..", {interface = true})
     add_files("**.cc")
 
