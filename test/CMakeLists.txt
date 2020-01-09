@@ -5,24 +5,13 @@ if(UNIX)
   list(APPEND LIBS_TO_LINK pthread dl)
 endif()
 
-list(APPEND TESTS_FILES
-  co
-  fast
-  flag
-  hash
-  json
-  rapidjson
-  log
-  rpc
-  str
-  time
-  tw
-  xx
-  )
-foreach(TEST ${TESTS_FILES})
-  add_executable(${TEST} ${TEST}_test.cc)
-  message("  - ${TEST}_test.cc -> ${TEST}")
-  target_link_libraries(${TEST} 
+file(GLOB ALL_TEST_FILES "*_test.cc")
+foreach(TEST_FILE ${ALL_TEST_FILES})
+  get_filename_component(TEST_FILE ${TEST_FILE} NAME)
+  string(REPLACE "_test.cc" "" TEST_TARGET ${TEST_FILE})
+  message("  - ${TEST_FILE} --> ${TEST_TARGET}")
+  add_executable(${TEST_TARGET} ${TEST_FILE})
+  target_link_libraries(${TEST_TARGET}
     ${LIBS_TO_LINK}
-    )
-endforeach()
+  )
+endforeach(TEST_FILE ${ALL_TEST_FILES})
