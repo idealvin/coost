@@ -1,9 +1,8 @@
 function all_tests()
-    local i = 1
     local res = {}
     for _, x in ipairs(os.files("*_test.cc")) do
-        res[i] = x:sub(1, #x - 8)
-        i = i + 1
+        x = path.basename(x)
+        table.insert(res, x:sub(1, #x - 5))
     end
     return res
 end
