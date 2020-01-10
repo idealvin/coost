@@ -14,6 +14,7 @@ DEC_int32(min_log_level);
 namespace ___ {
 namespace log {
 
+// log::init() must be called once at the beginning of main().
 void init();
 
 // Write all buffered logs to destination and stop the logging thread.

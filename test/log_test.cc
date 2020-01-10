@@ -3,8 +3,17 @@
 
 DEF_bool(perf, false, "performance testing");
 
+bool static_log() {
+    DLOG << "hello static";
+    LOG << "hello again, static";
+    return true;
+}
+
+bool __ = static_log();
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
 
     if (FLG_perf) {
         // test performance by writting 100W logs
