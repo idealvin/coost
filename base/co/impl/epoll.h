@@ -169,7 +169,7 @@ class Epoll {
 
     bool add_event(int fd, int ev, void* ud);
 
-    bool del_event(int fd, int ev);
+    void del_event(int fd, int ev);
 
     void del_event(int fd);
 

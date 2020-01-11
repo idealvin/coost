@@ -160,7 +160,7 @@ Epoll::Epoll() {
     co::set_cloexec(_fds[0]);
     co::set_cloexec(_fds[1]);
     co::set_nonblock(_fds[0]);
-    CHECK(this->add_ev_read(_fds[0], 0));
+    CHECK(this->add_event(_fds[0], EV_read, 0));
 }
 
 Epoll::~Epoll() {
