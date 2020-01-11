@@ -58,6 +58,7 @@ void test_ping() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
 
     if (!FLG_c) {
         rpc::Server* server = rpc::new_server("", 7788, FLG_passwd.c_str()); 
