@@ -77,13 +77,13 @@ inline T atomic_fetch_xor(T* p, V v) {
 
 template <typename T, typename V>
 inline T atomic_swap(T* p, V v) {
-    return __atomic_exchange_n(p, v, __ATOMIC_SEQ_CST);
+    return __atomic_exchange_n(p, (T)v, __ATOMIC_SEQ_CST);
 }
 
 template <typename T, typename O, typename V>
 inline T atomic_compare_swap(T* p, O o, V v) {
     T x = (T) o;
-    __atomic_compare_exchange_n(p, &x, v, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    __atomic_compare_exchange_n(p, &x, (T)v, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
     return x;
 }
 
@@ -94,12 +94,12 @@ inline T atomic_get(T* p) {
 
 template <typename T, typename V>
 inline void atomic_set(T* p, V v) {
-    __atomic_store_n(p, v, __ATOMIC_SEQ_CST);
+    __atomic_store_n(p, (T)v, __ATOMIC_SEQ_CST);
 }
 
 template <typename T>
 inline void atomic_reset(T* p) {
-    __atomic_store_n(p, 0, __ATOMIC_SEQ_CST);
+    __atomic_store_n(p, (T)0, __ATOMIC_SEQ_CST);
 }
 
 // gcc 4.1+
@@ -177,12 +177,12 @@ inline T atomic_fetch_xor(T* p, V v) {
 
 template <typename T, typename V>
 inline T atomic_swap(T* p, V v) {
-    return __sync_lock_test_and_set(p, v);  // acquire barrier
+    return __sync_lock_test_and_set(p, (T)v);  // acquire barrier
 }
 
 template <typename T, typename O, typename V>
 inline T atomic_compare_swap(T* p, O o, V v) {
-    return __sync_val_compare_and_swap(p, o, v);
+    return __sync_val_compare_and_swap(p, (T)o, (T)v);
 }
 
 template <typename T>
