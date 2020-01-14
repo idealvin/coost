@@ -37,7 +37,7 @@
 
 - [English md](https://github.com/idealvin/co/tree/master/docs/en)
 - [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
-- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/59670150eb60b1ce11361fb8b45ee68923b41e9f/pdf/co.pdf)
+- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/3ca20c3ea964924aef83a68d12941cbff9378588/pdf/co.pdf)
 
 ## 亮点功能
 
@@ -120,6 +120,7 @@ export XMAKE_ROOT=y
 # 所有命令都在 co 根目录执行，后面不再说明
 xmake                  # 默认编译 libbase 与 rpcgen
 xmake --all            # 编译所有项目
+xmake build base       # 编译 libbase
 ```
 
 - 编译及运行 unitest 代码
