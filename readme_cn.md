@@ -32,7 +32,7 @@
 ## 特别致谢
 
 - co 协程库切换 context 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
-- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10) 与 [daidai21](https://github.com/daidai21)(11-15) 翻译，特别表示感谢！
+- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
 

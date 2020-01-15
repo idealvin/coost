@@ -32,7 +32,7 @@
 ## Special thanks
 
 - The relevant code for co coroutine library to switch context is taken from [ruki](https://github.com/waruqi)'s [tbox](https://github.com/tboox/tbox), special thanks!
-- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10) and [daidai21](https://github.com/daidai21) (11-15), special thanks!
+- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake compilation scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake compilation scripts, thank you very much!
 
