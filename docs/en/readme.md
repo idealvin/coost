@@ -8,7 +8,7 @@
 - [02. Basic Definitions](02.basic_definitions.md)
 - [03. Atomic Operations](03.atomic_operations.md)
 - [04. Fast Random Number Generator](04.fast_random_number_generator.md)
-- [05. LruMap](05.lur_map.md)
+- [05. LruMap](05.lru_map.md)
 - [06. Fast String Casting for Basic Types](06.fast_string_casting_for_basic_types.md)
 - [07. Efficient Byte Stream (fastream)](07.efficient_byte_stream(fastream).md)
 - [08. Efficient Strings (fastring)](08.efficient_strings(fastring).md)

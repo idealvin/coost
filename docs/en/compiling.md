@@ -116,7 +116,7 @@
 
   ```sh
   cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
-  ```
+  ```
 
   The rest of the commands are the same as the previous one. For example, on the Windows cmake gui, check `BUILD_TEST` and `BUILD_UNITEST`, then click config and generate again, and reload the Visual Studio solution and build. After the build is complete, a test executable is generated under `co/build`.
 
