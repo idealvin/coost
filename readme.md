@@ -71,7 +71,7 @@
 
 - **[co](https://github.com/idealvin/co/tree/master/base/co)**
 
-  This is a [golang](https://github.com/golang/go)-style coroutine library with built-in multi-threaded scheduling, which is a great tool for network programming.
+  This is a [golang-style](https://github.com/golang/go) coroutine library with built-in multi-threaded scheduling, which is a great tool for network programming.
 
 - **[json rpc](https://github.com/idealvin/co/blob/master/base/rpc.h)**
 
@@ -95,7 +95,7 @@
   go(f);
   ```
 
-## Compile and execute
+## Compiling
 
 [Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project. ~~[Scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~ may not be supported in the future.
 
@@ -176,7 +176,7 @@
 
   Proto file format can refer to [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto).
 
-- installation
+- Installation
 
   ```sh
   # Install header files, libbase, rpcgen by default.

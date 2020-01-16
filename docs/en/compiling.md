@@ -81,7 +81,7 @@
 
   Proto file format can refer to [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto).
 
-- installation
+- Installation
 
   ```sh
   # Install header files, libbase, rpcgen by default.
