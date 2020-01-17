@@ -20,7 +20,8 @@ DEF_int32(rpc_max_idle_conn, 1024, "max idle connections");
 DEF_bool(rpc_tcp_nodelay, true, "enable tcp nodelay if true");
 DEF_bool(rpc_log, true, "enable rpc log if true");
 DEF_bool(rpc_try_again, false, "for rpc client, try call() again if the connection was closed");
-DEF_int32(rpc_max_json_parse_buffer_size, 4096, "max buffer size for json::parse()");
+DEF_int32(rpc_max_json_parse_buffer_size, 0, "max buffer size for json::parse(), 0 for unlimited");
+DEF_int32(rpc_max_log_size, 1024, "rpc log will be truncated if its size is greater than this value");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
@@ -172,6 +173,7 @@ void ServerImpl::on_connection(Connection* conn) {
             req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
             if (req.is_null()) goto json_parse_err;
 
+            if (fs.size() > FLG_rpc_max_log_size) fs.resize(FLG_rpc_max_log_size);
             RPCLOG << "recv req: " << fs;
         } while (0);
 
@@ -187,6 +189,7 @@ void ServerImpl::on_connection(Connection* conn) {
             r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
+            if (fs.size() > FLG_rpc_max_log_size + sizeof(Header)) fs.resize(FLG_rpc_max_log_size + sizeof(Header));
             RPCLOG << "send res: " << (fs.c_str() + sizeof(Header));
         } while (0);
     }
@@ -447,6 +450,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         r = co::send(_fd, _fs.data(), (int) _fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
+        if (_fs.size() > FLG_rpc_max_log_size + sizeof(Header)) _fs.resize(FLG_rpc_max_log_size + sizeof(Header));
         RPCLOG << "send req: " << (_fs.c_str() + sizeof(Header));
     } while (0);
 
@@ -465,6 +469,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
+        if (_fs.size() > FLG_rpc_max_log_size) _fs.resize(FLG_rpc_max_log_size);
         RPCLOG << "recv res: " << _fs;
         res = json::parse(_fs.c_str(), _fs.size(), FLG_rpc_max_json_parse_buffer_size);
         if (res.is_null()) goto json_parse_err;
