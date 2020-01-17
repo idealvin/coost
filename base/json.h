@@ -342,11 +342,7 @@ class Value {
         return ms.str();
     }
 
-    bool parse_from(const char* s, size_t n, size_t keys_len);
-
-    bool parse_from(const char* s, size_t n) {
-        return this->parse_from(s, n, 0);
-    }
+    bool parse_from(const char* s, size_t n, size_t keys_len=0);
 
     bool parse_from(const char* s) {
         return this->parse_from(s, strlen(s));
@@ -451,18 +447,15 @@ inline Value object() {
 }
 
 // parse json from string
-// @keys_len  size of memory allocated for saving all the keys, it must be at least
-//            total length of all keys(tailing '\0' included), plus another 4 bytes 
-//            for saving reference counts.
-// if @keys_len is 0, then @n bytes will be allocated for saving all the keys.
-inline Value parse(const char* s, size_t n, size_t keys_len) {
+//
+// @buflen:
+//   Size of memory allocated for saving keys of this object. It must be at least
+//   total length (tailing '\0' included) of all the keys, and plus extra 4 bytes
+//   for reference count. The default is 0, and @n bytes will be allocated.
+inline Value parse(const char* s, size_t n, size_t buflen=0) {
     Value v;
-    if (v.parse_from(s, n, keys_len)) return v;
+    if (v.parse_from(s, n, buflen)) return v;
     return Value();
-}
-
-inline Value parse(const char* s, size_t n) {
-    return parse(s, n, 0);
 }
 
 inline Value parse(const char* s) {

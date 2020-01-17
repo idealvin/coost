@@ -496,7 +496,7 @@ const char* parse_array(const char* b, const char* e, Value* res, fastream* s, s
     return 0;
 }
 
-bool Value::parse_from(const char* s, size_t n, size_t keys_len) {
+bool Value::parse_from(const char* s, size_t n, size_t buflen) {
     if (unlikely(_mem)) this->reset();
 
     const char* p = s;
@@ -505,12 +505,12 @@ bool Value::parse_from(const char* s, size_t n, size_t keys_len) {
     if (unlikely(p == e)) return false;
 
     char buf[sizeof(fastream)] = { 0 };
-    if (keys_len == 0 && n > 4) keys_len = n;
+    if (buflen == 0 && n > 4) buflen = n;
 
     if (*p == '{') {
-        p = parse_json(p + 1, e, this, (fastream*)buf, keys_len);
+        p = parse_json(p + 1, e, this, (fastream*)buf, buflen);
     } else if (*p == '[') {
-        p = parse_array(p + 1, e, this, (fastream*)buf, keys_len);
+        p = parse_array(p + 1, e, this, (fastream*)buf, buflen);
     } else {
         return false;
     }
