@@ -21,7 +21,7 @@ DEF_bool(rpc_tcp_nodelay, true, "enable tcp nodelay if true");
 DEF_bool(rpc_log, true, "enable rpc log if true");
 DEF_bool(rpc_try_again, false, "for rpc client, try call() again if the connection was closed");
 DEF_int32(rpc_max_json_parse_buffer_size, 0, "max buffer size for json::parse(), 0 for unlimited");
-DEF_int32(rpc_max_log_size, 1024, "rpc log will be truncated if its size is greater than this value");
+DEF_uint32(rpc_max_log_size, 1024, "rpc log will be truncated if its size is greater than this value");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
