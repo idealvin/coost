@@ -106,23 +106,23 @@
   make
   ```
 
-  For example, if you use cmake gui under Windows, set the source directory and build directory of co, click config, generate, and then build the generated Visual Studio solution.
+  If using cmake gui under Windows, set the source directory and build directory of co, click `Config`, `Generate`, and then build the generated Visual Studio solution.
 
-  After the build is complete, the base library file is generated under `co/lib`, and the `rgcgen` executable file is generated under `co/build`.
+  After the building is completed, the base library file is generated in `co/lib`, and the `rgcgen` executable file is generated in `co/build`.
 
 - Build test and unitest
 
-  The test and unitest are not built by default. To enable them, add two parameter settings in cmake:
+  The `test` and `unitest` are not built by default. To enable them, add two parameter settings in cmake:
 
   ```sh
   cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
   ```
 
-  The rest of the commands are the same as the previous one. For example, on the Windows cmake gui, check `BUILD_TEST` and `BUILD_UNITEST`, then click config and generate again, and reload the Visual Studio solution and build. After the build is complete, a test executable is generated under `co/build`.
+  The rest of the commands are the same as the previous one. If using the Windows cmake gui, tick `BUILD_TEST` and `BUILD_UNITEST`, then click `Config` and `Generate` again, and reload the Visual Studio solution and build. After the building is completed, a test executable is generated under `co/build`.
 
 - Install and use co libraries
 
-  On the Unix command line, after `make` is complete, you can install:
+  On the Unix command line, after `make` is completed, you can install:
 
   ```sh
   # At this point we are still in the co/cmake-build directory
@@ -137,9 +137,9 @@
   cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/
   ```
 
-  For example, on the Windows cmake gui, set `CMAKE_INSTALL_PREFIX` to your desired installation path, and then build the `INSTALL` project in the rebuilt Visual Studio solution.
+  If using the Windows cmake gui, set `CMAKE_INSTALL_PREFIX` to your desired installation path, and then build the `INSTALL` project in the rebuilt Visual Studio solution.
 
-  After the installation is complete, you can use the `co` library in another project. An example CMakeLists.txt is as follows:
+  After the installation is completed, you can use the `co` library in another project. An example CMakeLists.txt is as follows:
 
   ```cmake
   # @file CMakeLists.txt
@@ -161,8 +161,8 @@
   }
   ```
 
-  We define several equivalent variables to represent the include path (`co_INCLUDE_DIR`, `co_INCLUDE_DIRS`), whichever is used; we define several equivalent variables to represent the co library (`co_LIBS`, `co_LIBRARY`, `co_LIBRARIES`), link to either.
+  We define several equivalent variables to represent the include path (`co_INCLUDE_DIR`, `co_INCLUDE_DIRS`), whichever is usable; we define several equivalent variables to represent the co library (`co_LIBS`, `co_LIBRARY`, `co_LIBRARIES`), link to either one of them.
 
-  If you can't find `coConfig.cmake` when you make cmake, you need to specify the `co_DIR` path manually. Assuming you just installed co into `/usr/local/`, add `-Dco_DIR=/usr/local/lib/cmake/co` after the `cmake` command, or set `co_DIR` in cmake gui to the `lib/cmake/co` sub-path under the co installation path.
+  If you can't find `coConfig.cmake` when you make cmake, you need to specify the `co_DIR` path manually. Assuming you just installed `co` into `/usr/local/`, add `-Dco_DIR=/usr/local/lib/cmake/co` after the `cmake` command, or set `co_DIR` in cmake gui to the `lib/cmake/co` sub-path under the `co` installation path.
 
-  In addition, if the bin subpath (such as `/usr/local/bin`) under the co installation path is already in the environment variable, you can use the rpcgen command directly on the command line.
+  In addition, if the bin subpath (such as `/usr/local/bin`) under the co installation path is already in the environmental PATH, you can use the `rpcgen` command directly on the command line.
