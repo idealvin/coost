@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
     COUT << FLG_s << "|" << FLG_s.size();
 
     if (argc == 1) {
-        COUT << "\nYou may try running flag.exe as below:";
-        COUT << "  ./flag.exe -xz i32=4k i64=8M u32=1g -s=xxx";
+        COUT << "\nYou may try running " << argv[0] << " as below:";
+        COUT << argv[0] << "  -xz i32=4k i64=8M u32=1g -s=xxx";
     }
 
     return 0;

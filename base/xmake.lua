@@ -3,6 +3,9 @@ target("base")
     add_includedirs("..", {interface = true})
     add_files("**.cc")
 
+    -- define CODBG to enable debug log for co
+    -- add_defines("CODBG")
+
     if is_plat("macosx", "linux") then
         add_files("co/context/context.S")
     end

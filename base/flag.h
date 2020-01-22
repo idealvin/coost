@@ -33,7 +33,7 @@ enum {
 
 struct FlagSaver {
     FlagSaver(const char* type_str, const char* name, const char* value,
-              const char* help, const char* file, void* addr, int type);
+              const char* help, const char* file, int line, int type, void* addr);
 };
 } // namespace xx
 } // namespace flag
@@ -63,8 +63,7 @@ struct FlagSaver {
         using namespace ::flag::xx; \
         type FLG_##name = value; \
         static ::flag::xx::FlagSaver _Sav_flag_##name( \
-            #type, #name, #value, help, __FILE__, &FLG_##name, \
-            ::flag::xx::TYPE_##type \
+            #type, #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_##type, &FLG_##name \
         ); \
     } \
     } \
