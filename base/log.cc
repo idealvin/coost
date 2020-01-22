@@ -16,13 +16,13 @@
 #include <sys/select.h>
 #endif
 
-DEF_string(log_dir, "logs", "log dir, will be created if not exists");
-DEF_string(log_file_name, "", "name of log file, using exename if empty");
-DEF_int32(min_log_level, 0, "write logs at or above this level");
-DEF_int64(max_log_file_size, 256 << 20, "max size of log file, default: 256MB");
-DEF_uint32(max_log_file_num, 8, "max number of log files");
-DEF_uint32(max_log_buffer_size, 32 << 20, "max size of log buffer, default: 32MB");
-DEF_bool(cout, false, "also logging to terminal");
+DEF_string(log_dir, "logs", "#0 log dir, will be created if not exists");
+DEF_string(log_file_name, "", "#0 name of log file, using exename if empty");
+DEF_int32(min_log_level, 0, "#0 write logs at or above this level, 0-4 (debug|info|warning|error|fatal)");
+DEF_int64(max_log_file_size, 256 << 20, "#0 max size of log file, default: 256MB");
+DEF_uint32(max_log_file_num, 8, "#0 max number of log files");
+DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 32MB");
+DEF_bool(cout, false, "#0 also logging to terminal");
 
 namespace ___ {
 namespace log {

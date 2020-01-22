@@ -11,17 +11,17 @@
 
 #include <memory>
 
-DEF_int32(rpc_max_msg_size, 8 << 20, "max size of rpc message, default: 8M");
-DEF_int32(rpc_recv_timeout, 1024, "recv timeout in ms");
-DEF_int32(rpc_send_timeout, 1024, "send timeout in ms");
-DEF_int32(rpc_conn_timeout, 3000, "connect timeout in ms");
-DEF_int32(rpc_conn_idle_sec, 180, "connection may be closed if no data was recieved for n seconds");
-DEF_int32(rpc_max_idle_conn, 1024, "max idle connections");
-DEF_bool(rpc_tcp_nodelay, true, "enable tcp nodelay if true");
-DEF_bool(rpc_log, true, "enable rpc log if true");
-DEF_bool(rpc_try_again, false, "for rpc client, try call() again if the connection was closed");
-DEF_int32(rpc_max_json_parse_buffer_size, 0, "max buffer size for json::parse(), 0 for unlimited");
-DEF_uint32(rpc_max_log_size, 1024, "rpc log will be truncated if its size is greater than this value");
+DEF_int32(rpc_max_msg_size, 8 << 20, "#2 max size of rpc message, default: 8M");
+DEF_int32(rpc_recv_timeout, 1024, "#2 recv timeout in ms");
+DEF_int32(rpc_send_timeout, 1024, "#2 send timeout in ms");
+DEF_int32(rpc_conn_timeout, 3000, "#2 connect timeout in ms");
+DEF_int32(rpc_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
+DEF_int32(rpc_max_idle_conn, 1024, "#2 max idle connections");
+DEF_bool(rpc_tcp_nodelay, true, "#2 enable tcp nodelay if true");
+DEF_bool(rpc_log, true, "#2 enable rpc log if true");
+DEF_uint32(rpc_max_log_size, 1024, "#2 truncate the rpc log if its size is greater than this value");
+DEF_int32(rpc_max_json_buffer_size, 0, "#2 max buffer size for json::parse(), 0 for unlimited");
+DEF_bool(rpc_retry, false, "#2 for rpc client, retry if the rpc call failed due to disconnection");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
@@ -170,7 +170,7 @@ void ServerImpl::on_connection(Connection* conn) {
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r == -1)) goto recv_err;
 
-            req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
+            req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_buffer_size);
             if (req.is_null()) goto json_parse_err;
 
             if (fs.size() > FLG_rpc_max_log_size) fs.resize(FLG_rpc_max_log_size);
@@ -247,7 +247,7 @@ bool ServerImpl::auth(Connection* conn) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
+        req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_buffer_size);
         if (req.is_null()) goto json_parse_err;
 
         x = req["method"];
@@ -291,7 +291,7 @@ bool ServerImpl::auth(Connection* conn) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
+        req = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_buffer_size);
         if (req.is_null()) goto json_parse_err;
 
         DLOG << "recv auth response from the client: " << fs;
@@ -469,7 +469,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        res = json::parse(_fs.c_str(), _fs.size(), FLG_rpc_max_json_parse_buffer_size);
+        res = json::parse(_fs.c_str(), _fs.size(), FLG_rpc_max_json_buffer_size);
         if (_fs.size() > FLG_rpc_max_log_size) _fs.resize(FLG_rpc_max_log_size);
         RPCLOG << "recv res: " << _fs;
         if (res.is_null()) goto json_parse_err;
@@ -487,7 +487,7 @@ void ClientImpl::call(const Json& req, Json& res) {
   recv_zero_err:
     ELOG << "server close the connection..";
     this->disconnect();
-    if (FLG_rpc_try_again && try_count++ == 0) {
+    if (FLG_rpc_retry && try_count++ == 0) {
         LOG << "now try sending the request again..";
         goto try_again;
     }
@@ -538,7 +538,7 @@ bool ClientImpl::auth() {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        res = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
+        res = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_buffer_size);
         if (res.is_null()) goto json_parse_err;
 
         DLOG << "recv auth request from server: " << fs;
@@ -579,7 +579,7 @@ bool ClientImpl::auth() {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
-        res = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_parse_buffer_size);
+        res = json::parse(fs.data(), fs.size(), FLG_rpc_max_json_buffer_size);
         if (res.is_null()) goto json_parse_err;
 
         DLOG << "recv auth result from the server: " << fs;
