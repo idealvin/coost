@@ -469,9 +469,9 @@ void ClientImpl::call(const Json& req, Json& res) {
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
+        res = json::parse(_fs.c_str(), _fs.size(), FLG_rpc_max_json_parse_buffer_size);
         if (_fs.size() > FLG_rpc_max_log_size) _fs.resize(FLG_rpc_max_log_size);
         RPCLOG << "recv res: " << _fs;
-        res = json::parse(_fs.c_str(), _fs.size(), FLG_rpc_max_json_parse_buffer_size);
         if (res.is_null()) goto json_parse_err;
         return;
     } while (0);
