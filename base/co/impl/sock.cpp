@@ -4,8 +4,8 @@
 #include "io_event.h"
 #include <ws2spi.h>
 
-DEF_int32(tcp_max_recv_size, 1024 * 1024, "max size for a single recv");
-DEF_int32(tcp_max_send_size, 1024 * 1024, "max size for a single send");
+DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
+DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
 
 namespace co {
 
@@ -31,12 +31,14 @@ sock_t udp_socket(int v) {
 }
 
 int close(sock_t fd, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     gSched->del_event(fd);
     if (ms > 0) gSched->sleep(ms);
     return ::closesocket(fd);
 }
 
 int shutdown(sock_t fd, char c) {
+    CHECK(gSched) << "must be called in coroutine..";
     if (c == 'r') {
         gSched->del_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
@@ -58,8 +60,9 @@ int listen(sock_t fd, int backlog) {
 }
 
 // TODO: support ipv6?
-// I won't do it anyhow. Someone help?  -- by Alvin at 2020.1.3
+// I'm not to do it myself. Someone help?  -- by Alvin at 2020.1.3
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
+    CHECK(gSched) << "must be called in coroutine..";
     sock_t connfd = co::tcp_socket();
     if (connfd == INVALID_SOCKET) return connfd;
 
@@ -115,6 +118,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(addr, addrlen, gSched->running())
     );
@@ -164,6 +168,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
     );
@@ -215,14 +220,15 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvn(sock_t fd, void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     char* s = (char*) buf;
     int x = n;
 
-    while (x > FLG_tcp_max_recv_size) {
-        int r = _Recvn(fd, s, FLG_tcp_max_recv_size, ms);
-        if (r != FLG_tcp_max_recv_size) return r;
-        x -= FLG_tcp_max_recv_size;
-        s += FLG_tcp_max_recv_size;
+    while (x > FLG_co_max_recv_size) {
+        int r = _Recvn(fd, s, FLG_co_max_recv_size, ms);
+        if (r != FLG_co_max_recv_size) return r;
+        x -= FLG_co_max_recv_size;
+        s += FLG_co_max_recv_size;
     }
 
     int r = _Recvn(fd, s, x, ms);
@@ -230,6 +236,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
     );
@@ -302,14 +309,15 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     const char* s = (const char*) buf;
     int x = n;
 
-    while (x > FLG_tcp_max_send_size) {
-        int r = _Send(fd, s, FLG_tcp_max_send_size, ms);
-        if (r != FLG_tcp_max_send_size) return r;
-        x -= FLG_tcp_max_send_size;
-        s += FLG_tcp_max_send_size;
+    while (x > FLG_co_max_send_size) {
+        int r = _Send(fd, s, FLG_co_max_send_size, ms);
+        if (r != FLG_co_max_send_size) return r;
+        x -= FLG_co_max_send_size;
+        s += FLG_co_max_send_size;
     }
 
     int r = _Send(fd, s, x, ms);
@@ -317,6 +325,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info;
     if (!gSched->on_stack((void*)buf)) {
         info.reset(new PerIoInfo(buf, n, gSched->running()));

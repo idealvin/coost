@@ -4,8 +4,8 @@
 #include "io_event.h"
 #include "hook.h"
 
-DEF_int32(tcp_max_recv_size, 1024 * 1024, "max size for a single recv");
-DEF_int32(tcp_max_send_size, 1024 * 1024, "max size for a single send");
+DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
+DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
 
 namespace co {
 
@@ -39,6 +39,7 @@ sock_t udp_socket(int v) {
 #endif
 
 int close(sock_t fd, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     gSched->del_event(fd);
     if (ms > 0) gSched->sleep(ms);
     int r;
@@ -47,6 +48,7 @@ int close(sock_t fd, int ms) {
 }
 
 int shutdown(sock_t fd, char c) {
+    CHECK(gSched) << "must be called in coroutine..";
     if (c == 'r') {
         gSched->del_event(fd, EV_read);
         return fp_shutdown(fd, SHUT_RD);
@@ -68,6 +70,7 @@ int listen(sock_t fd, int backlog) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
+    CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
 
     do {
@@ -92,6 +95,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     do {
         int r = fp_connect(fd, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r == 0) return 0;
@@ -114,6 +118,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
 
     do {
@@ -152,14 +157,15 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvn(sock_t fd, void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     char* s = (char*) buf;
     int remain = n;
 
-    while (remain > FLG_tcp_max_recv_size) {
-        int r = _Recvn(fd, s, FLG_tcp_max_recv_size, ms);
-        if (r != FLG_tcp_max_recv_size) return r;
-        remain -= FLG_tcp_max_recv_size;
-        s += FLG_tcp_max_recv_size;
+    while (remain > FLG_co_max_recv_size) {
+        int r = _Recvn(fd, s, FLG_co_max_recv_size, ms);
+        if (r != FLG_co_max_recv_size) return r;
+        remain -= FLG_co_max_recv_size;
+        s += FLG_co_max_recv_size;
     }
 
     int r = _Recvn(fd, s, remain, ms);
@@ -167,6 +173,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
     do {
         int r = (int) fp_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
@@ -203,14 +210,15 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     const char* s = (const char*) buf;
     int remain = n;
 
-    while (remain > FLG_tcp_max_send_size) {
-        int r = _Send(fd, s, FLG_tcp_max_send_size, ms);
-        if (r != FLG_tcp_max_send_size) return r;
-        remain -= FLG_tcp_max_send_size;
-        s += FLG_tcp_max_send_size;
+    while (remain > FLG_co_max_send_size) {
+        int r = _Send(fd, s, FLG_co_max_send_size, ms);
+        if (r != FLG_co_max_send_size) return r;
+        remain -= FLG_co_max_send_size;
+        s += FLG_co_max_send_size;
     }
 
     int r = _Send(fd, s, remain, ms);
@@ -218,6 +226,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
+    CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_write);
 
     do {

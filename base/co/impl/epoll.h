@@ -1,9 +1,10 @@
 #pragma once
 
+#include "dbg.h"
+#include "hook.h"
 #include "../co.h"
 #include "../../atomic.h"
 #include "../../log.h"
-#include "hook.h"
 #include <unordered_map>
 
 #ifndef _WIN32
@@ -34,11 +35,13 @@ class Epoll {
     bool add_event(sock_t fd, int ev);
 
     void del_event(sock_t fd, int ev) {
+        COLOG << "del ev, fd: " << fd << ", ev: " << ev;
         auto it = _ev_map.find(fd);
         if (it != _ev_map.end() && (it->second & ev)) it->second &= ~ev;
     }
 
     void del_event(sock_t fd) {
+        COLOG << "del ev, fd: " << fd;
         _ev_map.erase(fd);
     }
 
@@ -105,11 +108,14 @@ class Epoll {
     void del_ev_write(int fd);
 
     void del_event(int fd) {
+        COLOG << "del ev, fd: " << fd;
         auto it = _ev_map.find(fd);
         if (it != _ev_map.end()) {
             _ev_map.erase(it);
             if (epoll_ctl(_efd, EPOLL_CTL_DEL, fd, (epoll_event*)8) != 0) {
                 ELOG << "epoll del error: " << co::strerror() << ", fd: " << fd;
+            } else {
+                COLOG << "epoll del ev ok, fd: " << fd;
             }
         }
     }

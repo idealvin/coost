@@ -1,7 +1,7 @@
 #include "scheduler.h"
 
-DEF_uint32(co_sched_num, os::cpunum(), "number of coroutine schedulers, default: cpu num");
-DEF_uint32(co_stack_size, 1024 * 1024, "size of the stack shared by coroutines, default: 1M");
+DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: cpu num");
+DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
 
 namespace co {
 
@@ -60,6 +60,7 @@ inline void Scheduler::save_stack(Coroutine* co) {
  *       <-------- co->cb->run():  run on _stack
  */
 void Scheduler::resume(Coroutine* co) {
+    SOLOG << "resume co: " << co->id;
     tb_context_from_t from;
     _running = co;
     if (_stack == 0) _stack = (char*) malloc(FLG_co_stack_size);
@@ -96,6 +97,7 @@ void Scheduler::loop() {
             continue;
         }
 
+        SOLOG << "> epoll wait ret: " << n;
         for (int i = 0; i < n; ++i) {
             auto& ev = _epoll[i];
             if (_epoll.is_ev_pipe(ev)) {
@@ -116,6 +118,7 @@ void Scheduler::loop() {
           #endif
         }
 
+        SOLOG << "> check new tasks..";
         do {
             {
                 ::MutexGuard g(_task_mtx);
@@ -138,6 +141,7 @@ void Scheduler::loop() {
             }
         } while (0);
 
+        SOLOG << "> check ready tasks..";
         do {
             {
                 ::MutexGuard g(_timer_task_mtx);
@@ -153,8 +157,10 @@ void Scheduler::loop() {
             }
         } while (0);
 
+        SOLOG << "> check timeout tasks..";
         do {
             this->check_timeout(task_co);
+            SOLOG << ">> timeout n: " << task_co.size();
 
             if (!task_co.empty()) {
                 _timeout = true;
@@ -176,6 +182,7 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
         return;
     }
 
+    SOLOG << ">> check timeout, timed_wait n: " << _timer.size();
     do {
         int64 now_ms = now::ms();
 
@@ -184,15 +191,18 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
             if (it->first > now_ms) break;
             Coroutine* co = it->second;
             if (co->ev != 0) atomic_swap(&co->ev, 0);
+            SOLOG << ">>> timedout timer: " << COTID(it);
             res.push_back(co);
         }
 
+        SOLOG << ">> check timeout, timedout n: " << res.size();
         if (it != _timer.begin()) {
             if (_it != _timer.end() && _it->first <= now_ms) {
                 _it = it;
             }
             _timer.erase(_timer.begin(), it);
         }
+        SOLOG << ">> check timeout, remain timed_wait n: " << _timer.size();
 
         if (!_timer.empty()) {
             _wait_ms = (int) (_timer.begin()->first - now_ms);
@@ -203,7 +213,8 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
 }
 
 SchedulerMgr::SchedulerMgr() : _index(-1) {
-    if (FLG_co_sched_num > (uint32) os::cpunum()) FLG_co_sched_num = os::cpunum();
+    if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
+    if (FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
     _n = FLG_co_sched_num;
@@ -243,7 +254,7 @@ void go(Closure* cb) {
 }
 
 void sleep(uint32 ms) {
-    gSched != 0 ? gSched->sleep(ms) : sleep::ms(ms);
+    gSched ? gSched->sleep(ms) : sleep::ms(ms);
 }
 
 void stop() {
@@ -258,7 +269,11 @@ std::vector<Scheduler*>& schedulers() {
 }
 
 int sched_id() {
-    return gSched->id();
+    return gSched ? gSched->id() : -1;
+}
+
+int coroutine_id() {
+    return (gSched && gSched->running()) ? gSched->running()->id : -1;
 }
 
 } // co

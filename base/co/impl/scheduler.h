@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dbg.h"
 #include "epoll.h"
 #include "../co.h"
 #include "../context.h"
@@ -114,19 +115,28 @@ class Scheduler {
 
     void sleep(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
-        _timer.insert(std::make_pair(now::ms() + ms, _running));
+        auto it = _timer.insert(std::make_pair(now::ms() + ms, _running));
+        COLOG << "sleep " << ms << " ms, " << ", add timer: " << COTID(it);
         this->yield();
     }
 
     // @speedup: if true, do optimization with the iterator _it.
     timer_id_t add_timer(uint32 ms, bool speedup=true) {
         if (_wait_ms > ms) _wait_ms = ms;
-        if (speedup) return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, _running));
-        return _timer.insert(std::make_pair(now::ms() + ms, _running));
+        if (speedup) {
+            _it = _timer.insert(_it, std::make_pair(now::ms() + ms, _running));
+            COLOG << "add timer" << "(" << ms << " ms): " << COTID(_it);
+            return _it;
+        } else {
+            auto it = _timer.insert(std::make_pair(now::ms() + ms, _running));
+            COLOG << "add ev timer" << "(" << ms << " ms): " << COTID(it);
+            return it;
+        }
     }
 
     void del_timer(const timer_id_t& id) {
         if (_it == id) ++_it;
+        COLOG << "del timer: " << COTID(id);
         _timer.erase(id);
     }
 

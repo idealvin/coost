@@ -69,6 +69,9 @@ void stop();
 // scheduler id, return -1 if the current thread is not a coroutine scheduler.
 int sched_id();
 
+// coroutine id, return -1 if the current thread is not a coroutine.
+int coroutine_id();
+
 // for communications between coroutines
 class Event {
   public:

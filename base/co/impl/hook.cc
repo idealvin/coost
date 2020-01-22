@@ -5,8 +5,6 @@
 #include "io_event.h"
 #include <dlfcn.h>
 
-DEF_bool(disable_hook_sleep, false, "if true, disable hook sleep/usleep/nanosleep");
-
 namespace co {
 
 class HookInfo {
@@ -450,21 +448,21 @@ int select(int nfds, fd_set* r, fd_set* w, fd_set* e, struct timeval* tv) {
 
 unsigned int sleep(unsigned int n) {
     init_hook(sleep);
-    if (FLG_disable_hook_sleep || !gSched || n == 0) return fp_sleep(n);
+    if (!gSched || n == 0) return fp_sleep(n);
     gSched->sleep(n * 1000);
     return 0;
 }
 
 int usleep(useconds_t us) {
     init_hook(usleep);
-    if (FLG_disable_hook_sleep || !gSched || us < 1000) return fp_usleep(us);
+    if (!gSched || us < 1000) return fp_usleep(us);
     gSched->sleep(us / 1000);
     return 0;
 }
 
 int nanosleep(const struct timespec* req, struct timespec* rem) {
     init_hook(nanosleep);
-    if (FLG_disable_hook_sleep || !gSched) return fp_nanosleep(req, rem);
+    if (!gSched) return fp_nanosleep(req, rem);
 
     int ms = (int) (req->tv_sec * 1000 + req->tv_nsec / 1000000);
     if (ms < 1) return fp_nanosleep(req, rem);
