@@ -10,7 +10,7 @@
 - CO contains the following functional components:
     - Basic definitions (def)
     - Atomic operations (atomic)
-    - Fast random number generator (ramdom)
+    - Fast random number generator (random)
     - LruMap
     - Fast string casting for basic types (fast)
     - Efficient byte stream (fastream)
