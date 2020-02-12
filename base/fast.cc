@@ -220,6 +220,12 @@ int dtoa(double v, char* buf) {
   #endif
 
     if (r >= 0) {
+        buf[r] = '\0';
+        if (!strchr(buf, '.')) {
+            buf[r] = '.';
+            buf[r + 1] = '0';
+            r += 2;
+        }
         double_cache->insert(key, fastring(buf, r));
         return r;
     }
