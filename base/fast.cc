@@ -221,7 +221,7 @@ int dtoa(double v, char* buf) {
 
     if (r >= 0) {
         buf[r] = '\0';
-        if (!strchr(buf, '.')) {
+        if (!strpbrk(buf, ".eE")) {
             buf[r] = '.';
             buf[r + 1] = '0';
             r += 2;
