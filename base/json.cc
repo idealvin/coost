@@ -12,8 +12,17 @@ Value Value::find(Key key) const {
     return Value();
 }
 
+bool Value::has_member(Key key) const {
+    if (this->is_object()) {
+        for (auto it = this->begin(); it != this->end(); ++it) {
+            if (strcmp(it->key, key) == 0) return true;
+        }
+    }
+    return false;
+}
+
 Value& Value::operator[](Key key) const {
-    ((Value*)this)->_Init_object();
+    ((Value*)this)->_Assert_object();
     for (auto it = this->begin(); it != this->end(); ++it) {
         if (strcmp(it->key, key) == 0) return it->value;
     }
@@ -25,7 +34,7 @@ Value& Value::operator[](Key key) const {
 
 void Value::reset() {
     if (_mem == 0) return;
-    if (--_mem->refn == 0) {
+    if (this->_UnRef() == 0) {
         if (_mem->type == kObject) {
             Array& a = _Array();
             if (!a.empty()) {
@@ -54,13 +63,13 @@ void Value::_Json2str(fastream& fs) const {
 
     if (_mem->type == kString) {
         fs << '"';
-        const char* cs = (const char*)(_mem + 1);
-        const char* p = strpbrk(cs, "\r\n\t\b\f\"\\");
+        const char* s = _mem->s;
+        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
         if (!p) {
-            fs.append(cs, _mem->slen);
+            fs.append(s);
         } else {
             do {
-                fs.append(cs, p - cs).append('\\');
+                fs.append(s, p - s).append('\\');
                 if (*p == '\\' || *p == '"') {
                     fs.append(*p);
                 } else if (*p == '\n') {
@@ -75,11 +84,11 @@ void Value::_Json2str(fastream& fs) const {
                     fs.append('f');
                 }
 
-                cs = p + 1;
-                p = strpbrk(cs, "\r\n\t\b\f\"\\");
+                s = p + 1;
+                p = strpbrk(s, "\r\n\t\b\f\"\\");
 
                 if (!p) {
-                    fs.append(cs);
+                    fs.append(s);
                     break;
                 }
             } while (true);
@@ -347,7 +356,7 @@ inline int64 fastatoi(const char* s, size_t n) {
 }
 
 inline const char* read_token(const char* b, const char* e, void** v) {
-    int dots = 0;
+    bool is_int = true;
     const char* p = b++;
 
     for (; b < e; ++b) {
@@ -365,7 +374,7 @@ inline const char* read_token(const char* b, const char* e, void** v) {
                 new (v) Value();
             } else {
                 try {
-                    if (dots == 0) {
+                    if (is_int) {
                         new (v) Value(fastatoi(p, b - p));
                     } else {
                         new (v) Value(str::to_double(fastring(p, b - p)));
@@ -377,7 +386,9 @@ inline const char* read_token(const char* b, const char* e, void** v) {
             return b - 1;
 
         } else if (c == '.') {
-            if (++dots > 1) return 0;
+            is_int = false;
+        } else if (c == 'e' || c == 'E') {
+            if (*(b + 1) == '-') is_int = false;
         }
     }
 
