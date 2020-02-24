@@ -277,7 +277,7 @@ class Value {
     uint32 size() const {
         if (_mem == 0) return 0;
         if (_mem->type == kArray) return _Array().size();
-        if (_mem->type == kString) return strlen(_mem->s);
+        if (_mem->type == kString) return _mem->slen;
         if (_mem->type == kObject) {
             if (_Array().size() == 0) return 0;
             if (_Array()[0]) return _Array().size() >> 1;
@@ -374,10 +374,10 @@ class Value {
     }
 
     void _Init_string(const void* data, size_t size) {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) malloc(sizeof(_Mem) + size + 1);
         _mem->type = kString;
         _mem->refn = 1;
-        _mem->s = (char*) malloc(size + 1);
+        _mem->slen = size;
         memcpy(_mem->s, data, size);
         _mem->s[size] = '\0';
     }
@@ -442,9 +442,11 @@ class Value {
             bool b;
             int64 i;
             double d;
-            char* s;  // for string
-            void* p;  // for array and object
+            uint32 slen; // for length of string
+            void* p;     // for array and object
         };
+
+        char s[]; // for string
     }; // 16 bytes
 
     _Mem* _mem;

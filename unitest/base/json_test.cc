@@ -52,11 +52,13 @@ DEF_test(json) {
 
         Json cs = "hello world";
         EXPECT(cs.is_string());
+        EXPECT_EQ(cs.size(), 11);
         EXPECT_EQ(cs.str(), "\"hello world\"");
         EXPECT_EQ(cs.pretty(), "\"hello world\"");
 
         Json s = fastring("hello world");
         EXPECT(s.is_string());
+        EXPECT_EQ(s.size(), 11);
         EXPECT_EQ(s.str(), "\"hello world\"");
         EXPECT_EQ(s.pretty(), "\"hello world\"");
 

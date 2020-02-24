@@ -39,16 +39,18 @@ void Value::reset() {
             Array& a = _Array();
             if (!a.empty()) {
                 if (a[0] == 0 && --(*(uint32*)a[1]) == 0) {
-                    free((void*) a[1]); // free the keys
+                    free((void*)a[1]); // free the keys
                 }
                 for (uint32 i = (a[0] ? 1 : 3); i < a.size(); i += 2) {
-                    ((Value*) &a[i])->~Value();
+                    ((Value*)&a[i])->~Value();
                 }
             }
+            free(_mem->p);
         } else if (_mem->type == kArray) {
             for (uint32 i = 0; i < _Array().size(); ++i) {
-                ((Value*) &_Array()[i])->~Value();
+                ((Value*)&_Array()[i])->~Value();
             }
+            free(_mem->p);
         }
         free(_mem);
     }
