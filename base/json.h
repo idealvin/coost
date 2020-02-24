@@ -117,8 +117,7 @@ class Value {
         if (_mem) this->_Ref();
     }
 
-    Value(Value&& v) {
-        _mem = v._mem;
+    Value(Value&& v) noexcept : _mem(v._mem) {
         v._mem = 0;
     }
 
@@ -131,7 +130,7 @@ class Value {
         return *this;
     }
 
-    Value& operator=(Value&& v) {
+    Value& operator=(Value&& v) noexcept {
         if (_mem) this->reset();
         _mem = v._mem;
         v._mem = 0;
