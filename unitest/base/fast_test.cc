@@ -93,7 +93,8 @@ DEF_test(fast) {
     }
 
     DEF_case(dtoa) {
-        EXPECT_EQ(fastring(buf, fast::dtoa(0.0, buf)), "0");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0, buf)), "0.0");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.00, buf)), "0.0");
         EXPECT_EQ(fastring(buf, fast::dtoa(0.01, buf)), "0.01");
         EXPECT_EQ(fastring(buf, fast::dtoa(-0.1, buf)), "-0.1");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.14, buf)), "3.14");

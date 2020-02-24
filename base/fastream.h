@@ -33,6 +33,7 @@ class fastream {
     fastream(fastream&& fs) noexcept
         : _cap(fs._cap), _size(fs._size), _p(fs._p) {
         fs._p = 0;
+        fs._cap = fs._size = 0;
     }
 
     const char* data() const {
@@ -247,27 +248,25 @@ class fastream {
         if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
     }
     
-    // enable more efficient control of the underlying buffer
-    friend class magicstream;
-
   private:
     size_t _cap;
     size_t _size;
     char* _p;
 };
 
-// magicstream is for internal use only.
-// DO NOT TOUCH it before you figure out what it is doing.
-// 
-// create a fastring without memory copy:
+// DON'T TOUCH!!  (for internal use only)
+//
+// The magicstream object will be invalid after the method str() is called.
+// The str() method MUST be called once and only once.
 //   fastring s = (magicstream() << "hello" << 123).str();
 class magicstream {
   public:
-    magicstream() : magicstream(16) {}
+    magicstream() {
+        new (_buf) fastream();
+    }
 
     explicit magicstream(size_t cap) {
-        new (_buf) fastream(cap + fastring::header_size());
-        _fs._size = fastring::header_size();
+        new (_buf) fastream(cap);
     }
 
     ~magicstream() {}
@@ -283,7 +282,9 @@ class magicstream {
     }
 
     fastring str() const {
-        return fastring::from_raw_buffer(_fs._p, _fs._cap, _fs._size);
+        return fastring::from_raw_buffer(
+            (char*)_fs.data(), _fs.capacity(), _fs.size()
+        );
     }
 
   private:
@@ -292,7 +293,3 @@ class magicstream {
         fastream _fs;
     };
 };
-
-inline void swap(fastream& lhs, fastream& rhs) noexcept {
-    lhs.swap(rhs);
-}

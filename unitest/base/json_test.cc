@@ -1,5 +1,6 @@
 ﻿#include "base/unitest.h"
 #include "base/json.h"
+#include "base/str.h"
 
 namespace test {
 
@@ -40,15 +41,31 @@ DEF_test(json) {
         EXPECT_EQ(d.str(), "3.14");
         EXPECT_EQ(d.pretty(), "3.14");
 
+        d = 7e-5;
+        EXPECT(d.is_double());
+        EXPECT_EQ(d.get_double(), 7e-5);
+
+        d = 1.2e5;
+        EXPECT(d.is_double());
+        EXPECT_EQ(d.get_double(), 1.2e5);
+
+
         Json cs = "hello world";
         EXPECT(cs.is_string());
+        EXPECT_EQ(cs.size(), 11);
         EXPECT_EQ(cs.str(), "\"hello world\"");
         EXPECT_EQ(cs.pretty(), "\"hello world\"");
 
         Json s = fastring("hello world");
         EXPECT(s.is_string());
+        EXPECT_EQ(s.size(), 11);
         EXPECT_EQ(s.str(), "\"hello world\"");
         EXPECT_EQ(s.pretty(), "\"hello world\"");
+
+        Json t = s;
+        t = "xxx";
+        EXPECT_EQ(t.str(), "\"xxx\"");
+        EXPECT_EQ(s.str(), "\"hello world\"");
 
         Json a = json::array();
         EXPECT(a.is_array());
@@ -56,11 +73,29 @@ DEF_test(json) {
         EXPECT_EQ(a.str(), "[]");
         EXPECT_EQ(a.pretty(), "[]");
 
+        Json x = a;
+        for (int i = 0; i < 10; ++i) x.push_back(i);
+        EXPECT_EQ(x.str(), "[0,1,2,3,4,5,6,7,8,9]");
+        EXPECT_EQ(a.str(), "[0,1,2,3,4,5,6,7,8,9]");
+
         Json o = json::object();
         EXPECT(o.is_object());
         EXPECT(o.empty());
         EXPECT_EQ(o.str(), "{}");
         EXPECT_EQ(o.pretty(), "{}");
+
+        Json p = o;
+        p.add_member("0", 0);
+        p.add_member("1", 1);
+        p.add_member("2", 2);
+        p.add_member("3", 3);
+        p.add_member("4", 4);
+        p.add_member("5", 5);
+        p.add_member("6", 6);
+        p.add_member("7", 7);
+        p.add_member("8", 8);
+        EXPECT_EQ(p.str(), o.str());
+        EXPECT_EQ(*(void**)&o, *(void**)&p);
     }
 
     DEF_case(array) {
