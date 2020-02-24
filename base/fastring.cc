@@ -1,5 +1,43 @@
 #include "fastring.h"
 
+inline void fastring::_Init(size_t cap, size_t size) {
+    _p = (_Mem*) malloc(sizeof(_Mem));
+    _p->cap = cap;
+    _p->size = size;
+    _p->refn = 1;
+    _p->s = (char*) malloc(cap);
+}
+
+fastring::fastring(size_t cap) {
+    this->_Init(cap);
+}
+
+fastring::fastring(const void* s, size_t n) {
+    if (n == 0) { _p = 0; return; }
+    this->_Init(n + 1, n);
+    memcpy(_p->s, s, n);
+}
+
+fastring::fastring(const char* s) {
+    if (!*s) { _p = 0; return; }
+    size_t n = strlen(s);
+    this->_Init(n + 1, n);
+    memcpy(_p->s, s, n + 1); // '\0' also copied
+}
+
+fastring::fastring(size_t n, char c) {
+    this->_Init(n + 1, n);
+    memset(_p->s, c, n);
+}
+
+fastring& fastring::operator=(const std::string& s) {
+    if (s.empty()) { this->clear(); return *this; }
+    this->reserve(s.size() + 1);
+    memcpy(_p->s, s.data(), s.size());
+    _p->size = s.size();
+    return *this;
+}
+
 fastring& fastring::operator=(const char* s) {
     if (!*s) { this->clear(); return *this; }
 
@@ -18,6 +56,23 @@ fastring& fastring::operator=(const char* s) {
         this->_Init(n + 1, n);
         memcpy(_p->s, s, n + 1);
     }
+    return *this;
+}
+
+void fastring::reserve(size_t n) {
+    _p ? this->_Reserve(n) : this->_Init(n);
+}
+
+fastring& fastring::append(char c) {
+    _p ? this->_Ensure(1) : this->_Init(16);
+    _p->s[_p->size++] = c;
+    return *this;
+}
+
+fastring& fastring::append(char c, size_t n) {
+    _p ? this->_Ensure(n) : this->_Init(n + 1);
+    memset(_p->s + _p->size, c, n);
+    _p->size += n;
     return *this;
 }
 
@@ -179,6 +234,13 @@ fastring& fastring::tolower() {
         char& c = _p->s[i];
         if ('A' <= c && c <= 'Z') c ^= 32;
     }
+    return *this;
+}
+
+fastring& fastring::_Append(const void* p, size_t n) {
+    _p ? this->_Ensure(n): this->_Init(n + 1);
+    memcpy(_p->s + _p->size, p, n);
+    _p->size += n;
     return *this;
 }
 
