@@ -33,23 +33,23 @@ fastring& fastring::append(const fastring& s) {
 }
 
 size_t fastring::rfind(const char* sub) const {
-    uint32_t m = (uint32_t) strlen(sub);
+    size_t m = strlen(sub);
     if (m == 1) return this->rfind(*sub);
 
-    uint32_t n = (uint32_t) this->size();
+    size_t n = this->size();
     if (n < m) return npos;
 
     const unsigned char* s = (const unsigned char*) _p->s;
     const unsigned char* p = (const unsigned char*) sub;
 
-    uint32_t tbl[256] = { 0 };
-    for (uint32_t i = m; i > 0; --i) tbl[p[i - 1]] = i;
+    size_t tbl[256] = { 0 };
+    for (size_t i = m; i > 0; --i) tbl[p[i - 1]] = i;
 
-    for (uint32_t j = n - m;;) {
+    for (size_t j = n - m;;) {
         if (memcmp(p, s + j, m) == 0) return j;
         if (j == 0) return npos;
 
-        uint32_t x = tbl[s[j - 1]];
+        size_t x = tbl[s[j - 1]];
         if (x == 0) x = m + 1;
         if (j < x) return npos;
         j -= x;
@@ -65,7 +65,7 @@ size_t fastring::find_last_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (uint32_t i = _p->size; i > 0;) {
+    for (size_t i = _p->size; i > 0;) {
         if (bs[(u8) (_p->s[--i])]) return i;
     }
 
@@ -79,7 +79,7 @@ size_t fastring::find_last_not_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (uint32_t i = _p->size; i > 0;) {
+    for (size_t i = _p->size; i > 0;) {
         if (!bs[(u8) (_p->s[--i])]) return i;
     }
 
@@ -88,7 +88,7 @@ size_t fastring::find_last_not_of(const char* s) const {
 
 size_t fastring::find_last_not_of(char c) const {
     if (!_p) return npos;
-    for (uint32_t i = _p->size; i > 0;) {
+    for (size_t i = _p->size; i > 0;) {
         if (_p->s[--i] != c) return i;
     }
     return npos;
