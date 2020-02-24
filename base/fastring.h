@@ -1,12 +1,7 @@
 #pragma once
 
-#ifdef _MSC_VER
-#pragma warning (disable:4200)
-#endif
-
 #include "atomic.h"
 #include <assert.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
@@ -18,32 +13,14 @@ class fastring {
 
     constexpr fastring() noexcept : _p(0) {}
 
-    explicit fastring(size_t cap) {
-        this->_Init(cap);
-    }
+    explicit fastring(size_t cap);
 
-    fastring(const void* s, size_t n) {
-        if (n == 0) { _p = 0; return; }
-        this->_Init(n + 1, n);
-        memcpy(_p->s, s, n);
-    }
+    fastring(const void* s, size_t n);
+    fastring(const char* s);
 
-    fastring(const char* s) {
-        if (!*s) { _p = 0; return; }
-        size_t n = strlen(s);
-        this->_Init(n + 1, n);
-        memcpy(_p->s, s, n + 1); // '\0' also copied
-    }
+    fastring(size_t n, char c);
 
-    fastring(size_t n, char c) {
-        this->_Init(n + 1, n);
-        memset(_p->s, c, n);
-    }
-
-    fastring(char c, size_t n) {
-        this->_Init(n + 1, n);
-        memset(_p->s, c, n);
-    }
+    fastring(char c, size_t n) : fastring(n, c) {}
 
     static fastring from_raw_buffer(char* p, size_t cap, size_t size) {
         fastring s;
@@ -85,6 +62,7 @@ class fastring {
         return *this;
     }
 
+    fastring& operator=(const std::string& s);
     fastring& operator=(const char* s);
 
     const char* data() const {
@@ -114,9 +92,7 @@ class fastring {
         if (_p) _p->size = 0;
     }
 
-    void reserve(size_t n) {
-        _p ? this->_Reserve(n) : this->_Init(n);
-    }
+    void reserve(size_t n);
 
     // !! newly allocated memory is not initialized
     void resize(size_t n) {
@@ -144,18 +120,9 @@ class fastring {
         return this->_Append_safe(s, strlen(s));
     }
 
-    fastring& append(char c) {
-        _p ? this->_Ensure(1) : this->_Init(16);
-        _p->s[_p->size++] = c;
-        return *this;
-    }
+    fastring& append(char c);
 
-    fastring& append(char c, size_t n) {
-        _p ? this->_Ensure(n) : this->_Init(n + 1);
-        memset(_p->s + _p->size, c, n);
-        _p->size += n;
-        return *this;
-    }
+    fastring& append(char c, size_t n);
 
     fastring& append(size_t n, char c) {
         return this->append(c, n);
@@ -329,13 +296,7 @@ class fastring {
     }
 
   private:
-    void _Init(size_t cap, size_t size = 0) {
-        _p = (_Mem*) malloc(sizeof(_Mem));
-        _p->cap = cap;
-        _p->size = size;
-        _p->refn = 1;
-        _p->s = (char*) malloc(cap);
-    }
+    void _Init(size_t cap, size_t size = 0);
 
     void _Ref() {
         atomic_inc(&_p->refn);
@@ -363,13 +324,7 @@ class fastring {
         return _p->s <= p && p < _p->s + _p->size;
     }
 
-    fastring& _Append(const void* p, size_t n) {
-        _p ? this->_Ensure(n): this->_Init(n + 1);
-        memcpy(_p->s + _p->size, p, n);
-        _p->size += n;
-        return *this;
-    }
-
+    fastring& _Append(const void* p, size_t n);
     fastring& _Append_safe(const void* p, size_t n);
 
   private:

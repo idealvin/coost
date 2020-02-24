@@ -20,6 +20,11 @@ DEF_test(fastring) {
         EXPECT_EQ(s, t);
         EXPECT_EQ(s.data(), t.data());
         EXPECT_EQ(*(void**)&s, *(void**)&t);
+
+        t = std::string("888");
+        EXPECT_EQ(s, "888");
+        EXPECT_EQ(s, t);
+        EXPECT_EQ(*(void**)&s, *(void**)&t);
     }
 
     DEF_case(append) {
