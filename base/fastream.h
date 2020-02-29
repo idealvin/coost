@@ -262,7 +262,7 @@ class fastream {
 class magicstream {
   public:
     magicstream() {
-        new (_buf) fastream();
+        new (_buf) fastream(32);
     }
 
     explicit magicstream(size_t cap) {

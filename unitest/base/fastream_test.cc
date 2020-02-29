@@ -147,6 +147,7 @@ DEF_test(fastream) {
     }
 
     DEF_case(magic) {
+        EXPECT_EQ((magicstream()).str(), "");
         EXPECT_EQ((magicstream() << 123).str(), "123");
         EXPECT_EQ((magicstream() << "hello" << 123).str(), "hello123");
     }

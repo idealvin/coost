@@ -23,10 +23,14 @@ class Value {
     typedef const char* Key;
 
     struct Array {
-        Array(uint32 cap) {
+        Array(uint32 cap=256) {
             _mem = (_Mem*) malloc(sizeof(_Mem) + sizeof(T) * cap);
             _mem->cap = cap;
             _mem->size = 0;
+        }
+
+        ~Array() {
+            free(_mem);
         }
 
         uint32 size() const {
@@ -54,6 +58,10 @@ class Value {
             _mem->p[_mem->size++] = v;
         }
 
+        T pop_back() {
+            return _mem->p[--_mem->size];
+        }
+
         struct _Mem {
             uint32 cap;
             uint32 size;
@@ -61,6 +69,32 @@ class Value {
         }; // 8 bytes
 
         _Mem* _mem;
+    };
+
+    class Jalloc {
+      public:
+        Jalloc() = default;
+        ~Jalloc();
+
+        static Jalloc* instance() {
+            static __thread Jalloc* jalloc = 0;
+            return jalloc ? jalloc : (jalloc = new Jalloc);
+        }
+
+        void* alloc16() {
+            return !_l16.empty() ? ((void*)_l16.pop_back()) : malloc(16);
+        }
+
+        void free16(void* p) {
+            _l16.size() < 128 * 1024 ? _l16.push_back(p) : ::free(p);
+        }
+
+        void* alloc(uint32 n);
+        void free(void* p);
+
+      private:
+        Array _l16;   // for header (16 bytes)
+        Array _ks[2]; // for key and string
     };
 
     struct MemberItem;
@@ -138,28 +172,28 @@ class Value {
     }
 
     Value(bool v) {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kBool;
         _mem->refn = 1;
         _mem->b = v;
     }
 
     Value(int32 v) {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kInt;
         _mem->refn = 1;
         _mem->i = v;
     }
 
     Value(int64 v) {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kInt;
         _mem->refn = 1;
         _mem->i = v;
     }
 
     Value(double v) {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kDouble;
         _mem->refn = 1;
         _mem->d = v;
@@ -182,27 +216,27 @@ class Value {
     }
 
     bool is_bool() const {
-        return _mem && (_mem->type == kBool);
+        return _mem && (_mem->type & kBool);
     }
 
     bool is_int() const {
-        return _mem && (_mem->type == kInt);
+        return _mem && (_mem->type & kInt);
     }
 
     bool is_double() const {
-        return _mem && (_mem->type == kDouble);
+        return _mem && (_mem->type & kDouble);
     }
 
     bool is_string() const {
-        return _mem && (_mem->type == kString);
+        return _mem && (_mem->type & kString);
     }
 
     bool is_array() const {
-        return _mem && (_mem->type == kArray);
+        return _mem && (_mem->type & kArray);
     }
 
     bool is_object() const {
-        return _mem && (_mem->type == kObject);
+        return _mem && (_mem->type & kObject);
     }
 
     bool get_bool() const {
@@ -236,7 +270,7 @@ class Value {
 
     void set_array() {
         if (_mem) {
-            if (_mem->type == kArray) return;
+            if (_mem->type & kArray) return;
             this->reset();
         }
         this->_Init_array();
@@ -244,7 +278,7 @@ class Value {
 
     void set_object() {
         if (_mem) {
-            if (_mem->type == kObject) return;
+            if (_mem->type & kObject) return;
             this->reset();
         }
         this->_Init_object();
@@ -275,16 +309,12 @@ class Value {
     // for other types, return sizeof(type)
     uint32 size() const {
         if (_mem == 0) return 0;
-        if (_mem->type == kArray) return _Array().size();
-        if (_mem->type == kString) return _mem->slen;
-        if (_mem->type == kObject) {
-            if (_Array().size() == 0) return 0;
-            if (_Array()[0]) return _Array().size() >> 1;
-            return (_Array().size() >> 1) - 1;
-        }
-        if (_mem->type == kInt) return 8;
-        if (_mem->type == kBool) return 1;
-        if (_mem->type == kDouble) return 8;
+        if (_mem->type & kObject) return _Array().size() >> 1;
+        if (_mem->type & kArray) return _Array().size();
+        if (_mem->type & kString) return _mem->l[-1];
+        if (_mem->type & kInt) return 8;
+        if (_mem->type & kBool) return 1;
+        if (_mem->type & kDouble) return 8;
         return 0;
     }
 
@@ -312,12 +342,11 @@ class Value {
     }
 
     iterator begin() const {
-        if (_Array().empty() || _Array()[0]) return iterator(&_Array()[0]);
-        return iterator(&_Array()[2]);
+        return iterator(_mem ? &_Array()[0] : 0);
     }
 
     iterator end() const {
-        return iterator(&_Array()[_Array().size()]);
+        return iterator(_mem ? &_Array()[_Array().size()] : 0);
     }
 
     Value& operator[](Key key) const;
@@ -341,7 +370,7 @@ class Value {
         return ms.str();
     }
 
-    bool parse_from(const char* s, size_t n, size_t keys_len=0);
+    bool parse_from(const char* s, size_t n);
 
     bool parse_from(const char* s) {
         return this->parse_from(s, strlen(s));
@@ -373,12 +402,13 @@ class Value {
     }
 
     void _Init_string(const void* data, size_t size) {
-        _mem = (_Mem*) malloc(sizeof(_Mem) + size + 1);
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kString;
         _mem->refn = 1;
-        _mem->slen = size;
+        _mem->s = (char*) Jalloc::instance()->alloc(size + 1);
         memcpy(_mem->s, data, size);
         _mem->s[size] = '\0';
+        _mem->l[-1] = (uint32) size;
     }
 
     Array& _Array() const {
@@ -386,14 +416,15 @@ class Value {
     }
 
     void _Init_array() {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kArray;
         _mem->refn = 1;
         new (&_mem->p) Array(8);
     }
 
     void _Init_object() {
-        _mem = (_Mem*) malloc(sizeof(_Mem));
+        static_assert(sizeof(_Mem) == 16, "sizeof(_Mem) must be 16");
+        _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kObject;
         _mem->refn = 1;
         new (&_mem->p) Array(16);
@@ -401,7 +432,7 @@ class Value {
 
     void _Assert_array() {
         if (_mem) {
-            assert(_mem->type == kArray);
+            assert(_mem->type & kArray);
         } else {
             this->_Init_array();
         }
@@ -409,7 +440,7 @@ class Value {
 
     void _Assert_object() {
         if (_mem) {
-            assert(_mem->type == kObject);
+            assert(_mem->type & kObject);
         } else {
             this->_Init_object();
         }
@@ -420,17 +451,24 @@ class Value {
         _Array().push_back(v);
     }
 
+    void* _Alloc_key(Key key) const {
+        size_t len = strlen(key);
+        void* s = Jalloc::instance()->alloc(len + 1);
+        memcpy(s, key, len + 1);
+        return s;
+    }
+
     void _Add_member(Key key, void* val) {
         _Assert_object();
-        _Array().push_back(key);
+        _Array().push_back(_Alloc_key(key));
         _Array().push_back(val);
     }
 
     void _Json2str(fastream& fs) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
 
-    friend const char* parse_json (const char*, const char*, Value*, fastream*, size_t);
-    friend const char* parse_array(const char*, const char*, Value*, fastream*, size_t);
+    friend const char* parse_json (const char*, const char*, Value*);
+    friend const char* parse_array(const char*, const char*, Value*);
 
   private:
     struct _Mem {
@@ -441,11 +479,10 @@ class Value {
             bool b;
             int64 i;
             double d;
-            uint32 slen; // for length of string
             void* p;     // for array and object
+            char* s;     // for string
+            uint32* l;   // for length of string
         };
-
-        char s[]; // for string
     }; // 16 bytes
 
     _Mem* _mem;
@@ -471,14 +508,9 @@ inline Value object() {
 }
 
 // parse json from string
-//
-// @buflen:
-//   Size of memory allocated for saving keys of this object. It must be at least
-//   total length (tailing '\0' included) of all the keys, and plus extra 4 bytes
-//   for reference count. The default is 0, and @n bytes will be allocated.
-inline Value parse(const char* s, size_t n, size_t buflen=0) {
+inline Value parse(const char* s, size_t n) {
     Value v;
-    if (v.parse_from(s, n, buflen)) return v;
+    if (v.parse_from(s, n)) return v;
     return Value();
 }
 

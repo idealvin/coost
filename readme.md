@@ -40,7 +40,7 @@
 
 - [English md](https://github.com/idealvin/co/tree/master/docs/en)
 - [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
-- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/27d8b633cbbc94b3b7bec6b9b63cb3e7030d229f/pdf/co.pdf)
+- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/9cb3feb78a35dc6cc1f13d6d93003f6150d047f9/pdf/co.pdf)
 
 ## Highlight function
 
