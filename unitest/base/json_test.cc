@@ -217,7 +217,7 @@ DEF_test(json) {
         EXPECT_EQ(v["key"].get_bool(), true);
 
         fastring ss = "{ \"hello\":23, \"world\": { \"xxx\": 99 } }";
-        v = json::parse(ss.data(), ss.size(), 20);
+        v = json::parse(ss.data(), ss.size());
         EXPECT(v.is_object());
         EXPECT_EQ(v["hello"].get_int(), 23);
 
