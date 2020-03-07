@@ -394,11 +394,11 @@ class Value {
 
   private:
     void _Ref() const {
-        ++_mem->refn;
+        atomic_inc(&_mem->refn);
     }
 
     int32 _UnRef() const {
-        return --_mem->refn;
+        return atomic_dec(&_mem->refn);
     }
 
     void _Init_string(const void* data, size_t size) {
