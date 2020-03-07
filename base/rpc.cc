@@ -3,7 +3,6 @@
 #include "flag.h"
 #include "log.h"
 #include "hash.h"
-#include "random.h"
 #include "fastring.h"
 #include "fastream.h"
 #include "str.h"
