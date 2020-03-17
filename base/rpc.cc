@@ -18,7 +18,6 @@ DEF_int32(rpc_conn_idle_sec, 180, "#2 connection may be closed if no data was re
 DEF_int32(rpc_max_idle_conn, 1024, "#2 max idle connections");
 DEF_bool(rpc_tcp_nodelay, true, "#2 enable tcp nodelay if true");
 DEF_bool(rpc_log, true, "#2 enable rpc log if true");
-DEF_uint32(rpc_max_log_size, 1024, "#2 truncate the rpc log if its size is greater than this value");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
@@ -169,8 +168,7 @@ void ServerImpl::on_connection(Connection* conn) {
             req = json::parse(fs.data(), fs.size());
             if (req.is_null()) goto json_parse_err;
 
-            if (fs.size() > FLG_rpc_max_log_size) fs.resize(FLG_rpc_max_log_size);
-            RPCLOG << "recv req: " << fs;
+            RPCLOG << "recv req: " << req;
         } while (0);
 
         // call rpc and send response to the client
@@ -185,8 +183,7 @@ void ServerImpl::on_connection(Connection* conn) {
             r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
-            if (fs.size() > FLG_rpc_max_log_size + sizeof(Header)) fs.resize(FLG_rpc_max_log_size + sizeof(Header));
-            RPCLOG << "send res: " << (fs.c_str() + sizeof(Header));
+            RPCLOG << "send res: " << res;;
         } while (0);
     }
 
@@ -443,8 +440,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         r = co::send(_fd, _fs.data(), (int) _fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
-        if (_fs.size() > FLG_rpc_max_log_size + sizeof(Header)) _fs.resize(FLG_rpc_max_log_size + sizeof(Header));
-        RPCLOG << "send req: " << (_fs.c_str() + sizeof(Header));
+        RPCLOG << "send req: " << req;
     } while (0);
 
     // wait for response
@@ -463,9 +459,8 @@ void ClientImpl::call(const Json& req, Json& res) {
         if (unlikely(r == -1)) goto recv_err;
 
         res = json::parse(_fs.c_str(), _fs.size());
-        if (_fs.size() > FLG_rpc_max_log_size) _fs.resize(FLG_rpc_max_log_size);
-        RPCLOG << "recv res: " << _fs;
         if (res.is_null()) goto json_parse_err;
+        RPCLOG << "recv res: " << res;
         return;
     } while (0);
 
