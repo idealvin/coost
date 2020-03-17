@@ -176,6 +176,99 @@ void Value::_Json2str(fastream& fs) const {
     }
 }
 
+void Value::_Json2dbg(fastream& fs) const {
+    if (unlikely(_mem == 0)) {
+        fs << "null";
+        return;
+    }
+
+    if (_mem->type & kString) {
+        fs << '"';
+        const char* s = _mem->s;
+        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
+        if (!p) {
+            uint32 len = _mem->l[-1];
+            if (len < 256) {
+                fs.append(s, len);
+            } else {
+                fs.append(s, 256);
+                fs.append(3, '.');
+            }
+        } else {
+            do {
+                fs.append(s, p - s).append('\\');
+                if (*p == '\\' || *p == '"') {
+                    fs.append(*p);
+                } else if (*p == '\n') {
+                    fs.append('n');
+                } else if (*p == '\r') {
+                    fs.append('r');
+                } else if (*p == '\t') {
+                    fs.append('t');
+                } else if (*p == '\b') {
+                    fs.append('b');
+                } else {
+                    fs.append('f');
+                }
+
+                s = p + 1;
+                p = strpbrk(s, "\r\n\t\b\f\"\\");
+
+                if (!p) {
+                    fs.append(s);
+                    break;
+                }
+            } while (true);
+        }
+        fs << '"';
+        return;
+    }
+
+    if (_mem->type & kObject) {
+        auto it = this->begin();
+        if (unlikely(it == this->end())) {
+            fs << "{}";
+            return;
+        }
+
+        fs << '{';
+        fs << '"' << it.key() << '"' << ':';
+        it.value()._Json2dbg(fs);
+
+        for (; ++it != this->end();) {
+            fs << ',' << '"' << it.key() << '"' << ':';
+            it.value()._Json2dbg(fs);
+        }
+
+        fs << '}';
+        return;
+    }
+
+    if (_mem->type & kArray) {
+        fs << '[';
+        auto& a = _Array();
+        if (!a.empty()) ((Value*) &a[0])->_Json2dbg(fs);
+        for (uint32 i = 1; i < a.size(); ++i) {
+            fs << ',';
+            ((Value*) &a[i])->_Json2dbg(fs);
+        }
+        fs << ']';
+        return;
+    }
+
+    switch (_mem->type) {
+      case kInt:
+        fs << _mem->i;
+        break;
+      case kBool:
+        fs << _mem->b;
+        break;
+      case kDouble:
+        fs << _mem->d;
+        break;
+    }
+}
+
 void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) const {
     if (unlikely(_mem == 0)) {
         fs << "null";

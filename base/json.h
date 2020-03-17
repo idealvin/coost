@@ -363,6 +363,17 @@ class Value {
         this->_Json2str(fs);
     }
 
+    // json to debug string
+    fastring dbg() const {
+        magicstream ms(256);
+        this->_Json2dbg(ms.stream());
+        return ms.str();
+    }
+
+    void dbg(fastream& fs) const {
+        this->_Json2dbg(fs);
+    }
+
     // convert json to pretty string
     fastring pretty(int indent = 4, uint32 cap = 256) const {
         magicstream ms(cap);
@@ -465,6 +476,7 @@ class Value {
     }
 
     void _Json2str(fastream& fs) const;
+    void _Json2dbg(fastream& fs) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
 
     friend const char* parse_json (const char*, const char*, Value*);
@@ -527,6 +539,6 @@ inline Value parse(const fastring& s) {
 typedef json::Value Json;
 
 inline fastream& operator<<(fastream& fs, const Json& v) {
-    v.str(fs);
+    v.dbg(fs);
     return fs;
 }
