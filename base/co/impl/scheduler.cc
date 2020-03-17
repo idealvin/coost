@@ -150,7 +150,7 @@ void Scheduler::loop() {
             if (!timer_task_co.empty()) {
                 for (auto it = timer_task_co.begin(); it != timer_task_co.end(); ++it) {
                     if (it->first->ev != ev_ready) continue;
-                    if (it->second != null_timer_id) _timer.erase(it->second);
+                    if (it->second != null_timer_id) this->del_timer(it->second);
                     this->resume(it->first);
                 }
                 timer_task_co.clear();

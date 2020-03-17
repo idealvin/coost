@@ -116,7 +116,7 @@ class Scheduler {
     void sleep(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         auto it = _timer.insert(std::make_pair(now::ms() + ms, _running));
-        COLOG << "sleep " << ms << " ms, " << ", add timer: " << COTID(it);
+        COLOG << "sleep " << ms << " ms, add timer: " << COTID(it);
         this->yield();
     }
 
