@@ -178,19 +178,16 @@ class Value {
         _mem->b = v;
     }
 
-    Value(int32 v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
-        _mem->type = kInt;
-        _mem->refn = 1;
-        _mem->i = v;
-    }
-
     Value(int64 v) {
         _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kInt;
         _mem->refn = 1;
         _mem->i = v;
     }
+
+    Value(int32 v) : Value((int64)v) {}
+    Value(uint32 v) : Value((int64)v) {}
+    Value(uint64 v) : Value((int64)v) {}
 
     Value(double v) {
         _mem = (_Mem*) Jalloc::instance()->alloc16();
@@ -204,6 +201,10 @@ class Value {
     }
 
     Value(const fastring& v) {
+        this->_Init_string(v.data(), v.size());
+    }
+
+    Value(const std::string& v) {
         this->_Init_string(v.data(), v.size());
     }
 
