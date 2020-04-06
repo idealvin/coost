@@ -24,12 +24,14 @@ DEF_bool(rpc_log, true, "#2 enable rpc log if true");
 namespace rpc {
 
 struct Header {
-    int32 magic; // 0xbaddad
-    int32 len;   // body len
+    uint16 info;  // reserved
+    uint16 magic; // 0x7777
+    uint32 len;   // body len
 }; // 8 bytes
 
+static const uint16 kMagic = 0x7777;
+
 inline void set_header(void* header, int msg_len) {
-    static const int32 kMagic = hton32(0xbaddad);
     ((Header*) header)->magic = kMagic;
     ((Header*) header)->len = hton32(msg_len);
 }
@@ -155,7 +157,7 @@ void ServerImpl::on_connection(Connection* conn) {
                 goto recv_beg;
             }
 
-            if (unlikely(ntoh32(header.magic) != 0xbaddad)) goto magic_err;
+            if (unlikely(header.magic != kMagic)) goto magic_err;
 
             len = ntoh32(header.len);
             if (unlikely(len > FLG_rpc_max_msg_size)) goto msg_too_long_err;
@@ -230,7 +232,7 @@ bool ServerImpl::auth(Connection* conn) {
         r = co::recvn(conn->fd, &header, sizeof(header), 7000);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
-        if (ntoh32(header.magic) != 0xbaddad) goto magic_err;
+        if (header.magic != kMagic) goto magic_err;
 
         len = ntoh32(header.len);
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
@@ -272,7 +274,7 @@ bool ServerImpl::auth(Connection* conn) {
         r = co::recvn(conn->fd, &header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
-        if (ntoh32(header.magic) != 0xbaddad) goto magic_err;
+        if (header.magic != kMagic) goto magic_err;
 
         len = ntoh32(header.len);
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
@@ -448,7 +450,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         r = co::recvn(_fd, &header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
-        if (unlikely(ntoh32(header.magic) != 0xbaddad)) goto magic_err;
+        if (unlikely(header.magic != kMagic)) goto magic_err;
 
         len = ntoh32(header.len);
         if (unlikely(len > FLG_rpc_max_msg_size)) goto msg_too_long_err;
@@ -512,7 +514,7 @@ bool ClientImpl::auth() {
         r = co::recv(_fd, &header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
-        if (ntoh32(header.magic) != 0xbaddad) goto magic_err;        
+        if (header.magic != kMagic) goto magic_err;        
 
         len = ntoh32(header.len);
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
@@ -553,7 +555,7 @@ bool ClientImpl::auth() {
         r = co::recv(_fd, &header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
-        if (ntoh32(header.magic) != 0xbaddad) goto magic_err;        
+        if (header.magic != kMagic) goto magic_err;        
 
         len = ntoh32(header.len);
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
