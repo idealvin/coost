@@ -25,6 +25,9 @@ DEF_test(fastring) {
         EXPECT_EQ(s, "888");
         EXPECT_EQ(s, t);
         EXPECT_EQ(*(void**)&s, *(void**)&t);
+
+        fastring x(std::string("888"));
+        EXPECT_EQ(x, "888");
     }
 
     DEF_case(append) {

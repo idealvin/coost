@@ -17,6 +17,7 @@ class fastring {
 
     fastring(const void* s, size_t n);
     fastring(const char* s);
+    fastring(const std::string& s) : fastring(s.data(), s.size()) {}
 
     fastring(size_t n, char c);
 
