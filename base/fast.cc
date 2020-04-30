@@ -1,7 +1,4 @@
 #include "fast.h"
-#include "fastring.h"
-#include "lru_map.h"
-#include <stdio.h>
 #include <string.h>
 
 namespace fast {
@@ -163,78 +160,5 @@ int u64toa(uint64 v, char* buf) {
     memcpy(buf, ((char*)b) + 20 - len, (size_t)len);
     return len;
 }
-
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif
-
-int dtoa(float v, char* buf) {
-    static __thread LruMap<uint32, fastring>* float_cache = 0;
-    uint32 key = *(uint32*)&v;
-
-    if (float_cache) {
-        auto it = float_cache->find(key);
-        if (it != float_cache->end()) {
-            const fastring& s = it->second;
-            memcpy(buf, s.data(), s.size());
-            return (int) s.size();
-        }
-    } else {
-        float_cache = new LruMap<uint32, fastring>(1024);
-    }
-
-  #ifdef _WIN32
-    int r = _snprintf_s(buf, 24, 24, "%.7g", v);
-  #else
-    int r = snprintf(buf, 24, "%.7g", v);
-  #endif
-
-    if (r >= 0) {
-        float_cache->insert(key, fastring(buf, r));
-        return r;
-    }
-
-    return 0;
-}
-
-int dtoa(double v, char* buf) {
-    static __thread LruMap<uint64, fastring>* double_cache = 0;
-    uint64 key = *(uint64*)&v;
-
-    if (double_cache) {
-        auto it = double_cache->find(key);
-        if (it != double_cache->end()) {
-            const fastring& s = it->second;
-            memcpy(buf, s.data(), s.size());
-            return (int) s.size();
-        }
-    } else {
-        double_cache = new LruMap<uint64, fastring>(1024);
-    }
-
-  #ifdef _WIN32
-    int r = _snprintf_s(buf, 24, 24, "%.7g", v);
-  #else
-    int r = snprintf(buf, 24, "%.7g", v);
-  #endif
-
-    if (r >= 0) {
-        buf[r] = '\0';
-        if (!strpbrk(buf, ".eE")) {
-            buf[r] = '.';
-            buf[r + 1] = '0';
-            r += 2;
-        }
-        double_cache->insert(key, fastring(buf, r));
-        return r;
-    }
-
-    return 0;
-}
-
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#pragma GCC diagnostic pop
-#endif
 
 } // namespace fast

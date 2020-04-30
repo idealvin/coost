@@ -1,18 +1,20 @@
 #pragma once
 
 #include "def.h"
+#include "milo/dtoa_milo.h"
 
 namespace fast {
 
-// convert float point numbers to string
-int dtoa(float v, char* buf);
-int dtoa(double v, char* buf);
+// double to ASCII string
+inline int dtoa(double v, char* buf) {
+    return dtoa_milo(v, buf);
+}
 
-// convert integer to HEX string
+// integer to HEX string
 int u32toh(uint32 v, char* buf);
 int u64toh(uint64 v, char* buf);
 
-// convert integer to ASCII string
+// integer to ASCII string
 int u32toa(uint32 v, char* buf);
 int u64toa(uint64 v, char* buf);
 

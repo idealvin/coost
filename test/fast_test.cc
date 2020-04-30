@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
     do {
         COUT << "\n======= dtoa vs snprintf =======";
-        double f = 3.1415;
+        double f = -3.14159;
 
         t.restart();
         for (int i = 0; i < 100000; i++) {
@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
         avg = static_cast<double>(us*1000) / 100000;
         COUT << "fast::dtoa 10w times, done in " << us << " us, avg: " << avg << " ns";
         COUT << "-> speedup: " << (svg/avg);
+        COUT << buf << "  r: " << r;
     } while (0);
 
     return 0;

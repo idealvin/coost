@@ -99,6 +99,10 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::dtoa(-0.1, buf)), "-0.1");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.14, buf)), "3.14");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.14159, buf)), "3.14159");
+        EXPECT_EQ(fastring(buf, fast::dtoa(3e-23, buf)), "3e-23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(3.33e-23, buf)), "3.33e-23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(3e23, buf)), "3e23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(3.33e23, buf)), "3.33e23");
     }
 }
 
