@@ -1,3 +1,6 @@
+-- plat
+set_config("plat", os.host())
+
 -- project
 set_project("co")
 
