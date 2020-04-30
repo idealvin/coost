@@ -464,7 +464,7 @@ inline const char* read_string(const char* b, const char* e, void** v) {
 inline const char* read_key(const char* b, const char* e, char** key) {
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p ) {
-        char* s = (char*) Json::Jalloc::instance()->alloc(p - b + 1);
+        char* s = (char*) Json::Jalloc::instance()->alloc((uint32)(p - b + 1));
         memcpy(s, b, p - b);
         s[p - b] = '\0';
         *key = s;
@@ -485,7 +485,7 @@ inline int64 fastatoi(const char* s, size_t n) {
 }
 
 inline const char* read_token(const char* b, const char* e, void** v) {
-    bool is_int = true;
+    bool is_double = false;
     const char* p = b++;
 
     for (; b < e; ++b) {
@@ -503,7 +503,7 @@ inline const char* read_token(const char* b, const char* e, void** v) {
                 new (v) Value();
             } else {
                 try {
-                    if (is_int) {
+                    if (!is_double) {
                         new (v) Value(fastatoi(p, b - p));
                     } else {
                         new (v) Value(str::to_double(fastring(p, b - p)));
@@ -514,10 +514,8 @@ inline const char* read_token(const char* b, const char* e, void** v) {
             }
             return b - 1;
 
-        } else if (c == '.') {
-            is_int = false;
-        } else if (c == 'e' || c == 'E') {
-            if (*(b + 1) == '-') is_int = false;
+        } else if (c == '.' || c == 'e' || c == 'E') {
+            is_double = true;
         }
     }
 

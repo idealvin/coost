@@ -417,7 +417,7 @@ class Value {
         _mem = (_Mem*) Jalloc::instance()->alloc16();
         _mem->type = kString;
         _mem->refn = 1;
-        _mem->s = (char*) Jalloc::instance()->alloc(size + 1);
+        _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
         memcpy(_mem->s, data, size);
         _mem->s[size] = '\0';
         _mem->l[-1] = (uint32) size;
@@ -465,7 +465,7 @@ class Value {
 
     void* _Alloc_key(Key key) const {
         size_t len = strlen(key);
-        void* s = Jalloc::instance()->alloc(len + 1);
+        void* s = Jalloc::instance()->alloc((uint32)len + 1);
         memcpy(s, key, len + 1);
         return s;
     }
