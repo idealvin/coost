@@ -142,9 +142,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\base\co\impl\co.cc" />
-    <ClCompile Include="..\..\base\co\impl\co_win.cpp" />
     <ClCompile Include="..\..\base\co\impl\epoll.cc" />
     <ClCompile Include="..\..\base\co\impl\scheduler.cc" />
+    <ClCompile Include="..\..\base\co\impl\sock.cpp" />
     <ClCompile Include="..\..\base\fast.cc" />
     <ClCompile Include="..\..\base\fastring.cc" />
     <ClCompile Include="..\..\base\flag.cc" />

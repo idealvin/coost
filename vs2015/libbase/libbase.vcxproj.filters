@@ -66,9 +66,6 @@
     <ClCompile Include="..\..\base\str.cc">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\base\co\impl\co_win.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\base\win\fs.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -85,6 +82,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\..\base\stack_trace\StackWalker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\base\co\impl\sock.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
