@@ -389,7 +389,11 @@ class Value {
     }
 
     bool parse_from(const fastring& s) {
-        return this->parse_from(s.data(), s.size());
+        return this->parse_from(s.c_str(), s.size());
+    }
+
+    bool parse_from(const std::string& s) {
+        return this->parse_from(s.c_str(), s.size());
     }
 
     void swap(Value& v) noexcept {
@@ -532,7 +536,11 @@ inline Value parse(const char* s) {
 }
 
 inline Value parse(const fastring& s) {
-    return parse(s.data(), s.size());
+    return parse(s.c_str(), s.size());
+}
+
+inline Value parse(const std::string& s) {
+    return parse(s.c_str(), s.size());
 }
 
 } // namespace json
