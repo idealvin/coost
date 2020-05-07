@@ -263,6 +263,8 @@ void mkconf(const fastring& exe) {
     f.flush();
 }
 
+#undef COMMENT_LINE_LEN
+
 
 FlagSaver::FlagSaver(const char* type_str, const char* name, const char* value,
                      const char* help, const char* file, int line, int type, void* addr) {
