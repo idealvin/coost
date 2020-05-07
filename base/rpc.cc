@@ -116,7 +116,7 @@ void ServerImpl::loop() {
         Connection* conn = new Connection;
         conn->fd = connfd;
         conn->ip = co::ip_str(&addr);
-        conn->port = addr.sin_port;
+        conn->port = ntoh16(addr.sin_port);
         conn->p = this;
 
         co::go(on_new_connection, conn);
