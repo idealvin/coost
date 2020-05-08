@@ -19,10 +19,17 @@ inline uint64 hash64(const S& s) {
     return hash64(s.data(), s.size());
 }
 
-// use the lower 32 bit of murmur2 hash64
+#ifdef ARCH64
+// use the lower 32 bit of murmur_hash64 on 64 bit platform
 inline uint32 hash32(const void* s, size_t n) {
     return (uint32) hash64(s, n);
 }
+#else
+// use murmur_hash32 on 32 bit platform
+inline uint32 hash32(const void* s, size_t n) {
+    return murmur_hash32(s, n, 0);
+}
+#endif
 
 inline uint32 hash32(const char* s) {
     return hash32(s, strlen(s));

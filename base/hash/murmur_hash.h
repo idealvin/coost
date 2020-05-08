@@ -9,4 +9,5 @@
 #include "../def.h"
 #include <stddef.h>
 
+uint32 murmur_hash32(const void* data, size_t len, uint32 seed);
 uint64 murmur_hash64(const void* data, size_t len, uint64 seed);

@@ -57,3 +57,27 @@ inline To force_cast(From f) {
 #else
 #define  unlikely(x)  (x)
 #endif
+
+// Borrowed from ruki's tbox(https://github.com/tboox/tbox).
+// See details in co/context/arch.h.
+#if defined(__LP64__) || \
+    defined(__64BIT__) || \
+    defined(_LP64) || \
+    defined(__x86_64) || \
+    defined(__x86_64__) || \
+    defined(__amd64) || \
+    defined(__amd64__) || \
+    defined(__arm64) || \
+    defined(__arm64__) || \
+    defined(__sparc64__) || \
+    defined(__PPC64__) || \
+    defined(__ppc64__) || \
+    defined(__powerpc64__) || \
+    defined(_M_X64) || \
+    defined(_M_AMD64) || \
+    defined(_M_IA64) || \
+    (defined(__WORDSIZE) && (__WORDSIZE == 64)) 
+  #define ARCH64
+#else
+  #define ARCH32
+#endif

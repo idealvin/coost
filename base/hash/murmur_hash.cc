@@ -6,7 +6,68 @@
 
 #include "murmur_hash.h"
 
-// Beware of alignment and endian-ness issues if used across multiple platforms.
+//-----------------------------------------------------------------------------
+//
+// Note - This code makes a few assumptions about how your machine behaves -
+//
+// 1. We can read a 4-byte value from any address without crashing
+// 2. sizeof(int) == 4
+//
+// And it has a few limitations -
+//
+// 1. It will not work incrementally.
+// 2. It will not produce the same results on little-endian and big-endian machines.
+
+uint32 murmur_hash32(const void* key, uint32 len, uint32 seed) {
+    // 'm' and 'r' are mixing constants generated offline.
+    // They're not really 'magic', they just happen to work well.
+    const uint32 m = 0x5bd1e995;
+    const int r = 24;
+
+    // Initialize the hash to a 'random' value
+    uint32 h = seed ^ len;
+
+    // Mix 4 bytes at a time into the hash
+    const uint8* p = (const uint8*) key;
+
+    while (len >= 4) {
+        uint32 k = *((uint32*)p);
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+        h *= m;
+        h ^= k;
+        p += 4;
+        len -= 4;
+    }
+
+    // Handle the last few bytes of the input array
+    switch (len) {
+      case 3:
+        h ^= p[2] << 16;
+      case 2:
+        h ^= p[1] << 8;
+      case 1:
+        h ^= p[0];
+        h *= m;
+    };
+
+    // Do a few final mixes of the hash to ensure the last few
+    // bytes are well-incorporated.
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+
+    return h;
+}
+
+// -------------------------------------------------------------------
+//
+// The same caveats as 32-bit MurmurHash2 apply here - beware of alignment
+// and endian-ness issues if used across multiple platforms.
+//
+// 64-bit hash for 64-bit platforms
+
 uint64 murmur_hash64(const void* key, size_t len, uint64 seed) {
     const uint64 m = 0xc6a4a7935bd1e995ULL;
     const int r = 47;

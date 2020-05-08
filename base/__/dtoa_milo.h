@@ -18,9 +18,9 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- * 
- * Modified by Alvin. 2020.4
  */
+
+// Modified by Alvin at 2020.5.8.
 
 #pragma once
 
@@ -73,18 +73,18 @@ struct DiyFp {
     }
 
     DiyFp operator*(const DiyFp& rhs) const {
-#if defined(_MSC_VER) && defined(_M_AMD64)
+      #if defined(_MSC_VER) && defined(_M_AMD64)
         uint64_t h;
         uint64_t l = _umul128(f, rhs.f, &h);
         if (l & (uint64_t(1) << 63)) h++; // rounding
         return DiyFp(h, e + rhs.e + 64);
-#elif (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)) && defined(__x86_64__)
+      #elif (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)) && defined(__x86_64__)
         gcc_ints::uint128 p = static_cast<gcc_ints::uint128>(f) * static_cast<gcc_ints::uint128>(rhs.f);
         uint64_t h = p >> 64;
         uint64_t l = static_cast<uint64_t>(p);
         if (l & (uint64_t(1) << 63)) h++; // rounding
         return DiyFp(h, e + rhs.e + 64);
-#else
+      #else
         const uint64_t M32 = 0xFFFFFFFF;
         const uint64_t a = f >> 32;
         const uint64_t b = f & M32;
@@ -97,18 +97,18 @@ struct DiyFp {
         uint64_t tmp = (bd >> 32) + (ad & M32) + (bc & M32);
         tmp += 1U << 31;  /// mult_round
         return DiyFp(ac + (ad >> 32) + (bc >> 32) + (tmp >> 32), e + rhs.e + 64);
-#endif
+      #endif
     }
 
     DiyFp Normalize() const {
-#if defined(_MSC_VER) && defined(_M_AMD64)
+      #if defined(_MSC_VER) && defined(_M_AMD64)
         unsigned long index;
         _BitScanReverse64(&index, f);
         return DiyFp(f << (63 - index), e - (63 - index));
-#elif defined(__GNUC__)
+      #elif defined(__GNUC__)
         int s = __builtin_clzll(f);
         return DiyFp(f << s, e - s);
-#else
+      #else
         DiyFp res = *this;
         while (!(res.f & kDpHiddenBit)) {
             res.f <<= 1;
@@ -117,15 +117,15 @@ struct DiyFp {
         res.f <<= (kDiySignificandSize - kDpSignificandSize - 1);
         res.e = res.e - (kDiySignificandSize - kDpSignificandSize - 1);
         return res;
-#endif
+      #endif
     }
 
     DiyFp NormalizeBoundary() const {
-#if defined(_MSC_VER) && defined(_M_AMD64)
+      #if defined(_MSC_VER) && defined(_M_AMD64)
         unsigned long index;
         _BitScanReverse64(&index, f);
         return DiyFp (f << (63 - index), e - (63 - index));
-#else
+      #else
         DiyFp res = *this;
         while (!(res.f & (kDpHiddenBit << 1))) {
             res.f <<= 1;
@@ -134,7 +134,7 @@ struct DiyFp {
         res.f <<= (kDiySignificandSize - kDpSignificandSize - 2);
         res.e = res.e - (kDiySignificandSize - kDpSignificandSize - 2);
         return res;
-#endif
+      #endif
     }
 
     void NormalizedBoundaries(DiyFp* minus, DiyFp* plus) const {
@@ -206,6 +206,7 @@ inline DiyFp GetCachedPower(int e, int* K) {
         UINT64_C2(0x9e19db92, 0xb4e31ba9), UINT64_C2(0xeb96bf6e, 0xbadf77d9),
         UINT64_C2(0xaf87023b, 0x9bf0ee6b)
     };
+
     static const int16_t kCachedPowers_E[] = {
         -1220, -1193, -1166, -1140, -1113, -1087, -1060, -1034, -1007,  -980,
          -954,  -927,  -901,  -874,  -847,  -821,  -794,  -768,  -741,  -715,
@@ -265,25 +266,26 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
     while (kappa > 0) {
         uint32_t d;
         switch (kappa) {
-            case 10: d = p1 / 1000000000; p1 %= 1000000000; break;
-            case  9: d = p1 /  100000000; p1 %=  100000000; break;
-            case  8: d = p1 /   10000000; p1 %=   10000000; break;
-            case  7: d = p1 /    1000000; p1 %=    1000000; break;
-            case  6: d = p1 /     100000; p1 %=     100000; break;
-            case  5: d = p1 /      10000; p1 %=      10000; break;
-            case  4: d = p1 /       1000; p1 %=       1000; break;
-            case  3: d = p1 /        100; p1 %=        100; break;
-            case  2: d = p1 /         10; p1 %=         10; break;
-            case  1: d = p1;              p1 =           0; break;
-            default: 
-#if defined(_MSC_VER)
-                __assume(0);
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
-                __builtin_unreachable();
-#else
-                d = 0;
-#endif
+          case 10: d = p1 / 1000000000; p1 %= 1000000000; break;
+          case  9: d = p1 /  100000000; p1 %=  100000000; break;
+          case  8: d = p1 /   10000000; p1 %=   10000000; break;
+          case  7: d = p1 /    1000000; p1 %=    1000000; break;
+          case  6: d = p1 /     100000; p1 %=     100000; break;
+          case  5: d = p1 /      10000; p1 %=      10000; break;
+          case  4: d = p1 /       1000; p1 %=       1000; break;
+          case  3: d = p1 /        100; p1 %=        100; break;
+          case  2: d = p1 /         10; p1 %=         10; break;
+          case  1: d = p1;              p1 =           0; break;
+          default: 
+          #if defined(_MSC_VER)
+            __assume(0);
+          #elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+            __builtin_unreachable();
+          #else
+            d = 0;
+          #endif
         }
+
         if (d || *len) buffer[(*len)++] = '0' + static_cast<char>(d);
         kappa--;
         uint64_t tmp = (static_cast<uint64_t>(p1) << -one.e) + p2;
@@ -430,3 +432,5 @@ inline int dtoa_milo(double value, char* buffer) {
         return static_cast<int>(Prettify(buffer, length, K) - p);
     }
 }
+
+#undef UINT64_C2

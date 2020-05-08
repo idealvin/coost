@@ -28,12 +28,13 @@ end
 
 -- install header files
 add_installfiles("(base/*.h)", {prefixdir = "include"})
+add_installfiles("(base/__/*.h)", {prefixdir = "include"})
 add_installfiles("(base/co/*.h)", {prefixdir = "include"})
 add_installfiles("(base/hash/*.h)", {prefixdir = "include"})
 add_installfiles("(base/unix/*.h)", {prefixdir = "include"})
 add_installfiles("(base/win/*.h)", {prefixdir = "include"})
 add_installfiles("(base/stack_trace/stack_trace.h)", {prefixdir = "include"})
-add_installfiles("LICENSE", "readme*", {prefixdir = "include/base"})
+add_installfiles("*.md", {prefixdir = "include/base"})
 
 -- include sub-projects
 includes("base", "rpcgen", "test", "unitest/base")
