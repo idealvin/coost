@@ -31,7 +31,7 @@
 
 ## Special thanks
 
-- The relevant code for co coroutine library to switch context is taken from [ruki](https://github.com/waruqi)'s [tbox](https://github.com/tboox/tbox), special thanks!
+- The code of [co/context](https://github.com/idealvin/co/tree/master/base/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
 - The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake compilation scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake compilation scripts, thank you very much!
@@ -46,13 +46,13 @@
 
 - **[flag](https://github.com/idealvin/co/blob/master/base/flag.h)**
 
-  This is a Command line arguments and configuration file parsing library that is really considered for programmers. It supports automatic generation of configuration files. It supports integer types with units `k, m, g, t, p`.
+  This is a command line arguments and configuration file parsing library that is really considered for programmers. It supports automatic generation of configuration files. It supports integer types with units `k, m, g, t, p`.
 
 - **[log](https://github.com/idealvin/co/blob/master/base/log.h)**
 
   This is a super fast local logging system, see how fast it is below:
 
-  | log vs glog | google glog | co log |
+  | log vs glog | google glog | co/log |
   | ------ | ------ | ------ |
   | win2012 HHD | 1.6MB/s | 180MB/s |
   | win10 SSD | 3.7MB/s | 560MB/s |
@@ -61,13 +61,13 @@
 
   The above table is the test result of one million info log (about 50 bytes) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/base/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
 
-  Why is it so fast? The first is that the log library is based on [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) that is 8-25 times faster than sprintf. The second is that the log library has almost no memory allocation operations.
+  Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
 
 - **[json](https://github.com/idealvin/co/blob/master/base/json.h)**
 
   This is a json library that is comparable to [rapidjson](https://github.com/Tencent/rapidjson) in performance. If you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved.
 
-  co/json does not support the json standard as comprehensively as rapidjson, but it meets the basic needs of programmers and is easier to use.
+  It does not support the json standard as comprehensively as rapidjson, but meets the basic needs of programmers and is easier to use.
 
 - **[co](https://github.com/idealvin/co/tree/master/base/co)**
 
@@ -81,7 +81,7 @@
 
   This is a template class for use with `co::Pool`. `co::Pool` is a coroutine-safe pool that stores `void*` pointers internally.
 
-  Kakalot pulls a pointer from Pool during construction and puts it back during destruction. At the same time, Carcarrot also comes with smart pointer properties:
+  Kakalot pulls a pointer from the pool during construction and puts it back during destruction. At the same time, Kakalot also comes with smart pointer properties:
 
   ```cpp
   co::Pool p;
@@ -95,82 +95,97 @@
   go(f);
   ```
 
+## Components
+
+- [co/base](https://github.com/idealvin/co/tree/master/base)  
+  The basic library, it is the core of `CO`, and other components depend on it.
+
+- [co/test](https://github.com/idealvin/co/tree/master/test)  
+  Some test code, each `.cc` file will be compiled into a separate test program.
+
+- [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
+  Some unit test code, each `.cc` file corresponds to a different test unit, and all code is compiled into a single test program.
+
+- [co/rpcgen](https://github.com/idealvin/co/tree/master/rpcgen)  
+  A code generation tool automatically generates rpc framework code according to the `proto` file.
+
 ## Compiling
 
-[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project. ~~[Scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~ may not be supported in the future.
+[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project.
 
 [izhengfan](https://github.com/izhengfan) has helped to provide cmake support. If you need to compile with cmake, please refer to [here](./docs/en/compiling.md/#compile-with-cmake).
 
 - Compiler
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
     - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-    - Windows: [vs2015](https://visualstudio.microsoft.com/)
+    - Windows: [vs2015+](https://visualstudio.microsoft.com/)
 
 - Install xmake
 
   For windows, mac and debian/ubuntu, you can directly go to the [xmake release page](https://github.com/xmake-io/xmake/releases) to download the installation package. For other systems, please refer to xmake's [installation instructions](https://xmake.io/#/guide/installation).
 
-  Xmake disables compilation as root by default on linux. [ruki](https://github.com/waruqi) says that root is not safe. You can add the following line to `~/.bashrc` to enable root compilation:
+  Xmake disables compilation as root by default on linux. [ruki](https://github.com/waruqi) says it is not safe. You can add the following line to `~/.bashrc` to enable root compilation:
 
   ```sh
   export XMAKE_ROOT=y
   ```
 
-- Compile libbase
-
-  [co/base](https://github.com/idealvin/co/tree/master/base) is the core library of CO. Other test programs rely on the base library.
+- Quick start
 
   ```sh
-  # All commands are executed in the root directory of CO (the same below)
-  xmake               # compile libbase and rpcgen by default
-  xmake --all         # compile all projects
-  xmake build base    # compile libbase only
+  # All commands are executed in the root directory of co (the same below)
+  xmake       # build libbase and rpcgen by default
+  xmake -a    # build all projects (libbase, rpcgen, co/test, co/unitest)
   ```
 
-- Compile and run unitest code
+- Build libbase
+
+  ```sh
+  xmake build base       # build libbase only
+  xmake -b base          # the same as above
+  xmake b base           # the same as above, required newer version of xmake
+  ```
+
+- Build and run unitest code
 
   [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) is unit test code that verifies the correctness of the functionality of the base library.
 
   ```sh
-  xmake build unitest      # build can be abbreviated as -b
-  xmake run unitest -a     # run all unit tests, run can be abbreviated as r
-  xmake run unitest -os    # run unit test os
-  xmake run unitest -json  # run unit test json
+  xmake build unitest    # build can be abbreviated as -b
+  xmake run unitest -a   # run all unit tests
+  xmake r unitest -a     # the same as above
+  xmake r unitest -os    # run unit test os
+  xmake r unitest -json  # run unit test json
   ```
 
-- Compile and run test code
+- Build and run test code
 
   [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx_test.cc` source file in the `co/test` directory, and then execute `xmake build xxx` in the co root directory to build it.
 
   ```sh
-  xmake build log        # compile log_test.cc
   xmake build flag       # compile flag_test.cc
-  xmake build rpc        # compile rpc_test.cc
-  xmake build stack      # compile stack_test.cc
+  xmake build log        # compile log_test.cc
   xmake build json       # compile json_test.cc
   xmake build rapidjson  # compile rapidjson_test.cc
-                         # others can be compiled similarly
+  xmake build rpc        # compile rpc_test.cc
   
-  xmake run log -perf    # log library performance test
-  xmake run rpc -c = 0   # start rpc server
-  xmake run rpc -c       # start rpc client
-  xmake run flag -xz     # execute flag
-  xmake run stack        # Print the stack information when the test program crashes, executed in coroutine by default.
-  xmake run stack -t     # Print the stack information when the test program crashes, executed in a thread
-  xmake run stack -m     # execute directly in the main thread
-  xmake run json         # test json
-  xmake run rapidjson    # test rapidjson
+  xmake r flag -xz       # test flag
+  xmake r log            # test log
+  xmake r log -cout      # also log to terminal
+  xmake r log -perf      # performance test
+  xmake r json           # test json
+  xmake r rapidjson      # test rapidjson
+  xmake r rpc            # start rpc server
+  xmake r rpc -c         # start rpc client
   ```
 
-- Compile rpcgen
-
-  [rpcgen](https://github.com/idealvin/co/tree/master/rpcgen) is a code generator for `json rpc`, which automatically generates the corresponding code according to the specified proto file.
+- Build rpcgen
 
   ```sh
   xmake build rpcgen
   
   # It is recommended to put rpcgen in the system directory (e.g. /usr/local/bin/).
-  # Some linux systems come with an rpcgen. To avoid conflicts, you may need to rename rpcgen.
+  # Some linux systems come with an rpcgen. To avoid conflicts, you may need to rename it.
   rpcgen hello_world.proto
   ```
 
@@ -180,9 +195,14 @@
 
   ```sh
   # Install header files, libbase, rpcgen by default.
-  xmake install -o pkg         # Package related files to the pkg directory.
-  xmake install -o /usr/local  # Install to the /usr/local directory.
+  xmake install -o pkg         # package related files to the pkg directory
+  xmake i -o pkg               # the same as above
+  xmake install -o /usr/local  # install to the /usr/local directory
   ```
+
+## License
+
+`CO` is licensed under the `MIT` License. It includes code from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
 
 ## Contributing
 

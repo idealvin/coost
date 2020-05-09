@@ -4,7 +4,7 @@
 #include "base/co/co.h"
 #include "base/time.h"
 
-DEF_bool(c, 1, "client or server");
+DEF_bool(c, false, "client or server");
 DEF_int32(n, 1, "req num");
 DEF_int32(conn, 1, "conn num");
 DEF_string(user, "", "username");

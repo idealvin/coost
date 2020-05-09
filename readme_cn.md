@@ -31,7 +31,7 @@
 
 ## 特别致谢
 
-- co 协程库切换 context 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+- [co/context](https://github.com/idealvin/co/tree/master/base/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
 - co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
@@ -52,7 +52,7 @@
 
   这是一个超级快的本地日志系统，直观感受一下:  
 
-  | log vs glog | google glog | co log |
+  | log vs glog | google glog | co/log |
   | ------ | ------ | ------ |
   | win2012 HHD | 1.6MB/s | 180MB/s |
   | win10 SSD | 3.7MB/s | 560MB/s |
@@ -61,7 +61,7 @@
   
   上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/base/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
-  为何如此快？一是 log 库内部基于比 sprintf 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
+  为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
 - **[json](https://github.com/idealvin/co/blob/master/base/json.h)**
 
@@ -95,35 +95,54 @@
   go(f);
   ```
 
+## 代码构成
+
+- [co/base](https://github.com/idealvin/co/tree/master/base)  
+  `CO` 的核心基础库，其他部分都依赖于此。
+
+- [co/test](https://github.com/idealvin/co/tree/master/test)  
+  一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
+
+- [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
+  一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
+
+- [co/rpcgen](https://github.com/idealvin/co/tree/master/rpcgen)  
+  代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
+
 ## 编译执行
 
-`CO` 使用 [xmake](https://github.com/xmake-io/xmake) 进行编译，后续可能不再支持 ~~[scons](https://scons.org/)~~, ~~[vs project](https://visualstudio.microsoft.com/)~~。
+`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 进行编译。
 
-[izhengfan](https://github.com/izhengfan) 同学帮忙提供了 cmake 支持，若需要使用 cmake 编译，请参考[这里](./docs/cn/编译.md/#cmake-编译)。
+[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持，若需要使用 cmake 编译，请参考[这里](./docs/cn/编译.md/#cmake-编译)。
 
 - 编译器
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
     - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-    - Windows: [vs2015](https://visualstudio.microsoft.com/)
+    - Windows: [vs2015+](https://visualstudio.microsoft.com/)
 
 - 安装 xmake
 
   windows, mac 与 debian/ubuntu 可以直接去 xmake 的 [release](https://github.com/xmake-io/xmake/releases) 页面下载安装包，其他系统请参考 xmake 的 [Installation](https://xmake.io/#/guide/installation) 说明。
 
-  xmake 在 linux 上默认禁止 root 用户编译，[ruki](https://github.com/waruqi) 说 root 不安全，可以在 `~/.bashrc` 中加上下面的一行，启用 root 编译:
+  xmake 在 linux 上默认禁止 root 用户编译，[ruki](https://github.com/waruqi) 说不安全，可以在 `~/.bashrc` 中加上下面的一行，启用 root 编译:
   ```sh
   export XMAKE_ROOT=y
   ```
 
-- 编译 libbase
-
-  [co/base](https://github.com/idealvin/co/tree/master/base) 是 CO 的核心基础库，其他测试程序都依赖于 base 库。
+- 快速上手
 
   ```sh
   # 所有命令都在 co 根目录执行，后面不再说明
-  xmake                  # 默认编译 libbase 与 rpcgen
-  xmake --all            # 编译所有项目
+  xmake       # 默认编译 libbase 与 rpcgen
+  xmake -a    # 编译所有项目 (libbase, rpcgen, co/test, co/unitest)
+  ```
+
+- 编译 libbase
+
+  ```sh
   xmake build base       # 编译 libbase
+  xmake -b base          # 与上同
+  xmake b base           # 与上同，可能需要较新版本的 xmake
   ```
 
 - 编译及运行 unitest 代码
@@ -131,10 +150,11 @@
   [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) 是单元测试代码，用于检验 base 库功能的正确性。
 
   ```sh
-  xmake build unitest       # build 可以简写为 -b
-  xmake run unitest -a      # 执行所有单元测试，run 可以简写为 r
-  xmake run unitest -os     # 执行单元测试 os
-  xmake run unitest -json   # 执行单元测试 json
+  xmake build unitest     # build 可以简写为 -b
+  xmake run unitest -a    # 执行所有单元测试
+  xmake r unitest -a      # 同上
+  xmake r unitest -os     # 执行单元测试 os
+  xmake r unitest -json   # 执行单元测试 json
   ```
 
 - 编译及运行 test 代码
@@ -142,28 +162,23 @@
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build log        # 编译 log_test.cc
   xmake build flag       # 编译 flag_test.cc
-  xmake build rpc        # 编译 rpc_test.cc
-  xmake build stack      # 编译 stack_test.cc
+  xmake build log        # 编译 log_test.cc
   xmake build json       # 编译 json_test.cc
   xmake build rapidjson  # 编译 rapidjson_test.cc
-                         # 其他的都可以类似编译
+  xmake build rpc        # 编译 rpc_test.cc
   
-  xmake run log -perf    # log 库性能测试
-  xmake run rpc -c=0     # 启动 rpc server
-  xmake run rpc -c       # 启动 rpc client
-  xmake run flag -xz     # 执行 flag
-  xmake run stack        # 测试程序崩溃时打印堆栈信息，默认在协程中执行
-  xmake run stack -t     # 测试程序崩溃时打印堆栈信息，在线程中执行
-  xmake run stack -m     # 直接在主线程中执行
-  xmake run json         # 测试 json
-  xmake run rapidjson    # 测试 rapidjson
+  xmake r flag -xz       # 测试 flag 库
+  xmake r log            # 测试 log 库
+  xmake r log -cout      # 终端也打印日志
+  xmake r log -perf      # log 库性能测试
+  xmake r json           # 测试 json
+  xmake r rapidjson      # 测试 rapidjson
+  xmake r rpc            # 启动 rpc server
+  xmake r rpc -c         # 启动 rpc client
   ```
 
 - 编译 rpcgen
-
-  [rpcgen](https://github.com/idealvin/co/tree/master/rpcgen) 是 `json rpc` 的代码生成器，根据指定的 proto 文件，自动生成相应的代码。
 
   ```sh
   xmake build rpcgen
@@ -180,8 +195,13 @@
   ```sh
   # 默认安装头文件、libbase、rpcgen
   xmake install -o pkg          # 打包安装到 pkg 目录
+  xmake i -o pkg                # 同上
   xmake install -o /usr/local   # 安装到 /usr/local 目录
   ```
+
+## License
+
+`CO` 以 `MIT` License 发布. `CO` 包含了一些其他项目的代码，可能使用了与 `CO` 不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
 ## 贡献代码
 
@@ -189,7 +209,6 @@
 2. 若有必要，在 `co/unitest/base` 目录下修改或新增单元测试用例，确保单元测试全部通过.
 3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
 4. 其他形式的贡献也非常欢迎.
-
 
 ## 友情合作
 
