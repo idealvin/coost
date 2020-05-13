@@ -20,14 +20,14 @@ inline void set_skip_iocp_on_success(sock_t fd) {
     }
 }
 
-sock_t tcp_socket(int v) {
-    return WSASocketW((v == 4 ? AF_INET : AF_INET6), SOCK_STREAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-}
-
-sock_t udp_socket(int v) {
-    sock_t fd = WSASocketW((v == 4 ? AF_INET : AF_INET6), SOCK_DGRAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-    if (fd != INVALID_SOCKET) set_skip_iocp_on_success(fd);
-    return fd;
+sock_t socket(int domain, int type, int protocol) {
+    if (type != SOCK_DGRAM) {
+        return WSASocketW(domain, type, 0, 0, 0, WSA_FLAG_OVERLAPPED);
+    } else {
+        sock_t fd = WSASocketW(domain, SOCK_DGRAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
+        if (fd != INVALID_SOCKET) set_skip_iocp_on_success(fd);
+        return fd;
+    }
 }
 
 int close(sock_t fd, int ms) {
