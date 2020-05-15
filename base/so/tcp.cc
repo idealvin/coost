@@ -41,7 +41,7 @@ void Server::loop() {
             co::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
         }
 
-        r = co::bind(fd, info->ai_addr, info->ai_addrlen);
+        r = co::bind(fd, info->ai_addr, (int) info->ai_addrlen);
         CHECK_EQ(r, 0) << "bind (" << _ip << ':' << _port << ") failed: " << co::strerror();
 
         r = co::listen(fd, 1024);
@@ -89,7 +89,7 @@ bool Client::connect(int ms) {
         return false;
     }
 
-    r = co::connect(_fd, info->ai_addr, info->ai_addrlen, ms);
+    r = co::connect(_fd, info->ai_addr, (int) info->ai_addrlen, ms);
     if (r == -1) {
         this->disconnect();
         freeaddrinfo(info);
