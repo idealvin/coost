@@ -14,17 +14,19 @@ static void on_new_connection(void* p) {
 void Server::loop() {
     sock_t fd, connfd;
 
+    // use union here to support both ipv4 and ipv6
     union {
         struct sockaddr_in  v4;
         struct sockaddr_in6 v6;
     } addr;
 
-    int af = AF_INET;  // address family, ipv4 by default
-    int addrlen;       // for accept
+    int addrlen = sizeof(addr);
 
     do {
         fastring port = str::from(_port);
         struct addrinfo* info = 0;
+
+        // getaddrinfo works with either a ipv4 or a ipv6 address.
         int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
         CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
         CHECK(info != NULL);
@@ -32,11 +34,11 @@ void Server::loop() {
         fd = co::tcp_socket(info->ai_family);
         CHECK_NE(fd, (sock_t)-1) << "create socket error: " << co::strerror();
         co::set_reuseaddr(fd);
-        
+
+        // turn off IPV6_V6ONLY
         if (info->ai_family == AF_INET6) {
-            int on = 0; // turn off IPV6_V6ONLY
+            int on = 0; 
             co::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
-            af = AF_INET6;
         }
 
         r = co::bind(fd, info->ai_addr, info->ai_addrlen);
@@ -49,8 +51,7 @@ void Server::loop() {
     } while (0);
 
     while (true) {
-        // select addrlen according to the address family
-        addrlen = (af == AF_INET ? sizeof(addr.v4) : sizeof(addr.v6));
+        addrlen = sizeof(addr);
         connfd = co::accept(fd, &addr, &addrlen);
         if (unlikely(connfd == (sock_t)-1)) {
             WLOG << "accept error: " << co::strerror();
