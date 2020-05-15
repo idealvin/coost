@@ -180,8 +180,20 @@ class Kakalot {
 };
 
 // return a non-blocking socket on Linux & Mac, an overlapped socket on windows
-sock_t tcp_socket(int v=4); // 4 for ipv4, 6 for ipv6
-sock_t udp_socket(int v=4); // 4 for ipv4, 6 for ipv6
+// @domain: address family, AF_INET, AF_INET6, etc.
+// @type:   socket type, SOCK_STREAM, SOCK_DGRAM, etc.
+// @proto:  protocol, IPPROTO_TCP, IPPROTO_UDP, etc.
+sock_t socket(int domain, int type, int proto);
+
+// @af: address family, AF_INET, AF_INET6, etc.
+inline sock_t tcp_socket(int af=AF_INET) {
+    return co::socket(af, SOCK_STREAM, IPPROTO_TCP);
+}
+
+// @af: address family, AF_INET, AF_INET6, etc.
+inline sock_t udp_socket(int af=AF_INET) {
+    return co::socket(af, SOCK_DGRAM, IPPROTO_UDP);
+}
 
 // close the fd @ms milliseconds later
 int close(sock_t fd, int ms=0);

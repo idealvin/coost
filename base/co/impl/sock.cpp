@@ -20,14 +20,14 @@ inline void set_skip_iocp_on_success(sock_t fd) {
     }
 }
 
-sock_t tcp_socket(int v) {
-    return WSASocketW((v == 4 ? AF_INET : AF_INET6), SOCK_STREAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-}
-
-sock_t udp_socket(int v) {
-    sock_t fd = WSASocketW((v == 4 ? AF_INET : AF_INET6), SOCK_DGRAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-    if (fd != INVALID_SOCKET) set_skip_iocp_on_success(fd);
-    return fd;
+sock_t socket(int domain, int type, int protocol) {
+    if (type != SOCK_DGRAM) {
+        return WSASocketW(domain, type, 0, 0, 0, WSA_FLAG_OVERLAPPED);
+    } else {
+        sock_t fd = WSASocketW(domain, SOCK_DGRAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
+        if (fd != INVALID_SOCKET) set_skip_iocp_on_success(fd);
+        return fd;
+    }
 }
 
 int close(sock_t fd, int ms) {
@@ -59,20 +59,37 @@ int listen(sock_t fd, int backlog) {
     return ::listen(fd, backlog);
 }
 
-// TODO: support ipv6?
-// I'm not to do it myself. Someone help?  -- by Alvin at 2020.1.3
+// We have to figure out the address family of the listening socket @fd here.
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
     CHECK(gSched) << "must be called in coroutine..";
-    sock_t connfd = co::tcp_socket();
+
+    // cache for address family of the listening socket
+    static __thread std::unordered_map<int, int>* kAf = 0;
+    if (kAf == 0) kAf = new std::unordered_map<int, int>();
+
+    int af;
+    do {
+        af = (*kAf)[(int)fd];
+        if (af != 0) break;
+        {
+            WSAPROTOCOL_INFO info;
+            int len = sizeof(info);
+            int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
+            if (r != 0) return (sock_t)-1;
+            (*kAf)[(int)fd] = af = info.iAddressFamily;
+        }
+    } while (0);
+
+    sock_t connfd = co::tcp_socket(af);
     if (connfd == INVALID_SOCKET) return connfd;
 
-    const int sockaddr_len = sizeof(sockaddr_in);
+    const int sockaddr_len = sizeof(sockaddr_in6);
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(0, (sockaddr_len + 16) * 2, gSched->running())
     );
 
-    sockaddr_in *serv = 0, *peer = 0;
-    int serv_len = sizeof(*serv), peer_len = sizeof(*peer);
+    sockaddr *serv = 0, *peer = 0;
+    int serv_len = sockaddr_len, peer_len = sockaddr_len;
     IoEvent ev(fd, EV_read);
 
     int r = accept_ex(
@@ -100,13 +117,18 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     get_accept_ex_addrs(
         info->s, 0,
         sockaddr_len + 16, sockaddr_len + 16,
-        (sockaddr**)&serv, &serv_len,
-        (sockaddr**)&peer, &peer_len
+        &serv, &serv_len,
+        &peer, &peer_len
     );
 
-    if (addrlen) {
-        if (*addrlen >= peer_len) memcpy(addr, peer, peer_len);
-        *addrlen = peer_len;
+    if (addr && addrlen) {
+        if (*addrlen < peer_len) {
+            WSASetLastError(WSAEFAULT);
+            goto err;
+        } else {
+            memcpy(addr, peer, peer_len);
+            *addrlen = peer_len;
+        }
     }
 
     set_skip_iocp_on_success(connfd);
@@ -127,10 +149,18 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     // stackoverflow.com/questions/13598530/connectex-requires-the-socket-to-be-initially-bound-but-to-what
     // @fd must be an unconnected, previously bound socket
     do {
-        struct sockaddr_in x;
-        memset(&x, 0, sizeof(x));
-        x.sin_family = AF_INET;
-        if (co::bind(fd, &x, sizeof(x)) != 0) {
+        union {
+            struct sockaddr_in  v4;
+            struct sockaddr_in6 v6;
+        } addr;
+        memset(&addr, 0, sizeof(addr));
+
+        if (addrlen == sizeof(sockaddr_in)) {
+            addr.v4.sin_family = AF_INET;
+        } else {
+            addr.v6.sin6_family = AF_INET6;
+        }
+        if (co::bind(fd, &addr, addrlen) != 0) {
             ELOG << "connectex bind local addr failed..";
             return -1;
         }

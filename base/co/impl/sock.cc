@@ -10,26 +10,13 @@ DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
 namespace co {
 
 #ifdef SOCK_NONBLOCK
-sock_t tcp_socket(int v) {
-    return ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
-}
-
-sock_t udp_socket(int v) {
-    return ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_UDP);
+sock_t socket(int domain, int type, int protocol) {
+    return ::socket(domain, type | SOCK_NONBLOCK | SOCK_CLOEXEC, protocol);
 }
 
 #else
-sock_t tcp_socket(int v) {
-    sock_t fd = ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_STREAM, IPPROTO_TCP);
-    if (fd != -1) {
-        co::set_nonblock(fd);
-        co::set_cloexec(fd);
-    }
-    return fd;
-}
-
-sock_t udp_socket(int v) {
-    sock_t fd = ::socket((v == 4 ? AF_INET : AF_INET6), SOCK_DGRAM, IPPROTO_UDP);
+sock_t socket(int domain, int type, int protocol) {
+    sock_t fd = ::socket(domain, type, protocol);
     if (fd != -1) {
         co::set_nonblock(fd);
         co::set_cloexec(fd);

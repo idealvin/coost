@@ -24,6 +24,7 @@
 #include "fs.h"
 #include "os.h"
 #include "co.h"
+#include "so.h"
 #include "json.h"
 #include "rpc.h"
 
