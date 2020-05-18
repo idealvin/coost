@@ -3,7 +3,7 @@
 
 #include "stack_trace.h"
 #include "../fs.h"
-#include "StackWalker.h"
+#include "StackWalker.hpp"
 
 #include <stdio.h>
 #include <string.h>
