@@ -82,7 +82,7 @@
  *
  **********************************************************************/
 
-#include "StackWalker.h"
+#include "StackWalker.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
