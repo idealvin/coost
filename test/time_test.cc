@@ -1,7 +1,7 @@
 #include "test.h"
-#include "base/time.h"
-#include "base/str.h"
-#include "base/fastream.h"
+#include "co/time.h"
+#include "co/str.h"
+#include "co/fastream.h"
 #include <time.h>
 #ifndef _WIN32
 #include <sys/time.h>

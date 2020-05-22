@@ -1,5 +1,5 @@
-#include "base/flag.h"
-#include "base/log.h"
+#include "co/flag.h"
+#include "co/log.h"
 
 DEF_bool(boo, false, "bool flag");
 DEF_bool(x, false, "bool x");

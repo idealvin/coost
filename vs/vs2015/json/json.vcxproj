@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CEC57F99-2D6A-46C1-B157-C1204C57B060}</ProjectGuid>
     <RootNamespace>json</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Label="Configuration">
@@ -90,7 +90,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x86\debug base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x86\\debug co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
@@ -101,13 +101,13 @@
       <PreprocessorDefinitions>__config_debug__;__config_Win32__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x64\debug base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x64\\debug co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -118,13 +118,13 @@
       <PreprocessorDefinitions>__config_debug__;__config_x64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x86\release base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x86\\release co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
@@ -135,13 +135,13 @@
       <PreprocessorDefinitions>__config_release__;__config_Win32__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x64\release base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x64\\release co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -152,7 +152,7 @@
       <PreprocessorDefinitions>__config_release__;__config_x64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>

@@ -15,7 +15,7 @@
 //   xmake r pingpong ip=fe80::a00:27ff:fea7:a888%eth0
 //   xmake r pingpong ip=fe80::a00:27ff:fea7:a888%eth0 -c
 
-#include "base/base.h"
+#include "co/all.h"
 
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");

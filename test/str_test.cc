@@ -1,7 +1,6 @@
 #include "test.h"
-#include "base/fastring.h"
-#include "base/str.h"
-#include <string>
+#include "co/fastring.h"
+#include "co/str.h"
 
 int main(int argc, char** argv) {
     def_test(100000);

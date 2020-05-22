@@ -1,7 +1,7 @@
-#include "base/log.h"
-#include "base/thread.h"
-#include "base/time.h"
-#include "base/co.h"
+#include "co/log.h"
+#include "co/thread.h"
+#include "co/time.h"
+#include "co/co.h"
 
 DEF_bool(t, false, "if true, run test in thread");
 DEF_bool(m, false, "if true, run test in main thread");

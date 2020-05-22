@@ -1,6 +1,6 @@
-#include "base/co.h"
-#include "base/log.h"
-#include "base/time.h"
+#include "co/co.h"
+#include "co/log.h"
+#include "co/time.h"
 
 co::Event ev;
 co::Mutex mtx;
@@ -9,9 +9,9 @@ co::Pool pool;
 int v = 0;
 int n = 0;
 
-void co_f1() {
+void f1() {
     ev.wait();
-    CLOG << "co_f1()";
+    CLOG << "f1()";
     {
         co::MutexGuard g(mtx);
         ++v;
@@ -22,13 +22,13 @@ void co_f1() {
     pool.push(p);
 }
 
-void co_f2() {
+void f2() {
     bool r = ev.wait(50);
-    CLOG << "co_f2() r: " << r;
+    CLOG << "f2() r: " << r;
 }
 
-void co_f3() {
-    CLOG << "co_f3()";
+void f3() {
+    CLOG << "f3()";
     ev.signal();
 }
 
@@ -36,11 +36,11 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    for (int i = 0; i < 8; ++i) go(co_f1);
-    go(co_f2);
+    for (int i = 0; i < 8; ++i) go(f1);
+    go(f2);
 
     sleep::ms(100);
-    go(co_f3);
+    go(f3);
 
     sleep::ms(200);
 

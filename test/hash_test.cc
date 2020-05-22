@@ -1,5 +1,5 @@
-#include "base/hash.h"
-#include "base/log.h"
+#include "co/hash.h"
+#include "co/log.h"
 
 int main(int argc, char** argv) {
     fastring s("hello world");

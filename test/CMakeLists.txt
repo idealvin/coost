@@ -1,6 +1,6 @@
 include_directories(${CMAKE_SOURCE_DIR})
 
-list(APPEND LIBS_TO_LINK base)
+list(APPEND LIBS_TO_LINK co)
 if(UNIX)
   list(APPEND LIBS_TO_LINK pthread dl)
 endif()
