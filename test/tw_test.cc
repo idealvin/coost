@@ -1,9 +1,9 @@
 #include "test.h"
-#include "base/def.h"
-#include "base/log.h"
-#include "base/str.h"
-#include "base/fastream.h"
-#include "base/time.h"
+#include "co/def.h"
+#include "co/log.h"
+#include "co/str.h"
+#include "co/fastream.h"
+#include "co/time.h"
 #include <algorithm>
 
 #ifndef _WIN32

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "base/rpc.h"
-#include "base/hash.h"
+#include "co/rpc.h"
+#include "co/hash.h"
 #include <unordered_map>
 
 namespace xx {

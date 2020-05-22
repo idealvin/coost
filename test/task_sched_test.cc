@@ -1,6 +1,6 @@
-#include "base/log.h"
-#include "base/time.h"
-#include "base/thread.h"
+#include "co/log.h"
+#include "co/time.h"
+#include "co/thread.h"
 
 void f() {
     COUT << "f(): " << now::str();

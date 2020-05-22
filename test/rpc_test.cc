@@ -1,8 +1,8 @@
 #include "__/rpc/hello_world.h"
-#include "base/flag.h"
-#include "base/log.h"
-#include "base/co/co.h"
-#include "base/time.h"
+#include "co/flag.h"
+#include "co/log.h"
+#include "co/co.h"
+#include "co/time.h"
 
 DEF_bool(c, false, "client or server");
 DEF_int32(n, 1, "req num");

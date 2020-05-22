@@ -25,21 +25,21 @@
 
   ```sh
   # All commands are executed in the root directory of co (the same below)
-  xmake       # build libbase and rpcgen by default
-  xmake -a    # build all projects (libbase, rpcgen, co/test, co/unitest)
+  xmake       # build libco and gen by default
+  xmake -a    # build all projects (libco, gen, co/test, co/unitest)
   ```
 
-- Build libbase
+- Build libco
 
   ```sh
-  xmake build base       # build libbase only
-  xmake -b base          # the same as above
-  xmake b base           # the same as above, required newer version of xmake
+  xmake build libco       # build libco only
+  xmake -b libco          # the same as above
+  xmake b libco           # the same as above, required newer version of xmake
   ```
 
 - Build and run unitest code
 
-  [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) is unit test code that verifies the correctness of the functionality of the base library.
+  [co/unitest](https://github.com/idealvin/co/tree/master/unitest) is unit test code that verifies the correctness of the functionality of the base library.
 
   ```sh
   xmake build unitest    # build can be abbreviated as -b
@@ -70,32 +70,32 @@
   xmake r rpc -c         # start rpc client
   ```
 
-- Build rpcgen
+- Build gen
 
   ```sh
-  xmake build rpcgen
+  xmake build gen
   
-  # It is recommended to put rpcgen in the system directory (e.g. /usr/local/bin/).
-  # Some linux systems come with an rpcgen. To avoid conflicts, you may need to rename it.
-  rpcgen hello_world.proto
+  # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
+  gen hello_world.proto
   ```
 
-  Proto file format can refer to [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto).
+  Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto).
 
 - Installation
 
   ```sh
-  # Install header files, libbase, rpcgen by default.
+  # Install header files, libco, gen by default.
   xmake install -o pkg         # package related files to the pkg directory
   xmake i -o pkg               # the same as above
   xmake install -o /usr/local  # install to the /usr/local directory
   ```
 
+
 ### compile with cmake
 
 - I know nothing about cmake. If you have any problem on compiling with cmake, please @[izhengfan](https://github.com/izhengfan) on github.
 
-- Build libbase and rpcgen
+- Build libco and gen
 
   On the Unix system command line, use `cmake/make` to build:
   
@@ -109,7 +109,7 @@
 
   If using cmake gui under Windows, set the source directory and build directory of co, click `Config`, `Generate`, and then build the generated Visual Studio solution.
 
-  After the building is completed, the base library file is generated in `co/lib`, and the `rgcgen` executable file is generated in `co/build`.
+  After the building is completed, the base library file is generated in `co/lib`, and the `gen` executable file is generated in `co/build`.
 
 - Build test and unitest
 
@@ -130,7 +130,7 @@
   make install
   ```
 
-  This command copies the `co/base` header files, library files, and the rpcgen executable to the appropriate subdirectories under the installation directory. The default installation location under Linux is `/usr/local/`, so `sudo` permission may be required when `make install`.
+  This command copies the `co/base` header files, library files, and the gen executable to the appropriate subdirectories under the installation directory. The default installation location under Linux is `/usr/local/`, so `sudo` permission may be required when `make install`.
 
   To change the installation location, set the `CMAKE_INSTALL_PREFIX` parameter when cmake:
 
@@ -153,8 +153,8 @@
 
   ```cpp
   // @file main.cpp
-  #include "base/flag.h"
-  #include "base/log.h"
+  #include "co/flag.h"
+  #include "co/log.h"
 
   int main(int argc, char** argv) {
       flag::init(argc, argv);
@@ -166,4 +166,4 @@
 
   If you can't find `coConfig.cmake` when you make cmake, you need to specify the `co_DIR` path manually. Assuming you just installed `co` into `/usr/local/`, add `-Dco_DIR=/usr/local/lib/cmake/co` after the `cmake` command, or set `co_DIR` in cmake gui to the `lib/cmake/co` sub-path under the `co` installation path.
 
-  In addition, if the bin subpath (such as `/usr/local/bin`) under the co installation path is already in the environmental PATH, you can use the `rpcgen` command directly on the command line.
+  In addition, if the bin subpath (such as `/usr/local/bin`) under the co installation path is already in the environmental PATH, you can use the `gen` command directly on the command line.

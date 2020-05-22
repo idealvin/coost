@@ -26,10 +26,14 @@ if is_plat("windows") then
     add_cxflags("-MD", "-EHsc")
 end
 
+
+-- include dir
+add_includedirs("include")
+
 -- install header files
-add_installfiles("(base/*.h)", {prefixdir = "include"})
-add_installfiles("(base/*/*.h)", {prefixdir = "include"})
-add_installfiles("*.md", {prefixdir = "include/base"})
+add_installfiles("(include/**)", {prefixdir = ""})
+add_installfiles("*.md", {prefixdir = "include/co"})
 
 -- include sub-projects
-includes("base", "rpcgen", "test", "unitest/base")
+includes("src", "gen", "test", "unitest")
+

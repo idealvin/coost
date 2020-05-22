@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C6A6D531-41C6-4269-9AF0-1D80E9ADFD03}</ProjectGuid>
     <RootNamespace>unitest</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Label="Configuration">
@@ -90,7 +90,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x86\debug base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x86\\debug co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
@@ -101,13 +101,13 @@
       <PreprocessorDefinitions>__config_debug__;__config_Win32__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x64\debug base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x64\\debug co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -118,13 +118,13 @@
       <PreprocessorDefinitions>__config_debug__;__config_x64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x86\release base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x86\\release co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
@@ -135,13 +135,13 @@
       <PreprocessorDefinitions>__config_release__;__config_Win32__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
-      <AdditionalOptions>/libpath:..\..\..\build\windows\x64\release base.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/libpath:..\\..\\..\\build\\windows\\x64\\release co.lib -nologo -dynamicbase -nxcompat %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -152,94 +152,94 @@
       <PreprocessorDefinitions>__config_release__;__config_x64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\..\..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\include</AdditionalIncludeDirectories>
       <AdditionalOptions>-FS -EHsc -nologo %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\unitest\base\path_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\path_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\path_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\path_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\path_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\fast_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\fast_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\fast_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\fast_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\fast_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\json_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\json_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\json_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\json_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\json_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\json_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\json_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\json_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\json_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\json_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\lru_map_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\lru_map_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\lru_map_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\lru_map_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\lru_map_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\atomic_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\atomic_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\atomic_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\atomic_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\atomic_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\fast_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\fast_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\fast_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\fast_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\fast_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\time_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\time_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\time_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\time_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\time_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\atomic_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\atomic_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\atomic_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\atomic_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\atomic_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\fastring_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\fastring_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\fastring_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\fastring_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\fastring_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\fastream_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\fastream_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\fastream_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\fastream_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\fastream_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\lru_map_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\lru_map_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\lru_map_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\lru_map_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\lru_map_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\fs_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\fs_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\fs_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\fs_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\fs_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\fastream_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\fastream_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\fastream_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\fastream_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\fastream_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\fastring_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\fastring_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\fastring_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\fastring_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\fastring_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\thread_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\thread_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\thread_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\thread_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\thread_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\random_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\random_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\random_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\random_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\random_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\main.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\main.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\main.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\main.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\main.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\str_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\str_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\str_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\str_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\str_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\fs_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\fs_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\fs_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\fs_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\fs_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\os_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\os_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\os_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\os_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\os_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\path_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\path_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\path_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\path_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\path_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\main.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\main.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\main.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\main.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\main.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\random_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\random_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\random_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\random_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\random_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\time_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\time_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\time_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\time_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\time_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\str_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\str_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\str_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\str_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\str_test.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\unitest\base\thread_test.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\base\thread_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\base\thread_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\base\thread_test.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\base\thread_test.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\unitest\os_test.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\unitest\windows\x86\release\unitest\os_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\unitest\windows\x64\debug\unitest\os_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\unitest\windows\x64\release\unitest\os_test.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\unitest\windows\x86\debug\unitest\os_test.cc.obj</ObjectFileName>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

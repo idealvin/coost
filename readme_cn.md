@@ -31,7 +31,7 @@
 
 ## 特别致谢
 
-- [co/context](https://github.com/idealvin/co/tree/master/base/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+- [co/context](https://github.com/idealvin/co/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
 - co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
@@ -44,11 +44,11 @@
 
 ## 亮点功能
 
-- **[flag](https://github.com/idealvin/co/blob/master/base/flag.h)**
+- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
 
   这是一个真正为程序员考虑的命令行参数及配置文件解析库，支持自动生成配置文件，支持整数类型带单位 `k, m, g, t, p`，不区分大小写。
 
-- **[log](https://github.com/idealvin/co/blob/master/base/log.h)**
+- **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
   这是一个超级快的本地日志系统，直观感受一下:  
 
@@ -59,25 +59,25 @@
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
   
-  上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/base/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
+  上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
-  为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
+  为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
-- **[json](https://github.com/idealvin/co/blob/master/base/json.h)**
+- **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
   这是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
 
   co/json 对 json 标准的支持不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
 
-- **[co](https://github.com/idealvin/co/tree/master/base/co)**
+- **[co](https://github.com/idealvin/co/tree/master/src/co)**
 
   这是一个 [golang](https://github.com/golang/go) 风格的协程库，内置多线程调度，是网络编程之利器。
 
-- **[json rpc](https://github.com/idealvin/co/blob/master/base/rpc.h)**
+- **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
 
   这是一个基于协程与 json 的高性能 rpc 框架，支持代码自动生成，简单易用，单线程 qps 能达到 12w+。
 
-- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/base/co/co.h)**
+- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/include/co/co.h)**
 
   这是一个与 `co::Pool` 配套使用的模板类。`co::Pool` 是一个协程安全的池子，内部存储 `void*` 指针。
 
@@ -97,8 +97,11 @@
 
 ## 代码构成
 
-- [co/base](https://github.com/idealvin/co/tree/master/base)  
-  `CO` 的核心基础库，其他部分都依赖于此。
+- [co/include](https://github.com/idealvin/co/tree/master/include)  
+  `libco` 的头文件。
+
+- [co/src](https://github.com/idealvin/co/tree/master/src)  
+  `libco` 的源代码。
 
 - [co/test](https://github.com/idealvin/co/tree/master/test)  
   一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
@@ -106,7 +109,7 @@
 - [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
   一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
-- [co/rpcgen](https://github.com/idealvin/co/tree/master/rpcgen)  
+- [co/gen](https://github.com/idealvin/co/tree/master/gen)  
   代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
 
 ## 编译执行
@@ -133,21 +136,21 @@
 
   ```sh
   # 所有命令都在 co 根目录执行，后面不再说明
-  xmake       # 默认编译 libbase 与 rpcgen
-  xmake -a    # 编译所有项目 (libbase, rpcgen, co/test, co/unitest)
+  xmake       # 默认编译 libco 与 gen
+  xmake -a    # 编译所有项目 (libco, gen, co/test, co/unitest)
   ```
 
-- 编译 libbase
+- 编译 libco
 
   ```sh
-  xmake build base       # 编译 libbase
-  xmake -b base          # 与上同
-  xmake b base           # 与上同，可能需要较新版本的 xmake
+  xmake build libco       # 编译 libco
+  xmake -b libco          # 与上同
+  xmake b libco           # 与上同，可能需要较新版本的 xmake
   ```
 
 - 编译及运行 unitest 代码
 
-  [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) 是单元测试代码，用于检验 base 库功能的正确性。
+  [co/unitest](https://github.com/idealvin/co/tree/master/unitest) 是单元测试代码，用于检验 libco 库功能的正确性。
 
   ```sh
   xmake build unitest     # build 可以简写为 -b
@@ -178,22 +181,21 @@
   xmake r rpc -c         # 启动 rpc client
   ```
 
-- 编译 rpcgen
+- 编译 gen
 
   ```sh
-  xmake build rpcgen
+  xmake build gen
   
-  # 建议将 rpcgen 放到系统目录下(如 /usr/local/bin/).
-  # 有些 linux 系统自带了一个 rpcgen，为避免冲突，可能需要重命名 rpcgen.
-  rpcgen hello_world.proto
+  # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
+  gen hello_world.proto
   ```
 
-  `proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
+  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto)。
 
 - 安装
 
   ```sh
-  # 默认安装头文件、libbase、rpcgen
+  # 默认安装头文件、libco、gen
   xmake install -o pkg          # 打包安装到 pkg 目录
   xmake i -o pkg                # 同上
   xmake install -o /usr/local   # 安装到 /usr/local 目录
@@ -205,8 +207,8 @@
 
 ## 贡献代码
 
-1. `co/base` 目录下修改或新增代码，确保 `base` 库编译通过.
-2. 若有必要，在 `co/unitest/base` 目录下修改或新增单元测试用例，确保单元测试全部通过.
+1. `co/include` 或 `co/src` 目录下修改或新增代码，确保 `libco` 编译通过.
+2. 若有必要，在 `co/unitest` 目录下修改或新增单元测试用例，确保单元测试全部通过.
 3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
 4. 其他形式的贡献也非常欢迎.
 

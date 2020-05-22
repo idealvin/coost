@@ -31,7 +31,7 @@
 
 ## Special thanks
 
-- The code of [co/context](https://github.com/idealvin/co/tree/master/base/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
+- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
 - The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake compilation scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake compilation scripts, thank you very much!
@@ -44,11 +44,11 @@
 
 ## Highlight function
 
-- **[flag](https://github.com/idealvin/co/blob/master/base/flag.h)**
+- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
 
   This is a command line arguments and configuration file parsing library that is really considered for programmers. It supports automatic generation of configuration files. It supports integer types with units `k, m, g, t, p`.
 
-- **[log](https://github.com/idealvin/co/blob/master/base/log.h)**
+- **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
   This is a super fast local logging system, see how fast it is below:
 
@@ -59,25 +59,25 @@
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
 
-  The above table is the test result of one million info log (about 50 bytes) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/base/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
+  The above table is the test result of one million info log (about 50 bytes) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
 
-  Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/base/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
+  Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
 
-- **[json](https://github.com/idealvin/co/blob/master/base/json.h)**
+- **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
   This is a json library that is comparable to [rapidjson](https://github.com/Tencent/rapidjson) in performance. If you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved.
 
   It does not support the json standard as comprehensively as rapidjson, but meets the basic needs of programmers and is easier to use.
 
-- **[co](https://github.com/idealvin/co/tree/master/base/co)**
+- **[co](https://github.com/idealvin/co/tree/master/src/co)**
 
   This is a [golang-style](https://github.com/golang/go) coroutine library with built-in multi-threaded scheduling, which is a great tool for network programming.
 
-- **[json rpc](https://github.com/idealvin/co/blob/master/base/rpc.h)**
+- **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
 
   This is a high-performance rpc framework based on coroutines and json. It supports automatic code generation, easy to use, and single-threaded qps can reach 120k+.
 
-- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/base/co/co.h)**
+- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/include/co/co.h)**
 
   This is a template class for use with `co::Pool`. `co::Pool` is a coroutine-safe pool that stores `void*` pointers internally.
 
@@ -97,8 +97,11 @@
 
 ## Components
 
-- [co/base](https://github.com/idealvin/co/tree/master/base)  
-  The basic library, it is the core of `CO`, and other components depend on it.
+- [co/include](https://github.com/idealvin/co/tree/master/include)  
+  Header files of `libco`.
+
+- [co/src](https://github.com/idealvin/co/tree/master/src)  
+  Source files of `libco`.
 
 - [co/test](https://github.com/idealvin/co/tree/master/test)  
   Some test code, each `.cc` file will be compiled into a separate test program.
@@ -106,7 +109,7 @@
 - [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
   Some unit test code, each `.cc` file corresponds to a different test unit, and all code is compiled into a single test program.
 
-- [co/rpcgen](https://github.com/idealvin/co/tree/master/rpcgen)  
+- [co/gen](https://github.com/idealvin/co/tree/master/gen)  
   A code generation tool automatically generates rpc framework code according to the `proto` file.
 
 ## Compiling
@@ -134,21 +137,21 @@
 
   ```sh
   # All commands are executed in the root directory of co (the same below)
-  xmake       # build libbase and rpcgen by default
-  xmake -a    # build all projects (libbase, rpcgen, co/test, co/unitest)
+  xmake       # build libco and gen by default
+  xmake -a    # build all projects (libco, gen, co/test, co/unitest)
   ```
 
-- Build libbase
+- Build libco
 
   ```sh
-  xmake build base       # build libbase only
-  xmake -b base          # the same as above
-  xmake b base           # the same as above, required newer version of xmake
+  xmake build libco       # build libco only
+  xmake -b libco          # the same as above
+  xmake b libco           # the same as above, required newer version of xmake
   ```
 
 - Build and run unitest code
 
-  [co/unitest](https://github.com/idealvin/co/tree/master/unitest/base) is unit test code that verifies the correctness of the functionality of the base library.
+  [co/unitest](https://github.com/idealvin/co/tree/master/unitest) is unit test code that verifies the correctness of the functionality of the base library.
 
   ```sh
   xmake build unitest    # build can be abbreviated as -b
@@ -179,22 +182,21 @@
   xmake r rpc -c         # start rpc client
   ```
 
-- Build rpcgen
+- Build gen
 
   ```sh
-  xmake build rpcgen
+  xmake build gen
   
-  # It is recommended to put rpcgen in the system directory (e.g. /usr/local/bin/).
-  # Some linux systems come with an rpcgen. To avoid conflicts, you may need to rename it.
-  rpcgen hello_world.proto
+  # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
+  gen hello_world.proto
   ```
 
-  Proto file format can refer to [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto).
+  Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto).
 
 - Installation
 
   ```sh
-  # Install header files, libbase, rpcgen by default.
+  # Install header files, libco, gen by default.
   xmake install -o pkg         # package related files to the pkg directory
   xmake i -o pkg               # the same as above
   xmake install -o /usr/local  # install to the /usr/local directory
@@ -206,7 +208,7 @@
 
 ## Contributing
 
-1. Modify or add code in the `co/base` directory and ensure that the base library compiles.
-2. If necessary, modify or add unit test cases in the `co/unitest/base` directory and ensure that all unit tests pass.
+1. Modify or add code in the `co/include` or `co/src` directory and ensure that the libco library compiles.
+2. If necessary, modify or add unit test cases in the `co/unitest` directory and ensure that all unit tests pass.
 3. If necessary, modify or add test code in the `co/test` directory.
 4. All other kinds of contributions are also welcome.
