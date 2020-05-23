@@ -19,10 +19,6 @@ if(MSVC)
     )
 endif()
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  DESTINATION include/${PROJECT_NAME}
-  FILES_MATCHING PATTERN "*.h"
-  )
 install(TARGETS co
   EXPORT ${PROJECT_NAME}Targets
   LIBRARY DESTINATION lib/${PROJECT_NAME}  # dynamic lib installed to  ${CMAKE_INSTALL_PREFIX}/lib/co
@@ -45,7 +41,7 @@ if(_PROJ_IMPORT_PREFIX STREQUAL \"/\")
   set(_PROJ_IMPORT_PREFIX \"\")
 endif()
 list(APPEND ${PROJECT_NAME}_INCLUDE_DIR
-  \$\{_PROJ_IMPORT_PREFIX\}/include/${PROJECT_NAME}
+  \$\{_PROJ_IMPORT_PREFIX\}/include/
 )
 set(${PROJECT_NAME}_INCLUDE_DIRS \$\{${PROJECT_NAME}_INCLUDE_DIR\})
 
