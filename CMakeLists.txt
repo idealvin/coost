@@ -15,8 +15,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
 
 set(CMAKE_DEBUG_POSTFIX "d")
 
+include_directories(include)
+
 if(UNIX)
-  add_compile_options(-Wall -O2 -g3)
+  add_compile_options(-Wall -O2 -g3 -lpthread -ldl)
   if(APPLE)
     add_compile_options(-fno-pie)
   endif()
@@ -30,18 +32,18 @@ if(MSVC)
   add_link_options(/SAFESEH:NO)
 endif()
 
-add_subdirectory(base)
+add_subdirectory(src)
 
-option(BUILD_RPCGEN "To build rpcgen" ON)
+option(BUILD_RPCGEN "To build gen" ON)
 if(BUILD_RPCGEN)
-  message("To build rpcgen" )
-  add_subdirectory(rpcgen)
+  message("To build gen" )
+  add_subdirectory(gen)
 endif()
 
 option(BUILD_UNITEST "To build unitest" OFF)
 if(BUILD_UNITEST)
   message("To build unitest" )
-  add_subdirectory(unitest/base)
+  add_subdirectory(unitest)
 endif()
 
 option(BUILD_TEST "To build test" OFF)
@@ -49,3 +51,8 @@ if(BUILD_TEST)
   message("To build test" )
   add_subdirectory(test)
 endif()
+
+
+install(DIRECTORY include/co
+  DESTINATION include
+  )
