@@ -93,77 +93,40 @@
 
 ### compile with cmake
 
-- I know nothing about cmake. If you have any problem on compiling with cmake, please @[izhengfan](https://github.com/izhengfan) on github.
-
 - Build libco and gen
 
   On the Unix system command line, use `cmake/make` to build:
   
   ```sh
   cd co
-  mkdir cmake-build
-  cd cmake-build
+  mkdir build && cd build
   cmake ..
-  make
+  make -j8
   ```
 
-  If using cmake gui under Windows, set the source directory and build directory of co, click `Config`, `Generate`, and then build the generated Visual Studio solution.
-
-  After the building is completed, the base library file is generated in `co/lib`, and the `gen` executable file is generated in `co/build`.
+  After the building is completed, the `libco` library file is generated in `build/lib`, and the `gen` executable file is generated in `build/bin`.
 
 - Build test and unitest
 
-  The `test` and `unitest` are not built by default. To enable them, add two parameter settings in cmake:
+  The `test` and `unitest` are not built by default. You may use the following options to enable them:
 
   ```sh
   cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
+  cmake .. -DBUILD_ALL=ON
   ```
 
-  The rest of the commands are the same as the previous one. If using the Windows cmake gui, tick `BUILD_TEST` and `BUILD_UNITEST`, then click `Config` and `Generate` again, and reload the Visual Studio solution and build. After the building is completed, a test executable is generated under `co/build`.
-
-- Install and use co libraries
+- Install co libraries
 
   On the Unix command line, after `make` is completed, you can install:
 
   ```sh
-  # At this point we are still in the co/cmake-build directory
   make install
   ```
 
-  This command copies the `co/base` header files, library files, and the gen executable to the appropriate subdirectories under the installation directory. The default installation location under Linux is `/usr/local/`, so `sudo` permission may be required when `make install`.
+  This command copies the header files, library files, and the gen executable to the appropriate subdirectories under the installation directory. The default installation location under Linux is `/usr/local/`, so root permission may be required when `make install`.
 
   To change the installation location, set the `CMAKE_INSTALL_PREFIX` parameter when cmake:
 
   ```sh
-  cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/
+  cmake .. -DCMAKE_INSTALL_PREFIX=pkg
   ```
-
-  If using the Windows cmake gui, set `CMAKE_INSTALL_PREFIX` to your desired installation path, and then build the `INSTALL` project in the rebuilt Visual Studio solution.
-
-  After the installation is completed, you can use the `co` library in another project. An example CMakeLists.txt is as follows:
-
-  ```cmake
-  # @file CMakeLists.txt
-  project(use_co)
-  find_package(co REQUIRED)
-  include_directories(${co_INCLUDE_DIR})
-  add_executable(use_co main.cpp)
-  target_link_libraries(use_co ${co_LIBS})
-  ```
-
-  ```cpp
-  // @file main.cpp
-  #include "co/flag.h"
-  #include "co/log.h"
-
-  int main(int argc, char** argv) {
-      flag::init(argc, argv);
-      log::init();
-  }
-  ```
-
-  We define several equivalent variables to represent the include path (`co_INCLUDE_DIR`, `co_INCLUDE_DIRS`), whichever is usable; we define several equivalent variables to represent the co library (`co_LIBS`, `co_LIBRARY`, `co_LIBRARIES`), link to either one of them.
-
-  If you can't find `coConfig.cmake` when you make cmake, you need to specify the `co_DIR` path manually. Assuming you just installed `co` into `/usr/local/`, add `-Dco_DIR=/usr/local/lib/cmake/co` after the `cmake` command, or set `co_DIR` in cmake gui to the `lib/cmake/co` sub-path under the `co` installation path.
-
-  In addition, if the bin subpath (such as `/usr/local/bin`) under the co installation path is already in the environmental PATH, you can use the `gen` command directly on the command line.
