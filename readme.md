@@ -114,9 +114,9 @@
 
 ## Compiling
 
-[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project.
+### xmake
 
-[izhengfan](https://github.com/izhengfan) has helped to provide cmake support. If you need to compile with cmake, please refer to [here](./docs/en/compiling.md/#compile-with-cmake).
+[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project.
 
 - Compiler
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -201,6 +201,16 @@
   xmake i -o pkg               # the same as above
   xmake install -o /usr/local  # install to the /usr/local directory
   ```
+
+### cmake
+
+[izhengfan](https://github.com/izhengfan) has helped to provide cmake support:  
+- Build `libco` and `gen` by default.
+- The library files are in the `build/lib` directory, and the executable files are in the `build/bin` directory.
+- You can use `BUILD_ALL` to compile all projects.
+- You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
+
+For more details, please refer to [here](./docs/en/compiling.md/#compile-with-cmake).
 
 ## License
 

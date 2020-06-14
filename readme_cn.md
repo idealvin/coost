@@ -114,9 +114,9 @@
 
 ## 编译执行
 
-`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 进行编译。
+### xmake
 
-[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持，若需要使用 cmake 编译，请参考[这里](./docs/cn/编译.md/#cmake-编译)。
+`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 进行编译。
 
 - 编译器
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -200,6 +200,24 @@
   xmake i -o pkg                # 同上
   xmake install -o /usr/local   # 安装到 /usr/local 目录
   ```
+
+### cmake
+
+[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
+- 默认只编译 `libco` 与 `gen`.
+- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下.
+- 可以用 `BUILD_ALL` 指定编译所有项目.
+- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
+
+```sh
+mkdir build && cd build
+cmake ..
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+make -j8
+make install
+```
+
+详情请参考[cmake-编译](./docs/cn/编译.md/#cmake-编译)。
 
 ## License
 
