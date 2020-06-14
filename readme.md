@@ -210,6 +210,14 @@
 - You can use `BUILD_ALL` to compile all projects.
 - You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
 
+```sh
+mkdir build && cd build
+cmake ..
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+make -j8
+make install
+```
+
 For more details, please refer to [here](./docs/en/compiling.md/#compile-with-cmake).
 
 ## License
