@@ -7,6 +7,7 @@ Value::Jalloc::~Jalloc() {
     for (uint32 i = 0; i < _l16.size(); ++i) ::free((void*)_l16[i]);
     for (uint32 i = 0; i < _ks[0].size(); ++i) ::free((char*)_ks[0][i] - 8);
     for (uint32 i = 0; i < _ks[1].size(); ++i) ::free((char*)_ks[1][i] - 8);
+    for (uint32 i = 0; i < _ks[2].size(); ++i) ::free((char*)_ks[2][i] - 8);
 }
 
 void* Value::Jalloc::alloc(uint32 n) {
@@ -19,9 +20,13 @@ void* Value::Jalloc::alloc(uint32 n) {
         if (!_ks[1].empty()) return (void*) _ks[1].pop_back();
         p = (char*) malloc(64);
         *p = 1;
+    } else if (n <= 120) {
+        if (!_ks[2].empty()) return (void*) _ks[2].pop_back();
+        p = (char*) malloc(128);
+        *p = 2;
     } else {
         p = (char*) malloc(n + 8);
-        *p = 2;
+        *p = 3;
     }
 
     return p + 8;
@@ -29,8 +34,8 @@ void* Value::Jalloc::alloc(uint32 n) {
 
 void Value::Jalloc::free(void* p) {
     char* s = (char*)p - 8;
-    int c = *s; // 0, 1, 2
-    if (c < 2 && _ks[c].size() < 128 * 1024) {
+    int c = *s; // 0, 1, 2, 3
+    if (c < 3 && _ks[c].size() < 8 * 1024) {
         _ks[c].push_back(p);
     } else {
         ::free(s);

@@ -94,7 +94,7 @@ class Value {
 
       private:
         Array _l16;   // for header (16 bytes)
-        Array _ks[2]; // for key and string
+        Array _ks[3]; // for key and string
     };
 
     struct MemberItem;
