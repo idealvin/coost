@@ -256,11 +256,14 @@ DEF_test(fastring) {
         fastring a("hello");
         fastring b("world");
         const char* s = "again";
+        char c = 'x';
 
         EXPECT_EQ(a + b, "helloworld");
         EXPECT_EQ(b + a, "worldhello");
         EXPECT_EQ(a + s, "helloagain");
         EXPECT_EQ(s + a, "againhello");
+        EXPECT_EQ(a + c, "hellox");
+        EXPECT_EQ(c + a, "xhello");
     }
 }
 

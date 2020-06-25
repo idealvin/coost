@@ -1,9 +1,12 @@
 #pragma once
 
+#include "def.h"
 #include "atomic.h"
+#include "array.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <new>
 #include <string>
 #include <ostream>
 
@@ -13,29 +16,30 @@ class fastring {
 
     constexpr fastring() noexcept : _p(0) {}
 
-    explicit fastring(size_t cap);
+    explicit fastring(size_t cap) {
+        this->_Init(cap, 0);
+    }
 
     fastring(const void* s, size_t n);
     fastring(const char* s);
     fastring(const std::string& s) : fastring(s.data(), s.size()) {}
 
-    fastring(size_t n, char c);
+    fastring(size_t n, char c) {
+        this->_Init(n + 1, n);
+        memset(_p->s, c, n);
+    }
 
     fastring(char c, size_t n) : fastring(n, c) {}
 
     static fastring from_raw_buffer(char* p, size_t cap, size_t size) {
-        fastring s;
-        s._p = (_Mem*) malloc(sizeof(_Mem));
-        s._p->cap = cap;
-        s._p->size = size;
-        s._p->refn = 1;
-        s._p->s = p;
-        return s;
+        _Mem* m;
+        new (m = _Mem::alloc()) _Mem(cap, size, p);
+        return *(fastring*)&m;
     }
 
     ~fastring() {
         if (!_p) return;
-        if (this->_UnRef() == 0) { free(_p->s); free(_p); }
+        this->_UnRef();
         _p = 0;
     }
 
@@ -48,7 +52,7 @@ class fastring {
     }
 
     fastring& operator=(fastring&& s) noexcept {
-        if (_p && this->_UnRef() == 0) { free(_p->s); free(_p); }
+        if (_p) this->_UnRef();
         _p = s._p;
         s._p = 0;
         return *this;
@@ -56,15 +60,15 @@ class fastring {
 
     fastring& operator=(const fastring& s) {
         if (&s != this) {
-            if (_p && this->_UnRef() == 0) { free(_p->s); free(_p); }
+            if (_p) this->_UnRef();
             _p = s._p;
             if (_p) this->_Ref();
         }
         return *this;
     }
 
-    fastring& operator=(const std::string& s);
     fastring& operator=(const char* s);
+    fastring& operator=(const std::string& s);
 
     const char* data() const {
         return _p ? _p->s : (const char*) &_p;
@@ -297,14 +301,19 @@ class fastring {
     }
 
   private:
-    void _Init(size_t cap, size_t size = 0);
+    void _Init(size_t cap, size_t size) {
+        new (_p = _Mem::alloc()) _Mem(cap, size, malloc(cap));
+    }
 
     void _Ref() {
         atomic_inc(&_p->refn);
     }
 
-    size_t _UnRef() {
-        return atomic_dec(&_p->refn);
+    void _UnRef() {
+        if (atomic_dec(&_p->refn) == 0) {
+            free(_p->s);
+            _Mem::dealloc(_p);
+        }
     }
 
     void _Reserve(size_t n) {
@@ -330,10 +339,30 @@ class fastring {
 
   private:
     struct _Mem {
+        _Mem(size_t c, size_t n, void* p)
+            : cap(c), size(n), refn(1), s((char*)p) {
+        }
+
         size_t cap;
         size_t size;
         size_t refn;
         char* s;
+
+        static Array* pool() {
+            static __thread Array* mp = 0;
+            return mp ? mp : (mp = new Array(32));
+        }
+
+        static _Mem* alloc() {
+            Array* mp = _Mem::pool();
+            if (!mp->empty()) return (_Mem*) mp->pop_back();
+            return (_Mem*) malloc(sizeof(_Mem));
+        }
+
+        static void dealloc(_Mem* p) {
+            Array* mp = _Mem::pool();
+            mp->size() < 32 * 1024 ? mp->push_back(p) : free(p);
+        }
     };
 
     _Mem* _p;

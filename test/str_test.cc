@@ -16,6 +16,8 @@ int main(int argc, char** argv) {
     def_case(ss = std::string());
     def_case(fs = "");
     def_case(ss = "");
+    def_case(fs = "hello");
+    def_case(ss = "hello");
     def_case(fs = xfs);
     def_case(ss = xss);
 
