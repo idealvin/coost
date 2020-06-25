@@ -454,5 +454,5 @@ inline bool operator>=(const char* a, const fastring& b) {
 }
 
 inline std::ostream& operator<<(std::ostream& os, const fastring& s) {
-    return os << s.c_str();
+    return os.write(s.data(), s.size());
 }
