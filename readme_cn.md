@@ -1,7 +1,4 @@
-# Basic
-
-- [English](readme.md)
-- [中文](readme_cn.md)
+# 基本介绍 [(English)](readme.md)
 
 `CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。  
 

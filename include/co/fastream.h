@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef _MSC_VER
-#pragma warning (disable:4624)
-#endif
-
 #include "fast.h"
 #include "fastring.h"
 #include <assert.h>
@@ -243,6 +239,12 @@ class fastream {
         return *this;
     }
 
+    fastring release() {
+        char* p = _p;
+        _p = 0;
+        return fastring::from_raw_buffer(p, _cap, _size);
+    }
+
   private:
     void _Ensure(size_t n) {
         if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
@@ -252,44 +254,4 @@ class fastream {
     size_t _cap;
     size_t _size;
     char* _p;
-};
-
-// DON'T TOUCH!!  (for internal use only)
-//
-// The magicstream object will be invalid after the method str() is called.
-// The str() method MUST be called once and only once.
-//   fastring s = (magicstream() << "hello" << 123).str();
-class magicstream {
-  public:
-    magicstream() {
-        new (_buf) fastream(32);
-    }
-
-    explicit magicstream(size_t cap) {
-        new (_buf) fastream(cap);
-    }
-
-    ~magicstream() {}
-
-    template<typename T>
-    magicstream& operator<<(const T& t) {
-        _fs << t;
-        return *this;
-    }
-
-    fastream& stream() noexcept {
-        return _fs;
-    }
-
-    fastring str() const {
-        return fastring::from_raw_buffer(
-            (char*)_fs.data(), _fs.capacity(), _fs.size()
-        );
-    }
-
-  private:
-    union {
-        char _buf[sizeof(fastream)];
-        fastream _fs;
-    };
 };

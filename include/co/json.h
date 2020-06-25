@@ -1,9 +1,6 @@
 #pragma once
 
-#ifdef _MSC_VER
-#pragma warning (disable:4200)
-#endif
-
+#include "array.h"
 #include "fastream.h"
 
 namespace json {
@@ -19,57 +16,7 @@ class Value {
         kObject = 32,
     };
 
-    typedef const void* T;
     typedef const char* Key;
-
-    struct Array {
-        Array(uint32 cap=256) {
-            _mem = (_Mem*) malloc(sizeof(_Mem) + sizeof(T) * cap);
-            _mem->cap = cap;
-            _mem->size = 0;
-        }
-
-        ~Array() {
-            free(_mem);
-        }
-
-        uint32 size() const {
-            return _mem->size;
-        }
-
-        bool empty() const {
-            return this->size() == 0;
-        }
-
-        T& back() const {
-            return _mem->p[this->size() - 1];
-        }
-
-        T& operator[](uint32 i) const {
-            return _mem->p[i];
-        }
-
-        void push_back(T v) {
-            if (_mem->size == _mem->cap) {
-                _mem = (_Mem*) realloc(_mem, sizeof(_Mem) + sizeof(T) * (_mem->cap << 1));
-                assert(_mem);
-                _mem->cap <<= 1;
-            }
-            _mem->p[_mem->size++] = v;
-        }
-
-        T pop_back() {
-            return _mem->p[--_mem->size];
-        }
-
-        struct _Mem {
-            uint32 cap;
-            uint32 size;
-            T p[];
-        }; // 8 bytes
-
-        _Mem* _mem;
-    };
 
     class Jalloc {
       public:
@@ -81,26 +28,28 @@ class Value {
             return jalloc ? jalloc : (jalloc = new Jalloc);
         }
 
-        void* alloc16() {
-            return !_l16.empty() ? ((void*)_l16.pop_back()) : malloc(16);
+        void* alloc_mem() {
+            return !_mp.empty() ? ((void*)_mp.pop_back()) : malloc(sizeof(_Mem));
         }
 
-        void free16(void* p) {
-            _l16.size() < 128 * 1024 ? _l16.push_back(p) : ::free(p);
+        void dealloc_mem(void* p) {
+            _mp.size() < 8 * 1024 ? _mp.push_back(p) : free(p);
         }
 
         void* alloc(uint32 n);
-        void free(void* p);
+        void dealloc(void* p);
 
       private:
-        Array _l16;   // for header (16 bytes)
-        Array _ks[2]; // for key and string
+        Array _mp;    // for header (_Mem)
+        Array _ks[3]; // for key and string
     };
 
     struct MemberItem;
 
     class iterator {
       public:
+        typedef const void* T;
+
         iterator(T* p) : _p(p) {}
 
         MemberItem* operator->() const {
@@ -157,7 +106,7 @@ class Value {
 
     Value& operator=(const Value& v) {
         if (&v != this) {
-            if (_mem) this->reset();
+            if (_mem) this->_UnRef();
             _mem = v._mem;
             if (_mem) this->_Ref();
         }
@@ -165,21 +114,21 @@ class Value {
     }
 
     Value& operator=(Value&& v) noexcept {
-        if (_mem) this->reset();
+        if (_mem) this->_UnRef();
         _mem = v._mem;
         v._mem = 0;
         return *this;
     }
 
     Value(bool v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
+        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kBool;
         _mem->refn = 1;
         _mem->b = v;
     }
 
     Value(int64 v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
+        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kInt;
         _mem->refn = 1;
         _mem->i = v;
@@ -190,7 +139,7 @@ class Value {
     Value(uint64 v) : Value((int64)v) {}
 
     Value(double v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
+        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kDouble;
         _mem->refn = 1;
         _mem->d = v;
@@ -250,8 +199,16 @@ class Value {
         return _mem->i;
     }
 
+    uint64 get_uint64() const {
+        return (uint64) this->get_int64();
+    }
+
     int32 get_int32() const {
         return (int32) this->get_int64();
+    }
+
+    uint32 get_uint32() const {
+        return (uint32) this->get_int64();
     }
 
     int get_int() const {
@@ -272,7 +229,7 @@ class Value {
     void set_array() {
         if (_mem) {
             if (_mem->type & kArray) return;
-            this->reset();
+            this->_UnRef();
         }
         this->_Init_array();
     }
@@ -280,7 +237,7 @@ class Value {
     void set_object() {
         if (_mem) {
             if (_mem->type & kObject) return;
-            this->reset();
+            this->_UnRef();
         }
         this->_Init_object();
     }
@@ -352,11 +309,11 @@ class Value {
 
     Value& operator[](Key key) const;
 
-    // json to string
-    fastring str(uint32 cap = 256) const {
-        magicstream ms(cap);
-        this->_Json2str(ms.stream());
-        return ms.str();
+    // stringify
+    fastring str() const {
+        fastream fs(256);
+        this->_Json2str(fs);
+        return fs.release();
     }
 
     // append json string to @fs
@@ -366,9 +323,9 @@ class Value {
 
     // json to debug string
     fastring dbg() const {
-        magicstream ms(256);
-        this->_Json2dbg(ms.stream());
-        return ms.str();
+        fastream fs(256);
+        this->_Json2dbg(fs);
+        return fs.release();
     }
 
     void dbg(fastream& fs) const {
@@ -377,9 +334,9 @@ class Value {
 
     // convert json to pretty string
     fastring pretty(int indent = 4, uint32 cap = 256) const {
-        magicstream ms(cap);
-        this->_Json2pretty(indent, indent, ms.stream());
-        return ms.str();
+        fastream fs(cap);
+        this->_Json2pretty(indent, indent, fs);
+        return fs.release();
     }
 
     bool parse_from(const char* s, size_t n);
@@ -406,41 +363,34 @@ class Value {
         v.swap(*this);
     }
 
-    void reset();
+    void reset() {
+        if (!_mem) return;
+        this->_UnRef();
+        _mem = 0;        
+    }
 
   private:
     void _Ref() const {
         atomic_inc(&_mem->refn);
     }
 
-    int32 _UnRef() const {
-        return atomic_dec(&_mem->refn);
-    }
+    void _UnRef();
 
-    void _Init_string(const void* data, size_t size) {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
-        _mem->type = kString;
-        _mem->refn = 1;
-        _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
-        memcpy(_mem->s, data, size);
-        _mem->s[size] = '\0';
-        _mem->l[-1] = (uint32) size;
-    }
+    void _Init_string(const void* data, size_t size);
 
     Array& _Array() const {
         return *(Array*) &_mem->p;
     }
 
     void _Init_array() {
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
+        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kArray;
         _mem->refn = 1;
         new (&_mem->p) Array(8);
     }
 
     void _Init_object() {
-        static_assert(sizeof(_Mem) == 16, "sizeof(_Mem) must be 16");
-        _mem = (_Mem*) Jalloc::instance()->alloc16();
+        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kObject;
         _mem->refn = 1;
         new (&_mem->p) Array(16);
@@ -491,7 +441,6 @@ class Value {
     struct _Mem {
         int32 type;
         int32 refn;
-
         union {
             bool b;
             int64 i;

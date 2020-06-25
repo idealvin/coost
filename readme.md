@@ -1,7 +1,4 @@
-# Basic
-
-- [中文](readme_cn.md)
-- [English](readme.md)
+# Basic [(中文)](readme_cn.md)
 
 `CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms.
 
