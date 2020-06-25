@@ -16,7 +16,6 @@ class Value {
         kObject = 32,
     };
 
-    typedef const void* T;
     typedef const char* Key;
 
     class Jalloc {
@@ -49,6 +48,8 @@ class Value {
 
     class iterator {
       public:
+        typedef const void* T;
+
         iterator(T* p) : _p(p) {}
 
         MemberItem* operator->() const {
@@ -198,8 +199,16 @@ class Value {
         return _mem->i;
     }
 
+    uint64 get_uint64() const {
+        return (uint64) this->get_int64();
+    }
+
     int32 get_int32() const {
         return (int32) this->get_int64();
+    }
+
+    uint32 get_uint32() const {
+        return (uint32) this->get_int64();
     }
 
     int get_int() const {
@@ -300,9 +309,9 @@ class Value {
 
     Value& operator[](Key key) const;
 
-    // json to string
-    fastring str(uint32 cap = 256) const {
-        fastream fs(cap);
+    // stringify
+    fastring str() const {
+        fastream fs(256);
         this->_Json2str(fs);
         return fs.release();
     }
@@ -367,15 +376,7 @@ class Value {
 
     void _UnRef();
 
-    void _Init_string(const void* data, size_t size) {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kString;
-        _mem->refn = 1;
-        _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
-        memcpy(_mem->s, data, size);
-        _mem->s[size] = '\0';
-        _mem->l[-1] = (uint32) size;
-    }
+    void _Init_string(const void* data, size_t size);
 
     Array& _Array() const {
         return *(Array*) &_mem->p;
@@ -389,7 +390,6 @@ class Value {
     }
 
     void _Init_object() {
-        static_assert(sizeof(_Mem) == 16, "sizeof(_Mem) must be 16");
         _mem = (_Mem*) Jalloc::instance()->alloc_mem();
         _mem->type = kObject;
         _mem->refn = 1;
@@ -441,7 +441,6 @@ class Value {
     struct _Mem {
         int32 type;
         int32 refn;
-
         union {
             bool b;
             int64 i;

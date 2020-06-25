@@ -93,6 +93,16 @@ void Value::_UnRef() {
     }
 }
 
+void Value::_Init_string(const void* data, size_t size) {
+    _mem = (_Mem*) Jalloc::instance()->alloc_mem();
+    _mem->type = kString;
+    _mem->refn = 1;
+    _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
+    memcpy(_mem->s, data, size);
+    _mem->s[size] = '\0';
+    _mem->l[-1] = (uint32) size;
+}
+
 void Value::_Json2str(fastream& fs) const {
     if (unlikely(_mem == 0)) {
         fs << "null";
