@@ -81,7 +81,7 @@ inline fastring from(const fastring& s) {
 
 template<typename T>
 inline fastring from(const T& t) {
-    return (magicstream(24) << t).str();
+    return (fastream(24) << t).release();
 }
 
 namespace xx {
@@ -127,16 +127,16 @@ void dbg(const T& beg, const T& end, char c1, char c2, fastream& fs) {
 
 template<typename K, typename V>
 inline fastring dbg(const std::pair<K, V>& x) {
-    magicstream ms(32);
-    xx::dbg(x, ms.stream());
-    return ms.str();;
+    fastream fs(32);
+    xx::dbg(x, fs);
+    return fs.release();
 }
 
 template<typename T>
 inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
-    magicstream ms(128);
-    xx::dbg(beg, end, c1, c2, ms.stream());
-    return ms.str();
+    fastream fs(128);
+    xx::dbg(beg, end, c1, c2, fs);
+    return fs.release();
 }
 
 template<typename T>

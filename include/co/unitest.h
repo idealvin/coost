@@ -124,9 +124,9 @@ const char* const default_color = "\033[39m";
              << unitest::default_color << endl; \
         \
     } else { \
-        magicstream _U_fs; \
+        fastream _U_fs; \
         _U_fs << "EXPECT(" << #x << ") failed"; \
-        fastring _U_s = _U_fs.str(); \
+        fastring _U_s = _U_fs.release(); \
         \
         cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
@@ -149,10 +149,10 @@ const char* const default_color = "\033[39m";
         cout << unitest::default_color << endl; \
         \
     } else { \
-        magicstream _U_fs; \
+        fastream _U_fs; \
         _U_fs << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " \
               << _U_x << " vs " << _U_y; \
-        fastring _U_s = _U_fs.str(); \
+        fastring _U_s = _U_fs.release(); \
         \
         cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \

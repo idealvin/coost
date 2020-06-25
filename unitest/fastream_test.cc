@@ -145,12 +145,6 @@ DEF_test(fastream) {
         fs << 1234567890.0123456789876543210;
         EXPECT_LT(fs.size(), 24);
     }
-
-    DEF_case(magic) {
-        EXPECT_EQ((magicstream()).str(), "");
-        EXPECT_EQ((magicstream() << 123).str(), "123");
-        EXPECT_EQ((magicstream() << "hello" << 123).str(), "hello123");
-    }
 }
 
 } // namespace test

@@ -290,7 +290,7 @@ bool LevelLogger::open_log_file(int level) {
         paths.push_back(path);
 
         for (unsigned int i = 1; i < _config->max_log_file_num; ++i) {
-            fastring p = (magicstream(path.size() + 4) << path << '.' << i).str();
+            fastring p = (fastream(path.size() + 4) << path << '.' << i).release();
             paths.push_back(p);
             if (!fs::exists(p)) break;
         }
