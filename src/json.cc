@@ -4,10 +4,10 @@
 namespace json {
 
 Value::Jalloc::~Jalloc() {
-    for (uint32 i = 0; i < _l16.size(); ++i) ::free((void*)_l16[i]);
-    for (uint32 i = 0; i < _ks[0].size(); ++i) ::free((char*)_ks[0][i] - 8);
-    for (uint32 i = 0; i < _ks[1].size(); ++i) ::free((char*)_ks[1][i] - 8);
-    for (uint32 i = 0; i < _ks[2].size(); ++i) ::free((char*)_ks[2][i] - 8);
+    for (uint32 i = 0; i < _mp.size(); ++i) free((void*)_mp[i]);
+    for (uint32 i = 0; i < _ks[0].size(); ++i) free((char*)_ks[0][i] - 8);
+    for (uint32 i = 0; i < _ks[1].size(); ++i) free((char*)_ks[1][i] - 8);
+    for (uint32 i = 0; i < _ks[2].size(); ++i) free((char*)_ks[2][i] - 8);
 }
 
 void* Value::Jalloc::alloc(uint32 n) {
@@ -32,13 +32,13 @@ void* Value::Jalloc::alloc(uint32 n) {
     return p + 8;
 }
 
-void Value::Jalloc::free(void* p) {
+void Value::Jalloc::dealloc(void* p) {
     char* s = (char*)p - 8;
     int c = *s; // 0, 1, 2, 3
     if (c < 3 && _ks[c].size() < 8 * 1024) {
         _ks[c].push_back(p);
     } else {
-        ::free(s);
+        free(s);
     }
 }
 
@@ -71,27 +71,26 @@ Value& Value::operator[](Key key) const {
     return *(Value*) &_Array().back();
 }
 
-void Value::reset() {
-    if (_mem == 0) return;
-    if (this->_UnRef() == 0) {
+void Value::_UnRef() {
+    if (atomic_dec(&_mem->refn) == 0) {
         if (_mem->type & kObject) {
             Array& a = _Array();
             for (uint32 i = 0; i < a.size(); i += 2) {
-                Jalloc::instance()->free((void*)a[i]);
+                Jalloc::instance()->dealloc((void*)a[i]);
                 ((Value*)&a[i + 1])->~Value();
             }
             free(_mem->p);
         } else if (_mem->type & kArray) {
-            for (uint32 i = 0; i < _Array().size(); ++i) {
-                ((Value*)&_Array()[i])->~Value();
+            Array& a = _Array();
+            for (uint32 i = 0; i < a.size(); ++i) {
+                ((Value*)&a[i])->~Value();
             }
             free(_mem->p);
         } else if (_mem->type & kString) {
-            Jalloc::instance()->free(_mem->s);
+            Jalloc::instance()->dealloc(_mem->s);
         }
-        Jalloc::instance()->free16(_mem);
+        Jalloc::instance()->dealloc_mem(_mem);
     }
-    _mem = 0;
 }
 
 void Value::_Json2str(fastream& fs) const {
@@ -584,7 +583,7 @@ const char* parse_json(const char* b, const char* e, Value* res) {
         for (; ++b < e;) {
             if (unlikely(is_white_char(*b))) continue;
             if (*b != ':') {
-                Value::Jalloc::instance()->free(key);
+                Value::Jalloc::instance()->dealloc(key);
                 return 0;
             }
             break;
@@ -607,7 +606,7 @@ const char* parse_json(const char* b, const char* e, Value* res) {
 
             if (unlikely(b == 0)) {
                 if (v) ((Value*)&v)->~Value();
-                Value::Jalloc::instance()->free(key);
+                Value::Jalloc::instance()->dealloc(key);
                 return 0;
             }
 
@@ -665,7 +664,10 @@ const char* parse_array(const char* b, const char* e, Value* res) {
 }
 
 bool Value::parse_from(const char* s, size_t n) {
-    if (unlikely(_mem)) this->reset();
+    if (unlikely(_mem)) {
+        this->_UnRef();
+        _mem = 0;
+    }
 
     const char* p = s;
     const char* e = s + n;
