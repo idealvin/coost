@@ -12,20 +12,6 @@ DEF_test(fastring) {
         s = "xxx";
         EXPECT_EQ(s, "xxx");
 
-        fastring t = s; // s and t refer to the same string
-        EXPECT_EQ(*(void**)&s, *(void**)&t);
-        EXPECT_EQ(s.data(), t.data());
-
-        s.reserve(128);
-        EXPECT_EQ(s, t);
-        EXPECT_EQ(s.data(), t.data());
-        EXPECT_EQ(*(void**)&s, *(void**)&t);
-
-        t = std::string("888");
-        EXPECT_EQ(s, "888");
-        EXPECT_EQ(s, t);
-        EXPECT_EQ(*(void**)&s, *(void**)&t);
-
         fastring x(std::string("888"));
         EXPECT_EQ(x, "888");
     }

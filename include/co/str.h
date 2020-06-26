@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fastream.h"
+#include "fastring.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -81,36 +81,36 @@ inline fastring from(const fastring& s) {
 
 template<typename T>
 inline fastring from(const T& t) {
-    return (fastream(24) << t).release();
+    return fastring(24) << t;
 }
 
 namespace xx {
-inline void dbg(const char* s, fastream& fs) {
+inline void dbg(const char* s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
-inline void dbg(const std::string& s, fastream& fs) {
+inline void dbg(const std::string& s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
-inline void dbg(const fastring& s, fastream& fs) {
+inline void dbg(const fastring& s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
 template<typename T>
-inline void dbg(const T& t, fastream& fs) {
+inline void dbg(const T& t, fastring& fs) {
     fs << t;
 }
 
 template<typename K, typename V>
-inline void dbg(const std::pair<K, V>& x, fastream& fs) {
+inline void dbg(const std::pair<K, V>& x, fastring& fs) {
     dbg(x.first, fs);
     fs << ':';
     dbg(x.second, fs);
 }
 
 template<typename T>
-void dbg(const T& beg, const T& end, char c1, char c2, fastream& fs) {
+void dbg(const T& beg, const T& end, char c1, char c2, fastring& fs) {
     if (beg == end) {
         fs << c1 << c2;
         return;
@@ -127,16 +127,16 @@ void dbg(const T& beg, const T& end, char c1, char c2, fastream& fs) {
 
 template<typename K, typename V>
 inline fastring dbg(const std::pair<K, V>& x) {
-    fastream fs(32);
+    fastring fs(64);
     xx::dbg(x, fs);
-    return fs.release();
+    return fs;
 }
 
 template<typename T>
 inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
-    fastream fs(128);
+    fastring fs(128);
     xx::dbg(beg, end, c1, c2, fs);
-    return fs.release();
+    return fs;
 }
 
 template<typename T>

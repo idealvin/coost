@@ -1,72 +1,66 @@
 #include "co/fastring.h"
 
-fastring::fastring(const void* s, size_t n) {
-    if (unlikely(n == 0)) { _p = 0; return; }
-    this->_Init(n + 1, n);
-    memcpy(_p->s, s, n);
-}
+fastring& fastring::operator=(const fastring& s) {
+    if (&s == this) return *this;
 
-fastring::fastring(const char* s) {
-    if (!*s) { _p = 0; return; }
-    size_t n = strlen(s);
-    this->_Init(n + 1, n);
-    memcpy(_p->s, s, n + 1); // '\0' also copied
+    _size = s.size();
+    if (_size == 0) return *this;
+
+    this->reserve(_size + 1);
+    memcpy(_p, s._p, _size);
+    return *this;
 }
 
 fastring& fastring::operator=(const std::string& s) {
-    if (s.empty()) { this->clear(); return *this; }
-    this->reserve(s.size() + 1);
-    memcpy(_p->s, s.data(), s.size());
-    _p->size = s.size();
+    _size = s.size();
+    if (_size == 0) return *this;
+
+    this->reserve(_size + 1);
+    memcpy(_p, s.data(), _size);
     return *this;
 }
 
 fastring& fastring::operator=(const char* s) {
     if (!*s) { this->clear(); return *this; }
 
-    if (_p) {
-        if (!this->_Inside(s)) {
-            _p->size = strlen(s);
-            this->_Reserve(_p->size + 1);
-            memcpy(_p->s, s, _p->size + 1);
-        } else if (s != _p->s) {
-            _p->size -= (s - _p->s);
-            memmove(_p->s, s, _p->size + 1); // memory may overlap
-        }
-    } else {
-        const size_t n = strlen(s);
-        this->_Init(n + 1, n);
-        memcpy(_p->s, s, n + 1);
+    if (!this->_Inside(s)) {
+        _size = strlen(s);
+        this->reserve(_size + 1);
+        memcpy(_p, s, _size + 1);
+    } else if (s != _p) {
+        _size -= (s - _p);
+        memmove(_p, s, _size + 1);
     }
+
     return *this;
 }
 
-void fastring::reserve(size_t n) {
-    _p ? this->_Reserve(n) : this->_Init(n, 0);
-}
+// inside check was done to append the data safely
+fastring& fastring::append(const void* x, size_t n) {
+    const char* p = (const char*) x;
 
-fastring& fastring::append(char c) {
-    _p ? this->_Ensure(1) : this->_Init(16, 0);
-    _p->s[_p->size++] = c;
-    return *this;
-}
-
-fastring& fastring::append(char c, size_t n) {
-    _p ? this->_Ensure(n) : this->_Init(n + 1, 0);
-    memset(_p->s + _p->size, c, n);
-    _p->size += n;
-    return *this;
+    if (!this->_Inside(p)) {
+        return (fastring&) this->_Append(p, n);
+    } else {
+        assert(p + n <= _p + _size);
+        size_t pos = p - _p;
+        this->_Ensure(n);
+        memcpy(_p + _size, _p + pos, n);
+        _size += n;
+        return *this;
+    }
 }
 
 fastring& fastring::append(const fastring& s) {
     if (&s != this) {
-        return this->_Append(s.data(), s.size());
-    } else if (_p) {
-        this->_Reserve(_p->size << 1);
-        memcpy(_p->s + _p->size, _p->s, _p->size);
-        _p->size <<= 1;
+        if (s.empty()) return *this;
+        return (fastring&) this->_Append(s.data(), s.size());
+    } else if (_p) { /* append itself */
+        this->reserve(_size << 1);
+        memcpy(_p + _size, _p, _size);
+        _size <<= 1;
+        return *this;
     }
-    return *this;
 }
 
 size_t fastring::rfind(const char* sub) const {
@@ -76,7 +70,7 @@ size_t fastring::rfind(const char* sub) const {
     size_t n = this->size();
     if (n < m) return npos;
 
-    const unsigned char* s = (const unsigned char*) _p->s;
+    const unsigned char* s = (const unsigned char*) _p;
     const unsigned char* p = (const unsigned char*) sub;
 
     size_t tbl[256] = { 0 };
@@ -102,8 +96,8 @@ size_t fastring::find_last_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (size_t i = _p->size; i > 0;) {
-        if (bs[(u8) (_p->s[--i])]) return i;
+    for (size_t i = _size; i > 0;) {
+        if (bs[(u8) (_p[--i])]) return i;
     }
 
     return npos;
@@ -116,8 +110,8 @@ size_t fastring::find_last_not_of(const char* s) const {
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (size_t i = _p->size; i > 0;) {
-        if (!bs[(u8) (_p->s[--i])]) return i;
+    for (size_t i = _size; i > 0;) {
+        if (!bs[(u8) (_p[--i])]) return i;
     }
 
     return npos;
@@ -125,8 +119,8 @@ size_t fastring::find_last_not_of(const char* s) const {
 
 size_t fastring::find_last_not_of(char c) const {
     if (!_p) return npos;
-    for (size_t i = _p->size; i > 0;) {
-        if (_p->s[--i] != c) return i;
+    for (size_t i = _size; i > 0;) {
+        if (_p[--i] != c) return i;
     }
     return npos;
 }
@@ -141,7 +135,7 @@ void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
     size_t n = strlen(sub);
     size_t m = strlen(to);
 
-    fastring s(_p->size);
+    fastring s(_size);
 
     do {
         s.append(from, p - from).append(to, m);
@@ -149,9 +143,9 @@ void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
         if (maxreplace && --maxreplace == 0) break;
     } while ((p = strstr(from, sub)));
 
-    if (from < _p->s + _p->size) s.append(from);
+    if (from < _p + _size) s.append(from);
     this->resize(s.size());
-    memcpy(_p->s, s.data(), s.size());
+    memcpy(_p, s.data(), s.size());
 }
 
 void fastring::strip(const char* s, char d) {
@@ -163,25 +157,25 @@ void fastring::strip(const char* s, char d) {
 
     if (d == 'l' || d == 'L') {
         size_t b = 0;
-        while (b < _p->size && bs[(u8)(_p->s[b])]) ++b;
-        if (b == 0 || (_p->size -= b) == 0) return;
-        memmove(_p->s, _p->s + b, _p->size);
+        while (b < _size && bs[(u8)(_p[b])]) ++b;
+        if (b == 0 || (_size -= b) == 0) return;
+        memmove(_p, _p + b, _size);
 
     } else if (d == 'r' || d == 'R') {
-        size_t e = _p->size;
-        while (e > 0 && bs[(u8)(_p->s[e - 1])]) --e;
-        if (e != _p->size) _p->size = e;
+        size_t e = _size;
+        while (e > 0 && bs[(u8)(_p[e - 1])]) --e;
+        if (e != _size) _size = e;
 
     } else {
-        size_t e = _p->size;
-        while (e > 0 && bs[(u8)(_p->s[e - 1])]) --e;
-        if (e != _p->size) _p->size = e;
+        size_t e = _size;
+        while (e > 0 && bs[(u8)(_p[e - 1])]) --e;
+        if (e != _size) _size = e;
         if (e == 0) return;
 
         size_t b = 0;
-        while (b < _p->size && bs[(u8)(_p->s[b])]) ++b;
-        if (b == 0 || (_p->size -= b) == 0) return;
-        memmove(_p->s, _p->s + b, _p->size);
+        while (b < _size && bs[(u8)(_p[b])]) ++b;
+        if (b == 0 || (_size -= b) == 0) return;
+        memmove(_p, _p + b, _size);
     }
 }
 
@@ -203,8 +197,8 @@ bool fastring::match(const char* p) const {
 
 fastring& fastring::toupper() {
     if (!_p) return *this;
-    for (size_t i = 0; i < _p->size; ++i) {
-        char& c = _p->s[i];
+    for (size_t i = 0; i < _size; ++i) {
+        char& c = _p[i];
         if ('a' <= c && c <= 'z') c ^= 32;
     }
     return *this;
@@ -212,37 +206,9 @@ fastring& fastring::toupper() {
 
 fastring& fastring::tolower() {
     if (!_p) return *this;
-    for (size_t i = 0; i < _p->size; ++i) {
-        char& c = _p->s[i];
+    for (size_t i = 0; i < _size; ++i) {
+        char& c = _p[i];
         if ('A' <= c && c <= 'Z') c ^= 32;
     }
     return *this;
-}
-
-fastring& fastring::_Append(const void* p, size_t n) {
-    _p ? this->_Ensure(n): this->_Init(n + 1, 0);
-    memcpy(_p->s + _p->size, p, n);
-    _p->size += n;
-    return *this;
-}
-
-fastring& fastring::_Append_safe(const void* x, size_t n) {
-    const char* p = (const char*) x;
-    if (_p) {
-        if (!this->_Inside(p)) {
-            this->_Ensure(n);
-            memcpy(_p->s + _p->size, p, n);
-        } else {
-            assert(p + n <= _p->s + _p->size);
-            size_t pos = p - _p->s;
-            this->_Ensure(n);
-            memcpy(_p->s + _p->size, _p->s + pos, n);
-        }
-        _p->size += n;
-    } else {
-        this->_Init(n + 1, n);
-        memcpy(_p->s, p, n);
-    }
-
-    return *this;        
 }

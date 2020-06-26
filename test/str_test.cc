@@ -2,8 +2,20 @@
 #include "co/fastring.h"
 #include "co/str.h"
 
+void test_str_from(int n) {
+    for (int i = n; i < n + 10000; ++i) {
+        str::from(i);
+    }
+}
+
+void test_std_to_string(int n) {
+    for (int i = n; i < n + 10000; ++i) {
+        std::to_string(i);
+    }
+}
+
 int main(int argc, char** argv) {
-    def_test(100000);
+    def_test(8192);
 
     fastring fs;
     std::string ss;
@@ -16,10 +28,17 @@ int main(int argc, char** argv) {
     def_case(ss = std::string());
     def_case(fs = "");
     def_case(ss = "");
-    def_case(fs = "hello");
-    def_case(ss = "hello");
+    def_case(fs = "helloagain");
+    def_case(ss = "helloagain");
     def_case(fs = xfs);
     def_case(ss = xss);
+
+    fs = fastring(8192, 'x');
+    ss = std::string(8192, 'x');
+    def_case(fs = fs.c_str() + 1);
+    def_case(ss = ss.c_str() + 1);
+    COUT << "fs: " << fs;
+    COUT << "ss: " << ss;
 
     COUT << "\n======= find =======";
     size_t r;
@@ -82,10 +101,14 @@ int main(int argc, char** argv) {
     def_case(fs.match("hell?again"));
 
     COUT << "\n======= to_string =======";
+    char buf[32] = { 0 };
+    def_case(std::string(buf, fast::u32toa(12345678, buf)));
+    N = 1;
+    def_case(test_str_from(1000000));
+    def_case(test_std_to_string(1000000));
+    N = 8192;
     def_case(str::from(12345678));
     def_case(std::to_string(12345678));
-    def_case(fs = str::from(12345678));
-    def_case(ss = std::to_string(12345678));
     def_case(str::from(3.14159));
     def_case(std::to_string(3.14159));
     def_case(fs = str::from(3.14159));

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "array.h"
+#include "atomic.h"
 #include "fastream.h"
 
 namespace json {
@@ -311,9 +312,9 @@ class Value {
 
     // stringify
     fastring str() const {
-        fastream fs(256);
-        this->_Json2str(fs);
-        return fs.release();
+        fastring s(256);
+        this->_Json2str(*(fastream*)&s);
+        return s;
     }
 
     // append json string to @fs
@@ -323,9 +324,9 @@ class Value {
 
     // json to debug string
     fastring dbg() const {
-        fastream fs(256);
-        this->_Json2dbg(fs);
-        return fs.release();
+        fastring s(256);
+        this->_Json2dbg(*(fastream*)&s);
+        return s;
     }
 
     void dbg(fastream& fs) const {
@@ -333,10 +334,10 @@ class Value {
     }
 
     // convert json to pretty string
-    fastring pretty(int indent = 4, uint32 cap = 256) const {
-        fastream fs(cap);
-        this->_Json2pretty(indent, indent, fs);
-        return fs.release();
+    fastring pretty(int indent = 4) const {
+        fastring s(256);
+        this->_Json2pretty(indent, indent, *(fastream*)&s);
+        return s;
     }
 
     bool parse_from(const char* s, size_t n);
