@@ -24,18 +24,17 @@ fastring& fastring::operator=(const std::string& s) {
 fastring& fastring::operator=(const char* s) {
     if (!*s) { this->clear(); return *this; }
 
-    size_t n = strlen(s);
     if (_p) {
         if (!this->_Inside(s)) {
-            this->_Reserve(n + 1);
-            memcpy(_p->s, s, n + 1);
-            _p->size = n;
+            _p->size = strlen(s);
+            this->_Reserve(_p->size + 1);
+            memcpy(_p->s, s, _p->size + 1);
         } else if (s != _p->s) {
-            assert(n <= _p->size);
-            memmove(_p->s, s, n + 1); // memory may overlap
-            _p->size = n;
+            _p->size -= (s - _p->s);
+            memmove(_p->s, s, _p->size + 1); // memory may overlap
         }
     } else {
+        const size_t n = strlen(s);
         this->_Init(n + 1, n);
         memcpy(_p->s, s, n + 1);
     }

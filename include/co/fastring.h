@@ -34,7 +34,7 @@ class fastring {
     static fastring from_raw_buffer(char* p, size_t cap, size_t size) {
         _Mem* m;
         new (m = _Mem::alloc()) _Mem(cap, size, p);
-        return *(fastring*)&m;
+        return std::move(*(fastring*)&m);
     }
 
     ~fastring() {
@@ -59,7 +59,7 @@ class fastring {
     }
 
     fastring& operator=(const fastring& s) {
-        if (&s != this) {
+        if (_p != s._p) {
             if (_p) this->_UnRef();
             _p = s._p;
             if (_p) this->_Ref();
