@@ -442,8 +442,8 @@ class Value {
 
   private:
     struct _Mem {
-        int32 type;
-        int32 refn;
+        uint32 type;
+        uint32 refn;
         union {
             bool b;
             int64 i;
