@@ -80,8 +80,8 @@ inline fastring from(const fastring& s) {
 }
 
 template<typename T>
-inline fastring from(const T& t) {
-    return fastring(24) << t;
+inline fastring from(T t) {
+    return std::move(fastring(24) << t);
 }
 
 namespace xx {
@@ -129,14 +129,14 @@ template<typename K, typename V>
 inline fastring dbg(const std::pair<K, V>& x) {
     fastring fs(64);
     xx::dbg(x, fs);
-    return fs;
+    return std::move(fs);
 }
 
 template<typename T>
 inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
     fastring fs(128);
     xx::dbg(beg, end, c1, c2, fs);
-    return fs;
+    return std::move(fs);
 }
 
 template<typename T>

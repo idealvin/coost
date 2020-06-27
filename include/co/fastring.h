@@ -3,38 +3,41 @@
 #include "fast.h"
 #include <ostream>
 
-class fastring : public fast::bastream {
+class fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
 
-    constexpr fastring() noexcept : fast::bastream() {}
-    
-    explicit fastring(size_t cap) : fast::bastream(cap) {}
+    constexpr fastring() noexcept : fast::stream() {}
+
+    explicit fastring(size_t cap) : fast::stream(cap) {}
 
     ~fastring() = default;
 
-    fastring(const void* s, size_t n) : fast::bastream(n + 1, n) {
+    fastring(const void* s, size_t n) {
+        if (n == 0) { _cap = 0; _size = 0; _p = 0; return; }
+        this->_Init(n + 1, n);
         memcpy(_p, s, n);
     }
 
-    fastring(const char* s) : fastring(s, strlen(s)) {}
+    fastring(const char* s) : fastring(s, (*s ? strlen(s) : 0)) {}
 
     fastring(const std::string& s) : fastring(s.data(), s.size()) {}
 
     fastring(const fastring& s) : fastring(s.data(), s.size()) {}
 
-    fastring(size_t n, char c) : fast::bastream(n + 1, n) {
+    fastring(size_t n, char c) {
+        this->_Init(n + 1, n);
         memset(_p, c, n);
     }
 
     fastring(char c, size_t n) : fastring(n, c) {}
 
     fastring(fastring&& s) noexcept
-        : fast::bastream(std::move(s)) {
+        : fast::stream(std::move(s)) {
     }
 
     fastring& operator=(fastring&& s) noexcept {
-        return (fastring&) fast::bastream::operator=(std::move(s));
+        return (fastring&) fast::stream::operator=(std::move(s));
     }
 
     fastring& operator=(const fastring& s);
@@ -50,20 +53,20 @@ class fastring : public fast::bastream {
     fastring& append(const fastring& s);
 
     fastring& append(const std::string& s) {
-        return (fastring&) fast::bastream::append(s);
-    }
-
-    fastring& append(char c, size_t n) {
-        return (fastring&) fast::bastream::append(c, n);
+        return (fastring&) fast::stream::append(s);
     }
 
     fastring& append(size_t n, char c) {
-        return this->append(c, n);
+        return (fastring&) fast::stream::append(n, c);
+    }
+
+    fastring& append(char c, size_t n) {
+        return this->append(n, c);
     }
 
     template<typename T>
     fastring& append(T v) {
-        return (fastring&) fast::bastream::append(v);
+        return (fastring&) fast::stream::append(v);
     }
 
     fastring& operator+=(const char* s) {
@@ -83,20 +86,20 @@ class fastring : public fast::bastream {
     }
 
     fastring& operator<<(const char* s) {
-        return (fastring&) fast::bastream::operator<<(s);
+        return (fastring&) fast::stream::operator<<(s);
     }
 
     fastring& operator<<(const std::string& s) {
-        return (fastring&) fast::bastream::operator<<(s);
+        return (fastring&) fast::stream::operator<<(s);
     }
 
     fastring& operator<<(const fastring& s) {
-        return (fastring&) this->_Append(s.data(), s.size());
+        return (fastring&) this->append(s);
     }
 
     template<typename T>
     fastring& operator<<(T v) {
-        return (fastring&) fast::bastream::operator<<(v);
+        return (fastring&) fast::stream::operator<<(v);
     }
 
     fastring substr(size_t pos) const {
@@ -110,8 +113,8 @@ class fastring : public fast::bastream {
         return fastring(_p + pos, len < n ? len : n);
     }
 
-    // find, rfind, find_xxx_of are based on strrchr, strstr, strcspn, strspn, 
-    // etc, and they are not applicable to strings containing binary characters.
+    // find, rfind, find_xxx_of are implemented based on strrchr, strstr, 
+    // strcspn, strspn, etc. Do not apply them to binary strings.
     size_t find(char c) const {
         if (this->empty()) return npos;
         char* p = (char*) memchr(_p, c, _size);
@@ -234,10 +237,10 @@ class fastring : public fast::bastream {
     }
 
   private:
-    void _Init(size_t cap, size_t size, void* p) {
+    void _Init(size_t cap, size_t size) {
         _cap = cap;
         _size = size;
-        _p = (char*) p;
+        _p = (char*) malloc(_cap);
     }
 
     bool _Inside(const char* p) const {

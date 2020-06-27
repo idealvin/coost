@@ -7,7 +7,7 @@ fastring& fastring::operator=(const fastring& s) {
     if (_size == 0) return *this;
 
     this->reserve(_size + 1);
-    memcpy(_p, s._p, _size);
+    memcpy(_p, s.data(), _size);
     return *this;
 }
 
@@ -35,7 +35,6 @@ fastring& fastring::operator=(const char* s) {
     return *this;
 }
 
-// inside check was done to append the data safely
 fastring& fastring::append(const void* x, size_t n) {
     const char* p = (const char*) x;
 
@@ -118,7 +117,7 @@ size_t fastring::find_last_not_of(const char* s) const {
 }
 
 size_t fastring::find_last_not_of(char c) const {
-    if (!_p) return npos;
+    if (this->empty()) return npos;
     for (size_t i = _size; i > 0;) {
         if (_p[--i] != c) return i;
     }
@@ -126,7 +125,7 @@ size_t fastring::find_last_not_of(char c) const {
 }
 
 void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
-    if (!_p) return;
+    if (this->empty()) return;
 
     const char* from = this->c_str();
     const char* p = strstr(from, sub);
@@ -144,8 +143,8 @@ void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
     } while ((p = strstr(from, sub)));
 
     if (from < _p + _size) s.append(from);
-    this->resize(s.size());
-    memcpy(_p, s.data(), s.size());
+
+    this->swap(s);
 }
 
 void fastring::strip(const char* s, char d) {
@@ -196,7 +195,6 @@ bool fastring::match(const char* p) const {
 }
 
 fastring& fastring::toupper() {
-    if (!_p) return *this;
     for (size_t i = 0; i < _size; ++i) {
         char& c = _p[i];
         if ('a' <= c && c <= 'z') c ^= 32;
@@ -205,7 +203,6 @@ fastring& fastring::toupper() {
 }
 
 fastring& fastring::tolower() {
-    if (!_p) return *this;
     for (size_t i = 0; i < _size; ++i) {
         char& c = _p[i];
         if ('A' <= c && c <= 'Z') c ^= 32;

@@ -115,9 +115,11 @@ class Value {
     }
 
     Value& operator=(Value&& v) noexcept {
-        if (_mem) this->_UnRef();
-        _mem = v._mem;
-        v._mem = 0;
+        if (&v != this) {
+            if (_mem) this->_UnRef();
+            _mem = v._mem;
+            v._mem = 0;
+        }
         return *this;
     }
 
@@ -326,7 +328,7 @@ class Value {
     fastring dbg() const {
         fastring s(256);
         this->_Json2dbg(*(fastream*)&s);
-        return s;
+        return std::move(s);
     }
 
     void dbg(fastream& fs) const {
@@ -337,7 +339,7 @@ class Value {
     fastring pretty(int indent = 4) const {
         fastring s(256);
         this->_Json2pretty(indent, indent, *(fastream*)&s);
-        return s;
+        return std::move(s);
     }
 
     bool parse_from(const char* s, size_t n);

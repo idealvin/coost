@@ -24,8 +24,16 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.size(), 0);
         EXPECT_EQ(fs.str(), "");
 
+        s = x.data();
+        x = std::move(x);
+        EXPECT_EQ(x.str(), "xx");
+        EXPECT_EQ(x.data(), s);
+
         fs << "xx";
         EXPECT_EQ(fs.size(), 2);
+        EXPECT_EQ(fs.str(), "xx");
+
+        fs.append(s, 0);
         EXPECT_EQ(fs.str(), "xx");
 
         fs.clear();
@@ -50,14 +58,16 @@ DEF_test(fastream) {
         fastream fs;
         fs << false << ' ' << true;
         EXPECT_EQ(fs.str(), "false true");
+        EXPECT_EQ((fastream() << false << ' ' << true).str(), "false true");
     }
 
     DEF_case(char) {
         char c = 'c';
-        unsigned char uc = 'a';
+        unsigned char uc = 'c';
+        const char& x = c;
         fastream fs;
-        fs << c << ' ' << uc;
-        EXPECT_EQ(fs.str(), "c 97");
+        fs << c << ' ' << uc << ' ' << x;
+        EXPECT_EQ(fs.str(), "c 99 c");
     }
 
     DEF_case(int) {
@@ -75,24 +85,35 @@ DEF_test(fastream) {
     }
 
     DEF_case(float) {
-        float f = 3.14f;
+        float f = 0.5f;
         double d = 3.14159;
 
         fastream fs;
         fs << f;
         EXPECT_NE(fs.str(), "");
+        EXPECT_EQ(fs.str(), "0.5");
         fs.clear();
 
         fs << d;
         EXPECT_NE(fs.str(), "");
+        EXPECT_EQ(fs.str(), "3.14159");
     }
 
     DEF_case(string) {
         const char* cs = "cs";
         std::string s = "s";
+        fastring f = "xxx";
         fastream fs;
-        fs << cs << s;
-        EXPECT_EQ(fs.str(), "css");
+        fs << cs << s << f;
+        EXPECT_EQ(fs.str(), "cssxxx");
+        EXPECT_EQ((fastream() << cs << s << f).str(), "cssxxx");
+
+        fs.clear();
+        fs << fs;
+        EXPECT_EQ(fs.str(), "");
+        fs << "x";
+        fs << fs;
+        EXPECT_EQ(fs.str(), "xx");
     }
 
     DEF_case(ptr) {
@@ -104,11 +125,33 @@ DEF_test(fastream) {
     }
 
     DEF_case(binary) {
-        int i = 3;
+        uint8 u8 = 8;
+        uint16 u16 = 16;
+        uint32 u32 = 32;
+        uint64 u64 = 64;
+
         fastream fs;
-        fs.append(i);
-        EXPECT_EQ(fs.size(), sizeof(int));
-        EXPECT_EQ(*((const int*) fs.data()), 3);
+        fs.append(u8);
+        EXPECT_EQ(fs.size(), sizeof(u8));
+        EXPECT_EQ(*((const uint8*) fs.data()), 8);
+
+        fs.clear();
+        fs.append(u16);
+        EXPECT_EQ(fs.size(), sizeof(u16));
+        EXPECT_EQ(*((const uint16*) fs.data()), 16);
+
+        fs.clear();
+        fs.append(u32);
+        EXPECT_EQ(fs.size(), sizeof(u32));
+        EXPECT_EQ(*((const uint32*) fs.data()), 32);
+
+        fs.clear();
+        fs.append(u64);
+        EXPECT_EQ(fs.size(), sizeof(u64));
+        EXPECT_EQ(*((const uint64*) fs.data()), 64);
+
+        fs.append(fs);
+        EXPECT_EQ(fs.size(), sizeof(u64) * 2);
     }
 
     DEF_case(big_data) {
@@ -126,6 +169,12 @@ DEF_test(fastream) {
         fs.swap(sd);
         EXPECT_EQ(fs.str(), "sd");
         EXPECT_EQ(sd.str(), "fs");
+
+        fs.swap(fastream());
+        EXPECT_EQ(fs.capacity(), 0);
+        EXPECT_EQ(fs.size(), 0);
+        EXPECT_EQ(fs.data(), (const char*)0);
+        EXPECT_EQ(fs.str(), "");
     }
 
     DEF_case(max_size) {

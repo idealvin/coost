@@ -14,10 +14,20 @@ DEF_test(fastring) {
 
         fastring x(std::string("888"));
         EXPECT_EQ(x, "888");
+
+        fastring y = std::move(x);
+        EXPECT_EQ(y, "888");
+        EXPECT_EQ(x, "");
+        EXPECT_EQ(x.capacity(), 0);
+        EXPECT_EQ(x.size(), 0);
+        EXPECT_EQ(x.data(), (const char*)0);
     }
 
     DEF_case(append) {
         fastring s;
+        s.append(s);
+        EXPECT_EQ(s, "");
+
         s.append('x', 3);
         EXPECT_EQ(s.size(), 3);
         EXPECT_EQ(s, "xxx");
@@ -51,6 +61,10 @@ DEF_test(fastring) {
         s.swap(fastring());
         s.append('x');
         EXPECT_EQ(s, "x");
+
+        std::string x("xx");
+        s.append(x);
+        EXPECT_EQ(s, "xxx");
     }
 
     DEF_case(substr) {
@@ -59,6 +73,8 @@ DEF_test(fastring) {
         EXPECT_EQ(s.substr(0, 2), "he");
         EXPECT_EQ(s.substr(5), "world");
         EXPECT_EQ(s.substr(5, 2), "wo");
+        EXPECT_EQ(s.substr(88), "");
+        EXPECT_EQ(s.substr(88, 2), "");
     }
 
     DEF_case(cmp) {
@@ -141,15 +157,12 @@ DEF_test(fastring) {
 
     DEF_case(replace) {
         fastring s("1122332211");
-        const char* p = s.data();
 
         s.replace("22", "xx");
         EXPECT_EQ(s, "11xx33xx11");
-        EXPECT_EQ(s.data(), p);
 
         s.replace("xx", "22", 1);
         EXPECT_EQ(s, "112233xx11");
-        EXPECT_EQ(s.data(), p);
 
         s = "xxxxx";
         s.replace("xx", "yy");
@@ -162,6 +175,9 @@ DEF_test(fastring) {
         s = "xxxxxxxxx";
         s.replace("xxx", "x");
         EXPECT_EQ(s, "xxx");
+
+        s.replace("x", "xx");
+        EXPECT_EQ(s, "xxxxxx");
     }
 
     DEF_case(strip) {
