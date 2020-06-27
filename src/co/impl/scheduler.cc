@@ -149,7 +149,7 @@ void Scheduler::loop() {
             }
             if (!timer_task_co.empty()) {
                 for (auto it = timer_task_co.begin(); it != timer_task_co.end(); ++it) {
-                    if (it->first->ev != ev_ready) continue;
+                    if (it->first->state != S_ready) continue;
                     if (it->second != null_timer_id) this->del_timer(it->second);
                     this->resume(it->first);
                 }
@@ -190,7 +190,7 @@ void Scheduler::check_timeout(std::vector<Coroutine*>& res) {
         for (; it != _timer.end(); ++it) {
             if (it->first > now_ms) break;
             Coroutine* co = it->second;
-            if (co->ev != 0) atomic_swap(&co->ev, 0);
+            if (co->state != S_init) atomic_swap(&co->state, S_init);
             SOLOG << ">>> timedout timer: " << COTID(it);
             res.push_back(co);
         }
@@ -266,6 +266,10 @@ void stop() {
 
 std::vector<Scheduler*>& schedulers() {
     return sched_mgr().schedulers();
+}
+
+int max_sched_num() {
+    return os::cpunum();
 }
 
 int sched_id() {

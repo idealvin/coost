@@ -31,26 +31,28 @@ extern __thread Scheduler* gSched;
 
 std::vector<Scheduler*>& schedulers();
 
-enum _Event_status {
-    ev_wait = 1,
-    ev_ready = 2,
+enum _State {
+    S_init = 0,    // initial state
+    S_wait = 1,    // wait for a event
+    S_ready = 2,   // ready to resume
+    S_timeout = 3, // timeout
 };
 
 struct Coroutine {
     Coroutine()
-        : id(0), ev(0), ctx(0), stack(0), cb(0) {
+        : id(0), state(S_init), ctx(0), stack(0), cb(0) {
     }
 
     Coroutine(int i, Closure* c)
-        : id(i), ev(0), ctx(0), stack(0), cb(c) {
+        : id(i), state(S_init), ctx(0), stack(0), cb(c) {
     }
 
     ~Coroutine() {
         if (stack) delete stack;
     }
 
-    int id; // coroutine id
-    int ev; // event status
+    int id;     // coroutine id
+    int state;  // coroutine state
 
     tb_context_t ctx;  // context, a pointer points to the stack bottom
     fastream* stack;   // save stack data for this coroutine
@@ -222,7 +224,7 @@ inline Coroutine* Scheduler::new_coroutine(Closure* cb) {
         Coroutine* co = _co_pool[_co_ids.back()];
         co->cb = cb;
         co->ctx = 0;
-        co->ev = 0;
+        co->state = S_init;
         _co_ids.pop_back();
         return co;
     } else {

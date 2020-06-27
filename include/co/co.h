@@ -66,13 +66,18 @@ void sleep(unsigned int ms);
 // stop coroutine schedulers
 void stop();
 
-// scheduler id, return -1 if the current thread is not a coroutine scheduler.
+// max number of schedulers. It is os::cpunum() right now.
+// scheduler id is from 0 to max_sched_num-1.
+int max_sched_num();
+
+// id of the current scheduler, -1 for non-scheduler
 int sched_id();
 
-// coroutine id, return -1 if the current thread is not a coroutine.
+// id of the current coroutine, -1 for non-coroutine
 int coroutine_id();
 
-// for communications between coroutines
+// co::Event is for communications between coroutines.
+// It's similar to SyncEvent for threads.
 class Event {
   public:
     Event();
@@ -83,18 +88,23 @@ class Event {
     Event(const Event&) = delete;
     void operator=(const Event&) = delete;
 
-    void wait();                     // must be called in coroutine
+    // MUST be called in coroutine
+    void wait();
 
     // return false if timeout
-    bool wait(unsigned int ms);      // must be called in coroutine
+    // MUST be called in coroutine
+    bool wait(unsigned int ms);
 
     // wakeup all waiting coroutines
-    void signal();                   // can be called from anywhere
+    // can be called from anywhere
+    void signal();
 
   private:
     void* _p;
 };
 
+// co::Mutex is a mutex lock for coroutines.
+// It's similar to ::Mutex for threads.
 class Mutex {
   public:
     Mutex();
@@ -105,11 +115,14 @@ class Mutex {
     Mutex(const Mutex&) = delete;
     void operator=(const Mutex&) = delete;
 
-    void lock();     // must be called in coroutine
+    // MUST be called in coroutine
+    void lock();
 
-    void unlock();   // can be called from anywhere
+    // can be called from anywhere
+    void unlock();
 
-    bool try_lock(); // can be called from anywhere
+    // can be called from anywhere
+    bool try_lock();
 
   private:
     void* _p;
@@ -117,7 +130,9 @@ class Mutex {
 
 typedef LockGuard<co::Mutex> MutexGuard;
 
-// pop/push is coroutine-safe, must be called in coroutine.
+// co::Pool is a general pool for coroutines.
+// It stores void* pointers internally.
+// It is coroutine-safe. Each thread has its own pool.
 class Pool {
   public:
     Pool();
@@ -128,16 +143,29 @@ class Pool {
     Pool(const Pool&) = delete;
     void operator=(const Pool&) = delete;
 
-    // pop an element from the pool, return NULL if the pool is empty
+    // set a create callback
+    // when pop from an empty pool, this callback is used to create an element
+    //   set_create_cb([]() { return (void*) new T; });
+    void set_create_cb(std::function<void*()>&& cb);
+
+    // set a destroy callback
+    // this callback is used to destroy an element when needed
+    //   set_destroy_cb([](void* p) { delete (T*)p; });
+    void set_destroy_cb(std::function<void(void*)>&& cb);
+
+    // set max capacity of the pool for each thread
+    // this argument is ignored if the destory callback is not set
+    void set_max_capacity(size_t cap);
+
+    // pop an element from the pool
+    // return NULL if the pool is empty and the create callback is not set
+    // MUST be called in coroutine
     void* pop();
 
-    // push an element to the pool, nothing is done if p == NULL
+    // push an element to the pool
+    // nothing is done if p is NULL
+    // MUST be called in coroutine
     void push(void* p);
-
-    // clear pool for the current thread.
-    // a callback may be set to destroy elements in the pool:
-    //   [](void* p) { delete (T*) p; }
-    void clear(const std::function<void(void*)>& cb=0);
 
   private:
     void* _p;
