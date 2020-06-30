@@ -17,20 +17,17 @@ class IoEvent {
         if (_id != null_timer_id) gSched->del_timer(_id);
     }
 
-    bool wait(int ms=-1, bool speedup=true) {
-        if (ms < 0) {
-            gSched->yield();
-            return true;
-        } else {
-            if (_id == null_timer_id) _id = gSched->add_timer(ms, speedup);
-            gSched->yield();
-            if (!gSched->timeout()) return true;
+    bool wait(int ms=-1) {
+        if (ms < 0) { gSched->yield(); return true; }
+        
+        if (_id == null_timer_id) _id = gSched->add_io_timer(ms);
+        gSched->yield();
+        if (!gSched->timeout()) return true;
 
-            ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
-            _id = null_timer_id;
-            WSASetLastError(ETIMEDOUT);
-            return false;
-        }
+        ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
+        _id = null_timer_id;
+        WSASetLastError(ETIMEDOUT);
+        return false;
     }
 
   private:
@@ -51,21 +48,17 @@ class IoEvent {
         if (_id != null_timer_id) gSched->del_timer(_id);
     }
 
-    bool wait(int ms=-1, bool speedup=true) {
+    bool wait(int ms=-1) {
         if (!_has_ev) _has_ev = gSched->add_event(_fd, _ev);
+        if (ms < 0) { gSched->yield(); return true; }
 
-        if (ms < 0) {
-            gSched->yield();
-            return true;
-        } else {
-            if (_id == null_timer_id) _id = gSched->add_timer(ms, speedup);
-            gSched->yield();
-            if (!gSched->timeout()) return true;
+        if (_id == null_timer_id) _id = gSched->add_io_timer(ms);
+        gSched->yield();
+        if (!gSched->timeout()) return true;
 
-            _id = null_timer_id;
-            errno = ETIMEDOUT;
-            return false;
-        }
+        _id = null_timer_id;
+        errno = ETIMEDOUT;
+        return false;
     }
 
   private:

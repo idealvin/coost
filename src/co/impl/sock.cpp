@@ -175,7 +175,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        if (!ev.wait(ms, false)) return -1; // timeout
+        if (!ev.wait(ms)) return -1; // timeout
     }
 
     r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
@@ -453,7 +453,7 @@ bool _Can_skip_iocp_on_success() {
     return true;
 }
 
-void _Wsa_startup() {
+void wsa_startup() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
 
@@ -497,7 +497,7 @@ void _Wsa_startup() {
     can_skip_iocp_on_success = _Can_skip_iocp_on_success();
 }
 
-void _Wsa_cleanup() {
+void wsa_cleanup() {
     WSACleanup();
 }
 

@@ -1,8 +1,34 @@
 #include "co/co.h"
+#include "co/os.h"
 #include "scheduler.h"
 #include <deque>
 
 namespace co {
+
+void go(Closure* cb) {
+    sched_mgr().next()->add_task(cb);
+}
+
+void sleep(uint32 ms) {
+    gSched ? gSched->sleep(ms) : sleep::ms(ms);
+}
+
+void stop() {
+    sched_mgr().stop();
+}
+
+int max_sched_num() {
+    static int kMaxSchedNum = os::cpunum();
+    return kMaxSchedNum;
+}
+
+int sched_id() {
+    return gSched ? gSched->id() : -1;
+}
+
+int coroutine_id() {
+    return (gSched && gSched->running()) ? gSched->running()->id : -1;
+}
 
 class EventImpl {
   public:
@@ -40,7 +66,7 @@ bool EventImpl::wait(unsigned int ms) {
     co->state = S_wait;
     if (co->s != gSched) co->s = gSched;
 
-    timer_id_t id = gSched->add_timer(ms, false);
+    timer_id_t id = gSched->add_timer(ms);
     {
         ::MutexGuard g(_mtx);
         _co_wait.insert(std::make_pair(co, id));
@@ -66,7 +92,11 @@ void EventImpl::signal() {
     for (auto it = co_wait.begin(); it != co_wait.end(); ++it) {
         Coroutine* co = it->first;
         if (atomic_compare_swap(&co->state, S_wait, S_ready) == S_wait) {
-            co->s->add_task(co, it->second);
+            if (it->second != null_timer_id) {
+                co->s->add_task(co, it->second);
+            } else {
+                co->s->add_task(co);
+            }
         }
     }
 }
@@ -108,6 +138,11 @@ class MutexImpl {
     bool _lock;
 };
 
+inline bool MutexImpl::try_lock() {
+    ::MutexGuard g(_mtx);
+    return _lock ? false : (_lock = true);
+}
+
 inline void MutexImpl::lock() {
     CHECK(gSched) << "must be called in coroutine..";
     _mtx.lock();
@@ -134,11 +169,6 @@ inline void MutexImpl::unlock() {
         _mtx.unlock();
         co->s->add_task(co);
     }
-}
-
-inline bool MutexImpl::try_lock() {
-    ::MutexGuard g(_mtx);
-    return _lock ? false : (_lock = true);
 }
 
 Mutex::Mutex() {

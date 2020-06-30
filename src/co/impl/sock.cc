@@ -89,7 +89,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
         if (errno == EINPROGRESS) {
             IoEvent ev(fd, EV_write);
-            if (!ev.wait(ms, false)) return -1;
+            if (!ev.wait(ms)) return -1;
 
             int err, len = sizeof(err);
             r = co::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);

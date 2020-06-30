@@ -4,7 +4,6 @@
 #include "closure.h"
 #include "byte_order.h"
 #include "fastring.h"
-#include "thread.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -23,7 +22,7 @@ typedef SOCKET sock_t;
 #include <netinet/in.h>  // for struct sockaddr_in
 #include <netinet/tcp.h> // for TCP_NODELAY...
 #include <arpa/inet.h>   // for inet_ntop...
-#include <netdb.h>
+#include <netdb.h>       // getaddrinfo, gethostby...
 
 typedef int sock_t;
 #endif
@@ -36,7 +35,6 @@ namespace co {
 //   void f(void*);          // func with a param
 //   void T::f();            // method in a class
 //   std::function<void()>;
-
 void go(Closure* cb);
 
 inline void go(void (*f)()) {
@@ -104,7 +102,7 @@ class Event {
 };
 
 // co::Mutex is a mutex lock for coroutines.
-// It's similar to ::Mutex for threads.
+// It's similar to Mutex for threads.
 class Mutex {
   public:
     Mutex();
@@ -128,7 +126,26 @@ class Mutex {
     void* _p;
 };
 
-typedef LockGuard<co::Mutex> MutexGuard;
+class MutexGuard {
+  public:
+    explicit MutexGuard(co::Mutex& lock) : _lock(lock) {
+        _lock.lock();
+    }
+
+    explicit MutexGuard(co::Mutex* lock) : _lock(*lock) {
+        _lock.lock();
+    }
+
+    MutexGuard(const MutexGuard&) = delete;
+    void operator=(const MutexGuard&) = delete;
+
+    ~MutexGuard() {
+        _lock.unlock();
+    }
+
+  private:
+    co::Mutex& _lock;
+};
 
 // co::Pool is a general pool for coroutines.
 // It stores void* pointers internally.
@@ -171,35 +188,49 @@ class Pool {
     void* _p;
 };
 
+// pop an element from co::Pool in constructor, and push it back in destructor.
+// The element is stored internally as a pointer of type T*.
+// As owner of the pointer, its behavior is similar to std::unique_ptr.
 template<typename T>
-class Kakalot {
+class PoolGuard {
   public:
-    explicit Kakalot(Pool& pool) : _pool(pool) {
+    explicit PoolGuard(Pool& pool) : _pool(pool) {
         _p = (T*) _pool.pop();
     }
 
-    explicit Kakalot(Pool* pool) : _pool(*pool) {
+    explicit PoolGuard(Pool* pool) : _pool(*pool) {
         _p = (T*) _pool.pop();
     }
 
-    ~Kakalot() {
+    PoolGuard(const PoolGuard&) = delete;
+    void operator=(const PoolGuard&) = delete;
+
+    ~PoolGuard() {
         _pool.push(_p);
+    }
+
+    T* get() const {
+        return _p;
+    }
+
+    void reset(T* p = 0) {
+        if (_p != p) { delete _p; _p = p; }
+    }
+
+    void operator=(T* p) {
+        this->reset(p);
+    }
+
+    T* operator->() const {
+        return _p;
     }
 
     bool operator==(T* p) const {
         return _p == p;
     }
 
-    bool operator!() const {
-        return !_p;
-    }
-
-    void operator=(T* p) {
-        if (_p != p) { delete _p; _p = p; }
-    }
-
-    T* operator->() const {
-        return _p;
+    bool operator!=(T* p) const {
+        return _p != p;
     }
 
   private:

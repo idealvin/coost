@@ -44,27 +44,24 @@ class Mutex {
     DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
-template<typename T>
-class LockGuard {
+class MutexGuard {
   public:
-    explicit LockGuard(T& lock) : _lock(lock) {
+    explicit MutexGuard(Mutex& lock) : _lock(lock) {
         _lock.lock();
     }
 
-    explicit LockGuard(T* lock) : _lock(*lock) {
+    explicit MutexGuard(Mutex* lock) : _lock(*lock) {
         _lock.lock();
     }
 
-    ~LockGuard() {
+    ~MutexGuard() {
         _lock.unlock();
     }
 
   private:
-    T& _lock;
-    DISALLOW_COPY_AND_ASSIGN(LockGuard);
+    Mutex& _lock;
+    DISALLOW_COPY_AND_ASSIGN(MutexGuard);
 };
-
-typedef LockGuard<Mutex> MutexGuard;
 
 class SyncEvent {
   public:

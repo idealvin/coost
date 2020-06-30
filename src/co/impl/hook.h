@@ -2,14 +2,18 @@
 
 #ifndef _WIN32
 
-#include "co/co.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>  // struct sockaddr_in...
+#include <netdb.h>       // getaddrinfo, gethostby...
 #include <poll.h>
 #include <sys/select.h>
 #ifdef __linux__
-#include <sys/epoll.h>
+#include <sys/epoll.h>   // epoll
 #else
 #include <time.h>
-#include <sys/event.h>
+#include <sys/event.h>   // kevent
 #endif
 
 extern "C" {
