@@ -221,12 +221,12 @@ kevent_fp_t fp_kevent = 0;
 /*
  * From man-pages socket(7):  (man 7 socket)
  * SO_RCVTIMEO and SO_SNDTIMEO
- *     Specify the receiving or sending timeouts until reporting an error. The 
- *     argument is a struct timeval. If an input or output function blocks for 
- *     this period of time, and data has been sent or received, the return value 
- *     of that function will be the amount of data transferred; if no data has 
- *     been transferred and the timeout has been reached, then -1 is returned 
- *     with errno set to EAGAIN or EWOULDBLOCK, or EINPROGRESS (for connect(2)) 
+ *     Specify the receiving or sending timeouts until reporting an error. The
+ *     argument is a struct timeval. If an input or output function blocks for
+ *     this period of time, and data has been sent or received, the return value
+ *     of that function will be the amount of data transferred; if no data has
+ *     been transferred and the timeout has been reached, then -1 is returned
+ *     with errno set to EAGAIN or EWOULDBLOCK, or EINPROGRESS (for connect(2))
  *     just as if the socket was specified to be nonblocking.
  */
 int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {

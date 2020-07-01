@@ -369,7 +369,7 @@ class Value {
     void reset() {
         if (!_mem) return;
         this->_UnRef();
-        _mem = 0;        
+        _mem = 0;
     }
 
   private:

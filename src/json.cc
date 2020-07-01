@@ -404,7 +404,7 @@ const char* read_unicode(const char* b, const char* e, fastream& fs) {
             }
         }
 
-        if (unlikely(u < 0xdc00 || u > 0xdfff)) return 0; 
+        if (unlikely(u < 0xdc00 || u > 0xdfff)) return 0;
         v = 0x10000 + ((v & 0x3ff) << 10) + (u & 0x3ff);
     }
 
@@ -502,11 +502,11 @@ int64 fastatoi(const char* s, size_t n) {
         if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
 
         if (n < 20) return v * 10 + s[i] - '0';
- 
+
         if (n == 20) {
             if (v > (MAX_UINT64 - (s[i] - '0')) / 10) throw 0;
             return v * 10 + s[i] - '0';
-        } 
+        }
 
         throw 0; // n > 20
 
@@ -527,7 +527,7 @@ int64 fastatoi(const char* s, size_t n) {
         if (n == 19) {
             if (v > (static_cast<uint64>(MIN_INT64) - (s[i] - '0')) / 10) throw 0;
             return -static_cast<int64>(v * 10 + s[i] - '0');
-        } 
+        }
 
         throw 0; // n > 19
     }

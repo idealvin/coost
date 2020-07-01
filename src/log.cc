@@ -192,7 +192,7 @@ void LevelLogger::stop() {
     }
 }
 
-// Try to call only async-signal-safe api in this function according to: 
+// Try to call only async-signal-safe api in this function according to:
 //   http://man7.org/linux/man-pages/man7/signal-safety.7.html
 void LevelLogger::safe_stop() {
     if (atomic_compare_swap(&_stop, 0, 1) != 0) return;
