@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include <memory>
+#include <functional>
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -52,7 +53,7 @@ struct Coroutine {
     int id;           // coroutine id
     int state;        // coroutine state
     tb_context_t ctx; // context, a pointer points to the stack bottom
-    fastream stack;  // save stack data for this coroutine
+    fastream stack;   // save stack data for this coroutine
     union {
         Closure* cb;  // coroutine function
         Scheduler* s; // scheduler this coroutines runs in
@@ -161,7 +162,7 @@ class TimerManager {
 
   private:
     std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
-    std::multimap<int64, Coroutine*>::iterator _it; // add_timer() may be faster with it
+    std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 
     ::Mutex _mtx;
     std::unordered_map<Coroutine*, timer_id_t> _timer_tasks; // timer tasks ready to resume
@@ -263,6 +264,11 @@ class Scheduler {
         return (_stack <= (char*)p) && ((char*)p < _stack + _stack_size);
     }
 
+    // the cleanup callbacks are called at the end of loop()
+    void add_cleanup_cb(std::function<void()>&& cb) {
+        _cbs.push_back(std::move(cb));
+    }
+
   private:
     void save_stack(Coroutine* co) {
         co->stack.clear();
@@ -273,6 +279,11 @@ class Scheduler {
         Coroutine* co = _co_pool.pop();
         co->cb = cb;
         return co;
+    }
+
+    void cleanup() {
+        for (size_t i = 0; i < _cbs.size(); ++i) _cbs[i]();
+        _cbs.clear();
     }
 
   private:
@@ -287,6 +298,7 @@ class Scheduler {
     Copool _co_pool;
     TaskManager _task_mgr;
     TimerManager _timer_mgr;
+    std::vector<std::function<void()>> _cbs;
 
     SyncEvent _ev;
     bool _stop;
@@ -306,6 +318,7 @@ class SchedManager {
         return _scheds[now::us() % _scheds.size()];
     }
 
+    // stop all schedulers
     void stop();
 
   private:
@@ -315,9 +328,9 @@ class SchedManager {
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
 };
 
-inline SchedManager& sched_mgr() {
+inline SchedManager* sched_mgr() {
     static SchedManager kSchedMgr;
-    return kSchedMgr;
+    return &kSchedMgr;
 }
 
 } // co

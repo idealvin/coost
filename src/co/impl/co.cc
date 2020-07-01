@@ -6,7 +6,7 @@
 namespace co {
 
 void go(Closure* cb) {
-    sched_mgr().next()->add_task(cb);
+    sched_mgr()->next()->add_task(cb);
 }
 
 void sleep(uint32 ms) {
@@ -14,7 +14,7 @@ void sleep(uint32 ms) {
 }
 
 void stop() {
-    sched_mgr().stop();
+    sched_mgr()->stop();
 }
 
 int max_sched_num() {
@@ -89,6 +89,7 @@ void EventImpl::signal() {
         if (!_co_wait.empty()) _co_wait.swap(co_wait);
     }
 
+    // using atomic operation here, as the timeout-checker may also modify the state
     for (auto it = co_wait.begin(); it != co_wait.end(); ++it) {
         Coroutine* co = it->first;
         if (atomic_compare_swap(&co->state, S_wait, S_ready) == S_wait) {
@@ -193,31 +194,31 @@ bool Mutex::try_lock() {
 
 class PoolImpl {
   public:
+    typedef std::vector<void*> T;
+
     PoolImpl()
-        : _pool(co::max_sched_num()), _maxcap((size_t)-1) {
+        : _pools(co::max_sched_num()), _maxcap((size_t)-1) {
     }
 
-    ~PoolImpl();
-
-    void set_create_cb(std::function<void*()>&& cb) {
-        _create_cb = std::move(cb);
+    // @ccb:  a create callback       []() { return (void*) new T; }
+    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
+    // @cap:  max capacity for each pool
+    PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
+        : _pools(co::max_sched_num()), _maxcap(cap) {
+        _create_cb = std::move(ccb);
+        _destroy_cb = std::move(dcb);
     }
 
-    void set_destroy_cb(std::function<void(void*)>&& cb) {
-        _destroy_cb = std::move(cb);
-    }
-
-    void set_max_capacity(size_t cap) {
-        _maxcap = cap;
-    }
+    ~PoolImpl() = default;
 
     void* pop() {
         CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pool[gSched->id()];
+        auto& v = _pools[gSched->id()];
+        if (v == NULL) v = this->create_pool();
 
-        if (!v.empty()) {
-            void* p = v.back();
-            v.pop_back();
+        if (!v->empty()) {
+            void* p = v->back();
+            v->pop_back();
             return p;
         } else {
             return _create_cb ? _create_cb() : 0;
@@ -228,33 +229,40 @@ class PoolImpl {
         if (!p) return; // ignore null pointer
 
         CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pool[gSched->id()];
+        auto& v = _pools[gSched->id()];
+        if (v == NULL) v = this->create_pool();
 
-        if (!_destroy_cb || v.size() < _maxcap) { 
-            v.push_back(p);
+        if (!_destroy_cb || v->size() < _maxcap) {
+            v->push_back(p);
         } else {
             _destroy_cb(p);
         }
     }
 
   private:
-    std::vector<std::vector<void*>> _pool;
+    // It is not safe to cleanup the pool from outside the Scheduler.
+    // So we add a cleanup callback to the Scheduler. It will be called 
+    // at the end of Scheduler::loop().
+    T* create_pool() {
+        T* v = new T();
+        v->reserve(1024);
+        gSched->add_cleanup_cb(std::bind(&PoolImpl::cleanup, v, _destroy_cb));
+        return v;
+    }
+
+    static void cleanup(T* p, const std::function<void(void*)>& dcb) {
+        if (dcb) {
+            for (size_t i = 0; i < p->size(); ++i) dcb((*p)[i]);
+        }
+        delete p;
+    }
+
+  private:
+    std::vector<T*> _pools;
     std::function<void*()> _create_cb;
     std::function<void(void*)> _destroy_cb;
     size_t _maxcap;
 };
-
-PoolImpl::~PoolImpl() {
-    if (!_destroy_cb) return;
-
-    for (size_t i = 0; i < _pool.size(); ++i) {
-        auto& v = _pool[i];
-        for (size_t k = 0; k < v.size(); ++k) {
-            _destroy_cb(v[k]);
-        }
-        v.clear();
-    }
-}
 
 Pool::Pool() {
     _p = new PoolImpl;
@@ -264,16 +272,8 @@ Pool::~Pool() {
     delete (PoolImpl*) _p;
 }
 
-void Pool::set_create_cb(std::function<void*()>&& cb) {
-    ((PoolImpl*)_p)->set_create_cb(std::move(cb));
-}
-
-void Pool::set_destroy_cb(std::function<void(void*)>&& cb) {
-    ((PoolImpl*)_p)->set_destroy_cb(std::move(cb));
-}
-
-void Pool::set_max_capacity(size_t cap) {
-    ((PoolImpl*)_p)->set_max_capacity(cap);
+Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
+    _p = new PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
 
 void* Pool::pop() {

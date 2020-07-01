@@ -228,6 +228,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
+// a thread-safe wrapper for strerror()
 const char* strerror(int err) {
     static __thread std::unordered_map<int, const char*>* kErrStr = 0;
     if (!kErrStr) kErrStr = new std::unordered_map<int, const char*>();

@@ -150,6 +150,7 @@ void Scheduler::loop() {
         } while (0);
     }
 
+    this->cleanup();
     _ev.signal();
 }
 

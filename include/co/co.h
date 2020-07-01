@@ -155,24 +155,20 @@ class Pool {
     Pool();
     ~Pool();
 
+    // @ccb:  a create callback       []() { return (void*) new T; }
+    //   when pop from an empty pool, this callback is used to create an element
+    //
+    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
+    //   this callback is used to destroy an element when needed
+    //
+    // @cap:  max capacity of the pool for each thread
+    //   this argument is ignored if the destory callback is not set
+    Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap=(size_t)-1);
+
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
     Pool(const Pool&) = delete;
     void operator=(const Pool&) = delete;
-
-    // set a create callback
-    // when pop from an empty pool, this callback is used to create an element
-    //   set_create_cb([]() { return (void*) new T; });
-    void set_create_cb(std::function<void*()>&& cb);
-
-    // set a destroy callback
-    // this callback is used to destroy an element when needed
-    //   set_destroy_cb([](void* p) { delete (T*)p; });
-    void set_destroy_cb(std::function<void(void*)>&& cb);
-
-    // set max capacity of the pool for each thread
-    // this argument is ignored if the destory callback is not set
-    void set_max_capacity(size_t cap);
 
     // pop an element from the pool
     // return NULL if the pool is empty and the create callback is not set
@@ -343,6 +339,7 @@ inline void set_cloexec(sock_t fd) {
 }
 #endif
 
+// fill in ipv4 addr with ip & port
 inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
@@ -350,6 +347,7 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     return inet_pton(AF_INET, ip, &addr->sin_addr) == 1;
 }
 
+// fill in ipv6 addr with ip & port
 inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin6_family = AF_INET6;
@@ -357,12 +355,14 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
 }
 
+// get ip string from ipv4 addr
 inline fastring ip_str(struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
+// get ip string from ipv6 addr
 inline fastring ip_str(struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
