@@ -7,8 +7,6 @@ fi
 
 cd "$(dirname "$0")"
 
-incdir="include/co"
-srcdir=
 src=`ls include/co/*.h include/co/*/*.h */*.cc */*/*.{h,cc,cpp} */*/*/*.{h,cc,cpp}`
 
 for x in $src
