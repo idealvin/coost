@@ -15,8 +15,7 @@ DEF_int32(rpc_recv_timeout, 1024, "#2 recv timeout in ms");
 DEF_int32(rpc_send_timeout, 1024, "#2 send timeout in ms");
 DEF_int32(rpc_conn_timeout, 3000, "#2 connect timeout in ms");
 DEF_int32(rpc_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
-DEF_int32(rpc_max_idle_conn, 1024, "#2 max idle connections");
-DEF_bool(rpc_tcp_nodelay, true, "#2 enable tcp nodelay if true");
+DEF_int32(rpc_max_idle_conn, 128, "#2 max idle connections");
 DEF_bool(rpc_log, true, "#2 enable rpc log if true");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
@@ -127,7 +126,7 @@ void ServerImpl::on_connection(Connection* conn) {
     std::unique_ptr<Connection> c(conn);
     sock_t fd = conn->fd;
     co::set_tcp_keepalive(fd);
-    if (FLG_rpc_tcp_nodelay) co::set_tcp_nodelay(fd);
+    co::set_tcp_nodelay(fd);
     
     if (!_passwd.empty() && !this->auth(conn)) {
         ELOG << "auth failed, reset connection from " << *conn << " 3 seconds later..";
@@ -410,7 +409,7 @@ bool ClientImpl::connect() {
         return false;
     }
 
-    if (FLG_rpc_tcp_nodelay) co::set_tcp_nodelay(_fd);
+    co::set_tcp_nodelay(_fd);
 
     if (!_passwd.empty() && !this->auth()) {
         this->disconnect();
