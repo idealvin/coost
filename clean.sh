@@ -7,7 +7,7 @@ fi
 
 cd "$(dirname "$0")"
 
-src=`ls *.{h,cc} */*.{h,cc,cpp} */*/*.{h,cc}`
+src=`ls include/co/*.h include/co/*/*.h */*.cc */*/*.{h,cc,cpp} */*/*/*.{h,cc,cpp}`
 
 for x in $src
 do

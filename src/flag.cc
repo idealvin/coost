@@ -228,7 +228,7 @@ void mkconf(const fastring& exe) {
         flags[f->lv][fastring(f->file)][f->line] = f;
     }
 
-    fastring fname(exe.clone());
+    fastring fname(exe);
     if (fname.ends_with(".exe")) fname.resize(fname.size() - 4);
     fname += ".conf";
 

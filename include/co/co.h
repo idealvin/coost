@@ -4,7 +4,6 @@
 #include "closure.h"
 #include "byte_order.h"
 #include "fastring.h"
-#include "thread.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -23,7 +22,7 @@ typedef SOCKET sock_t;
 #include <netinet/in.h>  // for struct sockaddr_in
 #include <netinet/tcp.h> // for TCP_NODELAY...
 #include <arpa/inet.h>   // for inet_ntop...
-#include <netdb.h>
+#include <netdb.h>       // getaddrinfo, gethostby...
 
 typedef int sock_t;
 #endif
@@ -36,7 +35,6 @@ namespace co {
 //   void f(void*);          // func with a param
 //   void T::f();            // method in a class
 //   std::function<void()>;
-
 void go(Closure* cb);
 
 inline void go(void (*f)()) {
@@ -66,13 +64,18 @@ void sleep(unsigned int ms);
 // stop coroutine schedulers
 void stop();
 
-// scheduler id, return -1 if the current thread is not a coroutine scheduler.
+// max number of schedulers. It is os::cpunum() right now.
+// scheduler id is from 0 to max_sched_num-1.
+int max_sched_num();
+
+// id of the current scheduler, -1 for non-scheduler
 int sched_id();
 
-// coroutine id, return -1 if the current thread is not a coroutine.
+// id of the current coroutine, -1 for non-coroutine
 int coroutine_id();
 
-// for communications between coroutines
+// co::Event is for communications between coroutines.
+// It's similar to SyncEvent for threads.
 class Event {
   public:
     Event();
@@ -83,18 +86,23 @@ class Event {
     Event(const Event&) = delete;
     void operator=(const Event&) = delete;
 
-    void wait();                     // must be called in coroutine
+    // MUST be called in coroutine
+    void wait();
 
     // return false if timeout
-    bool wait(unsigned int ms);      // must be called in coroutine
+    // MUST be called in coroutine
+    bool wait(unsigned int ms);
 
     // wakeup all waiting coroutines
-    void signal();                   // can be called from anywhere
+    // can be called from anywhere
+    void signal();
 
   private:
     void* _p;
 };
 
+// co::Mutex is a mutex lock for coroutines.
+// It's similar to Mutex for threads.
 class Mutex {
   public:
     Mutex();
@@ -105,73 +113,120 @@ class Mutex {
     Mutex(const Mutex&) = delete;
     void operator=(const Mutex&) = delete;
 
-    void lock();     // must be called in coroutine
+    // MUST be called in coroutine
+    void lock();
 
-    void unlock();   // can be called from anywhere
+    // can be called from anywhere
+    void unlock();
 
-    bool try_lock(); // can be called from anywhere
+    // can be called from anywhere
+    bool try_lock();
 
   private:
     void* _p;
 };
 
-typedef LockGuard<co::Mutex> MutexGuard;
+class MutexGuard {
+  public:
+    explicit MutexGuard(co::Mutex& lock) : _lock(lock) {
+        _lock.lock();
+    }
 
-// pop/push is coroutine-safe, must be called in coroutine.
+    explicit MutexGuard(co::Mutex* lock) : _lock(*lock) {
+        _lock.lock();
+    }
+
+    MutexGuard(const MutexGuard&) = delete;
+    void operator=(const MutexGuard&) = delete;
+
+    ~MutexGuard() {
+        _lock.unlock();
+    }
+
+  private:
+    co::Mutex& _lock;
+};
+
+// co::Pool is a general pool for coroutines.
+// It stores void* pointers internally.
+// It is coroutine-safe. Each thread has its own pool.
 class Pool {
   public:
     Pool();
     ~Pool();
+
+    // @ccb:  a create callback       []() { return (void*) new T; }
+    //   when pop from an empty pool, this callback is used to create an element
+    //
+    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
+    //   this callback is used to destroy an element when needed
+    //
+    // @cap:  max capacity of the pool for each thread
+    //   this argument is ignored if the destory callback is not set
+    Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap=(size_t)-1);
 
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
     Pool(const Pool&) = delete;
     void operator=(const Pool&) = delete;
 
-    // pop an element from the pool, return NULL if the pool is empty
+    // pop an element from the pool
+    // return NULL if the pool is empty and the create callback is not set
+    // MUST be called in coroutine
     void* pop();
 
-    // push an element to the pool, nothing is done if p == NULL
+    // push an element to the pool
+    // nothing is done if p is NULL
+    // MUST be called in coroutine
     void push(void* p);
-
-    // clear pool for the current thread.
-    // a callback may be set to destroy elements in the pool:
-    //   [](void* p) { delete (T*) p; }
-    void clear(const std::function<void(void*)>& cb=0);
 
   private:
     void* _p;
 };
 
+// pop an element from co::Pool in constructor, and push it back in destructor.
+// The element is stored internally as a pointer of type T*.
+// As owner of the pointer, its behavior is similar to std::unique_ptr.
 template<typename T>
-class Kakalot {
+class PoolGuard {
   public:
-    explicit Kakalot(Pool& pool) : _pool(pool) {
+    explicit PoolGuard(Pool& pool) : _pool(pool) {
         _p = (T*) _pool.pop();
     }
 
-    explicit Kakalot(Pool* pool) : _pool(*pool) {
+    explicit PoolGuard(Pool* pool) : _pool(*pool) {
         _p = (T*) _pool.pop();
     }
 
-    ~Kakalot() {
+    PoolGuard(const PoolGuard&) = delete;
+    void operator=(const PoolGuard&) = delete;
+
+    ~PoolGuard() {
         _pool.push(_p);
+    }
+
+    T* get() const {
+        return _p;
+    }
+
+    void reset(T* p = 0) {
+        if (_p != p) { delete _p; _p = p; }
+    }
+
+    void operator=(T* p) {
+        this->reset(p);
+    }
+
+    T* operator->() const {
+        return _p;
     }
 
     bool operator==(T* p) const {
         return _p == p;
     }
 
-    bool operator!() const {
-        return !_p;
-    }
-
-    void operator=(T* p) {
-        if (_p != p) { delete _p; _p = p; }
-    }
-
-    T* operator->() const {
-        return _p;
+    bool operator!=(T* p) const {
+        return _p != p;
     }
 
   private:
@@ -284,6 +339,7 @@ inline void set_cloexec(sock_t fd) {
 }
 #endif
 
+// fill in ipv4 addr with ip & port
 inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
@@ -291,6 +347,7 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     return inet_pton(AF_INET, ip, &addr->sin_addr) == 1;
 }
 
+// fill in ipv6 addr with ip & port
 inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin6_family = AF_INET6;
@@ -298,12 +355,14 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
 }
 
+// get ip string from ipv4 addr
 inline fastring ip_str(struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
+// get ip string from ipv6 addr
 inline fastring ip_str(struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));

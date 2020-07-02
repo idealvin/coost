@@ -1,10 +1,35 @@
 #include "co/co.h"
+#include "co/os.h"
 #include "scheduler.h"
 #include <deque>
 
 namespace co {
 
-// coroutine Event implementation
+void go(Closure* cb) {
+    sched_mgr()->next()->add_task(cb);
+}
+
+void sleep(uint32 ms) {
+    gSched ? gSched->sleep(ms) : sleep::ms(ms);
+}
+
+void stop() {
+    sched_mgr()->stop();
+}
+
+int max_sched_num() {
+    static int kMaxSchedNum = os::cpunum();
+    return kMaxSchedNum;
+}
+
+int sched_id() {
+    return gSched ? gSched->id() : -1;
+}
+
+int coroutine_id() {
+    return (gSched && gSched->running()) ? gSched->running()->id : -1;
+}
+
 class EventImpl {
   public:
     EventImpl() = default;
@@ -24,7 +49,7 @@ class EventImpl {
 void EventImpl::wait() {
     CHECK(gSched) << "must be called in coroutine..";
     Coroutine* co = gSched->running();
-    co->ev = ev_wait;
+    co->state = S_wait;
     if (co->s != gSched) co->s = gSched;
     {
         ::MutexGuard g(_mtx);
@@ -32,16 +57,16 @@ void EventImpl::wait() {
     }
 
     gSched->yield();
-    co->ev = 0;
+    co->state = S_init;
 }
 
 bool EventImpl::wait(unsigned int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     Coroutine* co = gSched->running();
-    co->ev = ev_wait;
+    co->state = S_wait;
     if (co->s != gSched) co->s = gSched;
 
-    timer_id_t id = gSched->add_timer(ms, false);
+    timer_id_t id = gSched->add_timer(ms);
     {
         ::MutexGuard g(_mtx);
         _co_wait.insert(std::make_pair(co, id));
@@ -53,7 +78,7 @@ bool EventImpl::wait(unsigned int ms) {
         _co_wait.erase(co);
     }
 
-    co->ev = 0;
+    co->state = S_init;
     return !gSched->timeout();
 }
 
@@ -61,13 +86,18 @@ void EventImpl::signal() {
     std::unordered_map<Coroutine*, timer_id_t> co_wait;
     {
         ::MutexGuard g(_mtx);
-        _co_wait.swap(co_wait);
+        if (!_co_wait.empty()) _co_wait.swap(co_wait);
     }
 
+    // using atomic operation here, as the timeout-checker may also modify the state
     for (auto it = co_wait.begin(); it != co_wait.end(); ++it) {
         Coroutine* co = it->first;
-        if (atomic_compare_swap(&co->ev, ev_wait, ev_ready) == ev_wait) {
-            co->s->add_task(co, it->second);
+        if (atomic_compare_swap(&co->state, S_wait, S_ready) == S_wait) {
+            if (it->second != null_timer_id) {
+                co->s->add_task(co, it->second);
+            } else {
+                co->s->add_task(co);
+            }
         }
     }
 }
@@ -92,7 +122,6 @@ void Event::signal() {
     ((EventImpl*)_p)->signal();
 }
 
-// coroutine Mutex implementation
 class MutexImpl {
   public:
     MutexImpl() : _lock(false) {}
@@ -109,6 +138,11 @@ class MutexImpl {
     std::deque<Coroutine*> _co_wait;
     bool _lock;
 };
+
+inline bool MutexImpl::try_lock() {
+    ::MutexGuard g(_mtx);
+    return _lock ? false : (_lock = true);
+}
 
 inline void MutexImpl::lock() {
     CHECK(gSched) << "must be called in coroutine..";
@@ -138,11 +172,6 @@ inline void MutexImpl::unlock() {
     }
 }
 
-inline bool MutexImpl::try_lock() {
-    ::MutexGuard g(_mtx);
-    return _lock ? false : (_lock = true);
-}
-
 Mutex::Mutex() {
     _p = new MutexImpl;
 }
@@ -163,37 +192,76 @@ bool Mutex::try_lock() {
     return ((MutexImpl*)_p)->try_lock();
 }
 
-// coroutine Pool implementation
 class PoolImpl {
   public:
-    PoolImpl() : _pool(os::cpunum()) {}
+    typedef std::vector<void*> T;
+
+    PoolImpl()
+        : _pools(co::max_sched_num()), _maxcap((size_t)-1) {
+    }
+
+    // @ccb:  a create callback       []() { return (void*) new T; }
+    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
+    // @cap:  max capacity for each pool
+    PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
+        : _pools(co::max_sched_num()), _maxcap(cap) {
+        _create_cb = std::move(ccb);
+        _destroy_cb = std::move(dcb);
+    }
+
     ~PoolImpl() = default;
 
     void* pop() {
         CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pool[gSched->id()];
-        if (!v.empty()) {
-            void* p = v.back();
-            v.pop_back();
+        auto& v = _pools[gSched->id()];
+        if (v == NULL) v = this->create_pool();
+
+        if (!v->empty()) {
+            void* p = v->back();
+            v->pop_back();
             return p;
+        } else {
+            return _create_cb ? _create_cb() : 0;
         }
-        return 0;
     }
 
     void push(void* p) {
-        CHECK(gSched) << "must be called in coroutine..";
-        if (p) _pool[gSched->id()].push_back(p);
-    }
+        if (!p) return; // ignore null pointer
 
-    void clear(const std::function<void(void*)>& cb) {
-        if (!gSched) return;
-        auto& v = _pool[gSched->id()];
-        if (cb) for (size_t i = 0; i < v.size(); ++i) cb(v[i]);
-        v.clear();
+        CHECK(gSched) << "must be called in coroutine..";
+        auto& v = _pools[gSched->id()];
+        if (v == NULL) v = this->create_pool();
+
+        if (!_destroy_cb || v->size() < _maxcap) {
+            v->push_back(p);
+        } else {
+            _destroy_cb(p);
+        }
     }
 
   private:
-    std::vector<std::vector<void*>> _pool;
+    // It is not safe to cleanup the pool from outside the Scheduler.
+    // So we add a cleanup callback to the Scheduler. It will be called 
+    // at the end of Scheduler::loop().
+    T* create_pool() {
+        T* v = new T();
+        v->reserve(1024);
+        gSched->add_cleanup_cb(std::bind(&PoolImpl::cleanup, v, _destroy_cb));
+        return v;
+    }
+
+    static void cleanup(T* p, const std::function<void(void*)>& dcb) {
+        if (dcb) {
+            for (size_t i = 0; i < p->size(); ++i) dcb((*p)[i]);
+        }
+        delete p;
+    }
+
+  private:
+    std::vector<T*> _pools;
+    std::function<void*()> _create_cb;
+    std::function<void(void*)> _destroy_cb;
+    size_t _maxcap;
 };
 
 Pool::Pool() {
@@ -204,16 +272,16 @@ Pool::~Pool() {
     delete (PoolImpl*) _p;
 }
 
+Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
+    _p = new PoolImpl(std::move(ccb), std::move(dcb), cap);
+}
+
 void* Pool::pop() {
     return ((PoolImpl*)_p)->pop();
 }
 
 void Pool::push(void* p) {
     ((PoolImpl*)_p)->push(p);
-}
-
-void Pool::clear(const std::function<void(void*)>& cb) {
-    ((PoolImpl*)_p)->clear(cb);
 }
 
 } // co

@@ -26,11 +26,42 @@ enum {
 #ifdef _WIN32
 typedef OVERLAPPED_ENTRY epoll_event;
 
+struct PerIoInfo {
+    PerIoInfo(const void* data, int size, void* c)
+        : n(0), flags(0), co(c), s(data ? 0 : (char*)malloc(size)) {
+        memset(&ol, 0, sizeof(ol));
+        buf.buf = data ? (char*)data : s;
+        buf.len = size;
+    }
+
+    ~PerIoInfo() {
+        if (s) free(s);
+    }
+
+    void move(DWORD n) {
+        buf.buf += n;
+        buf.len -= (ULONG) n;
+    }
+
+    void resetol() {
+        memset(&ol, 0, sizeof(ol));
+    }
+
+    WSAOVERLAPPED ol;
+    DWORD n;            // bytes transfered
+    DWORD flags;        // flags for WSARecv
+    void* co;           // user data, pointer to a coroutine
+    char* s;            // dynamic allocated buffer
+    WSABUF buf;
+};
+
 // single thread for each iocp
 class Epoll {
   public:
     Epoll();
     ~Epoll();
+
+    void close();
 
     bool add_event(sock_t fd, int ev);
 
@@ -73,7 +104,9 @@ class Epoll {
     }
 
     static void* ud(const epoll_event& ev) {
-        return ev.lpOverlapped;
+        PerIoInfo* info = (PerIoInfo*) ev.lpOverlapped;
+        info->n = ev.dwNumberOfBytesTransferred;
+        return info->co;
     }
 
   private:
@@ -90,6 +123,8 @@ class Epoll {
   public:
     Epoll();
     ~Epoll();
+
+    void close();
 
     bool add_event(int fd, int ev, int ud) {
         if (ev == EV_read) return this->add_ev_read(fd, ud);
@@ -172,6 +207,8 @@ class Epoll {
   public:
     Epoll();
     ~Epoll();
+
+    void close();
 
     bool add_event(int fd, int ev, void* ud);
 

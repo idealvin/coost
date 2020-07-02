@@ -89,7 +89,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
         if (errno == EINPROGRESS) {
             IoEvent ev(fd, EV_write);
-            if (!ev.wait(ms, false)) return -1;
+            if (!ev.wait(ms)) return -1;
 
             int err, len = sizeof(err);
             r = co::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
@@ -228,6 +228,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
+// a thread-safe wrapper for strerror()
 const char* strerror(int err) {
     static __thread std::unordered_map<int, const char*>* kErrStr = 0;
     if (!kErrStr) kErrStr = new std::unordered_map<int, const char*>();

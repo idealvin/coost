@@ -26,18 +26,12 @@
     - File system operations (fs)
     - System operations (os)
 
-## Special thanks
+## Documents
 
-- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
-- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
-- [ruki](https://github.com/waruqi) has helped to improve the xmake compilation scripts, thanks in particular!
-- [izhengfan](https://github.com/izhengfan) provided cmake compilation scripts, thank you very much!
+- [wiki (English)](https://github.com/idealvin/co-wiki-en/wiki)
+- [wiki (中文)](https://github.com/idealvin/co-wiki-cn/wiki)
+- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/8bc1d37c9e504b9f3125374b66838bab0d28acea/pdf/co.pdf)
 
-## Reference documents
-
-- [English md](https://github.com/idealvin/co/tree/master/docs/en)
-- [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
-- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/9cb3feb78a35dc6cc1f13d6d93003f6150d047f9/pdf/co.pdf)
 
 ## Highlight function
 
@@ -73,24 +67,6 @@
 - **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
 
   This is a high-performance rpc framework based on coroutines and json. It supports automatic code generation, easy to use, and single-threaded qps can reach 120k+.
-
-- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/include/co/co.h)**
-
-  This is a template class for use with `co::Pool`. `co::Pool` is a coroutine-safe pool that stores `void*` pointers internally.
-
-  Kakalot pulls a pointer from the pool during construction and puts it back during destruction. At the same time, Kakalot also comes with smart pointer properties:
-
-  ```cpp
-  co::Pool p;
-  
-  void f () {
-      co::Kakalot<Redis> rds(p);         // Kakalot is now a Redis* pointer
-      if (rds == NULL) rds = new Redis;  // reassign Kakalot 
-      rds->get("xx");                    // Kakalot calls redis's get operation
-  }
-  
-  go(f);
-  ```
 
 ## Components
 
@@ -221,9 +197,16 @@ For more details, please refer to [here](./docs/en/compiling.md/#compile-with-cm
 
 `CO` is licensed under the `MIT` License. It includes code from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
 
-## Contributing
+## Special thanks
 
-1. Modify or add code in the `co/include` or `co/src` directory and ensure that the libco library compiles.
-2. If necessary, modify or add unit test cases in the `co/unitest` directory and ensure that all unit tests pass.
-3. If necessary, modify or add test code in the `co/test` directory.
-4. All other kinds of contributions are also welcome.
+- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
+- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
+- [ruki](https://github.com/waruqi) has helped to improve the xmake compilation scripts, thanks in particular!
+- [izhengfan](https://github.com/izhengfan) provided cmake compilation scripts, thank you very much!
+
+
+## Donate
+
+<center class="half">
+    <img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/wx.png" width="368"/><img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/zfb.png" width="368"/>
+</center>

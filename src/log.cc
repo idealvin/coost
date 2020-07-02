@@ -192,7 +192,7 @@ void LevelLogger::stop() {
     }
 }
 
-// Try to call only async-signal-safe api in this function according to: 
+// Try to call only async-signal-safe api in this function according to:
 //   http://man7.org/linux/man-pages/man7/signal-safety.7.html
 void LevelLogger::safe_stop() {
     if (atomic_compare_swap(&_stop, 0, 1) != 0) return;
@@ -290,7 +290,7 @@ bool LevelLogger::open_log_file(int level) {
         paths.push_back(path);
 
         for (unsigned int i = 1; i < _config->max_log_file_num; ++i) {
-            fastring p = (fastream(path.size() + 4) << path << '.' << i).release();
+            fastring p = (fastring(path.size() + 4) << path << '.' << i);
             paths.push_back(p);
             if (!fs::exists(p)) break;
         }

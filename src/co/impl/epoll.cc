@@ -9,6 +9,10 @@ Epoll::Epoll() : _signaled(false) {
 }
 
 Epoll::~Epoll() {
+    this->close();
+}
+
+void Epoll::close() {
     if (_iocp != 0) {
         CloseHandle(_iocp);
         _iocp = 0;
@@ -71,6 +75,10 @@ Epoll::Epoll() {
 }
 
 Epoll::~Epoll() {
+    this->close();
+}
+
+void Epoll::close() {
     co::closesocket(_efd);
     co::closesocket(_fds[0]);
     co::closesocket(_fds[1]);
@@ -175,6 +183,10 @@ Epoll::Epoll() {
 }
 
 Epoll::~Epoll() {
+    this->close();
+}
+
+void Epoll::close() {
     co::closesocket(_kq);
     co::closesocket(_fds[0]);
     co::closesocket(_fds[1]);

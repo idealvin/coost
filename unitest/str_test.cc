@@ -57,10 +57,6 @@ DEF_test(str) {
         fastring s("hello world");
         EXPECT_EQ(str::replace(s, "l", "x"), "hexxo worxd");
         EXPECT_EQ(str::replace(s, "o", "x"), "hellx wxrld");
-
-        fastring t(s);
-        s = str::replace(t, "xxx", "yy");
-        EXPECT_EQ(s.data(), t.data());
     }
 
     DEF_case(strip) {
@@ -89,13 +85,6 @@ DEF_test(str) {
         EXPECT_EQ(str::strip(fastring("\0xx\0", 4), '\0'), "xx");
         EXPECT_EQ(str::strip(fastring("\0xx\0", 4), fastring("x\0", 2)), "");
         EXPECT_EQ(str::strip(fastring("\0xox\0", 5), fastring("x\0", 2), 'l'), fastring("ox\0", 3));
- 
-        fastring s("$@xx@");
-        fastring t(s);
-        s = str::strip(t, "xx");
-        EXPECT_EQ(s.data(), t.data());
-        s = str::strip(t, fastring("xx"));
-        EXPECT_EQ(s.data(), t.data());
     }
 
     DEF_case(to) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "array.h"
+#include "atomic.h"
 #include "fastream.h"
 
 namespace json {
@@ -114,9 +115,11 @@ class Value {
     }
 
     Value& operator=(Value&& v) noexcept {
-        if (_mem) this->_UnRef();
-        _mem = v._mem;
-        v._mem = 0;
+        if (&v != this) {
+            if (_mem) this->_UnRef();
+            _mem = v._mem;
+            v._mem = 0;
+        }
         return *this;
     }
 
@@ -311,9 +314,9 @@ class Value {
 
     // stringify
     fastring str() const {
-        fastream fs(256);
-        this->_Json2str(fs);
-        return fs.release();
+        fastring s(256);
+        this->_Json2str(*(fastream*)&s);
+        return s;
     }
 
     // append json string to @fs
@@ -323,9 +326,9 @@ class Value {
 
     // json to debug string
     fastring dbg() const {
-        fastream fs(256);
-        this->_Json2dbg(fs);
-        return fs.release();
+        fastring s(256);
+        this->_Json2dbg(*(fastream*)&s);
+        return std::move(s);
     }
 
     void dbg(fastream& fs) const {
@@ -333,10 +336,10 @@ class Value {
     }
 
     // convert json to pretty string
-    fastring pretty(int indent = 4, uint32 cap = 256) const {
-        fastream fs(cap);
-        this->_Json2pretty(indent, indent, fs);
-        return fs.release();
+    fastring pretty(int indent = 4) const {
+        fastring s(256);
+        this->_Json2pretty(indent, indent, *(fastream*)&s);
+        return std::move(s);
     }
 
     bool parse_from(const char* s, size_t n);
@@ -366,7 +369,7 @@ class Value {
     void reset() {
         if (!_mem) return;
         this->_UnRef();
-        _mem = 0;        
+        _mem = 0;
     }
 
   private:
@@ -439,8 +442,8 @@ class Value {
 
   private:
     struct _Mem {
-        int32 type;
-        int32 refn;
+        uint32 type;
+        uint32 refn;
         union {
             bool b;
             int64 i;

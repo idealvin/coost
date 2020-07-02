@@ -26,18 +26,11 @@
     - 文件系统操作(fs)
     - 系统操作(os)
 
-## 特别致谢
-
-- [co/context](https://github.com/idealvin/co/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
-- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
-- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
-- [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
-
 ## 参考文档
 
-- [English md](https://github.com/idealvin/co/tree/master/docs/en)
-- [中文 md](https://github.com/idealvin/co/tree/master/docs/cn)
-- [中文 pdf](https://code.aliyun.com/idealvin/docs/blob/9cb3feb78a35dc6cc1f13d6d93003f6150d047f9/pdf/co.pdf)
+- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/8bc1d37c9e504b9f3125374b66838bab0d28acea/pdf/co.pdf)
+- [wiki (中文)](https://github.com/idealvin/co-wiki-cn/wiki)
+- [wiki (English)](https://github.com/idealvin/co-wiki-en/wiki)
 
 ## 亮点功能
 
@@ -73,24 +66,6 @@
 - **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
 
   这是一个基于协程与 json 的高性能 rpc 框架，支持代码自动生成，简单易用，单线程 qps 能达到 12w+。
-
-- **[Kakalot(卡卡洛特)](https://github.com/idealvin/co/blob/master/include/co/co.h)**
-
-  这是一个与 `co::Pool` 配套使用的模板类。`co::Pool` 是一个协程安全的池子，内部存储 `void*` 指针。
-
-  卡卡洛特构造时从 Pool 拉取一个指针，析构时将指针放回 Pool，同时，卡卡洛特还自带智能指针属性:
-
-  ```cpp
-  co::Pool p;
-  
-  void f() {
-      co::Kakalot<Redis> rds(p);         // 卡卡洛特现在变身为 Redis* 指针
-      if (rds == NULL) rds = new Redis;  // 对卡卡洛特重新赋值
-      rds->get("xx");                    // 卡卡洛特调用 redis 的 get 操作
-  }
-  
-  go(f);
-  ```
 
 ## 代码构成
 
@@ -214,21 +189,24 @@ make -j8
 make install
 ```
 
-详情请参考[cmake-编译](./docs/cn/编译.md/#cmake-编译)。
-
 ## License
 
 `CO` 以 `MIT` License 发布. `CO` 包含了一些其他项目的代码，可能使用了与 `CO` 不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
-## 贡献代码
+## 特别致谢
 
-1. `co/include` 或 `co/src` 目录下修改或新增代码，确保 `libco` 编译通过.
-2. 若有必要，在 `co/unitest` 目录下修改或新增单元测试用例，确保单元测试全部通过.
-3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
-4. 其他形式的贡献也非常欢迎.
+- [co/context](https://github.com/idealvin/co/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
+- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
+- [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
+
 
 ## 友情合作
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin@qq.com`.
-- 捐他一个亿！请用微信扫 [co.pdf](https://code.aliyun.com/idealvin/docs/blob/3ca20c3ea964924aef83a68d12941cbff9378588/pdf/co.pdf) 中的二维码.
+- 小赏作者请扫码:
+
+<center class="half">
+    <img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/wx.png" width="368"/><img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/zfb.png" width="368"/>
+</center>

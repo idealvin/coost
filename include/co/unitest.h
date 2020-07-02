@@ -1,7 +1,7 @@
 #pragma once
 
 #include "flag.h"
-#include "fastream.h"
+#include "fastring.h"
 
 #include <memory>
 #include <iostream>
@@ -81,6 +81,7 @@ const char* const default_color = "\033[39m";
 
 } // namespace unitest
 
+// define a test unit
 #define DEF_test(_name_) \
     DEF_bool(_name_, false, "enable this test if true."); \
     using std::cout; \
@@ -111,6 +112,7 @@ const char* const default_color = "\033[39m";
     \
     void _UTest_##_name_::run()
 
+// define a test case in the current unit
 #define DEF_case(name) _current_case.reset(new unitest::Case(#name));
 
 #define EXPECT(x) \
@@ -124,9 +126,8 @@ const char* const default_color = "\033[39m";
              << unitest::default_color << endl; \
         \
     } else { \
-        fastream _U_fs; \
-        _U_fs << "EXPECT(" << #x << ") failed"; \
-        fastring _U_s = _U_fs.release(); \
+        fastring _U_s(32); \
+        _U_s << "EXPECT(" << #x << ") failed"; \
         \
         cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
@@ -149,10 +150,9 @@ const char* const default_color = "\033[39m";
         cout << unitest::default_color << endl; \
         \
     } else { \
-        fastream _U_fs; \
-        _U_fs << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " \
-              << _U_x << " vs " << _U_y; \
-        fastring _U_s = _U_fs.release(); \
+        fastring _U_s(128); \
+        _U_s << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " \
+             << _U_x << " vs " << _U_y; \
         \
         cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
