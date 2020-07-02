@@ -207,6 +207,6 @@ make install
 - 赞助、商务合作请联系 `idealvin@qq.com`.
 - 小赏作者请扫码:
 
-<center class="half">
-    <img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/wx.png" width="368"/><img src="https://code.aliyun.com/idealvin/img/raw/d449848b0b4e2194a33f43d7d8847e526a9c7491/zfb.png" width="368"/>
-</center>
+<font face="Arial" size=3>
+<img src="https://code.aliyun.com/idealvin/img/raw/1da1dd585738caaf3dba43a697826013432717af/wxzfb.png" alt="" align="center" width="668">
+</font>
