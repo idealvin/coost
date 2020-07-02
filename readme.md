@@ -191,8 +191,6 @@ make -j8
 make install
 ```
 
-For more details, please refer to [here](./docs/en/compiling.md/#compile-with-cmake).
-
 ## License
 
 `CO` is licensed under the `MIT` License. It includes code from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
