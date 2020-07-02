@@ -208,5 +208,5 @@ For more details, please refer to [here](./docs/en/compiling.md/#compile-with-cm
 ## Donate
 
 <font face="Arial" size=3>
-<img src="https://code.aliyun.com/idealvin/img/raw/1da1dd585738caaf3dba43a697826013432717af/wxzfb.png" alt="" align="center" width="668">
+<img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">
 </font>
