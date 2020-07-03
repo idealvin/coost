@@ -28,7 +28,7 @@
 
 ## 参考文档
 
-- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/8bc1d37c9e504b9f3125374b66838bab0d28acea/pdf/co.pdf)
+- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
 - [wiki (中文)](https://github.com/idealvin/co-wiki-cn/wiki)
 - [wiki (English)](https://github.com/idealvin/co-wiki-en/wiki)
 
