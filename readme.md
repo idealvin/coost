@@ -28,8 +28,10 @@
 
 ## Documents
 
-- [wiki (English)](https://github.com/idealvin/co-wiki-en/wiki)
-- [wiki (中文)](https://github.com/idealvin/co-wiki-cn/wiki)
+- [md (English)](docs/co_en.md)
+- [html (English)](docs/co_en.html)
+- [md (中文)](docs/co_cn.md)
+- [html (中文)](docs/co_cn.html)
 - [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
 
 

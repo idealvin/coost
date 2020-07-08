@@ -1,0 +1,2455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>co_1.1_cn.html</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  box-sizing: border-box;
+  width: 100vw;
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+body {
+  width: 1080px;
+  margin: 0 auto;
+  padding: 30px 0;
+  overflow-x: hidden;
+  font-family: Palatino,"Palatino Linotype",Georgia,SimSun,serif,'Microsoft YaHei';
+  font-size: 18px;
+}
+
+button, input, select, textarea, label {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+body {
+  line-height: 1.75;
+  color: #333;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  padding: 0;
+  margin: 60px 0 30px;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: 800;
+  border-bottom: none;
+  text-align: center;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 600;
+  text-align: left;
+}
+
+h3, h4, h5, h6 {
+  margin: 40px 0 30px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: left;
+}
+
+p {
+  text-align: justify;
+  line-height: 1.75;
+}
+
+pre:not(.hljs),
+pre.hljs code {
+  display: block;
+  padding: 0px;
+  overflow-x: auto;
+  line-height: 1.75;
+  color: #333;
+  background: #f8f8f8;
+  font-weight: normal;
+  font-family: "Source Code Pro",Consolas,monospace,Courier,'华文楷体',SimKai,'Microsoft YaHei',KaiTi,'楷体',SimSun;
+  font-size: 14px;
+}
+
+code {
+  padding: 0px 3px;
+  hyphens: none;
+  color: #e11;
+  background: #f9f9f9;
+  font-weight: bold;
+  font-family: Palatino,"Source Code Pro",Consolas,monospace,Courier,serif,SimSun,'华文楷体',SimKai,'Microsoft YaHei',KaiTi,'楷体';
+}
+
+blockquote {
+  margin: 1em 0;
+  padding: 0 2em;
+  border-left: 3px solid #ddd;
+}
+
+ul, ol {
+  padding: 0 0 0 20px;
+}
+
+li {
+  margin: 4px 0;
+  padding: 0;
+}
+
+ul li ul li {
+  font-family: "Source Code Pro",Courier,Consolas,monospace,NSimSun,SimSun,'Songti SC',serif,'Microsoft YaHei';
+}
+
+a {
+  color: #4169E1;
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  vertical-align: baseline;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: none;
+  color: #b8860b;
+}
+
+sup a {
+  border-bottom: none;
+}
+
+nav li a {
+  border-bottom: none;
+}
+
+nav li a:hover {
+  border-bottom: 1px solid;
+}
+
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
+}
+
+table thead th {
+  border-bottom: 1px solid #666;
+}
+
+th, td {
+  padding: 5px;
+}
+
+thead, tfoot, tr:nth-child(even) {
+  background: #f8f8f8;
+}
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+  background: #f8f8f8;
+  color: #333;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #057400;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-section,
+.hljs-name {
+  color: #AA0D91;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  color: #660;
+}
+
+.hljs-string,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-regexp {
+  color: #C41A16;
+}
+
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta,
+.hljs-number,
+.hljs-link {
+  color: #b8860b;
+}
+
+.hljs-title,
+.hljs-doctag,
+.hljs-type,
+.hljs-attr,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-params {
+  color: #008080;
+}
+
+.hljs-attribute,
+.hljs-subst {
+  color: #333;
+}
+
+.hljs-formula {
+  background-color: #eee;
+  font-style: italic;
+}
+
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #9B703F
+}
+
+.hljs-addition {
+  background-color: #baeeba;
+}
+
+.hljs-deletion {
+  background-color: #ffc8bd;
+}
+
+.hljs-doctag,
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Media Queries
+ * -------------------------------------------------------------------------
+ *
+ * The @viewport tag does the same thing as
+ *
+ *   <meta name="viewport" content="width=device-width">
+ *
+ * but in the future W3C standard way. The -ms- prefix is required for
+ * IE10+ to render responsive styling in Windows 8 "snapped" views;
+ * IE10+ does not honour the meta tag.
+ */
+
+@-ms-viewport {
+  width: device-width;
+}
+
+@viewport {
+  width: device-width;
+}
+
+/* Tablet screens and smaller */
+
+@media screen and (max-width: 960px) {
+
+  body {
+    width: auto;
+    max-width: 700px;
+  }
+}
+
+/* Landscape phone screens and smaller */
+
+@media screen and (max-width: 720px) {
+}
+
+/* Portrait phone screens */
+
+@media screen and (max-width: 480px) {
+
+  body {
+    font-size: 18px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  h3, h4, h5, h6 {
+    font-size: 20px;
+    font-weight: 600;
+  }
+}
+</style>
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="c-%E5%9F%BA%E7%A1%80%E5%BA%93-co-%E5%8F%82%E8%80%83%E6%96%87%E6%A1%A3">C++ 基础库 CO 参考文档 v1.1</h1>
+<font face="Arial" size=3>
+<center>
+Alvin &nbsp;2020/07/07
+</center>
+<center>
+idealvin@qq.com
+</center>
+</font>
+<p><a href="https://github.com/idealvin/co/">CO</a> 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。本文档将介绍 CO 的功能组件及使用方法。</p>
+<h2 id="1-%E6%A6%82%E8%A7%88">1. 概览</h2>
+<p>CO 追求极简、高效，不依赖于 <a href="https://www.boost.org/">boost</a> 等三方库，仅使用了少量的 C++11 特性。</p>
+<ul>
+<li>
+<p>CO 实现的功能组件：</p>
+<ul>
+<li>基本定义(def)</li>
+<li>原子操作(atomic)</li>
+<li>快速伪随机数生成器(ramdom)</li>
+<li>LruMap</li>
+<li>基本类型快速转字符串(fast)</li>
+<li>高效字符流(fastream)</li>
+<li>高效字符串(fastring)</li>
+<li>字符串操作(str)</li>
+<li>命令行参数与配置文件解析库(flag)</li>
+<li>高效流式日志库(log)</li>
+<li>单元测试框架(unitest)</li>
+<li>时间库(time)</li>
+<li>线程库(thread)</li>
+<li>协程库(co)</li>
+<li>高效 json 库(json)</li>
+<li>高性能 json rpc 框架(rpc)</li>
+<li>hash 库(hash)</li>
+<li>path 库(path)</li>
+<li>文件系统操作(fs)</li>
+<li>系统操作(os)</li>
+</ul>
+</li>
+<li>
+<p>CO 使用的 C++11 特性:</p>
+<ul>
+<li>auto</li>
+<li>std::move</li>
+<li>std::bind</li>
+<li>std::function</li>
+<li>std::unique_ptr</li>
+<li>std::unordered_map</li>
+<li>std::unordered_set</li>
+<li>variadic templates</li>
+</ul>
+</li>
+</ul>
+<h2 id="2-%E5%9F%BA%E6%9C%AC%E5%AE%9A%E4%B9%89def">2. 基本定义(def)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/def.h">co/def.h</a>.</p>
+<h3 id="21-%E5%AE%9A%E9%95%BF%E6%95%B4%E6%95%B0%E7%B1%BB%E5%9E%8B">2.1 定长整数类型</h3>
+<pre class="hljs"><code><div> int8   int16   int32   int64
+uint8  uint16  uint32  uint64
+</div></code></pre>
+<p>这些类型在不同平台的长度是一致的，不存在可移植性问题。<a href="https://google.github.io/styleguide/cppguide.html#Integer_Types">Google Code Style</a> 建议除了 int，不要使用 short, long, long long 等内置整数类型。</p>
+<p><code>def.h</code> 还定义了上述整数类型的最大、最小值：</p>
+<pre class="hljs"><code><div>MAX_UINT8  MAX_UINT16  MAX_UINT32  MAX_UINT64
+MAX_INT8   MAX_INT16   MAX_INT32   MAX_INT64
+MIN_INT8   MIN_INT16   MIN_INT32   MIN_INT64
+</div></code></pre>
+<h3 id="22-%E8%AF%BB%E5%86%99-1248-%E5%AD%97%E8%8A%82">2.2 读写 1、2、4、8 字节</h3>
+<p><code>def.h</code> 定义了如下的宏，用于读写 1、2、4、8 字节的数据(注意边界对齐)：</p>
+<pre class="hljs"><code><div>load8  load16  load32  load64
+save8  save16  save32  save64
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>uint64 v;                  <span class="hljs-comment">// 8 字节</span>
+save32(&amp;v, <span class="hljs-number">7</span>);             <span class="hljs-comment">// v 的前 4 个字节设为 7</span>
+uint16 x = load16(&amp;v);     <span class="hljs-comment">// 读取 v 的前 2 个字节</span>
+</div></code></pre>
+<h3 id="23-disallowcopyandassign">2.3 DISALLOW_COPY_AND_ASSIGN</h3>
+<p>这个宏用于禁止 C++ 类中的拷贝构造函数与赋值操作：</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">T</span> {</span>
+  <span class="hljs-keyword">public</span>:
+    T();
+    DISALLOW_COPY_AND_ASSIGN(T);
+};
+</div></code></pre>
+<h3 id="24-forcecast-%E5%BC%BA%E5%88%B6%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2">2.4 force_cast 强制类型转换</h3>
+<p><code>force_cast</code> 是对 C 风格强制类型转换的包装：</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">char</span> c = force_cast&lt;<span class="hljs-keyword">char</span>&gt;(<span class="hljs-number">97</span>); <span class="hljs-comment">// char c = (char) 97;</span>
+</div></code></pre>
+<h3 id="25-forceinline-%E4%B8%8E-thread">2.5 __forceinline 与 __thread</h3>
+<p><a href="https://docs.microsoft.com/en-us/cpp/cpp/inline-functions-cpp?view=vs-2019#inline-__inline-and-__forceinline">__forceinline</a> 是 VS 中的关键字，Linux 等平台用下面的宏模拟：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> __forceinline __attribute__((always_inline))</span>
+</div></code></pre>
+<p><a href="https://gcc.gnu.org/onlinedocs/gcc-4.7.4/gcc/Thread-Local.html">__thread</a> 是 gcc 中的关键字，用于支持 <a href="https://wiki.osdev.org/Thread_Local_Storage">TLS</a>，Windows 上用下面的宏模拟：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> __thread __declspec(thread)</span>
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 获取当前线程的 id</span>
+<span class="hljs-function">__forceinline <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">gettid</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">static</span> __thread <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> id = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">if</span> (id != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> id;
+    <span class="hljs-keyword">return</span> id = __gettid();
+}
+</div></code></pre>
+<h3 id="26-unlikely">2.6 unlikely</h3>
+<p><code>unlikely</code> 宏用于分支选择优化(仅支持 gcc、clang)：</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// 与 if (v == -1) 逻辑上等价，但提示编译器 v == -1 的可能性较小</span>
+<span class="hljs-keyword">if</span> (unlikey(v == <span class="hljs-number">-1</span>)) {
+    <span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"v == -1"</span> &lt;&lt; <span class="hljs-built_in">endl</span>;
+}
+</div></code></pre>
+<h2 id="3-%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9Catomic">3. 原子操作(atomic)</h2>
+<p>include: <a href="https://github.com/idealvin/co/tree/master/include/co/atomic.h">co/atomic.h</a>.</p>
+<p><code>atomic</code> 库定义了如下的原子操作：</p>
+<pre class="hljs"><code><div>atomic_inc        atomic_dec        atomic_add        atomic_sub
+atomic_fetch_inc  atomic_fetch_dec  atomic_fetch_add  atomic_fetch_sub
+
+atomic_or         atomic_and        atomic_xor
+atomic_fetch_or   atomic_fetch_and  atomic_fetch_xor
+
+atomic_swap    atomic_compare_swap
+atomic_get     atomic_set    atomic_reset
+</div></code></pre>
+<p>上述原子操作适用于 1，2，4，8 字节长度的数据类型。inc，dec，add，sub，or，and，xor 各有一个 <code>fetch</code> 版，区别在于，fetch 版本返回原子操作之前的值，非 fetch 版本返回原子操作之后的值。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">bool</span> b = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>;
+uint64 u = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">void</span>* p = <span class="hljs-number">0</span>;
+
+atomic_inc(&amp;i);                 <span class="hljs-comment">// return ++i;</span>
+atomic_dec(&amp;i);                 <span class="hljs-comment">// return --i;</span>
+atomic_add(&amp;i, <span class="hljs-number">3</span>);              <span class="hljs-comment">// return i += 3;</span>
+atomic_sub(&amp;i, <span class="hljs-number">3</span>);              <span class="hljs-comment">// return i -= 3;</span>
+atomic_fetch_inc(&amp;u);           <span class="hljs-comment">// return u++;</span>
+
+atomic_or(&amp;i, <span class="hljs-number">8</span>);               <span class="hljs-comment">// return i |= 8;</span>
+atomic_and(&amp;i, <span class="hljs-number">7</span>);              <span class="hljs-comment">// return i &amp;= 7;</span>
+atomic_xor(&amp;i, <span class="hljs-number">7</span>);              <span class="hljs-comment">// return i ^= 7;</span>
+atomic_fetch_xor(&amp;i, <span class="hljs-number">7</span>);        <span class="hljs-comment">// v = i; i ^= 7; return v;</span>
+
+atomic_swap(&amp;b, <span class="hljs-literal">true</span>);          <span class="hljs-comment">// v = b; b = true; return v;    </span>
+atomic_compare_swap(&amp;i, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>);  <span class="hljs-comment">// v = i; if (i == 0) i = 1; return v;</span>
+
+atomic_get(&amp;u);                 <span class="hljs-comment">// return u;</span>
+atomic_set(&amp;u, <span class="hljs-number">7</span>);              <span class="hljs-comment">// u = 7;</span>
+atomic_reset(&amp;i);               <span class="hljs-comment">// i = 0;</span>
+
+<span class="hljs-comment">// atomic operations on pointers</span>
+atomic_set(&amp;p, <span class="hljs-number">0</span>);
+atomic_swap(&amp;p, <span class="hljs-number">8</span>);
+atomic_compare_swap(&amp;p, <span class="hljs-number">0</span>, <span class="hljs-number">8</span>);
+</div></code></pre>
+<h2 id="4-%E9%9A%8F%E6%9C%BA%E6%95%B0%E7%94%9F%E6%88%90%E5%99%A8random">4. 随机数生成器(random)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/random.h">co/random.h</a>.</p>
+<p><code>Random</code> 是一个速度极快的伪随机数生成器，可以连续无重复的生成 1 ~ 2G-2 之间的整数。<a href="https://github.com/google/leveldb/blob/master/util/random.h">leveldb</a> 用到了这种算法，本库选用了与 leveldb 不同的常数 <code>16385</code>，计算速度更快。算法的数学原理可以参考<a href="https://github.com/idealvin/docs/tree/master/pdf">一种快速的随机数生成算法</a>一文。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function">Random <span class="hljs-title">r</span><span class="hljs-params">(<span class="hljs-number">7</span>)</span></span>;      <span class="hljs-comment">// 7 是种子数，不带参数时，默认为 1</span>
+<span class="hljs-keyword">int</span> n = r.next(); <span class="hljs-comment">// !! 非线程安全</span>
+</div></code></pre>
+<h2 id="5-lrumap">5. LruMap</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/lru_map.h">co/lru_map.h</a>.</p>
+<p>LRU 是一种常用的缓存策略，当缓存达到容量上限时，优先替换掉最近最少使用的数据。<code>LruMap</code> 基于 std::list、std::unordered_map 实现，内部元素是无序的。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function">LruMap&lt;<span class="hljs-keyword">int</span>, <span class="hljs-keyword">int</span>&gt; <span class="hljs-title">m</span><span class="hljs-params">(<span class="hljs-number">128</span>)</span></span>;         <span class="hljs-comment">// capacity: 128</span>
+m.insert(<span class="hljs-number">1</span>, <span class="hljs-number">23</span>);                 <span class="hljs-comment">// m.size() &gt; 128 时，删除内部 list 尾部的元素(最近最少使用)</span>
+                                 <span class="hljs-comment">// !! key 已经存在时，则不会插入新元素</span>
+<span class="hljs-keyword">auto</span> it = m.find(<span class="hljs-number">1</span>);             <span class="hljs-comment">// 找到时，将 1 放到内部 list 首部</span>
+<span class="hljs-keyword">if</span> (it != m.end()) m.erase(it);  <span class="hljs-comment">// erase by iterator</span>
+m.erase(it-&gt;first);              <span class="hljs-comment">// erase by key</span>
+</div></code></pre>
+<h2 id="6-%E5%9F%BA%E6%9C%AC%E7%B1%BB%E5%9E%8B%E5%BF%AB%E9%80%9F%E8%BD%AC%E5%AD%97%E7%AC%A6%E4%B8%B2fast">6. 基本类型快速转字符串(fast)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/fast.h">co/fast.h</a>.</p>
+<p><code>fast</code> 库提供了如下的函数：</p>
+<pre class="hljs"><code><div>u32toh  u64toh  u32toa  u64toa  i32toa  i64toa  dtoa
+</div></code></pre>
+<p><code>xtoh</code> 系列函数将整数类型转换为十六进制字符串，内部用一个 table 缓存前 256 个数对应的 16 进制字符串(2个字节)，不同平台测试结果比 snprintf 快 10~25 倍左右。</p>
+<p><code>xtoa</code> 系列函数将整数类型转换为十进制 ascii 字符串，内部用一个 table 缓存前 10000 个数对应的 10 进制字符串(4个字节)，不同平台测试结果比 snprintf 快 10~25 倍左右。</p>
+<p><code>dtoa</code> 采用了 <a href="https://github.com/miloyip">Milo Yip</a> 的实现，详情见 <a href="https://github.com/miloyip/dtoa-benchmark">miloyip/dtoa-benchmark</a>。早期基于 <code>LruMap</code> 的实现，已弃用。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">char</span> buf[<span class="hljs-number">32</span>];
+<span class="hljs-keyword">int</span> len = fast::u32toh(<span class="hljs-number">255</span>, buf); <span class="hljs-comment">// "0xff"，返回长度 4</span>
+<span class="hljs-keyword">int</span> len = fast::i32toa(<span class="hljs-number">-99</span>, buf); <span class="hljs-comment">// "-99", 返回长度 3</span>
+<span class="hljs-keyword">int</span> len = fast::dtoa(<span class="hljs-number">0.123</span>, buf); <span class="hljs-comment">// "0.123", 返回长度 5</span>
+</div></code></pre>
+<p><code>fast</code> 库还提供一个 <code>fast::stream</code> 类，支持流式输出、append 等基本操作，是下述的 <code>fastream</code> 与 <code>fastring</code> 的基类。</p>
+<h2 id="7-%E9%AB%98%E6%95%88%E5%AD%97%E7%AC%A6%E6%B5%81fastream">7. 高效字符流(fastream)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/fastream.h">co/fastream.h</a>.</p>
+<p>C++ 标准库中的 <code>std::ostringstream</code> 性能较差，比 snprintf 慢好几倍。<code>fastream</code> 继承自 <code>fast::stream</code> 类，支持流式输出与二进制 append 操作。其中流式输出，在不同平台比 snprintf 快 10~30 倍左右。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function">fastream <span class="hljs-title">fs</span><span class="hljs-params">(<span class="hljs-number">1024</span>)</span></span>;          <span class="hljs-comment">// 预分配 1k 内存</span>
+fs &lt;&lt; <span class="hljs-string">"hello world"</span> &lt;&lt; <span class="hljs-number">23</span>;  <span class="hljs-comment">// 流模式</span>
+
+<span class="hljs-keyword">int</span> i = <span class="hljs-number">23</span>;
+<span class="hljs-keyword">char</span> buf[<span class="hljs-number">8</span>];
+fs.append(buf, <span class="hljs-number">8</span>);      <span class="hljs-comment">// 追加 8 字节</span>
+fs.append(&amp;i, <span class="hljs-number">4</span>);       <span class="hljs-comment">// 追加 4 字节</span>
+fs.append(i);           <span class="hljs-comment">// 追加 4 字节，与 fs.append(&amp;i, 4) 等价</span>
+fs.append((int16) <span class="hljs-number">23</span>);  <span class="hljs-comment">// 追加 2 字节</span>
+fs.append(<span class="hljs-string">'c'</span>);         <span class="hljs-comment">// 追加单个字符</span>
+fs.append(<span class="hljs-number">100</span>, <span class="hljs-string">'c'</span>);    <span class="hljs-comment">// 追加 100 个 'c'</span>
+fs.append(<span class="hljs-string">'c'</span>, <span class="hljs-number">100</span>);    <span class="hljs-comment">// 追加 100 个 'c'</span>
+
+fs.c_str();             <span class="hljs-comment">// 返回 C 风格字符串</span>
+fs.str();               <span class="hljs-comment">// 返回 C++ 字符串，内存拷贝</span>
+fs.data();              <span class="hljs-comment">// 返回数据指针</span>
+fs.size();              <span class="hljs-comment">// 返回数据长度</span>
+fs.capacity();          <span class="hljs-comment">// 容量</span>
+
+fs.reserve(<span class="hljs-number">4096</span>);       <span class="hljs-comment">// 预分配至少 4k 内存</span>
+fs.resize(<span class="hljs-number">32</span>);          <span class="hljs-comment">// size -&gt; 32，buffer 中内容不变</span>
+fs.clear();             <span class="hljs-comment">// size -&gt; 0</span>
+fs.swap(fastream());    <span class="hljs-comment">// 交换</span>
+</div></code></pre>
+<ul>
+<li>注意事项</li>
+</ul>
+<p><code>fastream</code> 出于性能上的考虑，在 <code>append</code> 操作时不进行安全检查，如下面的代码是不安全的：</p>
+<pre class="hljs"><code><div>fastream f;
+f.append(<span class="hljs-string">"hello"</span>);
+f.append(f.c_str() + <span class="hljs-number">1</span>); <span class="hljs-comment">// 不安全，内部不考虑内存重叠的情况</span>
+</div></code></pre>
+<h2 id="8-%E9%AB%98%E6%95%88%E5%AD%97%E7%AC%A6%E4%B8%B2fastring">8. 高效字符串(fastring)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/fastring.h">co/fastring.h</a>.</p>
+<p><code>fastring</code> 是 co 中的字符串类型，与 <code>fastream</code> 一样，继承于 <code>fast::stream</code>，因此除了基本的字符串操作，它同样也支持流式输出操作:</p>
+<pre class="hljs"><code><div>fastring s;
+s &lt;&lt; <span class="hljs-string">"hello world "</span> &lt;&lt; <span class="hljs-number">1234567</span>;
+</div></code></pre>
+<p>早期的 fastring 实现中使用了引用计数，导致 fastring 的复制行为与 <code>std::string</code> 不同，容易造成混淆。为了更好的取代 std::string，重构的版本中移除了引用计数。</p>
+<p>fastring 几乎支持 fastream 的所有操作，但有一点与 fastream 不一样，fastring 在 <code>append</code> 时会进行安全检查:</p>
+<pre class="hljs"><code><div><span class="hljs-function">fastring <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-string">"hello"</span>)</span></span>;
+fastream f;
+f.append(<span class="hljs-string">"hello"</span>);
+
+<span class="hljs-comment">// 复制的数据与自身数据重叠</span>
+s.append(s.c_str() + <span class="hljs-number">1</span>); <span class="hljs-comment">// 安全，内部检测到内存重叠，进行特殊的处理</span>
+f.append(f.c_str() + <span class="hljs-number">1</span>); <span class="hljs-comment">// 不安全，内部不检测内存重叠的情况，不能保证得到正确的结果</span>
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>fastring s;                <span class="hljs-comment">// 空字符串，无内存分配</span>
+<span class="hljs-function">fastring <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-number">32</span>)</span></span>;            <span class="hljs-comment">// 空字符串，预分配内存(容量为32)</span>
+<span class="hljs-function">fastring <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-string">"hello"</span>)</span></span>;       <span class="hljs-comment">// 非空字符串</span>
+<span class="hljs-function">fastring <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-number">88</span>, <span class="hljs-string">'x'</span>)</span></span>;       <span class="hljs-comment">// 初始化 s 为 88 个 'x'</span>
+<span class="hljs-function">fastring <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-string">'x'</span>, <span class="hljs-number">88</span>)</span></span>;       <span class="hljs-comment">// 初始化 s 为 88 个 'x'</span>
+fastring t = s;            <span class="hljs-comment">// 通过内存拷贝创建一个新的字符串</span>
+
+s &lt;&lt; <span class="hljs-string">"hello "</span> &lt;&lt; <span class="hljs-number">23</span>;       <span class="hljs-comment">// 流式输出</span>
+s += <span class="hljs-string">"xx"</span>;                 <span class="hljs-comment">// 追加</span>
+s.append(<span class="hljs-string">"xx"</span>);            <span class="hljs-comment">// 追加  &lt;==&gt;  s += "xx";</span>
+s.swap(fastring());        <span class="hljs-comment">// 交换</span>
+
+s + <span class="hljs-string">"xxx"</span>;                 <span class="hljs-comment">// +</span>
+s &gt; <span class="hljs-string">"xxx"</span>;                 <span class="hljs-comment">// &gt;</span>
+s &lt; <span class="hljs-string">"zzz"</span>                  <span class="hljs-comment">// &lt;</span>
+s &lt;= <span class="hljs-string">"zz"</span>                  <span class="hljs-comment">// &lt;=</span>
+s &gt;= <span class="hljs-string">"zz"</span>                  <span class="hljs-comment">// &gt;=</span>
+
+s.find(<span class="hljs-string">'c'</span>);               <span class="hljs-comment">// 查找字符</span>
+s.find(<span class="hljs-string">"xx"</span>, <span class="hljs-number">3</span>);           <span class="hljs-comment">// 从 pos 3 开始查找子串</span>
+s.rfind(<span class="hljs-string">'c'</span>);              <span class="hljs-comment">// 反向查找字符</span>
+s.rfind(<span class="hljs-string">"xx"</span>);             <span class="hljs-comment">// 反向查找字符串</span>
+s.find_first_of(<span class="hljs-string">"xy"</span>);     <span class="hljs-comment">// 查找第一次出现的 "xy" 中的字符</span>
+s.find_first_not_of(<span class="hljs-string">"xy"</span>); <span class="hljs-comment">// 查找第一次出现的非 "xy" 中的字符</span>
+s.find_last_of(<span class="hljs-string">"xy"</span>);      <span class="hljs-comment">// 查找最后一次出现的 "xy" 中的字符</span>
+s.find_last_not_of(<span class="hljs-string">"xy"</span>);  <span class="hljs-comment">// 查找最后一次出现的非 "xy" 中的字符</span>
+
+s.starts_with(<span class="hljs-string">'x'</span>);        <span class="hljs-comment">// s 是否以 'x' 开头</span>
+s.starts_with(<span class="hljs-string">"xx"</span>);       <span class="hljs-comment">// s 是否以 "xx" 开头</span>
+s.ends_with(<span class="hljs-string">'x'</span>);          <span class="hljs-comment">// s 是否以 'x' 结尾</span>
+s.ends_with(<span class="hljs-string">"xx"</span>);         <span class="hljs-comment">// s 是否以 "xx" 结尾</span>
+
+s.replace(<span class="hljs-string">"xxx"</span>, <span class="hljs-string">"yy"</span>);    <span class="hljs-comment">// 将 s 中的 "xxx" 替换为 "yy"</span>
+s.replace(<span class="hljs-string">"xxx"</span>, <span class="hljs-string">"yy"</span>, <span class="hljs-number">3</span>); <span class="hljs-comment">// 将 s 中的 "xxx" 替换为 "yy"，最多替换 3 次</span>
+
+s.strip();                 <span class="hljs-comment">// 删除 s 两端的空白字符 " \t\r\n"</span>
+s.strip(<span class="hljs-string">"ab"</span>);             <span class="hljs-comment">// 删除 s 两端的 'a', 'b'</span>
+s.strip(<span class="hljs-string">"ab"</span>, <span class="hljs-string">'l'</span>);        <span class="hljs-comment">// 删除 s 左端的 'a', 'b'</span>
+s.strip(<span class="hljs-string">"ab"</span>, <span class="hljs-string">'r'</span>);        <span class="hljs-comment">// 删除 s 右端的 'a', 'b'</span>
+
+s.<span class="hljs-built_in">tolower</span>();               <span class="hljs-comment">// s 转换为小写</span>
+s.<span class="hljs-built_in">toupper</span>();               <span class="hljs-comment">// s 转换为大写</span>
+s.lower();                 <span class="hljs-comment">// 返回 s 的小写形式，s 本身不变</span>
+s.upper();                 <span class="hljs-comment">// 返回 s 的大写形式，s 本身不变</span>
+s.match(<span class="hljs-string">"x*y?z"</span>);          <span class="hljs-comment">// 字符串匹配，* 匹配任意字符串，? 匹配单个字符</span>
+</div></code></pre>
+<ul>
+<li>注意事项</li>
+</ul>
+<p>fastring 中含有二进制字符时，不要使用 <code>find</code> 系列的操作:</p>
+<ul>
+<li>find()</li>
+<li>rfind()</li>
+<li>find_first_of()</li>
+<li>find_first_not_of()</li>
+<li>find_last_of()</li>
+<li>find_last_not_of()</li>
+</ul>
+<p>上述方法基于 <code>strrchr</code>, <code>strstr</code>, <code>strcspn</code>, <code>strspn</code> 等实现，字符串中包含二进制字符时，不能保证得到正确的结果。</p>
+<h2 id="9-%E5%AD%97%E7%AC%A6%E4%B8%B2%E6%93%8D%E4%BD%9Cstr">9. 字符串操作(str)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/str.h">co/str.h</a>.</p>
+<h3 id="91-%E5%88%87%E5%88%86%E5%AD%97%E7%AC%A6%E4%B8%B2split">9.1 切分字符串(split)</h3>
+<p><code>split</code> 函数将字符串切分成若干个子串，原字符串保持不变，返回切分后的结果。</p>
+<ul>
+<li>函数原型</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// @s: 原字符串，fastring 或 const char*</span>
+<span class="hljs-comment">// @c: 分隔符，单个字符或'\0'结尾的字符串</span>
+<span class="hljs-comment">// @n: 切分次数，0 或 -1 表示不限次数，默认为 0</span>
+<span class="hljs-function"><span class="hljs-built_in">std</span>::<span class="hljs-built_in">vector</span>&lt;fastring&gt; <span class="hljs-title">split</span><span class="hljs-params">(s, c, n=<span class="hljs-number">0</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>str::split(<span class="hljs-string">"x y z"</span>, <span class="hljs-string">' '</span>);     <span class="hljs-comment">// -&gt;  [ "x", "y", "z" ]</span>
+str::split(<span class="hljs-string">"|x|y|"</span>, <span class="hljs-string">'|'</span>);     <span class="hljs-comment">// -&gt;  [ "", "x", "y" ]</span>
+str::split(<span class="hljs-string">"xooy"</span>, <span class="hljs-string">"oo"</span>);     <span class="hljs-comment">// -&gt;  [ "x", "y"]</span>
+str::split(<span class="hljs-string">"xooy"</span>, <span class="hljs-string">'o'</span>);      <span class="hljs-comment">// -&gt;  [ "x", "", "y" ]</span>
+str::split(<span class="hljs-string">"xooy"</span>, <span class="hljs-string">'o'</span>, <span class="hljs-number">1</span>);   <span class="hljs-comment">// -&gt;  [ "x", "oy" ]</span>
+</div></code></pre>
+<h3 id="92-%E4%BF%AE%E5%89%AA%E5%AD%97%E7%AC%A6%E4%B8%B2strip">9.2 修剪字符串(strip)</h3>
+<p><code>strip</code> 函数去掉字符串左右两边指定的字符，原字符串保持不变，返回 strip 后的结果。</p>
+<ul>
+<li>函数原型</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// @s: 原字符串，fastring 或 const char*</span>
+<span class="hljs-comment">// @c: 需要去掉的字符集，单个字符或字符串</span>
+<span class="hljs-comment">// @d: 方向，'l' 或 'L' 修剪左边，'r' 或 'R' 修剪右边，默认为 'b'，修剪左右两边</span>
+<span class="hljs-function">fastring <span class="hljs-title">strip</span><span class="hljs-params">(s, c=<span class="hljs-string">" \t\r\n"</span>, d=<span class="hljs-string">'b'</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>str::strip(<span class="hljs-string">"abxxa"</span>, <span class="hljs-string">"ab"</span>);       <span class="hljs-comment">// -&gt; "xx"    修剪两边</span>
+str::strip(<span class="hljs-string">"abxxa"</span>, <span class="hljs-string">"ab"</span>, <span class="hljs-string">'l'</span>);  <span class="hljs-comment">// -&gt; "xxa"   修剪左边</span>
+str::strip(<span class="hljs-string">"abxxa"</span>, <span class="hljs-string">"ab"</span>, <span class="hljs-string">'r'</span>);  <span class="hljs-comment">// -&gt; "abxx"  修剪右边</span>
+</div></code></pre>
+<h3 id="93-%E6%9B%BF%E6%8D%A2%E5%AD%90%E4%B8%B2replace">9.3 替换子串(replace)</h3>
+<p><code>replace</code> 函数用于替换字符串中的子串，原字符串保持不变，返回替换后的结果。</p>
+<ul>
+<li>函数原型</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// @s:    原字符串，fastring 或 const char*</span>
+<span class="hljs-comment">// @sub:  替换前的子串</span>
+<span class="hljs-comment">// @to:   替换后的子串</span>
+<span class="hljs-comment">// @n:    最大替换次数，0 或 -1 表示不限制次数，默认为 0</span>
+<span class="hljs-function">fastring <span class="hljs-title">replace</span><span class="hljs-params">(s, sub, to, n=<span class="hljs-number">0</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>str::replace(<span class="hljs-string">"xooxoox"</span>, <span class="hljs-string">"oo"</span>, <span class="hljs-string">"ee"</span>);     <span class="hljs-comment">// -&gt; "xeexeex"</span>
+str::replace(<span class="hljs-string">"xooxoox"</span>, <span class="hljs-string">"oo"</span>, <span class="hljs-string">"ee"</span>, <span class="hljs-number">1</span>);  <span class="hljs-comment">// -&gt; "xeexoox"</span>
+</div></code></pre>
+<h3 id="94-%E5%AD%97%E7%AC%A6%E4%B8%B2%E8%BD%AC%E5%86%85%E7%BD%AE%E7%B1%BB%E5%9E%8B">9.4 字符串转内置类型</h3>
+<p>str 库提供如下的函数，将字符串转为内置类型：</p>
+<pre class="hljs"><code><div>to_int32  to_int64  to_uint32  to_uint64  to_bool  to_double
+</div></code></pre>
+<ul>
+<li>
+<p>函数说明</p>
+<ul>
+<li>若转换失败，抛出 const char* 类型的异常。</li>
+<li>转换为整数时，字符串末尾可带单位 <code>k, m, g, t, p</code>，不区分大小写。</li>
+</ul>
+</li>
+<li>
+<p>代码示例</p>
+</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">bool</span> x = str::to_bool(<span class="hljs-string">"false"</span>);    <span class="hljs-comment">// "true" or "1" -&gt; true, "false" or "0" -&gt; false</span>
+<span class="hljs-keyword">double</span> x = str::to_double(<span class="hljs-string">"3.14"</span>); <span class="hljs-comment">// 3.14</span>
+
+int32 x = str::to_int32(<span class="hljs-string">"-23"</span>);    <span class="hljs-comment">// -23 </span>
+int64 x = str::to_int64(<span class="hljs-string">"4k"</span>);     <span class="hljs-comment">// 4096</span>
+uint32 x = str::to_uint32(<span class="hljs-string">"8M"</span>);   <span class="hljs-comment">// 8 &lt;&lt; 20 </span>
+uint64 x = str::to_uint64(<span class="hljs-string">"8T"</span>);   <span class="hljs-comment">// 8ULL &lt;&lt; 40</span>
+</div></code></pre>
+<h3 id="95-%E5%86%85%E7%BD%AE%E7%B1%BB%E5%9E%8B%E8%BD%AC%E5%AD%97%E7%AC%A6%E4%B8%B2">9.5 内置类型转字符串</h3>
+<p>str 库提供 <code>from</code> 函数，将内置类型转为字符串。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>fastring s = str::from(<span class="hljs-literal">true</span>);  <span class="hljs-comment">// -&gt; "true"</span>
+fastring s = str::from(<span class="hljs-number">23</span>);    <span class="hljs-comment">// -&gt; "23"</span>
+fastring s = str::from(<span class="hljs-number">3.14</span>);  <span class="hljs-comment">// -&gt; "3.14"</span>
+</div></code></pre>
+<h3 id="96-debug-string">9.6 debug string</h3>
+<p>str 库提供 <code>dbg</code> 函数，从指定类型生成一个 debug 字符串。</p>
+<ul>
+<li>函数原型</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// @v: 内置类型，字符串类型，或常用的 STL 容器类型(vector, map, set)</span>
+<span class="hljs-function">fastring <span class="hljs-title">dbg</span><span class="hljs-params">(v)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-built_in">std</span>::<span class="hljs-built_in">vector</span>&lt;<span class="hljs-keyword">int</span>&gt; v { <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span> };
+<span class="hljs-built_in">std</span>::<span class="hljs-built_in">set</span>&lt;<span class="hljs-keyword">int</span>&gt; s { <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span> };
+<span class="hljs-built_in">std</span>::<span class="hljs-built_in">map</span>&lt;<span class="hljs-keyword">int</span>, <span class="hljs-keyword">int</span>&gt; m { {<span class="hljs-number">1</span>, <span class="hljs-number">1</span>}, {<span class="hljs-number">2</span>, <span class="hljs-number">2</span>} };
+str::dbg(v);    <span class="hljs-comment">// -&gt; "[1,2,3]"</span>
+str::dbg(s);    <span class="hljs-comment">// -&gt; "{1,2,3}"</span>
+str::dbg(m);    <span class="hljs-comment">// -&gt; "{1:1,2:2}</span>
+
+str::dbg(<span class="hljs-literal">true</span>); <span class="hljs-comment">// -&gt; "true"</span>
+str::dbg(<span class="hljs-number">23</span>);   <span class="hljs-comment">// -&gt; "23"</span>
+str::dbg(<span class="hljs-string">"23"</span>); <span class="hljs-comment">// -&gt; "\"23\""，字符串类型，两边加引号</span>
+</div></code></pre>
+<ul>
+<li>当字符串中含有 <code>&quot;</code> 时，dbg() 生成的字符串看起来会有点瑕疵，不过此函数一般用于打日志，应该无伤大雅。</li>
+</ul>
+<h2 id="10-%E5%91%BD%E4%BB%A4%E8%A1%8C%E5%8F%82%E6%95%B0%E4%B8%8E%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90%E5%BA%93flag">10. 命令行参数与配置文件解析库(flag)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/flag.h">co/flag.h</a>.</p>
+<h3 id="101-%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5">10.1 基本概念</h3>
+<p><code>flag</code> 库是一个类似 <a href="https://github.com/gflags/gflags">google gflags</a> 的命令行参数及配置文件解析库，其原理很简单，代码中定义静态全局变量，然后在程序启动时解析命令行参数及配置文件，修改这些全局变量的值。</p>
+<h4 id="1011-flag-%E5%8F%98%E9%87%8F">10.1.1 flag 变量</h4>
+<p>flag 库中的宏定义的静态全局变量，称为 <strong>flag 变量</strong>。如下面的代码定义了名为 <code>x</code> 的 flag 变量，它对应的全局变量名是 <code>FLG_x</code>。</p>
+<pre class="hljs"><code><div>DEF_bool(x, <span class="hljs-literal">false</span>, <span class="hljs-string">"xxx"</span>); <span class="hljs-comment">// bool FLG_x = false;</span>
+</div></code></pre>
+<p>flag 库支持 7 种类型的 flag 变量：</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">bool</span>, int32, int64, uint32, uint64, <span class="hljs-keyword">double</span>, <span class="hljs-built_in">string</span>
+</div></code></pre>
+<h4 id="1012-command-line-flag">10.1.2 command line flag</h4>
+<p>命令行参数中，以 <code>-x=y</code> 的形式出现，其中 <code>x</code> 被称为一个 <code>command line flag</code>(以下都简称为 <code>flag</code>)。命令行中的 flag，与代码中的 flag 变量是一一对应的(下面不再区分二者)。flag 库为了简便易用，设计得非常灵活：</p>
+<ul>
+<li>-x=y 可以省略前面的 -，简写为 x=y.</li>
+<li>-x=y 也可以写成 -x y.</li>
+<li>x=y 前面可以带任意数量的 -.</li>
+<li>bool 类型的 flag，-b=true 可以简写为 -b，简写时不能省略 -.</li>
+</ul>
+<pre class="hljs"><code><div>./exe -b -i=32 s=hello xx  <span class="hljs-comment"># b,i,s 是 flag，xx 不是 flag</span>
+</div></code></pre>
+<h3 id="102-flag-%E5%BA%93%E7%9A%84%E5%88%9D%E5%A7%8B%E5%8C%96">10.2 flag 库的初始化</h3>
+<p>flag 库对外仅提供一个 api 函数 <code>flag::init()</code>，用于初始化 flag 库及解析命令行参数、配置文件等。</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// 主要流程:</span>
+<span class="hljs-comment">// 1. 扫描命令行参数，分成 flag 与非 flag 两类.</span>
+<span class="hljs-comment">// 2. 根据 flag 参数更新 FLG_config 的值，若非空，解析由此指定的配置文件.</span>
+<span class="hljs-comment">// 3. 根据 flag 参数更新 其他 flag 变量的值.</span>
+<span class="hljs-comment">// 4. 若 FLG_mkconf 非空，生成配置文件，退出程序.</span>
+<span class="hljs-comment">// 5. 若 FLG_daemon 为 true，将程序放入后台执行.</span>
+
+<span class="hljs-comment">// 解析过程中遇到任何错误，输出错误信息，退出程序.</span>
+<span class="hljs-comment">// 解析全部正常，返回非 flag 的参数列表.</span>
+<span class="hljs-function"><span class="hljs-built_in">std</span>::<span class="hljs-built_in">vector</span>&lt;fastring&gt; <span class="hljs-title">init</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>** argv)</span></span>;
+</div></code></pre>
+<p>此函数需要在进入 <code>main</code> 函数时调用一次：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/flag.h"</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>** argv)</span> </span>{
+    flag::init(argc, argv);
+}
+</div></code></pre>
+<h3 id="103-%E4%BB%A3%E7%A0%81%E4%B8%AD%E5%AE%9A%E4%B9%89%E5%A3%B0%E6%98%8E%E5%8F%8A%E4%BD%BF%E7%94%A8-flag-%E5%8F%98%E9%87%8F">10.3 代码中定义、声明及使用 flag 变量</h3>
+<h4 id="1031-%E5%AE%9A%E4%B9%89-flag-%E5%8F%98%E9%87%8F">10.3.1 定义 flag 变量</h4>
+<p>flag 库提供了 7 个宏，分别用于定义 7 种不同类型的 flag 变量：</p>
+<pre class="hljs"><code><div>DEF_bool  DEF_int32  DEF_int64  DEF_uint32  DEF_uint64  DEF_double  DEF_string
+</div></code></pre>
+<p>下面的代码，分别定义了类型为 bool 与 string 的两个 flag 变量：</p>
+<pre class="hljs"><code><div>DEF_bool(b, <span class="hljs-literal">false</span>, <span class="hljs-string">"comments"</span>);  <span class="hljs-comment">// bool FLG_b = false;</span>
+DEF_string(s, <span class="hljs-string">"x"</span>, <span class="hljs-string">"comments"</span>);  <span class="hljs-comment">// fastring FLG_s = "x";</span>
+</div></code></pre>
+<p><code>DEF_xxx</code> 宏带有三个参数，第一个参数是 flag 变量名，第二个参数是默认值，第三个参数是注释。需要注意下面两点：</p>
+<ul>
+<li>flag 变量是全局变量，一般不要在头文件中定义它们。</li>
+<li>flag 变量的名字是唯一的，不能定义两个名字相同的 flag 变量。</li>
+</ul>
+<h4 id="1032-%E5%A3%B0%E6%98%8E-flag-%E5%8F%98%E9%87%8F">10.3.2 声明 flag 变量</h4>
+<p>与定义类似，flag 库也提供了 7 个宏，分别用于声明 7 种不同类型的 flag 变量：</p>
+<pre class="hljs"><code><div>DEC_bool  DEC_int32  DEC_int64  DEC_uint32  DEC_uint64  DEC_double  DEC_string
+</div></code></pre>
+<p>下面的代码声明了一个 int32 类型的变量：</p>
+<pre class="hljs"><code><div>DEC_int32(i32); <span class="hljs-comment">// extern int32 FLG_i32;</span>
+</div></code></pre>
+<p><code>DEC_xxx</code> 宏只有一个参数，接收 flag 变量名。一个 flag 变量只能定义一次，但可以声明多次，可以在任何需要的地方声明它们。声明一般用于引用其它地方定义的 flag 变量。</p>
+<h4 id="1033-%E4%BD%BF%E7%94%A8-flag-%E5%8F%98%E9%87%8F">10.3.3 使用 flag 变量</h4>
+<p>定义或声明 flag 变量后，就可以像普通变量一样使用它们：</p>
+<pre class="hljs"><code><div>DEC_bool(b);
+<span class="hljs-keyword">if</span> (!FLG_b) <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"b is false"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+
+DEF_string(s, <span class="hljs-string">"hello"</span>, <span class="hljs-string">"xxx"</span>);
+FLG_s += <span class="hljs-string">" world"</span>;
+<span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; FLG_s &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+</div></code></pre>
+<h3 id="104-%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%AD%E4%BD%BF%E7%94%A8-flag">10.4 命令行中使用 flag</h3>
+<h4 id="1041-%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%AD%E8%AE%BE%E7%BD%AE-flag-%E5%8F%98%E9%87%8F%E7%9A%84%E5%80%BC">10.4.1 命令行中设置 flag 变量的值</h4>
+<p>假设程序中定义了如下的 flag：</p>
+<pre class="hljs"><code><div>DEF_bool(x, <span class="hljs-literal">false</span>, <span class="hljs-string">"bool x"</span>);
+DEF_bool(y, <span class="hljs-literal">false</span>, <span class="hljs-string">"bool y"</span>);
+DEF_int32(i, <span class="hljs-number">-32</span>, <span class="hljs-string">"int32"</span>);
+DEF_uint64(u, <span class="hljs-number">64</span>, <span class="hljs-string">"uint64"</span>);
+DEF_double(d, <span class="hljs-number">3.14</span>, <span class="hljs-string">"double"</span>);
+DEF_string(s, <span class="hljs-string">"hello world"</span>, <span class="hljs-string">"string"</span>);
+</div></code></pre>
+<p>程序启动时，可以通过命令行参数修改 flag 变量的值：</p>
+<ul>
+<li>
+<p><code>-x=y</code> 也可以写成 <code>-x y</code> 或者 <code>x=y</code></p>
+<pre class="hljs"><code><div>./xx -i=8 u=88 -s=<span class="hljs-string">"hello world"</span>
+./xx -i 8 -u 88 -s <span class="hljs-string">"hello world"</span>
+</div></code></pre>
+</li>
+<li>
+<p>bool flag 设置为 true 时，可以略去其值</p>
+<pre class="hljs"><code><div>./xx -x     <span class="hljs-comment"># -x=true</span>
+</div></code></pre>
+</li>
+<li>
+<p>多个单字母命名的 bool flag，可以合并设置为 true</p>
+<pre class="hljs"><code><div>./xx -xy    <span class="hljs-comment"># -x=true -y=true</span>
+</div></code></pre>
+</li>
+<li>
+<p>整型 flag 可以带单位 <code>k, m, g, t, p</code>，不区分大小写</p>
+<pre class="hljs"><code><div>./xx i=-4k  <span class="hljs-comment"># i=-4096</span>
+</div></code></pre>
+</li>
+<li>
+<p>整型 flag 可以传 8, 16 进制数</p>
+<pre class="hljs"><code><div>./xx i=032  <span class="hljs-comment"># i=26     8 进制</span>
+./xx u=0xff <span class="hljs-comment"># u=255   16 进制</span>
+</div></code></pre>
+</li>
+</ul>
+<h4 id="1042-%E6%9F%A5%E7%9C%8B%E5%B8%AE%E5%8A%A9%E4%BF%A1%E6%81%AF">10.4.2 查看帮助信息</h4>
+<pre class="hljs"><code><div>$ ./xx --<span class="hljs-built_in">help</span>
+usage:
+    ./xx --                   <span class="hljs-built_in">print</span> flags info
+    ./xx --<span class="hljs-built_in">help</span>               <span class="hljs-built_in">print</span> this <span class="hljs-built_in">help</span> info
+    ./xx --mkconf             generate config file
+    ./xx --daemon             run as a daemon (Linux)
+    ./xx xx.conf              run with config file
+    ./xx config=xx.conf       run with config file
+    ./xx -x -i=8k -s=ok       run with commandline flags
+    ./xx -x -i 8k -s ok       run with commandline flags
+    ./xx x=<span class="hljs-literal">true</span> i=8192 s=ok   run with commandline flags
+</div></code></pre>
+<h4 id="1043-%E6%9F%A5%E7%9C%8B-flag-%E5%8F%98%E9%87%8F%E5%88%97%E8%A1%A8">10.4.3 查看 flag 变量列表</h4>
+<pre class="hljs"><code><div>$ ./xx --
+--config: .path of config file
+	 <span class="hljs-built_in">type</span>: string	     default: <span class="hljs-string">""</span>
+	 from: ../../base/flag.cc
+--mkconf: .generate config file
+	 <span class="hljs-built_in">type</span>: bool	     default: <span class="hljs-literal">false</span>
+	 from: ../../base/flag.cc
+</div></code></pre>
+<h3 id="105-%E7%A8%8B%E5%BA%8F%E5%90%AF%E5%8A%A8%E6%97%B6%E6%8C%87%E5%AE%9A%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">10.5 程序启动时指定配置文件</h3>
+<p>命令行中可以用 flag <code>config</code> 指定程序的配置文件：</p>
+<pre class="hljs"><code><div>./xx config=xx.conf
+./xx xx.conf     <span class="hljs-comment"># 若配置文件名以 .conf 或 config 结尾，且是程序命令行的第一个非 flag 参数，则可省略 config=</span>
+./xx -x xx.conf  <span class="hljs-comment"># -x 是 flag，xx.conf 是第一个非 flag 参数</span>
+</div></code></pre>
+<p>另外也可以在代码中调用 <code>flag::init()</code> 之前，修改 <code>FLG_config</code> 的值，指定配置文件。</p>
+<h3 id="106-%E8%87%AA%E5%8A%A8%E7%94%9F%E6%88%90%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">10.6 自动生成配置文件</h3>
+<p>程序启动时，可以用 <code>--mkconf</code> 自动生成配置文件:</p>
+<pre class="hljs"><code><div>./xx --mkconf          <span class="hljs-comment"># 在 xx 所在目录生成 xx.conf</span>
+./xx --mkconf -x u=88  <span class="hljs-comment"># 配置项可以用指定的值替代默认值</span>
+</div></code></pre>
+<p>配置项(flag) 按级别、所在文件名、所在代码行数进行排序。定义 flag 时可以在注释开头加上 <code>#n</code> 指定级别，<code>n</code> 必须是 0 到 99 之间的整数，不指定时默认为 10。</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// 指定 -daemon 级别为 0，级别小的排在前面</span>
+DEF_bool(daemon, <span class="hljs-literal">false</span>, <span class="hljs-string">"#0 run program as a daemon"</span>);
+</div></code></pre>
+<ul>
+<li>特别说明
+<ul>
+<li>注释以<code>.</code>开头的 flag，带有<strong>隐藏</strong>属性，不会生成到配置文件中，但<code>./xx --</code>可以查看。</li>
+<li>注释为空的 flag，带有<strong>隐身</strong>属性，不会生成到配置文件中，<code>./xx --</code>也无法查看。</li>
+</ul>
+</li>
+</ul>
+<h3 id="107-%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E7%9A%84%E6%A0%BC%E5%BC%8F">10.7 配置文件的格式</h3>
+<p>flag 库的配置文件格式，也比较灵活：</p>
+<ul>
+<li>忽略行前、行尾的空白字符，书写更自由，不容易出错。</li>
+<li><code>#</code> 或 <code>//</code> 表示注释，支持整行注释与行尾注释。</li>
+<li>引号中的 <code>#</code> 或 <code>//</code> 不是注释。</li>
+<li>一行一个 flag，形式强制统一为 x = y，看起来一目了然。</li>
+<li><code>=</code> 号前后可以任意添加空白字符，书写更自由。</li>
+<li>可以用 <code>\</code> 续行，以免一行太长，影响美观。</li>
+<li>字符串不支持转义，以免产生歧义。</li>
+</ul>
+<p>下面是一个配置文件的示例：</p>
+<pre class="hljs"><code><div>   <span class="hljs-comment"># config file: xx.conf</span>
+     daemon = <span class="hljs-literal">false</span>            <span class="hljs-comment"># 后台运行程序 (daemon 由 flag 库内部定义)</span>
+     boo = <span class="hljs-literal">true</span>                <span class="hljs-comment"># 不能像命令行中那样简写为 -boo</span>
+
+     s =                       <span class="hljs-comment"># 空字符串</span>
+     s = hello \
+         world                 <span class="hljs-comment"># s = "helloworld"</span>
+     s = <span class="hljs-string">"http://github.com"</span>   <span class="hljs-comment"># 引号中的 # 与 // 不是注释</span>
+     s = <span class="hljs-string">"I'm ok"</span>              <span class="hljs-comment"># 字符串中含有单引号，两端可以加双引号</span>
+     s = <span class="hljs-string">'how are "U"'</span>         <span class="hljs-comment"># 字符串中含有双引号，两端可以加单引号</span>
+
+     i32 = 4k                  <span class="hljs-comment"># 4096, 整型可以带单位 k,m,g,t,p，不区分大小写</span>
+     i32 = 032                 <span class="hljs-comment">#  8 进制，i32 = 26</span>
+     i32 = 0xff                <span class="hljs-comment"># 16 进制，i32 = 255</span>
+     pi = 3.14159              <span class="hljs-comment"># double 类型</span>
+</div></code></pre>
+<h2 id="11-%E9%AB%98%E6%95%88%E6%B5%81%E5%BC%8F%E6%97%A5%E5%BF%97%E5%BA%93log">11. 高效流式日志库(log)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/log.h">co/log.h</a>.</p>
+<h3 id="111-%E5%9F%BA%E6%9C%AC%E4%BB%8B%E7%BB%8D">11.1 基本介绍</h3>
+<p><code>log</code> 库是一个类似 <a href="https://github.com/google/glog">google glog</a> 的 C++ 流式日志库，打印日志比 printf 系列的函数更方便、更安全：</p>
+<pre class="hljs"><code><div>LOG &lt;&lt; <span class="hljs-string">"hello world"</span> &lt;&lt; <span class="hljs-number">23</span>;
+</div></code></pre>
+<p>log 库内部实现中采用异步方式，日志先写入缓存，达到一定量或超过一定时间后，由后台线程一并写入文件，性能在不同平台比 glog 提升了 20~150 倍左右。</p>
+<p>下表是在不同平台连续打印 100 万条(每条 50 字节左右) info 级别日志的测试结果：</p>
+<table>
+<thead>
+<tr>
+<th>log vs glog</th>
+<th>google glog</th>
+<th>co/log</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>win2012 HHD</td>
+<td>1.6MB/s</td>
+<td>180MB/s</td>
+</tr>
+<tr>
+<td>win10 SSD</td>
+<td>3.7MB/s</td>
+<td>560MB/s</td>
+</tr>
+<tr>
+<td>mac SSD</td>
+<td>17MB/s</td>
+<td>450MB/s</td>
+</tr>
+<tr>
+<td>linux SSD</td>
+<td>54MB/s</td>
+<td>1023MB/s</td>
+</tr>
+</tbody>
+</table>
+<h3 id="112-api-%E4%BB%8B%E7%BB%8D">11.2 Api 介绍</h3>
+<p>log 库对外仅提供两个 api 函数：</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init</span><span class="hljs-params">()</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">close</span><span class="hljs-params">()</span></span>;
+</div></code></pre>
+<p><code>log::init()</code> 需要在 <code>main</code> 函数开头调用一次。由于 log 库依赖于 flag 库，所以 main 函数一般得像下面这样写：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/flag.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/log.h"</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>** argv)</span> </span>{
+    flag::init(argc, argv);
+    <span class="hljs-built_in">log</span>::init();
+}
+</div></code></pre>
+<p><code>log::close()</code> 将缓存中的日志写入文件，并退出后台写日志的线程。log 库内部会捕获 <code>SIGINT, SIGTERM, SIGQUIT</code> 等信号，在程序退出前将缓存中的日志写入文件。</p>
+<h3 id="113-%E6%89%93%E5%8D%B0%E4%B8%8D%E5%90%8C%E7%BA%A7%E5%88%AB%E7%9A%84%E6%97%A5%E5%BF%97">11.3 打印不同级别的日志</h3>
+<p>日志分为 debug, info, warning, error, fatal 5 个级别，可以分别用宏 DLOG, LOG, WLOG, ELOG, FLOG 打印 5 种不同级别的日志：</p>
+<pre class="hljs"><code><div>DLOG &lt;&lt; <span class="hljs-string">"this is DEBUG log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+LOG &lt;&lt; <span class="hljs-string">"this is INFO log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+WLOG &lt;&lt; <span class="hljs-string">"this is WARNING log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+ELOG &lt;&lt; <span class="hljs-string">"this is ERROR log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+FLOG &lt;&lt; <span class="hljs-string">"this is FATAL log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+</div></code></pre>
+<p>打印 <code>fatal</code> 日志，表示程序出现了致命错误，log 库会打印当前线程的函数调用栈信息，并终止程序的运行。</p>
+<h3 id="114-%E6%9D%A1%E4%BB%B6%E6%97%A5%E5%BF%97logif">11.4 条件日志(LOG_IF)</h3>
+<p>log 库也提供 <code>IF</code> 版的宏，接受一个条件参数，当满足指定条件时才打印日志。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>DLOG_IF(cond) &lt;&lt; <span class="hljs-string">"this is DEBUG log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+LOG_IF(cond) &lt;&lt; <span class="hljs-string">"this is INFO log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+WLOG_IF(cond) &lt;&lt; <span class="hljs-string">"this is WARNING log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+ELOG_IF(cond) &lt;&lt; <span class="hljs-string">"this is ERROR log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+FLOG_IF(cond) &lt;&lt; <span class="hljs-string">"this is FATAL log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+</div></code></pre>
+<h3 id="115-%E6%AF%8F-n-%E6%9D%A1%E6%89%93%E5%8D%B0%E4%B8%80%E6%AC%A1%E6%97%A5%E5%BF%97logeveryn">11.5 每 N 条打印一次日志(LOG_EVERY_N)</h3>
+<p>log 库提供 <code>LOG_EVERY_N</code> 等宏，支持每 N 条打印一次日志，这些宏内部使用原子操作，保证线程安全性。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 打印第 1, 33, 65...... 条日志</span>
+DLOG_EVERY_N(<span class="hljs-number">32</span>) &lt;&lt; <span class="hljs-string">"this is DEBUG log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+LOG_EVERY_N(<span class="hljs-number">32</span>) &lt;&lt; <span class="hljs-string">"this is INFO log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+WLOG_EVERY_N(<span class="hljs-number">32</span>) &lt;&lt; <span class="hljs-string">"this is WARNING log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+ELOG_EVERY_N(<span class="hljs-number">32</span>) &lt;&lt; <span class="hljs-string">"this is ERROR log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+</div></code></pre>
+<p>FLOG 没有这个功能，因为 FLOG 一打印，程序就挂了。</p>
+<h3 id="116-%E6%89%93%E5%8D%B0%E5%89%8D-n-%E6%9D%A1%E6%97%A5%E5%BF%97logfirstn">11.6 打印前 N 条日志(LOG_FIRST_N)</h3>
+<p>log 库提供 <code>LOG_FIRST_N</code> 等宏，支持打印前 N 条日志。这些宏内部同样使用原子操作，保证线程安全性。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 打印前 10 条日志</span>
+DLOG_FIRST_N(<span class="hljs-number">10</span>) &lt;&lt; <span class="hljs-string">"this is DEBUG log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+LOG_FIRST_N(<span class="hljs-number">10</span>) &lt;&lt; <span class="hljs-string">"this is INFO log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+WLOG_FIRST_N(<span class="hljs-number">10</span>) &lt;&lt; <span class="hljs-string">"this is WARNING log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+ELOG_FIRST_N(<span class="hljs-number">10</span>) &lt;&lt; <span class="hljs-string">"this is ERROR log "</span> &lt;&lt; <span class="hljs-number">23</span>;
+</div></code></pre>
+<h3 id="117-check-%E5%8A%A0%E5%BC%BA%E7%89%88%E7%9A%84-assert">11.7 CHECK: 加强版的 assert</h3>
+<p>log 库提供了一系列的 CHECK 宏，可视为加强版的 assert，这些宏在 DEBUG 模式下也不会被清除。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>CHECK(<span class="hljs-number">1</span> + <span class="hljs-number">1</span> == <span class="hljs-number">2</span>) &lt;&lt; <span class="hljs-string">"say something here"</span>;
+CHECK_EQ(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// ==</span>
+CHECK_NE(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// !=</span>
+CHECK_GE(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// &gt;=</span>
+CHECK_LE(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// &lt;=</span>
+CHECK_GT(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// &gt;  greater than</span>
+CHECK_LT(<span class="hljs-number">1</span> + <span class="hljs-number">1</span>, <span class="hljs-number">2</span>);  <span class="hljs-comment">// &lt;  less than</span>
+</div></code></pre>
+<p>CHECK 失败时，LOG 库会先调用 log::close() 写日志，再打印当前线程的函数调用栈信息，然后退出程序。</p>
+<h3 id="118-%E9%85%8D%E7%BD%AE%E9%A1%B9">11.8 配置项</h3>
+<ul>
+<li>
+<p>log_dir</p>
+<p>指定日志目录，默认为当前目录下的 <code>logs</code> 目录，不存在时将会自动创建。</p>
+<pre class="hljs"><code><div>DEF_string(log_dir, <span class="hljs-string">"logs"</span>, <span class="hljs-string">"Log dir, will be created if not exists"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>log_file_name</p>
+<p>指定日志文件名(不含路径)，默认为空，使用程序名作为日志文件名。</p>
+<pre class="hljs"><code><div>DEF_string(log_file_name, <span class="hljs-string">""</span>, <span class="hljs-string">"name of log file, using exename if empty"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>min_log_level</p>
+<p>指定打印日志的最小级别，用于屏蔽低级别的日志，默认为 0，打印所有级别的日志。</p>
+<pre class="hljs"><code><div>DEF_int32(min_log_level, <span class="hljs-number">0</span>, <span class="hljs-string">"write logs at or above this level, 0-4 (debug|info|warning|error|fatal)"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>max_log_file_size</p>
+<p>指定日志文件的最大大小，默认 256M，超过此大小，生成新的日志文件，旧的日志文件会被重命名。</p>
+<pre class="hljs"><code><div>DEF_int64(max_log_file_size, <span class="hljs-number">256</span> &lt;&lt; <span class="hljs-number">20</span>, <span class="hljs-string">"max size of log file, default: 256MB"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>max_log_file_num</p>
+<p>指定日志文件的最大数量，默认是 8，超过此值，删除旧的日志文件。</p>
+<pre class="hljs"><code><div>DEF_uint32(max_log_file_num, <span class="hljs-number">8</span>, <span class="hljs-string">"max number of log files"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>max_log_buffer_size</p>
+<p>指定日志缓存的最大大小，默认 32M，超过此值，丢掉一半的日志。</p>
+<pre class="hljs"><code><div>DEF_uint32(max_log_buffer_size, <span class="hljs-number">32</span> &lt;&lt; <span class="hljs-number">20</span>, <span class="hljs-string">"max size of log buffer, default: 32MB"</span>);
+</div></code></pre>
+</li>
+<li>
+<p>cout</p>
+<p>终端日志开关，默认为 false。若为 true，将日志也打印到终端。</p>
+<pre class="hljs"><code><div>DEF_bool(<span class="hljs-built_in">cout</span>, <span class="hljs-literal">false</span>, <span class="hljs-string">"also logging to terminal"</span>);
+</div></code></pre>
+</li>
+</ul>
+<h3 id="119-%E5%8A%9F%E8%83%BD%E5%8F%8A%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95">11.9 功能及性能测试</h3>
+<p>LOG 库的测试代码见 <a href="https://github.com/idealvin/co/blob/master/test/log_test.cc">test/log_test.cc</a>.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 在 co 根目录执行下述命令</span>
+xmake -b <span class="hljs-built_in">log</span>    <span class="hljs-comment"># build log</span>
+
+<span class="hljs-comment"># 打印不同类型的日志</span>
+xmake r <span class="hljs-built_in">log</span>
+
+<span class="hljs-comment"># 日志也打印到终端</span>
+xmake r <span class="hljs-built_in">log</span> -cout
+
+<span class="hljs-comment"># min_log_level 指定输出日志的最小级别</span>
+xmake r <span class="hljs-built_in">log</span> -min_log_level=1   <span class="hljs-comment"># 0-4: debug,info,warning,error,fatal </span>
+
+<span class="hljs-comment"># 性能测试，单线程连续打印 100 万条 info 级别的日志</span>
+xmake r <span class="hljs-built_in">log</span> -perf
+</div></code></pre>
+<h2 id="12-%E5%8D%95%E5%85%83%E6%B5%8B%E8%AF%95%E6%A1%86%E6%9E%B6unitest">12. 单元测试框架(unitest)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/unitest.h">co/unitest.h</a>.</p>
+<p><code>unitest</code> 是一个单元测试框架，与 <a href="https://github.com/google/googletest">google gtest</a> 类似，但更简单易用。</p>
+<h3 id="121-%E5%AE%9A%E4%B9%89%E6%B5%8B%E8%AF%95%E5%8D%95%E5%85%83%E5%8F%8A%E7%94%A8%E4%BE%8B">12.1 定义测试单元及用例</h3>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/unitest.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/os.h"</span></span>
+
+<span class="hljs-comment">// 定义一个名为 os 的测试单元，os 有 3 个不同的测试用例</span>
+<span class="hljs-comment">// 运行单元测试程序时，可用参数 -os 指定运行此单元测试中的用例</span>
+DEF_test(os) {
+    DEF_case(homedir) {
+        EXPECT_NE(os::homedir(), <span class="hljs-string">""</span>);
+    }
+
+    DEF_case(pid) {
+        EXPECT_GE(os::pid(), <span class="hljs-number">0</span>);
+    }
+
+    DEF_case(cpunum) {
+        EXPECT_GT(os::cpunum(), <span class="hljs-number">0</span>);
+    }
+}
+</div></code></pre>
+<h3 id="122-%E8%BF%90%E8%A1%8C%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B">12.2 运行测试用例</h3>
+<p><a href="https://github.com/idealvin/co/tree/master/unitest">co/unitest</a> 下有一些单元测试代码，可按下述步骤编译、执行：</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 在 co 根目录执行下述命令</span>
+xmake -b unitest    <span class="hljs-comment"># build unitest</span>
+
+<span class="hljs-comment"># 运行所有测试用例</span>
+xmake r unitest -a
+
+<span class="hljs-comment"># 仅运行 os 单元中的测试用例</span>
+xmake r unitest -os
+</div></code></pre>
+<h2 id="13-%E6%97%B6%E9%97%B4%E5%BA%93time">13. 时间库(time)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/time.h">co/time.h</a>.</p>
+<h3 id="131-monotonic-time">13.1 monotonic time</h3>
+<p><code>monotonic time</code> 在多数平台实现为自系统启动开始的时间，一般用于计时，比系统时间稳定，不受系统时间的影响。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>int64 us = now::us(); <span class="hljs-comment">// 微秒</span>
+int64 ms = now::ms(); <span class="hljs-comment">// 毫秒</span>
+</div></code></pre>
+<h3 id="132-%E6%97%B6%E9%97%B4%E5%AD%97%E7%AC%A6%E4%B8%B2nowstr">13.2 时间字符串(now::str())</h3>
+<p><code>now::str()</code> 基于 <code>strftime</code> 实现，以指定格式返回当前系统时间的字符串形式。</p>
+<ul>
+<li>函数原型</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// fm: 时间输出格式</span>
+<span class="hljs-function">fastring <span class="hljs-title">str</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* fm=<span class="hljs-string">"%Y-%m-%d %H:%M:%S"</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>fastring s = now::str();     <span class="hljs-comment">// "2018-08-08 08:08:08"</span>
+fastring s = now::str(<span class="hljs-string">"%Y"</span>); <span class="hljs-comment">// "2028"</span>
+</div></code></pre>
+<h3 id="133-sleep">13.3 sleep</h3>
+<p>Linux 平台支持微秒级的 sleep，但 Windows 平台难以实现。因此，time 库中仅支持毫秒、秒级的 sleep。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>sleep::ms(<span class="hljs-number">10</span>); <span class="hljs-comment">// sleep for 10 milliseconds</span>
+sleep::sec(<span class="hljs-number">1</span>); <span class="hljs-comment">// sleep for 1 second</span>
+</div></code></pre>
+<h3 id="134-%E8%AE%A1%E6%97%B6%E5%99%A8timer">13.4 计时器(Timer)</h3>
+<p><code>Timer</code> 基于 monotonic 时间实现，对象创建时，即开始计时。</p>
+<pre class="hljs"><code><div>Timer t;
+sleep::ms(<span class="hljs-number">10</span>);
+
+int64 us = t.us(); <span class="hljs-comment">// 微秒</span>
+int64 ms = t.ms(); <span class="hljs-comment">// 毫秒</span>
+
+t.restart();       <span class="hljs-comment">// 重新开始计时</span>
+</div></code></pre>
+<h2 id="14-%E7%BA%BF%E7%A8%8B%E5%BA%93thread">14. 线程库(thread)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/thread.h">co/thread.h</a>.</p>
+<h3 id="141-%E4%BA%92%E6%96%A5%E9%94%81mutex">14.1 互斥锁(Mutex)</h3>
+<p><code>Mutex</code> 是多线程编程中常用的一种互斥锁，同一时刻，只能有一个线程抢到锁，其他线程必须等待锁被释放。</p>
+<p>还有一种读写锁，同一时刻，允许多个线程读，但最多只有一个线程写。在实际应用中，读写锁性能较差，本库因此移除了读写锁。</p>
+<p>与 <code>Mutex</code> 相对应的，有一个 <code>MutexGuard</code> 类，用于互斥锁的自动获取、释放。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>Mutex m;
+m.lock();         <span class="hljs-comment">// 获取锁，若锁已被其他线程占用，则当前线程会阻塞</span>
+m.unlock();       <span class="hljs-comment">// 释放锁</span>
+m.try_lock();     <span class="hljs-comment">// 获取锁，若锁已被其他线程占用，返回 false, 当前线程不会阻塞</span>
+
+<span class="hljs-function">MutexGuard <span class="hljs-title">g</span><span class="hljs-params">(m)</span></span>;  <span class="hljs-comment">// 构造函数中调用 m.lock() 获取锁，析构函数中调用 m.unlock() 释放锁</span>
+</div></code></pre>
+<h3 id="142-%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6syncevent">14.2 同步事件(SyncEvent)</h3>
+<p><code>SyncEvent</code> 是多线程编程中常用的一种同步机制，适用于生产者-消费者模型。</p>
+<ul>
+<li>SyncEvent 构造函数说明</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// manual_reset: 是否在 wait 结束时手动设置 event 的同步状态</span>
+<span class="hljs-comment">// signaled:     event 的初始状态是否为 signaled</span>
+SyncEvent(<span class="hljs-keyword">bool</span> manual_reset=<span class="hljs-literal">false</span>, <span class="hljs-keyword">bool</span> signaled=<span class="hljs-literal">false</span>);
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>SyncEvent ev;
+ev.wait();                 <span class="hljs-comment">// 线程 A，等待事件同步，wait() 函数自动将 event 状态设置为 unsignaled</span>
+ev.signal();               <span class="hljs-comment">// 线程 B，事件同步通知</span>
+
+<span class="hljs-function">SyncEvent <span class="hljs-title">ev</span><span class="hljs-params">(<span class="hljs-literal">true</span>, <span class="hljs-literal">false</span>)</span></span>; <span class="hljs-comment">// 启用 manual_reset，等待的线程需要手动设置 event 同步状态</span>
+ev.wait(<span class="hljs-number">1000</span>);             <span class="hljs-comment">// 线程 A，等待 1000 毫秒，直到事件同步或超时</span>
+ev.reset();                <span class="hljs-comment">// 线程 A，手动设置 event 状态为 unsignaled</span>
+ev.signal();               <span class="hljs-comment">// 线程 B，事件同步通知</span>
+</div></code></pre>
+<h3 id="143-%E7%BA%BF%E7%A8%8Bthread">14.3 线程(Thread)</h3>
+<p><code>Thread</code> 类是对线程的封装，创建 Thread 对象时，线程就会启动，线程函数执行完时，线程自动退出。</p>
+<p>Thread 类除构造、析构函数外，仅提供两个方法:</p>
+<ul>
+<li>
+<p><code>join()</code>, 阻塞，等待线程函数执行完，然后退出线程</p>
+</li>
+<li>
+<p><code>detach()</code>, 不阻塞，线程函数执行完时，自动释放系统资源</p>
+</li>
+<li>
+<p>代码示例</p>
+</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 启动线程</span>
+<span class="hljs-function">Thread <span class="hljs-title">x</span><span class="hljs-params">(f)</span></span>;                        <span class="hljs-comment">// void f();</span>
+<span class="hljs-function">Thread <span class="hljs-title">x</span><span class="hljs-params">(f, p)</span></span>;                     <span class="hljs-comment">// void f(void*);  void* p;</span>
+<span class="hljs-function">Thread <span class="hljs-title">x</span><span class="hljs-params">(&amp;T::f, &amp;t)</span></span>;                <span class="hljs-comment">// void T::f();  T t;</span>
+<span class="hljs-function">Thread <span class="hljs-title">x</span><span class="hljs-params">(<span class="hljs-built_in">std</span>::bind(f, <span class="hljs-number">7</span>))</span></span>;          <span class="hljs-comment">// void f(int v);</span>
+<span class="hljs-function">Thread <span class="hljs-title">x</span><span class="hljs-params">(<span class="hljs-built_in">std</span>::bind(&amp;T::f, &amp;t, <span class="hljs-number">7</span>))</span></span>;  <span class="hljs-comment">// void T::f(int v);  T t;</span>
+
+<span class="hljs-comment">// 阻塞，等线程函数执行完</span>
+x.join();                           
+
+<span class="hljs-comment">// 启动线程，并销毁 Thread 对象，线程独立于 Thread 对象运行</span>
+Thread(f).detach();
+</div></code></pre>
+<h3 id="144-%E8%8E%B7%E5%8F%96%E5%BD%93%E5%89%8D%E7%BA%BF%E7%A8%8B%E7%9A%84-id">14.4 获取当前线程的 id</h3>
+<p><code>current_thread_id()</code> 用于获取当前线程的 id，thread 库利用 <a href="https://wiki.osdev.org/Thread_Local_Storage">TLS</a> 保存线程 id，每个线程只需一次系统调用。</p>
+<p>Linux glibc 从 <code>2.30</code> 版本开始增加了 gettid 系统调用，为避免冲突，thread 库移除了早期提供的 gettid 接口，改为 <code>current_thread_id</code>。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">int</span> id = current_thread_id();
+</div></code></pre>
+<h3 id="145-%E5%9F%BA%E4%BA%8E-tls-%E7%9A%84-threadptr">14.5 基于 TLS 的 thread_ptr</h3>
+<p><code>thread_ptr</code> 用法与 <code>std::unique_ptr</code> 类似，但内部使用了 <code>TLS</code> 机制，每个线程设置并拥有自己的 ptr。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">T</span> {</span>
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">run</span><span class="hljs-params">()</span> </span>{
+        <span class="hljs-built_in">cout</span> &lt;&lt; current_thread_id() &lt;&lt; <span class="hljs-built_in">endl</span>;
+    }
+};
+
+thread_ptr&lt;T&gt; pt;
+
+<span class="hljs-comment">// 在 thread 1 的线程函数中执行</span>
+<span class="hljs-keyword">if</span> (pt == <span class="hljs-literal">NULL</span>) pt.reset(<span class="hljs-keyword">new</span> T); 
+pt-&gt;run();  <span class="hljs-comment">// 打印 thread 1 的 id</span>
+
+<span class="hljs-comment">// 在 thread 2 的线程函数中执行</span>
+<span class="hljs-keyword">if</span> (pt == <span class="hljs-literal">NULL</span>) pt.reset(<span class="hljs-keyword">new</span> T);
+pt-&gt;run();  <span class="hljs-comment">// 打印 thread 2 的 id</span>
+</div></code></pre>
+<h3 id="146-%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6%E5%99%A8tasksched">14.6 定时任务调度器(TaskSched)</h3>
+<p><code>TaskSched</code> 类用于定时任务的调度，内部由单线程调度所有任务，但可以从任意线程添加任务。</p>
+<ul>
+<li>TaskSched 提供的方法
+<ul>
+<li>run_in</li>
+<li>run_every</li>
+<li>run_daily</li>
+</ul>
+</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// @f: std::function&lt;void()&gt; 类型的函数对象</span>
+
+<span class="hljs-comment">// n 秒后执行 f 一次</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">run_in</span><span class="hljs-params">(f, n)</span></span>;
+
+<span class="hljs-comment">// 每 n 秒执行一次 f</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">run_every</span><span class="hljs-params">(f, n)</span></span>;
+
+<span class="hljs-comment">// 每天的 hour:min:sec 执行一次</span>
+<span class="hljs-comment">// @hour: 0-23，默认为 0</span>
+<span class="hljs-comment">// @min:  0-59，默认为 0</span>
+<span class="hljs-comment">// @sec:  0-59，默认为 0</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">run_daily</span><span class="hljs-params">(f, hour=<span class="hljs-number">0</span>, min=<span class="hljs-number">0</span>, sec=<span class="hljs-number">0</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>TaskSched s;                      <span class="hljs-comment">// 启动任务调度线程</span>
+s.run_in(f, <span class="hljs-number">3</span>);                   <span class="hljs-comment">// 3 秒后执行 f 一次    void f();</span>
+s.run_every(<span class="hljs-built_in">std</span>::bind(f, <span class="hljs-number">0</span>), <span class="hljs-number">3</span>);  <span class="hljs-comment">// 每 3 秒执行一次 f    void f(int);</span>
+s.run_daily(f);                   <span class="hljs-comment">// 每天 00:00:00 执行一次 f</span>
+s.run_daily(f, <span class="hljs-number">23</span>);               <span class="hljs-comment">// 每天 23:00:00 执行一次 f</span>
+s.run_daily(f, <span class="hljs-number">23</span>, <span class="hljs-number">30</span>);           <span class="hljs-comment">// 每天 23:30:00 执行一次 f</span>
+s.stop();                         <span class="hljs-comment">// 退出任务调度线程</span>
+</div></code></pre>
+<h2 id="15-%E5%8D%8F%E7%A8%8B%E5%BA%93co">15. 协程库(co)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/co.h">co/co.h</a>.</p>
+<h3 id="151-%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5">15.1 基本概念</h3>
+<ul>
+<li>协程是运行于线程中的轻量级调度单位.</li>
+<li>协程之于线程，类似于线程之于进程.</li>
+<li>一个进程中可以存在多个线程，一个线程中可以存在多个协程.</li>
+<li>协程所在的线程一般被称为调度线程.</li>
+<li>一个协程发生 io 阻塞或调用 sleep 等操作时，调度线程会挂起此协程.</li>
+<li>一个协程挂起时，调度线程会切换到其他等待执行的协程运行.</li>
+<li>协程的切换是在用户态进行的，比线程间的切换更快.</li>
+</ul>
+<p>协程非常适合写网络程序，可以实现同步的编程方式，不需要异步回调，大大减轻了程序员的思想负担。</p>
+<p><code>co</code> 协程库实现的是一种 <a href="https://github.com/golang/go/">golang</a> 风格的协程，有下面几个特性:</p>
+<ul>
+<li>内置多个调度线程，默认为系统 CPU 核数.</li>
+<li>同一调度线程中的协程共用一个栈，协程挂起时，会将栈上数据 copy 出来，切换回来时再将数据 copy 到栈上. 这种方式大大降低了内存占用，单机可以轻松创建上百万协程.</li>
+<li>各协程之间为平级关系，可以在任何地方(包括在协程中)创建新的协程.</li>
+</ul>
+<p>co 协程库在 linux, mac, windows 等平台，分别基于 <a href="http://man7.org/linux/man-pages/man7/epoll.7.html">epoll</a>, <a href="https://man.openbsd.org/kqueue.2">kqueue</a>, <a href="https://docs.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports">iocp</a> 实现。</p>
+<p>co 协程库中 context 切换的相关代码，取自 <a href="https://github.com/waruqi">ruki</a> 的 <a href="https://github.com/tboox/tbox/">tbox</a>，而 tbox 则参考了 <a href="https://www.boost.org/doc/libs/1_70_0/libs/context/doc/html/index.html">boost</a> 的实现，在此表示感谢！</p>
+<h3 id="152-%E5%88%9B%E5%BB%BA%E5%8D%8F%E7%A8%8Bgo">15.2 创建协程(go)</h3>
+<p><code>golang</code> 中用关键字 <code>go</code> 创建协程，与之类似，co 库中提供 <code>go()</code> 方法创建协程。</p>
+<p>创建协程与创建线程类似，需要指定一个协程函数，go() 方法的第一个参数就是协程函数:</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">go</span><span class="hljs-params">(<span class="hljs-keyword">void</span> (*f)())</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">go</span><span class="hljs-params">(<span class="hljs-keyword">void</span> (*f)(<span class="hljs-keyword">void</span>*), <span class="hljs-keyword">void</span>* p)</span></span>;  <span class="hljs-comment">// p 指定函数参数</span>
+
+<span class="hljs-function"><span class="hljs-keyword">template</span>&lt;<span class="hljs-keyword">typename</span> T&gt;
+<span class="hljs-keyword">void</span> <span class="hljs-title">go</span><span class="hljs-params">(<span class="hljs-keyword">void</span> (T::*f)(), T* p)</span></span>;       <span class="hljs-comment">// p 绑定 T 类对象</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">go</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-built_in">std</span>::function&lt;<span class="hljs-keyword">void</span>()&gt;&amp; f)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">go</span><span class="hljs-params">(<span class="hljs-built_in">std</span>::function&lt;<span class="hljs-keyword">void</span>()&gt;&amp;&amp; f)</span></span>;
+</div></code></pre>
+<p>实际测试发现，创建 <code>std::function</code> 类型的对象开销较大，因此 go() 特别对 <code>void f()</code>、<code>void f(void*)</code>、<code>void T::f()</code> 类型的函数进行了优化，实际应用中，应该优先使用这三类函数。</p>
+<p>严格来说，go() 方法只是将 <code>callback</code> 分配到一个调度线程中，真正创建协程是由调度线程完成的。但从用户的角度看，逻辑上可以认为 go() 创建了协程，并分配到指定的调度线程中，等待被执行。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>go(f);                       <span class="hljs-comment">// void f();</span>
+go(f, p);                    <span class="hljs-comment">// void f(void*);   void* p;</span>
+go(&amp;T::f, p);                <span class="hljs-comment">// void T::f();     T* p;</span>
+go(<span class="hljs-built_in">std</span>::bind(f, <span class="hljs-number">7</span>));         <span class="hljs-comment">// void f(int);</span>
+go(<span class="hljs-built_in">std</span>::bind(&amp;T::f, p, <span class="hljs-number">7</span>));  <span class="hljs-comment">// void T::f(int);  T* p;</span>
+</div></code></pre>
+<h3 id="153-%E5%8D%8F%E7%A8%8B-api">15.3 协程 api</h3>
+<p>除 <code>go()</code> 之外，co 协程库还提供了如下的几个 api (位于 namespace co 中):</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sleep</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> ms)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stop</span><span class="hljs-params">()</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">max_sched_num</span><span class="hljs-params">()</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">sched_id</span><span class="hljs-params">()</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">coroutine_id</span><span class="hljs-params">()</span></span>;
+</div></code></pre>
+<ul>
+<li>
+<p><code>sleep</code> 在协程中调用时，调度线程会挂起此协程，切换到其他等待执行的协程运行。</p>
+</li>
+<li>
+<p><code>stop</code> 会退出所有的调度线程，一般在进程退出前调用。</p>
+</li>
+<li>
+<p><code>max_sched_num</code> 返回支持的最大调度线程数，目前这个值是系统 cpu 核数。</p>
+</li>
+<li>
+<p><code>sched_id</code> 返回当前调度线程的 id，若当前线程不是调度线程，则返回 -1。id 的取值范围是 0 到 <code>max_sched_num-1</code>。</p>
+</li>
+<li>
+<p><code>coroutine_id</code> 返回当前协程的 id，若当前线程不是协程，则返回 -1。不同调度线程中的协程可能拥有相同的 id。</p>
+</li>
+<li>
+<p>代码示例</p>
+</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 每隔 1 秒打印出当前的 sched_id 与 coroutine_id</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+        co::sleep(<span class="hljs-number">1000</span>);
+        LOG &lt;&lt; <span class="hljs-string">"sid: "</span> &lt;&lt; co::sched_id() &lt;&lt; <span class="hljs-string">" cid: "</span> &lt;&lt; co::coroutine_id();
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>** argv)</span> </span>{
+    flag::init(argc, argv);
+    <span class="hljs-built_in">log</span>::init();
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">32</span>; ++i) go(f);
+
+    sleep::sec(<span class="hljs-number">8</span>);  <span class="hljs-comment">// 防止主线程立即退出</span>
+    co::stop();     <span class="hljs-comment">// 退出所有调度线程</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</div></code></pre>
+<h3 id="154-%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B">15.4 网络编程</h3>
+<p>co 包装了常用的 socket api，以支持一般的网络编程。这些 api 都在 <code>namespace co</code> 中，除了少数几个，一般必须在协程中调用。与原生 api 不同的是，这些 api 在 io 阻塞或调用 sleep 等操作时，调度线程会挂起当前协程，切换到其他等待执行的协程运行。</p>
+<h4 id="1541-%E5%B8%B8%E7%94%A8%E7%9A%84-socket-api">15.4.1 常用的 socket api</h4>
+<p>co 提供了一些常用的 socket api:</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">sock_t</span> <span class="hljs-title">socket</span><span class="hljs-params">(<span class="hljs-keyword">int</span> domain, <span class="hljs-keyword">int</span> type, <span class="hljs-keyword">int</span> proto)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">sock_t</span> <span class="hljs-title">tcp_socket</span><span class="hljs-params">(<span class="hljs-keyword">int</span> af=AF_INET)</span></span>; <span class="hljs-comment">// @af: address family, AF_INET, AF_INET6, etc.</span>
+<span class="hljs-function"><span class="hljs-keyword">sock_t</span> <span class="hljs-title">udp_socket</span><span class="hljs-params">(<span class="hljs-keyword">int</span> af=AF_INET)</span></span>; <span class="hljs-comment">// @af: address family, AF_INET, AF_INET6, etc.</span>
+
+<span class="hljs-function">close  shutdown   bind   listen   accept   getsockopt
+recv   recvfrom   send   sendto   connect  setsockopt
+
+<span class="hljs-keyword">int</span> <span class="hljs-title">recvn</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd, <span class="hljs-keyword">void</span>* buf, <span class="hljs-keyword">int</span> n, <span class="hljs-keyword">int</span> ms=<span class="hljs-number">-1</span>)</span></span>;
+</div></code></pre>
+<p>co 提供的 api 大部分形式上与原生的 socket api 一致，用法也几乎一样，只是有些细微的差别，说明如下:</p>
+<ul>
+<li>
+<p>原生 api 参数中的 <code>struct sockaddr*</code> 替换成了 <code>void*</code>，免去手动转换的麻烦。</p>
+</li>
+<li>
+<p><code>socket</code>, <code>tcp_socket</code>, <code>udp_socket</code> 用于创建 socket，创建的 socket 在 linux/mac 平台是非阻塞的，在 windows 平台则是 <a href="https://support.microsoft.com/en-us/help/181611/socket-overlapped-i-o-versus-blocking-nonblocking-mode">overlapped</a> 的，无需用户另行设置。</p>
+</li>
+<li>
+<p><code>close</code> 可以多带一个参数 <code>@ms</code>(默认为 0)，将当前协程挂起若干毫秒，再关闭 socket。</p>
+</li>
+<li>
+<p><code>shutdown</code> 用单个字符 <code>@c</code> 指定关闭方向，<code>'r'</code> 关闭读，<code>'w'</code> 关闭写，默认关闭读写。</p>
+</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">shutdown</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd, <span class="hljs-keyword">char</span> c=<span class="hljs-string">'b'</span>)</span></span>;
+</div></code></pre>
+<ul>
+<li>
+<p><code>accept</code> 返回的 socket 是非阻塞或 overlapped 的，无需用户另行设置。</p>
+</li>
+<li>
+<p><code>connect, recv, recvn, recvfrom, send, sendto</code> 可以多带一个参数，指定超时时间 <code>@ms</code>(默认为 -1)。超时发生时，这些 api 返回 -1，并设置 errno 为 <code>ETIMEDOUT</code>。</p>
+</li>
+<li>
+<p><code>recvn</code> 接收 <code>@n</code> 字节的 tcp 数据，全部接收完返回 n，连接断开返回 0，其他错误返回 -1。</p>
+</li>
+<li>
+<p><strong>注意:</strong> accept, connect, recv, recvn, recvfrom, send 与 sendto 必须在协程中调用。</p>
+</li>
+<li>
+<p><strong>特别注意:</strong> <code>close</code> 与 <code>shutdown</code> 虽然不会阻塞，但为了正常完成内部的清理工作，必须在协程所在的调度线程中调用。一般而言，在一个协程中进行 recv, send 等操作时，那么最好也在这个协程中调用 close, shutdown 关闭 socket。</p>
+</li>
+</ul>
+<p>上述 api 发生错误时返回 -1，可以用 <code>co::error()</code> 获取错误码，<code>co::strerror()</code> 查看错误描述。</p>
+<h4 id="1542-%E5%B8%B8%E7%94%A8%E7%9A%84-socket-option-%E8%AE%BE%E7%BD%AE">15.4.2 常用的 socket option 设置</h4>
+<p>co 提供了下面的几个 api，用于设置常用的 socket 选项:</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_reuseaddr</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd)</span></span>;                <span class="hljs-comment">// 设置 SO_REUSEADDR</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_tcp_nodelay</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd)</span></span>;              <span class="hljs-comment">// 设置 TCP_NODELAY </span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_tcp_keepalive</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd)</span></span>;            <span class="hljs-comment">// 设置 SO_KEEPALIVE</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_send_buffer_size</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd, <span class="hljs-keyword">int</span> n)</span></span>;  <span class="hljs-comment">// 设置发送缓冲区大小</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_recv_buffer_size</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd, <span class="hljs-keyword">int</span> n)</span></span>;  <span class="hljs-comment">// 设置接收缓冲区大小</span>
+</div></code></pre>
+<h4 id="1543-%E5%85%B6%E4%BB%96-api">15.4.3 其他 api</h4>
+<pre class="hljs"><code><div><span class="hljs-comment">// 填充 ip 地址</span>
+<span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">init_ip_addr</span><span class="hljs-params">(struct sockaddr_in* addr, <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* ip, <span class="hljs-keyword">int</span> port)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">init_ip_addr</span><span class="hljs-params">(struct sockaddr_in6* addr, <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* ip, <span class="hljs-keyword">int</span> port)</span></span>;
+
+<span class="hljs-comment">// ip 地址转换成字符串</span>
+<span class="hljs-function">fastring <span class="hljs-title">ip_str</span><span class="hljs-params">(struct sockaddr_in* addr)</span></span>;
+<span class="hljs-function">fastring <span class="hljs-title">ip_str</span><span class="hljs-params">(struct sockaddr_in6* addr)</span></span>;
+
+<span class="hljs-comment">// 发送一个 RST，非正常关闭 tcp 连接，避免进入 timedwait 状态，多用于服务端</span>
+<span class="hljs-comment">// @ms: 默认为 0，将当前协程挂起若干毫秒后，再发送 RST</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">reset_tcp_socket</span><span class="hljs-params">(<span class="hljs-keyword">sock_t</span> fd, <span class="hljs-keyword">int</span> ms=<span class="hljs-number">0</span>)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">error</span><span class="hljs-params">()</span></span>;                    <span class="hljs-comment">// 返回当前错误码</span>
+<span class="hljs-function"><span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* <span class="hljs-title">strerror</span><span class="hljs-params">()</span></span>;         <span class="hljs-comment">// 返回当前错误码对应的字符串</span>
+<span class="hljs-function"><span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* <span class="hljs-title">strerror</span><span class="hljs-params">(<span class="hljs-keyword">int</span> err)</span></span>;  <span class="hljs-comment">// 返回 @err 对应的字符串</span>
+</div></code></pre>
+<h4 id="1544-hook-%E7%B3%BB%E7%BB%9F-api">15.4.4 hook 系统 api</h4>
+<p>在协程中调用 co 库的 socket api 不会阻塞，但一些三方库中调用的是系统的 socket api，仍然可能阻塞。为了解决这个问题，需要 hook 系统的 api，迫使三方库调用 hook 后的 api。</p>
+<p>co 库目前在 linux/mac 平台已支持 hook，下面是 hook 的函数列表:</p>
+<pre class="hljs"><code><div>sleep   usleep   nanosleep
+
+accept  accept4  connect   close  shutdown
+read    readv    recv   recvfrom   recvmsg
+write   writev   send   sendto     sendmsg
+select  poll  gethostbyaddr  gethostbyname
+
+gethostbyaddr_r  gethostbyname2   <span class="hljs-comment">// linux</span>
+gethostbyname_r  gethostbyname2_r <span class="hljs-comment">// linux</span>
+
+epoll_wait  <span class="hljs-comment">// linux </span>
+kevent      <span class="hljs-comment">// mac</span>
+</div></code></pre>
+<p>用户一般不需要关心 api hook，有兴趣可以查看 <a href="https://github.com/idealvin/co/tree/master/src/co/impl">hook</a> 的源码实现。</p>
+<h4 id="1545-%E5%9F%BA%E4%BA%8E%E5%8D%8F%E7%A8%8B%E7%9A%84%E4%B8%80%E8%88%AC%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%BC%8F">15.4.5 基于协程的一般网络编程模式</h4>
+<p>协程可以实现高性能的同步网络编程方式。以 TCP 程序为例，服务端一般采用一个连接一个协程的模式，为每个连接创建新的协程，在协程中处理连接上的数据；客户端没必要一个连接一个协程，一般使用连接池，多个协程共用连接池中的连接。</p>
+<ul>
+<li>服务端处理连接数据的一般模式:</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">server_fun</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+        co::recv(...);  <span class="hljs-comment">// 接收客户端请求数据</span>
+        process(...);   <span class="hljs-comment">// 业务处理</span>
+        co::send(...);  <span class="hljs-comment">// 发送结果到客户端</span>
+    }
+    co::close(...);     <span class="hljs-comment">// 关闭 socket</span>
+}
+</div></code></pre>
+<ul>
+<li>客户端处理连接数据的一般模式:</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">client_fun</span><span class="hljs-params">()</span> </span>{
+    co::send(...);   <span class="hljs-comment">// 发送请求数据到服务端</span>
+    co::recv(...);   <span class="hljs-comment">// 接收服务端响应数据</span>
+    process(...);    <span class="hljs-comment">// 业务处理</span>
+}
+</div></code></pre>
+<h4 id="1546-%E5%9F%BA%E4%BA%8E%E5%8D%8F%E7%A8%8B%E7%9A%84-tcp-serverclient-%E7%A4%BA%E4%BE%8B">15.4.6 基于协程的 tcp server/client 示例</h4>
+<ul>
+<li>server 代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Connection</span> {</span>
+    <span class="hljs-keyword">sock_t</span> fd;   <span class="hljs-comment">// conn fd</span>
+    fastring ip; <span class="hljs-comment">// peer ip</span>
+    <span class="hljs-keyword">int</span> port;    <span class="hljs-comment">// peer port</span>
+};
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">on_new_connection</span><span class="hljs-params">(<span class="hljs-keyword">void</span>* p)</span> </span>{
+    <span class="hljs-function"><span class="hljs-built_in">std</span>::<span class="hljs-built_in">unique_ptr</span>&lt;Connection&gt; <span class="hljs-title">conn</span><span class="hljs-params">((Connection*)p)</span></span>;
+    <span class="hljs-keyword">sock_t</span> fd = conn-&gt;fd;
+    co::set_tcp_keepalive(fd);
+    co::set_tcp_nodelay(fd);
+    
+    <span class="hljs-keyword">char</span> buf[<span class="hljs-number">8</span>] = { <span class="hljs-number">0</span> };
+
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+        <span class="hljs-keyword">int</span> r = co::recv(fd, buf, <span class="hljs-number">4</span>);
+        <span class="hljs-keyword">if</span> (r == <span class="hljs-number">0</span>) {          <span class="hljs-comment">// 客户端关闭了连接</span>
+            co::close(fd);     <span class="hljs-comment">// 调用 close 正常关闭连接</span>
+            <span class="hljs-keyword">break</span>;
+        } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (r == <span class="hljs-number">-1</span>) {  <span class="hljs-comment">// 异常错误，直接 reset 连接</span>
+            co::reset_tcp_socket(fd, <span class="hljs-number">1024</span>);
+            <span class="hljs-keyword">break</span>;
+        } <span class="hljs-keyword">else</span> {
+            LOG &lt;&lt; <span class="hljs-string">"recv "</span> &lt;&lt; buf;
+            LOG &lt;&lt; <span class="hljs-string">"send pong"</span>;
+            co::send(fd, <span class="hljs-string">"pong"</span>, <span class="hljs-number">4</span>);
+        }
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">server_fun</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">sock_t</span> fd = co::tcp_socket();
+    co::set_reuseaddr(fd);
+
+    <span class="hljs-keyword">sock_t</span> connfd;
+    <span class="hljs-keyword">int</span> addrlen = <span class="hljs-keyword">sizeof</span>(sockaddr_in);
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">sockaddr_in</span> <span class="hljs-title">addr</span>;</span>
+    co::init_ip_addr(&amp;addr, <span class="hljs-string">"127.0.0.1"</span>, <span class="hljs-number">7788</span>);
+
+    co::bind(fd, &amp;addr, <span class="hljs-keyword">sizeof</span>(addr));
+    co::listen(fd, <span class="hljs-number">1024</span>);
+
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+        connfd = co::accept(fd, &amp;addr, &amp;addrlen);
+        <span class="hljs-keyword">if</span> (connfd == <span class="hljs-number">-1</span>) <span class="hljs-keyword">continue</span>;
+
+        Connection* conn = <span class="hljs-keyword">new</span> Connection;
+        conn-&gt;fd = connfd;
+        conn-&gt;ip = co::ip_str(&amp;addr);
+        conn-&gt;port = ntoh16(addr.sin_port);
+
+        <span class="hljs-comment">// 为每个客户端连接创建一个新协程，在协程中处理连接上的数据</span>
+        co::go(on_new_connection, conn);
+    }
+}
+
+go(server_fun);  <span class="hljs-comment">// 启动 server 协程</span>
+</div></code></pre>
+<ul>
+<li>client 代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">client_fun</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">sock_t</span> fd = co::tcp_socket();
+
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">sockaddr_in</span> <span class="hljs-title">addr</span>;</span>
+    co::init_ip_addr(&amp;addr, <span class="hljs-string">"127.0.0.1"</span>, <span class="hljs-number">7788</span>);
+
+    co::connect(fd, &amp;addr, <span class="hljs-keyword">sizeof</span>(addr), <span class="hljs-number">3000</span>);
+    co::set_tcp_nodelay(fd);
+
+    <span class="hljs-keyword">char</span> buf[<span class="hljs-number">8</span>] = { <span class="hljs-number">0</span> };
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">7</span>; ++i) {
+        co::sleep(<span class="hljs-number">1000</span>);
+        LOG &lt;&lt; <span class="hljs-string">"send ping"</span>;
+        co::send(fd, <span class="hljs-string">"ping"</span>, <span class="hljs-number">4</span>);
+        co::recv(fd, buf, <span class="hljs-number">4</span>);
+        LOG &lt;&lt; <span class="hljs-string">"recv "</span> &lt;&lt; buf;
+    }
+
+    co::close(fd);
+}
+
+go(client_fun);  <span class="hljs-comment">// 启动 client 协程</span>
+</div></code></pre>
+<h3 id="155-%E5%8D%8F%E7%A8%8B%E7%9A%84%E5%90%8C%E6%AD%A5%E6%9C%BA%E5%88%B6">15.5 协程的同步机制</h3>
+<p>co 协程库实现了与线程类似的同步机制，熟悉多线程编程的开发人员，很容易从线程切换到协程编程。</p>
+<h4 id="1551-%E5%8D%8F%E7%A8%8B%E9%94%81comutex">15.5.1 协程锁(co::Mutex)</h4>
+<p><code>co::Mutex</code> 与线程库中的 <code>Mutex</code> 类似，只是需要在协程环境中使用。协程锁获取失败时，调度线程会挂起当前协程，调度线程自身不会阻塞。</p>
+<p>另外，co 还提供一个 <code>co::MutexGuard</code> 类，用法与线程库中的 <code>MutexGuard</code> 一样。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>co::Mutex mtx;
+<span class="hljs-keyword">int</span> v = <span class="hljs-number">0</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f1</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function">co::MutexGuard <span class="hljs-title">g</span><span class="hljs-params">(mtx)</span></span>;
+    ++v;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f2</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function">co::MutexGuard <span class="hljs-title">g</span><span class="hljs-params">(mtx)</span></span>;
+    --v;
+}
+
+go(f1);
+go(f2);
+</div></code></pre>
+<h4 id="1552-%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent">15.5.2 协程同步事件(co::Event)</h4>
+<p><code>co::Event</code> 与线程库中的 <code>SyncEvent</code> 类似，但需要在协程环境中使用。调用 <code>wait()</code> 方法时，调度线程会挂起当前协程，调度线程自身不会阻塞。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>co::Event ev;
+<span class="hljs-keyword">int</span> v = <span class="hljs-number">0</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f1</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// ev.wait(100);  // 等待 100 ms</span>
+    ev.wait();        <span class="hljs-comment">// 永久等待</span>
+    <span class="hljs-keyword">if</span> (v == <span class="hljs-number">2</span>) v = <span class="hljs-number">1</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f2</span><span class="hljs-params">()</span> </span>{
+    v = <span class="hljs-number">2</span>;
+    ev.signal();
+}
+
+go(f1);
+go(f2);
+</div></code></pre>
+<h3 id="156-%E5%8D%8F%E7%A8%8B%E6%B1%A0">15.6 协程池</h3>
+<h4 id="1561-copool">15.6.1 co::Pool</h4>
+<p>线程支持 <code>TLS</code> 机制，协程也可以支持类似的 <code>CLS</code> 机制，但考虑到系统中可能创建上百万协程，CLS 似乎不怎么高效，co 最终放弃了 CLS，取而代之实现了 <code>co::Pool</code> 类:</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Pool</span> {</span>
+  <span class="hljs-keyword">public</span>:
+    Pool();
+    Pool(<span class="hljs-built_in">std</span>::function&lt;<span class="hljs-keyword">void</span>*()&gt;&amp;&amp; ccb, <span class="hljs-built_in">std</span>::function&lt;<span class="hljs-keyword">void</span>(<span class="hljs-keyword">void</span>*)&gt;&amp;&amp; dcb, <span class="hljs-keyword">size_t</span> cap=(<span class="hljs-keyword">size_t</span>)<span class="hljs-number">-1</span>);
+
+    <span class="hljs-function"><span class="hljs-keyword">void</span>* <span class="hljs-title">pop</span><span class="hljs-params">()</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">push</span><span class="hljs-params">(<span class="hljs-keyword">void</span>* p)</span></span>;
+
+  <span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span>* _p;
+};
+</div></code></pre>
+<ul>
+<li>构造函数</li>
+</ul>
+<p>第二个构造函数中的参数 <code>ccb</code> 与 <code>dcb</code> 可用于创建、销毁元素，<code>cap</code> 则用于指定 pool 的最大容量。此处的最大容量是对单个线程而言，如 cap 设置为 1024，调度线程有 8 个，则总的最大容量实际上是 8192。另外注意，最大容量只有在同时指定了 dcb 时有效。</p>
+<ul>
+<li>pop</li>
+</ul>
+<p>此方法从 pool 中拉取一个元素。pool 为空时，若设置了 ccb，则调用 ccb 创建一个元素并返回；若没有设置 ccb，则返回 NULL。</p>
+<ul>
+<li>push</li>
+</ul>
+<p>此方法将元素放回 pool 中，若元素为 NULL 指针，则直接忽略。若超过最大容量，且指定了 dcb，则直接调用 dcb 销毁元素，而不放入 pool 中。</p>
+<p>co::Pool 类是协程安全的，调用 pop, push 方法不需要加锁，但必须在协程中调用。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>co::Pool p;
+
+<span class="hljs-keyword">void</span> f {
+    Redis* rds = (Redis*) p.pop();     <span class="hljs-comment">// 从 pool 中拉取一个 redis 连接</span>
+    <span class="hljs-keyword">if</span> (rds == <span class="hljs-literal">NULL</span>) rds = <span class="hljs-keyword">new</span> Redis;  <span class="hljs-comment">// pool 为空时，创建新的 redis 连接</span>
+
+    rds-&gt;get(<span class="hljs-string">"xx"</span>);                    <span class="hljs-comment">// 调用 redis 的 get 方法</span>
+    p.push(rds);                       <span class="hljs-comment">// 用完 redis，放回 pool 中</span>
+}
+
+go(f);
+</div></code></pre>
+<h4 id="1562-copoolguard">15.6.2 co::PoolGuard</h4>
+<p><code>co::PoolGuard</code> 是一个模板类，它在构造时从 co::Pool 拉取元素，析构时将元素放回 co::Pool 中。另外, 它还重载了 <code>operator-&gt;</code>，可以像智能指针一样使用它。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 指定 ccb, dcb，用于 Redis 的自动创建与销毁</span>
+<span class="hljs-function">co::Pool <span class="hljs-title">p</span><span class="hljs-params">(
+    []() { <span class="hljs-keyword">return</span> (<span class="hljs-keyword">void</span>*) <span class="hljs-keyword">new</span> Redis; },  <span class="hljs-comment">// 指定 ccb</span>
+    [](<span class="hljs-keyword">void</span>* p) { <span class="hljs-keyword">delete</span> (Redis*)p; }    <span class="hljs-comment">// 指定 dcb</span>
+)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">f</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function">co::PoolGuard&lt;Redis&gt; <span class="hljs-title">rds</span><span class="hljs-params">(p)</span></span>;  <span class="hljs-comment">// rds 可视为一个 Redis* 指针</span>
+    rds-&gt;get(<span class="hljs-string">"xx"</span>);               <span class="hljs-comment">// 调用 redis 的 get 方法</span>
+}
+
+go(f);
+</div></code></pre>
+<p>使用 CLS 机制，100w 协程需要建立 100w 连接，但使用 pool 机制，100w 协程可能只需要共用少量的连接。Pool 看起来比 CLS 更高效、更合理，这也是本协程库不支持 CLS 的原因。</p>
+<h3 id="157-%E9%85%8D%E7%BD%AE%E9%A1%B9">15.7 配置项</h3>
+<p>co 库支持的配置项如下:</p>
+<ul>
+<li>
+<p>co_sched_num</p>
+<p>调度线程数，默认为系统 CPU 核数，目前的实现中，这个值必须 &lt;= CPU 核数。</p>
+</li>
+<li>
+<p>co_stack_size</p>
+<p>协程栈大小，默认为 1M。每个调度线程都会分配一个栈，调度线程内的协程共用这个栈。</p>
+</li>
+<li>
+<p>co_max_recv_size</p>
+<p><code>co::recv</code> 一次能接收的最大数据长度，默认为 1M，超过此大小，分批接收。</p>
+</li>
+<li>
+<p>co_max_send_size</p>
+<p><code>co::send</code> 一次能发送的最大数据长度，默认为 1M，超过此大小，分批发送。</p>
+</li>
+</ul>
+<h2 id="16-%E9%AB%98%E6%95%88-json-%E5%BA%93json">16. 高效 json 库(json)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/json.h">co/json.h</a>.</p>
+<p><code>json</code> 库的设计原则是精简、高效、易用，其性能堪比 <a href="https://github.com/Tencent/rapidjson">rapidjson</a>，如果使用 <a href="https://github.com/jemalloc/jemalloc">jemalloc</a>，<code>parse</code> 与 <code>stringify</code> 的性能会进一步提升。</p>
+<ul>
+<li>json 库的特性
+<ul>
+<li>支持 null、bool、int、double、string 五种基本类型.</li>
+<li>支持 array、object 两种复合类型.</li>
+<li>所有类型统一用一个 <code>Json</code> 类表示.</li>
+<li>Json 类内部仅一个指针数据成员，<code>sizeof(Json) == sizeof(void*)</code>.</li>
+<li>Json 内置引用计数，复制操作仅增加引用计数(<strong>原子操作，线程安全</strong>)，不进行内存拷贝.</li>
+<li>内置一个简单的内存分配器(Jalloc)，对大部分内存分配操作进行优化.</li>
+</ul>
+</li>
+</ul>
+<h3 id="161-%E5%9F%BA%E6%9C%AC%E7%B1%BB%E5%9E%8B">16.1 基本类型</h3>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>Json x;                          <span class="hljs-comment">// null</span>
+x.is_null();                     <span class="hljs-comment">// 判断是否为 null</span>
+
+Json x = <span class="hljs-literal">false</span>;                  <span class="hljs-comment">// bool 类型</span>
+x.is_bool();                     <span class="hljs-comment">// 判断是否为 bool 类型</span>
+<span class="hljs-keyword">bool</span> b = x.get_bool();           <span class="hljs-comment">// 获取 bool 类型的值</span>
+
+Json x = <span class="hljs-number">123</span>;                    <span class="hljs-comment">// int 类型</span>
+<span class="hljs-keyword">int</span> i = x.get_int();             <span class="hljs-comment">// 获取 int 类型的值</span>
+
+Json x = (int64) <span class="hljs-number">23</span>;             <span class="hljs-comment">// int 类型，64位</span>
+int64 i = x.get_int64();         <span class="hljs-comment">// 返回 64 位整数</span>
+
+Json x = <span class="hljs-number">3.14</span>;                   <span class="hljs-comment">// double 类型</span>
+<span class="hljs-keyword">double</span> d = x.get_double();       <span class="hljs-comment">// 获取 double 类型的值</span>
+
+Json x = <span class="hljs-string">"hello world"</span>;          <span class="hljs-comment">// 字符串类型</span>
+<span class="hljs-function">Json <span class="hljs-title">x</span><span class="hljs-params">(s, n)</span></span>;                    <span class="hljs-comment">// 字符串类型 (const char* s, size_t n)</span>
+x.is_string();                   <span class="hljs-comment">// 判断是否为字符串类型</span>
+x.size();                        <span class="hljs-comment">// 返回字符串的长度</span>
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* s = x.get_string();  <span class="hljs-comment">// 返回字符串指针，字符串以 '\0' 结尾</span>
+</div></code></pre>
+<h3 id="162-array-%E7%B1%BB%E5%9E%8B">16.2 array 类型</h3>
+<p><code>array</code> 是一种数组类型，可以存储任意类型的 Json 对象。</p>
+<pre class="hljs"><code><div>Json x = json::<span class="hljs-built_in">array</span>();      <span class="hljs-comment">// 创建空数组，不同于 null</span>
+x.is_array();                <span class="hljs-comment">// 判断是否为 array 类型</span>
+x.size();                    <span class="hljs-comment">// 返回 array 中元素个数</span>
+x.empty();                   <span class="hljs-comment">// 判断 array 是否为空</span>
+
+Json x;                      <span class="hljs-comment">// null，调用 push_back 后自动变成 array 类型</span>
+x.push_back(<span class="hljs-literal">false</span>);          <span class="hljs-comment">// 添加 bool 类型的值</span>
+x.push_back(<span class="hljs-number">1</span>);              <span class="hljs-comment">// 添加 int 类型的值</span>
+x.push_back(<span class="hljs-number">3.14</span>);           <span class="hljs-comment">// 添加 double 类型的值</span>
+x.push_back(<span class="hljs-string">"hello"</span>);        <span class="hljs-comment">// 添加 string 类型的值</span>
+x.push_back(x);              <span class="hljs-comment">// 添加 array 类型的对象</span>
+x.push_back(obj);            <span class="hljs-comment">// 添加 object 类型的对象</span>
+
+<span class="hljs-comment">// 访问 array 成员</span>
+x[<span class="hljs-number">0</span>].get_bool();
+x[<span class="hljs-number">1</span>].get_int();
+
+<span class="hljs-comment">// 遍历 array</span>
+<span class="hljs-keyword">for</span> (uint32 i = <span class="hljs-number">0</span>; i &lt; x.size(); ++i) {
+    Json&amp; v = x[i];
+}
+</div></code></pre>
+<h3 id="163-object-%E7%B1%BB%E5%9E%8B">16.3 object 类型</h3>
+<p><code>object</code> 类型内部以 key-value 形式存储，value 可以是任意类型的 Json 对象，key 则有下面几条限制：</p>
+<ul>
+<li>key 必须是 <code>'\0'</code> 结尾的 C 字符串.</li>
+<li>key 中不能包含双引号 <code>&quot;</code>.</li>
+</ul>
+<pre class="hljs"><code><div>Json x = json::object();       <span class="hljs-comment">// 创建空 object 对象，不同于 null</span>
+x.is_object();                 <span class="hljs-comment">// 判断是否为 object 类型</span>
+x.size();                      <span class="hljs-comment">// 返回 object 中元素个数</span>
+x.empty();                     <span class="hljs-comment">// 判断 object 是否为空</span>
+
+Json x;                        <span class="hljs-comment">// null, 调用 add_member() 后自动变成 object 类型</span>
+x.add_member(<span class="hljs-string">"name"</span>, <span class="hljs-string">"Bob"</span>);   <span class="hljs-comment">// 添加字符串对象</span>
+x.add_member(<span class="hljs-string">"age"</span>, <span class="hljs-number">23</span>);       <span class="hljs-comment">// 添加整数类型</span>
+x.add_member(<span class="hljs-string">"height"</span>, <span class="hljs-number">1.68</span>);  <span class="hljs-comment">// 添加 double 类型</span>
+x.add_member(<span class="hljs-string">"array"</span>, <span class="hljs-built_in">array</span>);  <span class="hljs-comment">// 添加 array 类型</span>
+x.add_member(<span class="hljs-string">"obj"</span>, obj);      <span class="hljs-comment">// 添加 object 类型</span>
+
+<span class="hljs-comment">// has_member 与 [] 各需查找一次</span>
+x.has_member(<span class="hljs-string">"name"</span>);          <span class="hljs-comment">// 判断是否包含成员 "name"</span>
+x[<span class="hljs-string">"name"</span>].get_string();        <span class="hljs-comment">// 获取成员的值</span>
+
+<span class="hljs-comment">// key 不存在时返回 null</span>
+Json v = x.find(<span class="hljs-string">"age"</span>);        <span class="hljs-comment">// Json 内置引用计数，返回对象不会影响性能.</span>
+<span class="hljs-keyword">if</span> (v.is_int()) v.get_int();
+
+<span class="hljs-keyword">if</span> (!(v = x.find(<span class="hljs-string">"obj"</span>)).is_null()) {
+    do_something();
+}
+
+<span class="hljs-comment">// 遍历</span>
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> it = x.begin(); it != x.end(); ++it) {
+    <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* key = it-&gt;key;  <span class="hljs-comment">// key</span>
+    Json&amp; v = it-&gt;value;        <span class="hljs-comment">// value</span>
+}
+</div></code></pre>
+<h3 id="164-json-%E8%BD%AC%E5%AD%97%E7%AC%A6%E4%B8%B2">16.4 json 转字符串</h3>
+<p>Json 类提供 <code>str()</code> 与 <code>pretty()</code> 方法，将 Json 转化成字符串:</p>
+<pre class="hljs"><code><div>Json x;
+fastring s = x.str();     <span class="hljs-comment">// 返回字符串</span>
+fastring s = x.pretty();  <span class="hljs-comment">// 返回 pretty 字符串</span>
+
+fastream fs;
+fs &lt;&lt; x;                  <span class="hljs-comment">// 与 fs &lt;&lt; x.str() 同，但效率更高</span>
+LOG &lt;&lt; x;                 <span class="hljs-comment">// 日志库基于 fastream 实现，可以直接打印 json 对象</span>
+</div></code></pre>
+<p>另外 Json 类还提供一个 <code>dbg()</code> 方法，将 Json 转化成 debug 字符串，Json 内部较长的字符串类型可能被截断:</p>
+<pre class="hljs"><code><div>Json x;
+fastring s = x.dbg();
+LOG &lt;&lt; x; <span class="hljs-comment">// 实际上相当于 LOG &lt;&lt; x.dbg();</span>
+</div></code></pre>
+<h3 id="165-%E5%AD%97%E7%AC%A6%E4%B8%B2%E8%BD%AC-json">16.5 字符串转 json</h3>
+<p><code>json::parse()</code> 或者 Json 类中的 <code>parse_from()</code> 方法可以将字符串转化成 Json 对象:</p>
+<pre class="hljs"><code><div>Json x;
+fastring s = x.str();
+
+<span class="hljs-comment">// parse 失败时，y 为 null</span>
+Json y = json::parse(s);
+Json y = json::parse(s.data(), s.size());
+y.parse_from(x.str());
+</div></code></pre>
+<h3 id="166-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9">16.6 注意事项</h3>
+<h4 id="1661-%E6%B7%BB%E5%8A%A0%E4%B8%8E%E6%9F%A5%E6%89%BE%E6%88%90%E5%91%98">16.6.1 添加与查找成员</h4>
+<p><code>object</code> 类型，内部用数组保存 key-value 对，这样可以保持成员添加时的顺序，但同时增加了查找成员的开销。<code>operator[]</code> 会进行查找操作，实际应用中应该尽量避免使用。</p>
+<ul>
+<li>添加成员时用 add_member 取代 operator[]</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// add_member 不查找，直接将成员添加到尾部</span>
+x.add_member(<span class="hljs-string">"age"</span>, <span class="hljs-number">23</span>);  <span class="hljs-comment">// 比 x["age"] = 23 效率更高</span>
+</div></code></pre>
+<ul>
+<li>查找成员时用 find 取代 operator[]</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment">// 传统的成员访问，3 次查找操作，效率低</span>
+<span class="hljs-keyword">if</span> (x.has_member(<span class="hljs-string">"age"</span>) &amp;&amp; x[<span class="hljs-string">"age"</span>].is_int()) {
+    <span class="hljs-keyword">int</span> i = x[<span class="hljs-string">"age"</span>].get_int();
+}
+
+<span class="hljs-comment">// 用 find 取代 []，只需一次查找操作</span>
+Json v = x.find(<span class="hljs-string">"age"</span>);  
+<span class="hljs-keyword">if</span> (v.is_int()) {
+    <span class="hljs-keyword">int</span> i = v.get_int();
+}
+</div></code></pre>
+<h4 id="1662-%E5%AD%97%E7%AC%A6%E4%B8%B2%E7%B1%BB%E5%9E%8B%E4%B8%AD%E7%9A%84%E7%89%B9%E6%AE%8A%E5%AD%97%E7%AC%A6">16.6.2 字符串类型中的特殊字符</h4>
+<p>json 字符串内部以 '\0' 结尾，应该避免在字符串中包含二进制字符。</p>
+<p>json 字符串支持包含 <code>&quot;</code> 与 <code>\</code>，也支持 <code>\r, \n, \t</code> 等转义字符。但包含这些特殊字符，会降低 <code>json::parse()</code> 的性能，实际应用中应该尽量少用。</p>
+<pre class="hljs"><code><div>Json x = <span class="hljs-string">"hello\r\n\t"</span>;      <span class="hljs-comment">// ok, 字符串中包含转义字符</span>
+Json x = <span class="hljs-string">"hello\"world"</span>;     <span class="hljs-comment">// ok, 字符串中包含 "</span>
+Json x = <span class="hljs-string">"hello\\world"</span>;     <span class="hljs-comment">// ok, 字符串中包含 \</span>
+</div></code></pre>
+<h2 id="17-%E9%AB%98%E6%80%A7%E8%83%BD-json-rpc-%E6%A1%86%E6%9E%B6rpc">17. 高性能 json rpc 框架(rpc)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/rpc.h">co/rpc.h</a>.</p>
+<p><code>rpc</code> 框架基于协程实现，内部使用 <code>tcp/json</code> 作为传输协议，简单的测试显示单线程 qps 可以达到 <code>12w+</code>。json 与基于结构体的二进制协议相比，至少有下面几个好处：</p>
+<ul>
+<li>抓包可以直接看到传输的 json 对象，方便调试。</li>
+<li>rpc 调用直接传输 json 对象，不需要定义各种结构体，大大减少代码量。</li>
+<li>rpc 调用参数形式一致，固定为 <code>(const Json&amp; req, Json&amp; res)</code>，很容易自动生成代码。</li>
+<li>可以实现通用的 rpc client，不需要为不同的 rpc server 生成不同的 client 代码。</li>
+</ul>
+<h3 id="171-rpc-server-%E6%8E%A5%E5%8F%A3%E4%BB%8B%E7%BB%8D">17.1 rpc server 接口介绍</h3>
+<p>rpc server 的接口非常简单：</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">namespace</span> rpc {
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Service</span> {</span>
+  <span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> ~Service() = <span class="hljs-keyword">default</span>;
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">process</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>= <span class="hljs-number">0</span>;  <span class="hljs-comment">// 业务处理</span>
+};
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Server</span> {</span>
+  <span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> ~Server() = <span class="hljs-keyword">default</span>;
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">start</span><span class="hljs-params">()</span> </span>= <span class="hljs-number">0</span>;                <span class="hljs-comment">// 启动 rpc server 协程</span>
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">add_service</span><span class="hljs-params">(Service*)</span> </span>= <span class="hljs-number">0</span>;  <span class="hljs-comment">// server 启动前必须先添加 Service 的实现</span>
+};
+
+<span class="hljs-comment">// 创建一个 rpc server，passwd 非空时，客户端连接后需要进行密码认证</span>
+<span class="hljs-function">Server* <span class="hljs-title">new_server</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* ip, <span class="hljs-keyword">int</span> port, <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* passwd=<span class="hljs-string">""</span>)</span></span>;
+} <span class="hljs-comment">// rpc</span>
+</div></code></pre>
+<p><code>rpc::Server</code> 接收客户端连接，为每个连接创建一个新协程，新协程接收客户端请求，然后同步调用 <code>rpc::Service</code> 提供的 <code>process()</code> 方法处理请求，最后将结果发送回客户端。</p>
+<p>具体的业务处理，需要继承 rpc::Service 并实现 process() 方法。实际上，process() 的代码是自动生成的，用户只需要实现具体的 rpc 调用方法。</p>
+<h3 id="172-%E5%AE%9E%E7%8E%B0%E4%B8%80%E4%B8%AA-rpc-server">17.2 实现一个 rpc server</h3>
+<h4 id="1721-%E5%AE%9A%E4%B9%89-proto-%E6%96%87%E4%BB%B6">17.2.1 定义 proto 文件</h4>
+<p>下面是一个简单的 proto 文件 <code>hello_world.proto</code>:</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// # 或 // 表示 注释</span>
+package xx  <span class="hljs-comment">// namespace xx</span>
+
+service HelloWorld {  
+    hello,
+    world,
+}
+
+hello.req {
+    <span class="hljs-string">"method"</span>: <span class="hljs-string">"hello"</span>
+}
+
+hello.res {
+    <span class="hljs-string">"method"</span>: <span class="hljs-string">"hello"</span>,
+    <span class="hljs-string">"err"</span>: <span class="hljs-number">200</span>,
+    <span class="hljs-string">"errmsg"</span>: <span class="hljs-string">"200 ok"</span>
+}
+
+world.req {
+    <span class="hljs-string">"method"</span>: <span class="hljs-string">"world"</span>
+}
+
+world.res {
+    <span class="hljs-string">"method"</span>: <span class="hljs-string">"world"</span>,
+    <span class="hljs-string">"err"</span>: <span class="hljs-number">200</span>,
+    <span class="hljs-string">"errmsg"</span>: <span class="hljs-string">"200 ok"</span>
+}
+</div></code></pre>
+<p><code>package xx</code> 表示将代码生成到命名空间 <code>xx</code> 中，还可以用 package xx.yy.zz 生成嵌套命名空间。</p>
+<p><code>service HelloWorld</code> 定义一个继承 rpc::Service 的 service 类，hello, world 是它提供的两个 rpc 方法。</p>
+<p><code>hello.req, hello.res, world.req, world.res</code> 是请求参数及响应结果的示例，生成代码时不需要这些。</p>
+<ul>
+<li>需要注意，一个 proto 文件只能定义一个 service。</li>
+</ul>
+<h4 id="1722-%E7%94%9F%E6%88%90-service-%E4%BB%A3%E7%A0%81">17.2.2 生成 service 代码</h4>
+<p>代码生成器见 <a href="https://github.com/idealvin/co/tree/master/gen">co/gen</a> 目录。</p>
+<ul>
+<li>生成 gen</li>
+</ul>
+<pre class="hljs"><code><div>xmake -b gen    // 在 co 根目录执行此命令，构建 gen
+</div></code></pre>
+<ul>
+<li>生成 service 代码</li>
+</ul>
+<pre class="hljs"><code><div>gen hello_world.proto
+</div></code></pre>
+<p>下面是生成的 C++ 头文件 <code>hello_world.h</code>:</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">pragma</span> once</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/rpc.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"co/hash.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;unordered_map&gt;</span></span>
+
+<span class="hljs-keyword">namespace</span> xx {
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HelloWorld</span> :</span> <span class="hljs-keyword">public</span> rpc::Service {
+  <span class="hljs-keyword">public</span>:
+    <span class="hljs-function"><span class="hljs-keyword">typedef</span> <span class="hljs-title">void</span> <span class="hljs-params">(HelloWorld::*Fun)</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp;, Json&amp;)</span></span>;
+
+    HelloWorld() {
+        _methods[hash64(<span class="hljs-string">"ping"</span>)] = &amp;HelloWorld::ping;
+        _methods[hash64(<span class="hljs-string">"hello"</span>)] = &amp;HelloWorld::hello;
+        _methods[hash64(<span class="hljs-string">"world"</span>)] = &amp;HelloWorld::world;
+    }
+
+    <span class="hljs-keyword">virtual</span> ~HelloWorld() {}
+
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">process</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>{
+        Json&amp; method = req[<span class="hljs-string">"method"</span>];
+        <span class="hljs-keyword">if</span> (!method.is_string()) {
+            res.add_member(<span class="hljs-string">"err"</span>, <span class="hljs-number">400</span>);
+            res.add_member(<span class="hljs-string">"errmsg"</span>, <span class="hljs-string">"400 req has no method"</span>);
+            <span class="hljs-keyword">return</span>;
+        }
+
+        <span class="hljs-keyword">auto</span> it = _methods.find(hash64(method.get_string(), method.size()));
+        <span class="hljs-keyword">if</span> (it == _methods.end()) {
+            res.add_member(<span class="hljs-string">"err"</span>, <span class="hljs-number">404</span>);
+            res.add_member(<span class="hljs-string">"errmsg"</span>, <span class="hljs-string">"404 method not found"</span>);
+            <span class="hljs-keyword">return</span>;
+        }
+
+        (<span class="hljs-keyword">this</span>-&gt;*it-&gt;second)(req, res);
+    }
+
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">ping</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>{
+        res.add_member(<span class="hljs-string">"method"</span>, <span class="hljs-string">"ping"</span>);
+        res.add_member(<span class="hljs-string">"err"</span>, <span class="hljs-number">200</span>);
+        res.add_member(<span class="hljs-string">"errmsg"</span>, <span class="hljs-string">"pong"</span>);
+    }
+    
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">hello</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>= <span class="hljs-number">0</span>;
+
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">world</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>= <span class="hljs-number">0</span>;
+
+  <span class="hljs-keyword">private</span>:
+    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">unordered_map</span>&lt;uint64, Fun&gt; _methods;
+};
+
+} <span class="hljs-comment">// xx</span>
+</div></code></pre>
+<p>可以看到 HelloWrold 的构造函数已经将 hello, world 方法注册到内部的 map 中，process() 方法根据 req 中的 <code>method</code> 字段，找到并调用对应的 rpc 方法。用户只需继承 <code>HelloWorld</code> 类，实现具体进行业务处理的 hello, world 方法即可。</p>
+<p>业务处理方法可能在不同的线程中调用，实现时需要注意线程安全性。业务处理方法内部需要连接到其他网络服务时，可以用协程安全的 <code>co::Pool</code> 管理这些网络连接。</p>
+<p>生成的头文件可以直接放到 server 代码所在目录，客户端不需要用到。客户端只需参考 proto 文件中的 req/res 定义，就知道怎么构造 req 发起 rpc 调用了。</p>
+<h4 id="1723-%E5%85%B7%E4%BD%93%E7%9A%84%E4%B8%9A%E5%8A%A1%E5%AE%9E%E7%8E%B0">17.2.3 具体的业务实现</h4>
+<p>下面的示例代码 <code>hello_world.cc</code> 给出了一个简单的实现:</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"hello_world.h"</span></span>
+
+<span class="hljs-keyword">namespace</span> xx {
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HelloWorldImpl</span> :</span> <span class="hljs-keyword">public</span> HelloWorld {
+  <span class="hljs-keyword">public</span>:
+    HelloWorldImpl() = <span class="hljs-keyword">default</span>;
+    <span class="hljs-keyword">virtual</span> ~HelloWorldImpl() = <span class="hljs-keyword">default</span>;
+
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">hello</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>{
+        res.add_member(<span class="hljs-string">"method"</span>, <span class="hljs-string">"hello"</span>);
+        res.add_member(<span class="hljs-string">"err"</span>, <span class="hljs-number">200</span>);
+        res.add_member(<span class="hljs-string">"errmsg"</span>, <span class="hljs-string">"200 ok"</span>);
+    }
+
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">world</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>{
+        res.add_member(<span class="hljs-string">"method"</span>, <span class="hljs-string">"world"</span>);
+        res.add_member(<span class="hljs-string">"err"</span>, <span class="hljs-number">200</span>);
+        res.add_member(<span class="hljs-string">"errmsg"</span>, <span class="hljs-string">"200 ok"</span>);
+    }
+};
+
+} <span class="hljs-comment">// xx</span>
+</div></code></pre>
+<h4 id="1724-%E5%90%AF%E5%8A%A8-rpc-server">17.2.4 启动 rpc server</h4>
+<p>启动 rpc server 一般只需要如下的三行代码:</p>
+<pre class="hljs"><code><div>rpc::Server* server = rpc::new_server(<span class="hljs-string">"127.0.0.1"</span>, <span class="hljs-number">7788</span>, <span class="hljs-string">"passwd"</span>);
+server-&gt;add_service(<span class="hljs-keyword">new</span> xx::HelloWorldImpl);
+server-&gt;start();
+</div></code></pre>
+<p>注意调用 <code>start()</code> 方法会创建一个协程，server 在协程中运行，防止主线程退出是用户需要关心的事。</p>
+<h3 id="173-rpc-client">17.3 rpc client</h3>
+<p>rpc client 的接口如下:</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Client</span> {</span>
+  <span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> ~Client() = <span class="hljs-keyword">default</span>;
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">ping</span><span class="hljs-params">()</span> </span>= <span class="hljs-number">0</span>; <span class="hljs-comment">// send a heartbeat</span>
+    <span class="hljs-function"><span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">call</span><span class="hljs-params">(<span class="hljs-keyword">const</span> Json&amp; req, Json&amp; res)</span> </span>= <span class="hljs-number">0</span>;
+};
+
+<span class="hljs-function">Client* <span class="hljs-title">new_client</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* ip, <span class="hljs-keyword">int</span> port, <span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* passwd=<span class="hljs-string">""</span>)</span></span>;
+} <span class="hljs-comment">// rpc</span>
+</div></code></pre>
+<p><code>rpc::new_client()</code> 创建一个 rpc client，服务端若设置了密码，客户端需要带上密码进行认证。</p>
+<p><code>call()</code> 方法发起 rpc 调用，不同的 rpc 请求可以用 req 中的 method 字段标志。</p>
+<p><code>ping()</code> 方法用于给 server 端发送心跳。</p>
+<ul>
+<li>特别提醒
+<ul>
+<li>rpc::Client 创建时，并没有立即建立连接，第一次发起 rpc 请求才会建立连接。</li>
+<li><code>delete rpc::Client</code>会关闭连接，这个操作一般需要在协程内进行。</li>
+</ul>
+</li>
+</ul>
+<p>下面是一个简单的 rpc client 示例：</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">client_fun</span><span class="hljs-params">()</span> </span>{
+    rpc::Client* c = rpc::new_client(<span class="hljs-string">"127.0.0.1"</span>, <span class="hljs-number">7788</span>, <span class="hljs-string">"passwd"</span>);
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">10000</span>; ++i) {
+        Json req, res;
+        req.add_member(<span class="hljs-string">"method"</span>, <span class="hljs-string">"hello"</span>);
+        c-&gt;call(req, res);  <span class="hljs-comment">// 调用 hello 方法</span>
+    }
+
+    <span class="hljs-keyword">delete</span> c; <span class="hljs-comment">// 在协程内 delete，是安全关闭连接所需要的</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>** argv)</span> </span>{
+    go(client_fun); <span class="hljs-comment">// 创建协程</span>
+    <span class="hljs-keyword">while</span> (<span class="hljs-number">1</span>) sleep::sec(<span class="hljs-number">7</span>);
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</div></code></pre>
+<p>需要注意，一个 <code>rpc::Client</code> 对应一个连接，不要在多个线程中使用同一个 rpc::Client。多线程环境中，可以使用 <code>co::Pool</code> 管理客户端连接，下面是一个例子:</p>
+<pre class="hljs"><code><div><span class="hljs-function">co::Pool <span class="hljs-title">p</span><span class="hljs-params">(
+    <span class="hljs-built_in">std</span>::bind(&amp;rpc::new_client, <span class="hljs-string">"127.0.0.1"</span>, <span class="hljs-number">7788</span>, <span class="hljs-string">"passwd"</span>),
+    [](<span class="hljs-keyword">void</span>* p) { <span class="hljs-keyword">delete</span> (rpc::Client*) p; }
+)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">client_fun</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function">co::PoolGuard&lt;rpc::Client&gt; <span class="hljs-title">c</span><span class="hljs-params">(p)</span></span>;
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">10</span>; ++i) {
+        Json req, res;
+        req.add_member(<span class="hljs-string">"method"</span>, <span class="hljs-string">"hello"</span>);
+        c-&gt;call(req, res);  <span class="hljs-comment">// 调用 hello 方法</span>
+    }
+}
+
+<span class="hljs-comment">// 创建 8 个协程</span>
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8</span>; ++i) {
+    go(client_fun);
+}
+</div></code></pre>
+<h3 id="174-%E9%85%8D%E7%BD%AE%E9%A1%B9">17.4 配置项</h3>
+<p>rpc 库支持的配置项如下:</p>
+<ul>
+<li>
+<p>rpc_max_msg_size</p>
+<p>rpc 消息最大长度，默认为 <code>8M</code>。</p>
+</li>
+<li>
+<p>rpc_recv_timeout</p>
+<p>rpc 接收数据超时时间，单位为毫秒，默认 <code>1024</code> 毫秒。</p>
+</li>
+<li>
+<p>rpc_send_timeout</p>
+<p>rpc 发送数据超时时间，单位为毫秒，默认 <code>1024</code> 毫秒。</p>
+</li>
+<li>
+<p>rpc_conn_timeout</p>
+<p>rpc 连接超时时间，单位为毫秒，默认 <code>3000</code> 毫秒。</p>
+</li>
+<li>
+<p>rpc_conn_idle_sec</p>
+<p>rpc 保持空闲连接的时间，单位为秒，默认 <code>180</code> 秒。一个连接超过此时间没有收到任何数据，server 可能会关掉此连接。</p>
+</li>
+<li>
+<p>rpc_max_idle_conn</p>
+<p>最大空闲连接数，默认为 <code>128</code>。连接数超过此值，server 会关掉一些空闲连接(rpc_conn_idle_sec 时间内没有接收到数据的连接)。</p>
+</li>
+<li>
+<p>rpc_log</p>
+<p>是否打印 rpc 日志，默认为 <code>true</code>。</p>
+</li>
+</ul>
+<h2 id="18-hash-%E5%BA%93hash">18. hash 库(hash)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/hash.h">co/hash.h</a>.</p>
+<p><code>hash</code> 库提供了如下的几个函数：</p>
+<ul>
+<li>hash64</li>
+</ul>
+<p>计算 64 位的 hash 值，内部使用 <code>murmur 2 hash</code> 算法。</p>
+<ul>
+<li>hash32</li>
+</ul>
+<p>计算 32 位的 hash 值，32 位系统使用 murmur 2 的 32 位版本，64 位系统直接取 <code>hash64</code> 的低 32 位。</p>
+<ul>
+<li>md5sum</li>
+</ul>
+<p>计算字符串或指定长度数据的 md5 值，返回 <code>32</code> 字节的字符串。</p>
+<ul>
+<li>crc16</li>
+</ul>
+<p>计算字符串或指定长度数据的 crc16 值，实现取自 <a href="https://github.com/antirez/redis/">redis</a>。</p>
+<ul>
+<li>base64_encode</li>
+</ul>
+<p>base64 编码，不添加 <code>\r, \n</code>，实际应用中，没有必要添加。</p>
+<ul>
+<li>base64_decode</li>
+</ul>
+<p>base64 解码，解码失败时抛出 const char* 类型的异常。</p>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div>uint64 h = hash64(s);               <span class="hljs-comment">// 计算字符串 s 的 hash 值 </span>
+uint64 h = hash64(s, n);            <span class="hljs-comment">// 计算指定长度数据的 hash 值 </span>
+uint32 h = hash32(s);               <span class="hljs-comment">// 计算 32 位 hash 值</span>
+fastring s = md5sum(<span class="hljs-string">"hello world"</span>); <span class="hljs-comment">// 计算字符串的 md5，返回结果为 32 字节</span>
+uint16 x = crc16(<span class="hljs-string">"hello world"</span>);    <span class="hljs-comment">// 计算字符串的 crc16</span>
+fastring e = base64_encode(s);      <span class="hljs-comment">// base64 编码，不会抛出异常</span>
+fastring d = base64_decode(e);      <span class="hljs-comment">// base64 解码，d 应该与 s 相同</span>
+</div></code></pre>
+<h2 id="19-path-%E5%BA%93path">19. path 库(path)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/path.h">co/path.h</a>.</p>
+<p><code>path</code> 库移植于 <a href="https://github.com/golang/go/blob/master/src/path/path.go">golang</a>，path 分隔符必须为 '/'。</p>
+<ul>
+<li><code>path::clean()</code></li>
+</ul>
+<p>返回路径的最短等价形式，路径中连续的分隔符会被清除掉。</p>
+<pre class="hljs"><code><div>path::clean(<span class="hljs-string">"./x//y/"</span>);     <span class="hljs-comment">// return "x/y"</span>
+path::clean(<span class="hljs-string">"./x/.."</span>);      <span class="hljs-comment">// return "."</span>
+path::clean(<span class="hljs-string">"./x/../.."</span>);   <span class="hljs-comment">// return ".."</span>
+</div></code></pre>
+<ul>
+<li><code>path::join()</code></li>
+</ul>
+<p>将任意数量的字符串拼接成一个完整的路径，返回 path::clean() 处理后的结果。</p>
+<pre class="hljs"><code><div>path::join(<span class="hljs-string">"x"</span>, <span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>);  <span class="hljs-comment">// return "x/y/z"</span>
+path::join(<span class="hljs-string">"/x/"</span>, <span class="hljs-string">"y"</span>);     <span class="hljs-comment">// return "/x/y"</span>
+</div></code></pre>
+<ul>
+<li><code>path::split()</code></li>
+</ul>
+<p>将路径切分为 dir, file 两部分，若路径中不含分隔符，则 dir 部分为空。返回结果满足性质 <code>path = dir + file</code>。</p>
+<pre class="hljs"><code><div>path::split(<span class="hljs-string">"/"</span>);     <span class="hljs-comment">// -&gt; { "/", "" }</span>
+path::split(<span class="hljs-string">"/a"</span>);    <span class="hljs-comment">// -&gt; { "/", "a" }</span>
+path::split(<span class="hljs-string">"/a/b"</span>);  <span class="hljs-comment">// -&gt; { "/a/", "b" }</span>
+</div></code></pre>
+<ul>
+<li><code>path::dir()</code></li>
+</ul>
+<p>返回路径的目录部分，返回 path::clean() 处理后的结果。</p>
+<pre class="hljs"><code><div>path::dir(<span class="hljs-string">"a"</span>);      <span class="hljs-comment">// return "."</span>
+path::dir(<span class="hljs-string">"a/"</span>);     <span class="hljs-comment">// return "a"</span>
+path::dir(<span class="hljs-string">"/"</span>);      <span class="hljs-comment">// return "/"</span>
+path::dir(<span class="hljs-string">"/a"</span>);     <span class="hljs-comment">// return "/";</span>
+</div></code></pre>
+<ul>
+<li><code>path::base()</code></li>
+</ul>
+<p>返回路径最后的一个元素。</p>
+<pre class="hljs"><code><div>path::base(<span class="hljs-string">""</span>);      <span class="hljs-comment">// return "."</span>
+path::base(<span class="hljs-string">"/"</span>);     <span class="hljs-comment">// return "/"</span>
+path::base(<span class="hljs-string">"/a/"</span>);   <span class="hljs-comment">// return "a"  忽略末尾的分隔符</span>
+path::base(<span class="hljs-string">"/a"</span>);    <span class="hljs-comment">// return "a"</span>
+path::base(<span class="hljs-string">"/a/b"</span>);  <span class="hljs-comment">// return "b"</span>
+</div></code></pre>
+<ul>
+<li><code>path::ext()</code></li>
+</ul>
+<p>函数返回路径中文件名的扩展名。</p>
+<pre class="hljs"><code><div>path::ext(<span class="hljs-string">"/a.cc"</span>);  <span class="hljs-comment">// return ".cc"</span>
+path::ext(<span class="hljs-string">"/a.cc/"</span>); <span class="hljs-comment">// return ""</span>
+</div></code></pre>
+<h2 id="20-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%93%8D%E4%BD%9Cfs">20. 文件系统操作(fs)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/fs.h">co/fs.h</a>.</p>
+<p><code>fs</code> 库最小限度的实现了常用的文件系统操作，不同平台 path 分隔符建议统一使用 <code>'/'</code>。</p>
+<h3 id="201-%E5%85%83%E6%95%B0%E6%8D%AE%E6%93%8D%E4%BD%9C">20.1 元数据操作</h3>
+<ul>
+<li>代码示例</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-keyword">bool</span> x = fs::exists(path);  <span class="hljs-comment">// 判断文件是否存在</span>
+<span class="hljs-keyword">bool</span> x = fs::isdir(path);   <span class="hljs-comment">// 判断文件是否为目录</span>
+int64 x = fs::mtime(path);  <span class="hljs-comment">// 获取文件的修改时间</span>
+int64 x = fs::fsize(path);  <span class="hljs-comment">// 获取文件的大小</span>
+
+fs::mkdir(<span class="hljs-string">"a/b"</span>);           <span class="hljs-comment">// mkdir a/b</span>
+fs::mkdir(<span class="hljs-string">"a/b"</span>, <span class="hljs-literal">true</span>);     <span class="hljs-comment">// mkdir -p a/b</span>
+
+fs::remove(<span class="hljs-string">"x/x.txt"</span>);      <span class="hljs-comment">// rm x/x.txt</span>
+fs::remove(<span class="hljs-string">"a/b"</span>);          <span class="hljs-comment">// rmdir a/b   删除空目录</span>
+fs::remove(<span class="hljs-string">"a/b"</span>, <span class="hljs-literal">true</span>);    <span class="hljs-comment">// rm -rf a/b     </span>
+
+fs::rename(<span class="hljs-string">"a/b"</span>, <span class="hljs-string">"a/c"</span>);   <span class="hljs-comment">// 重命名</span>
+fs::symlink(<span class="hljs-string">"/usr"</span>, <span class="hljs-string">"x"</span>);   <span class="hljs-comment">// 软链接 x -&gt; /usr，windows 需要 admin 权限</span>
+</div></code></pre>
+<h3 id="202-%E6%96%87%E4%BB%B6%E7%9A%84%E5%9F%BA%E6%9C%AC%E8%AF%BB%E5%86%99%E6%93%8D%E4%BD%9C">20.2 文件的基本读写操作</h3>
+<p>fs 库实现了 <code>fs::file</code> 类，支持文件的基本读写操作。</p>
+<ul>
+<li>
+<p>fs::file 类的特性</p>
+<ul>
+<li>支持<code>r, w, a, m</code>四种读写模式，前三种与 fopen 保持一致，<code>m</code>与<code>w</code>类似，但不会清空已存在文件的数据。</li>
+<li>不支持缓存，直接读写文件。</li>
+<li>支持<code>move</code>语义，可以将 file 对象直接放入 STL 容器中。</li>
+</ul>
+</li>
+<li>
+<p>代码示例</p>
+</li>
+</ul>
+<pre class="hljs"><code><div>fs::file f;               <span class="hljs-comment">// 后续可调用 f.open() 打开文件</span>
+<span class="hljs-function">fs::file <span class="hljs-title">f</span><span class="hljs-params">(<span class="hljs-string">"xx"</span>, <span class="hljs-string">'r'</span>)</span></span>;    <span class="hljs-comment">// 读模式打开文件</span>
+
+<span class="hljs-comment">// 自动关闭之前打开的文件</span>
+f.open(<span class="hljs-string">"xx"</span>, <span class="hljs-string">'a'</span>);        <span class="hljs-comment">// 追加写，文件不存在时创建</span>
+f.open(<span class="hljs-string">"xx"</span>, <span class="hljs-string">'w'</span>);        <span class="hljs-comment">// 一般写，文件不存在时创建，文件存在时清空数据</span>
+f.open(<span class="hljs-string">"xx"</span>, <span class="hljs-string">'m'</span>);        <span class="hljs-comment">// 修改写，文件不存在时创建，文件存在时不清数据</span>
+
+<span class="hljs-keyword">if</span> (f) f.read(buf, <span class="hljs-number">512</span>);  <span class="hljs-comment">// 读取最多 512 字节</span>
+f.write(buf, <span class="hljs-number">32</span>);         <span class="hljs-comment">// 写入 32 字节</span>
+f.write(<span class="hljs-string">"hello"</span>);         <span class="hljs-comment">// 写入字符串</span>
+f.write(<span class="hljs-string">'c'</span>);             <span class="hljs-comment">// 写入单个字符</span>
+f.close();                <span class="hljs-comment">// 关闭文件，file 析构时会调用 close()</span>
+</div></code></pre>
+<h3 id="203-%E6%96%87%E4%BB%B6%E6%B5%81fsfstream">20.3 文件流(fs::fstream)</h3>
+<p><code>fs::file</code> 不支持缓存，写小文件性能较差，为此，fs 库另外提供了 <code>fs::fstream</code> 类。</p>
+<ul>
+<li>
+<p>fs::fstream 类的特性</p>
+<ul>
+<li>只写不读，仅支持<code>w, a</code>两种模式。</li>
+<li>可以自定义缓存大小，默认为<code>8k</code>。</li>
+<li>支持<code>move</code>语义，可将 fstream 对象放入 STL 容器中。</li>
+</ul>
+</li>
+<li>
+<p>代码示例</p>
+</li>
+</ul>
+<pre class="hljs"><code><div>fs::fstream s;                    <span class="hljs-comment">// 默认缓存为 8k</span>
+<span class="hljs-function">fs::fstream <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-number">4096</span>)</span></span>;              <span class="hljs-comment">// 指定缓存为 4k</span>
+<span class="hljs-function">fs::fstream <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-string">"path"</span>, <span class="hljs-string">'a'</span>)</span></span>;       <span class="hljs-comment">// 追加模式，缓存默认为 8k</span>
+<span class="hljs-function">fs::fstream <span class="hljs-title">s</span><span class="hljs-params">(<span class="hljs-string">"path"</span>, <span class="hljs-string">'w'</span>, <span class="hljs-number">4096</span>)</span></span>; <span class="hljs-comment">// 写模式，指定缓存为 4k</span>
+
+s.open(<span class="hljs-string">"path"</span>, <span class="hljs-string">'a'</span>);              <span class="hljs-comment">// 打开文件，自动关闭之前已经打开的文件</span>
+<span class="hljs-keyword">if</span> (s) s &lt;&lt; <span class="hljs-string">"hello world"</span> &lt;&lt; <span class="hljs-number">23</span>;  <span class="hljs-comment">// 流式写</span>
+s.append(data, size);             <span class="hljs-comment">// 追加指定长度的数据</span>
+s.flush();                        <span class="hljs-comment">// 将缓存中数据写入文件</span>
+s.close();                        <span class="hljs-comment">// 关闭文件，析构时会自动关闭</span>
+</div></code></pre>
+<h2 id="21-%E7%B3%BB%E7%BB%9F%E6%93%8D%E4%BD%9Cos">21. 系统操作(os)</h2>
+<p>include: <a href="https://github.com/idealvin/co/blob/master/include/co/os.h">co/os.h</a>.</p>
+<pre class="hljs"><code><div>os::homedir();   <span class="hljs-comment">// 返回 home 目录路径</span>
+os::cwd();       <span class="hljs-comment">// 返回当前工作目录路径</span>
+os::exepath();   <span class="hljs-comment">// 返回当前进程路径</span>
+os::exename();   <span class="hljs-comment">// 返回当前进程名</span>
+os::pid();       <span class="hljs-comment">// 返回当前进程 id</span>
+os::cpunum();    <span class="hljs-comment">// 返回 cpu 核数</span>
+os::daemon();    <span class="hljs-comment">// 后台运行，仅支持 Linux 平台</span>
+</div></code></pre>
+<h2 id="22-%E7%BC%96%E8%AF%91">22. 编译</h2>
+<p><code>CO</code> 使用 <a href="https://github.com/xmake-io/xmake">xmake</a> 进行编译，同时提供 <a href="#cmake-%E7%BC%96%E8%AF%91">cmake 支持</a>(由 <a href="https://github.com/izhengfan">izhengfan</a> 贡献)。</p>
+<ul>
+<li>
+<p>编译器</p>
+<ul>
+<li>Linux: <a href="https://gcc.gnu.org/projects/cxx-status.html#cxx11">gcc 4.8+</a></li>
+<li>Mac: <a href="https://clang.llvm.org/cxx_status.html">clang 3.3+</a></li>
+<li>Windows: <a href="https://visualstudio.microsoft.com/">vs2015+</a></li>
+</ul>
+</li>
+<li>
+<p>安装 xmake</p>
+<p>windows, mac 与 debian/ubuntu 可以直接去 xmake 的 <a href="https://github.com/xmake-io/xmake/releases">release</a> 页面下载安装包，其他系统请参考 xmake 的 <a href="https://xmake.io/#/guide/installation">Installation</a> 说明。</p>
+<p>xmake 在 linux 上默认禁止 root 用户编译，<a href="https://github.com/waruqi">ruki</a> 说不安全，可以在 <code>~/.bashrc</code> 中加上下面的一行，启用 root 编译:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">export</span> XMAKE_ROOT=y
+</div></code></pre>
+</li>
+<li>
+<p>快速上手</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 所有命令都在 co 根目录执行，后面不再说明</span>
+xmake       <span class="hljs-comment"># 默认编译 libco 与 gen</span>
+xmake -a    <span class="hljs-comment"># 编译所有项目 (libco, gen, co/test, co/unitest)</span>
+</div></code></pre>
+</li>
+<li>
+<p>编译 libco</p>
+<pre class="hljs"><code><div>xmake build libco       <span class="hljs-comment"># 编译 libco</span>
+xmake -b libco          <span class="hljs-comment"># 与上同</span>
+xmake b libco           <span class="hljs-comment"># 与上同，可能需要较新版本的 xmake</span>
+</div></code></pre>
+</li>
+<li>
+<p>编译及运行 unitest 代码</p>
+<p><a href="https://github.com/idealvin/co/tree/master/unitest">co/unitest</a> 是单元测试代码，用于检验 libco 库功能的正确性。</p>
+<pre class="hljs"><code><div>xmake build unitest     <span class="hljs-comment"># build 可以简写为 -b</span>
+xmake run unitest -a    <span class="hljs-comment"># 执行所有单元测试</span>
+xmake r unitest -a      <span class="hljs-comment"># 同上</span>
+xmake r unitest -os     <span class="hljs-comment"># 执行单元测试 os</span>
+xmake r unitest -json   <span class="hljs-comment"># 执行单元测试 json</span>
+</div></code></pre>
+</li>
+<li>
+<p>编译及运行 test 代码</p>
+<p><a href="https://github.com/idealvin/co/tree/master/test">co/test</a> 包含了一些测试代码。co/test 目录下增加 <code>xxx_test.cc</code> 源文件，然后在 co 根目录下执行 <code>xmake build xxx</code> 即可构建。</p>
+<pre class="hljs"><code><div>xmake build flag       <span class="hljs-comment"># 编译 flag_test.cc</span>
+xmake build <span class="hljs-built_in">log</span>        <span class="hljs-comment"># 编译 log_test.cc</span>
+xmake build json       <span class="hljs-comment"># 编译 json_test.cc</span>
+xmake build rapidjson  <span class="hljs-comment"># 编译 rapidjson_test.cc</span>
+xmake build rpc        <span class="hljs-comment"># 编译 rpc_test.cc</span>
+
+xmake r flag -xz       <span class="hljs-comment"># 测试 flag 库</span>
+xmake r <span class="hljs-built_in">log</span>            <span class="hljs-comment"># 测试 log 库</span>
+xmake r <span class="hljs-built_in">log</span> -cout      <span class="hljs-comment"># 终端也打印日志</span>
+xmake r <span class="hljs-built_in">log</span> -perf      <span class="hljs-comment"># log 库性能测试</span>
+xmake r json           <span class="hljs-comment"># 测试 json</span>
+xmake r rapidjson      <span class="hljs-comment"># 测试 rapidjson</span>
+xmake r rpc            <span class="hljs-comment"># 启动 rpc server</span>
+xmake r rpc -c         <span class="hljs-comment"># 启动 rpc client</span>
+</div></code></pre>
+</li>
+<li>
+<p>编译 gen</p>
+<pre class="hljs"><code><div>xmake build gen
+
+<span class="hljs-comment"># 建议将 gen 放到系统目录下(如 /usr/local/bin/).</span>
+gen hello_world.proto
+</div></code></pre>
+<p><code>proto</code> 文件格式可以参考 <a href="https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto">hello_world.proto</a>。</p>
+</li>
+<li>
+<p>安装</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 默认安装头文件、libco、gen</span>
+xmake install -o pkg          <span class="hljs-comment"># 打包安装到 pkg 目录</span>
+xmake i -o pkg                <span class="hljs-comment"># 同上</span>
+xmake install -o /usr/<span class="hljs-built_in">local</span>   <span class="hljs-comment"># 安装到 /usr/local 目录</span>
+</div></code></pre>
+</li>
+</ul>
+<h3 id="cmake-%E7%BC%96%E8%AF%91">cmake 编译</h3>
+<ul>
+<li>
+<p>构建 libco 库和 gen</p>
+<p>在 Unix 系统命令行下，使用 cmake/make 进行构建：</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">cd</span> co
+mkdir build &amp;&amp; <span class="hljs-built_in">cd</span> build
+cmake ..
+make -j8
+</div></code></pre>
+<p>构建完成后会在 <code>build/lib</code> 目录下生成 libco 库文件，在 <code>buildb/bin</code> 目录下生成 <code>gen</code> 可执行文件。</p>
+</li>
+<li>
+<p>构建 test 和 unitest</p>
+<p>默认不开启 test 和 unitest 的构建，如需开启，可如下设置：</p>
+<pre class="hljs"><code><div>cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
+cmake .. -DBUILD_ALL
+</div></code></pre>
+</li>
+<li>
+<p>安装 co 库</p>
+<p>在 Unix 命令行下，在 <code>make</code> 完成后，可进行安装：</p>
+<pre class="hljs"><code><div>make install
+</div></code></pre>
+<p>此命令会将头文件、库文件，以及 gen 可执行文件复制到安装目录下的相应子目录。 Linux 下默认的安装位置是 <code>/usr/local/</code>，故 <code>make install</code> 时可能需要 root 权限。</p>
+<p>如需更改安装位置，需在 cmake 时设置 <code>CMAKE_INSTALL_PREFIX</code> 参数：</p>
+<pre class="hljs"><code><div>cmake .. -DCMAKE_INSTALL_PREFIX=pkg
+</div></code></pre>
+</li>
+</ul>
+<div STYLE="page-break-after: always;"></div>
+<h2 id="23-%E7%BB%93%E8%AF%AD">23. 结语</h2>
+<p>这份文档其实还可以写得更详细一点，终因语言乏力、精力有限作罢，只能说声抱歉了。文档中难免有些疏漏、错误之处，敬请海涵与指正！</p>
+<ul>
+<li>
+<p>有问题请提交到 <a href="https://github.com/idealvin/co/">github</a>.</p>
+</li>
+<li>
+<p>赞助、商务合作请联系 <code>idealvin@qq.com</code>.</p>
+</li>
+<li>
+<p>小赏作者请扫码:</p>
+</li>
+</ul>
+<font face="Arial" size=3>
+<img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">
+</font>
+
+</body>
+</html>
