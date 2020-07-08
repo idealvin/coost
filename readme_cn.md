@@ -30,9 +30,9 @@
 
 - [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
 - [md (中文)](docs/co_cn.md)
-- [html (中文)](docs/co_cn.html)
+- [html (中文)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_cn.html)
 - [md (English)](docs/co_en.md)
-- [html (English)](docs/co_en.html)
+- [html (English)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_en.html)
 
 ## 亮点功能
 
