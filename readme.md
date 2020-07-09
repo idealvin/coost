@@ -1,4 +1,12 @@
-# Basic [(中文)](readme_cn.md)
+## Ads (Supporting the project)
+
+co is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial.
+
+<a href="https://tracking.gitads.io/?repo=co">
+ <img src="https://images.gitads.io/co" alt="GitAds"/> 
+</a>
+
+## Basic [(中文)](readme_cn.md)
 
 `CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms.
 
