@@ -157,7 +157,6 @@ DEF_test(fastring) {
 
     DEF_case(replace) {
         fastring s("1122332211");
-
         s.replace("22", "xx");
         EXPECT_EQ(s, "11xx33xx11");
 
@@ -254,12 +253,28 @@ DEF_test(fastring) {
         EXPECT(!s.match("h?o"));
     }
 
+    DEF_case(lshift) {
+        EXPECT_EQ(fastring("hello").lshift(0), "hello");
+        EXPECT_EQ(fastring("hello").lshift(1), "ello");
+        EXPECT_EQ(fastring("hello").lshift(2), "llo");
+        EXPECT_EQ(fastring("hello").lshift(3), "lo");
+        EXPECT_EQ(fastring("hello").lshift(4), "o");
+        EXPECT_EQ(fastring("hello").lshift(5), "");
+        EXPECT_EQ(fastring("hello").lshift(6), "");
+    }
+
+    DEF_case(shrink) {
+        fastring s(256);
+        (s = "hello world").shrink();
+        EXPECT_LT(s.capacity(), 256);
+        EXPECT_EQ(s, "hello world");
+    }
+
     DEF_case(plus) {
         fastring a("hello");
         fastring b("world");
         const char* s = "again";
         char c = 'x';
-
         EXPECT_EQ(a + b, "helloworld");
         EXPECT_EQ(b + a, "worldhello");
         EXPECT_EQ(a + s, "helloagain");

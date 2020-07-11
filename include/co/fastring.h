@@ -1,15 +1,20 @@
 #pragma once
 
 #include "fast.h"
+#include "hash/murmur_hash.h"
 #include <ostream>
 
 class fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
 
-    constexpr fastring() noexcept : fast::stream() {}
+    constexpr fastring() noexcept
+        : fast::stream() {
+    }
 
-    explicit fastring(size_t cap) : fast::stream(cap) {}
+    explicit fastring(size_t cap)
+        : fast::stream(cap) {
+    }
 
     ~fastring() = default;
 
@@ -19,11 +24,17 @@ class fastring : public fast::stream {
         memcpy(_p, s, n);
     }
 
-    fastring(const char* s) : fastring(s, (*s ? strlen(s) : 0)) {}
+    fastring(const char* s)
+        : fastring(s, (*s ? strlen(s) : 0)) {
+    }
 
-    fastring(const std::string& s) : fastring(s.data(), s.size()) {}
+    fastring(const std::string& s)
+        : fastring(s.data(), s.size()) {
+    }
 
-    fastring(const fastring& s) : fastring(s.data(), s.size()) {}
+    fastring(const fastring& s)
+        : fastring(s.data(), s.size()) {
+    }
 
     fastring(size_t n, char c) {
         this->_Init(n + 1, n);
@@ -236,6 +247,16 @@ class fastring : public fast::stream {
         return fastring(*this).tolower();
     }
 
+    fastring& lshift(size_t n) {
+        if (this->size() <= n) { this->clear(); return *this; }
+        memmove(_p, _p + n, _size -= n);
+        return *this;
+    }
+
+    void shrink() {
+        if (_size + 1 < _cap) this->swap(fastring(*this));
+    }
+
   private:
     void _Init(size_t cap, size_t size) {
         _cap = cap;
@@ -365,3 +386,12 @@ inline bool operator>=(const char* a, const fastring& b) {
 inline std::ostream& operator<<(std::ostream& os, const fastring& s) {
     return os.write(s.data(), s.size());
 }
+
+namespace std {
+template<>
+struct hash<fastring> {
+    size_t operator()(const fastring& s) const {
+        return murmur_hash(s);
+    }
+};
+} // std
