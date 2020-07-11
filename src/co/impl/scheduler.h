@@ -112,7 +112,7 @@ class TaskManager {
         _task_co.push_back(co);
     }
 
-    void get_tasks(std::vector<Closure*>& task_cb, std::vector<Coroutine*> task_co) {
+    void get_tasks(std::vector<Closure*>& task_cb, std::vector<Coroutine*>& task_co) {
         ::MutexGuard g(_mtx);
         if (!_task_cb.empty()) _task_cb.swap(task_cb);
         if (!_task_co.empty()) _task_co.swap(task_co);
