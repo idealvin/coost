@@ -37,10 +37,8 @@ co is being sponsored by the following tool; please help to support us by taking
 ## 参考文档
 
 - [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
-- [md (中文)](docs/co_cn.md)
-- [html (中文)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_cn.html)
-- [md (English)](docs/co_en.md)
-- [html (English)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_en.html)
+- [md (中文)](docs/cn.md)
+- [md (English)](docs/en.md)
 
 ## 亮点功能
 

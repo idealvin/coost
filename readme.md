@@ -36,12 +36,8 @@ co is being sponsored by the following tool; please help to support us by taking
 
 ## Documents
 
-- [md (English)](docs/co_en.md)
-- [html (English)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_en.html)
-- [md (中文)](docs/co_cn.md)
-- [html (中文)](http://htmlpreview.github.io/?https://github.com/idealvin/co/blob/master/docs/co_cn.html)
-- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
-
+- [md (English)](docs/en.md)
+- [md (中文)](docs/cn.md)
 
 ## Highlight function
 
