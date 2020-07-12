@@ -183,7 +183,7 @@ void LevelLogger::init() {
 void LevelLogger::stop() {
     if (atomic_compare_swap(&_stop, 0, 1) != 0) return;
     _log_event.signal();
-    _log_thread->join();
+    if (_log_thread != NULL) _log_thread->join();
 
     MutexGuard g(_log_mutex);
     if (!_fs->empty()) {
