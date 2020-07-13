@@ -189,7 +189,11 @@ class Scheduler {
         tb_context_jump(_main_co->ctx, _running);
     }
 
+    // We must reset the Coroutine here.
     void recycle(Coroutine* co) {
+        assert(co->state == S_init);
+        co->stack.clear();
+        co->ctx = 0;
         _co_pool.push(co);
     }
 
