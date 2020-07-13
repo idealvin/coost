@@ -1,13 +1,13 @@
-#include "co/rpc.h"
+#include "co/so/rpc.h"
+#include "co/so/tcp.h"
 #include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
-#include "co/hash.h"
 #include "co/fastring.h"
 #include "co/fastream.h"
 #include "co/str.h"
+#include "co/hash.h"
 #include "co/time.h"
-
 #include <memory>
 
 DEF_int32(rpc_max_msg_size, 8 << 20, "#2 max size of rpc message, default: 8M");
@@ -20,6 +20,7 @@ DEF_bool(rpc_log, true, "#2 enable rpc log if true");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
+namespace so {
 namespace rpc {
 
 struct Header {
@@ -35,95 +36,41 @@ inline void set_header(void* header, int msg_len) {
     ((Header*) header)->len = hton32(msg_len);
 }
 
-struct Connection {
-    sock_t fd;   // conn fd
-    fastring ip; // peer ip
-    int port;    // peer port
-    void* p;     // ServerImpl*
-};
-
-inline fastream& operator<<(fastream& fs, const Connection& c) {
-    return fs << c.ip << ':' << c.port;
-}
-
-class ServerImpl : public Server {
+class ServerImpl : public rpc::Server, public tcp::Server {
   public:
     ServerImpl(const char* ip, int port, const char* passwd)
-        : _ip(ip), _port(port), _conn_num(0) {
-        if (!_ip || !*_ip) _ip = "0.0.0.0";
+        : tcp::Server(ip, port), _conn_num(0), _buffer(
+              []() { return (void*) new fastring(4096); },
+              [](void* p) { delete (fastring*)p; }
+          ) {
         if (passwd && *passwd) _passwd = md5sum(passwd);
     }
 
-    virtual ~ServerImpl() {
-    }
+    virtual ~ServerImpl() = default;
 
     virtual void start() {
+        tcp::Server::start();
         LOG << "rpc server start, ip: " << _ip << ", port: " << _port
             << ", has password : " << !_passwd.empty();
-        co::go(&ServerImpl::loop, this);
     }
 
     virtual void add_service(Service* service) {
         _service.reset(service);
     }
 
-    void loop();
+    virtual void on_connection(Connection* conn);
 
-    void on_connection(Connection* conn);
     bool auth(Connection* conn);
 
   private:
-    const char* _ip;
-    int _port;
     int _conn_num;
     fastring _passwd;
     std::unique_ptr<Service> _service;
+    co::Pool _buffer;
 };
 
-void on_new_connection(void* p) {
-    Connection* c = (Connection*) p;
-    ServerImpl* s = (ServerImpl*) c->p;
-    s->on_connection(c);
-}
-
-void ServerImpl::loop() {
-    sock_t fd = co::tcp_socket();
-    co::set_reuseaddr(fd);
-
-    sock_t connfd;
-    int addrlen = sizeof(sockaddr_in);
-    struct sockaddr_in addr;
-
-    co::init_ip_addr(&addr, _ip, _port);
-    const int r = co::bind(fd, &addr, sizeof(addr));
-    CHECK_EQ(r, 0) << "bind (" << _ip << ':' << _port << ") failed: " << co::strerror();
-    CHECK_EQ(co::listen(fd, 1024), 0) << "listen error: " << co::strerror();
-
-    while (true) {
-        connfd = co::accept(fd, &addr, &addrlen);
-        if (unlikely(connfd == -1)) {
-            WLOG << "accept error: " << co::strerror();
-            continue;
-        }
-
-        if (unlikely(addrlen != sizeof(sockaddr_in))) {
-            WLOG << "rpc server accept a connection with unexpected addrlen: " << addrlen
-                 << ", addr will not be filled..";
-            memset(&addr, 0, sizeof(addr));
-        }
-
-        Connection* conn = new Connection;
-        conn->fd = connfd;
-        conn->ip = co::ip_str(&addr);
-        conn->port = ntoh16(addr.sin_port);
-        conn->p = this;
-
-        co::go(on_new_connection, conn);
-    }
-}
-
 void ServerImpl::on_connection(Connection* conn) {
-    std::unique_ptr<Connection> c(conn);
+    std::unique_ptr<Connection> x(conn);
     sock_t fd = conn->fd;
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
@@ -135,11 +82,11 @@ void ServerImpl::on_connection(Connection* conn) {
     }
 
     LOG << "rpc server accept new connection: " << *conn << ", conn fd: " << fd
-        << ", conn num: " << atomic_inc(&_conn_num); // << " now: " << now::us();
+        << ", conn num: " << atomic_inc(&_conn_num);
 
     int r = 0, len = 0;
     Header header;
-    fastream fs;
+    fastring* buf = 0;
     Json req, res;
 
     while (true) {
@@ -152,7 +99,12 @@ void ServerImpl::on_connection(Connection* conn) {
             if (unlikely(r == -1)) {
                 if (co::error() != ETIMEDOUT) goto recv_err;
                 if (_conn_num > FLG_rpc_max_idle_conn) goto idle_err;
-                if (fs.capacity() > 0) fs.swap(fastream()); // free the memory
+
+                if (buf) { 
+                    buf->clear();
+                    _buffer.push(buf);
+                    buf = 0;
+                }
                 goto recv_beg;
             }
 
@@ -161,15 +113,16 @@ void ServerImpl::on_connection(Connection* conn) {
             len = ntoh32(header.len);
             if (unlikely(len > FLG_rpc_max_msg_size)) goto msg_too_long_err;
 
-            fs.resize(len);
-            r = co::recvn(fd, (char*)fs.data(), len, FLG_rpc_recv_timeout);
+            if (buf == NULL) buf = (fastring*) _buffer.pop();
+            buf->resize(len);
+            r = co::recvn(fd, (char*)buf->data(), len, FLG_rpc_recv_timeout);
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r == -1)) goto recv_err;
 
-            req = json::parse(fs.data(), fs.size());
+            req = json::parse(buf->data(), buf->size());
             if (req.is_null()) goto json_parse_err;
 
-            RPCLOG << "recv req: " << req;
+            RPCLOG << "rpc recv req: " << req;
         } while (0);
 
         // call rpc and send response to the client
@@ -177,45 +130,48 @@ void ServerImpl::on_connection(Connection* conn) {
             res.reset();
             _service->process(req, res);
 
-            fs.resize(sizeof(Header));
-            res.str(fs);
-            set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
+            buf->resize(sizeof(Header));
+            res.str(*(fastream*)buf);
+            set_header((void*)buf->data(), (int) buf->size() - sizeof(Header));
             
-            r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
+            r = co::send(fd, buf->data(), (int) buf->size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
-            RPCLOG << "send res: " << res;;
+            RPCLOG << "rpc send res: " << res;;
         } while (0);
     }
 
   recv_zero_err:
-    LOG << "client close the connection: " << *c; // << " now: " << now::us();
+    LOG << "rpc client close the connection: " << *conn;
     co::close(fd);
-    atomic_dec(&_conn_num);
-    return ;
+    goto cleanup;
   idle_err:
-    ELOG << "close idle connection: " << *c;
-    co::reset_tcp_socket(fd);
-    atomic_dec(&_conn_num);
-    return ;
+    ELOG << "rpc close idle connection: " << *conn;
+    co::close(fd);
+    goto cleanup;
   magic_err:
-    ELOG << "recv error: bad magic number";
+    ELOG << "rpc recv error: bad magic number";
     goto err_end;
   msg_too_long_err:
-    ELOG << "recv error: body too long: " << len;
+    ELOG << "rpc recv error: body too long: " << len;
     goto err_end;
   recv_err:
-    ELOG << "recv error: " << co::strerror();
+    ELOG << "rpc recv error: " << co::strerror();
     goto err_end;
   send_err:
-    ELOG << "send error: " << co::strerror();
+    ELOG << "rpc send error: " << co::strerror();
     goto err_end;
   json_parse_err:
-    ELOG << "json parse error: " << fs;
+    ELOG << "rpc json parse error: " << *buf;
     goto err_end;
   err_end:
-    co::reset_tcp_socket(fd, 3000);
+    co::reset_tcp_socket(fd, 1000);
+  cleanup:
     atomic_dec(&_conn_num);
+    if (buf) {
+        buf->clear();
+        _buffer.push(buf);
+    }
 }
 
 bool ServerImpl::auth(Connection* conn) {
@@ -352,20 +308,16 @@ bool ServerImpl::auth(Connection* conn) {
 }
 
 
-class ClientImpl : public Client {
+class ClientImpl : public rpc::Client, public tcp::Client {
   public:
     ClientImpl(const char* serv_ip, int serv_port, const char* passwd);
-    virtual ~ClientImpl();
+    virtual ~ClientImpl() = default;
 
-    bool connect();
-    void disconnect();
+    virtual bool connect();
     virtual void ping();
     virtual void call(const Json& req, Json& res);
 
   private:
-    const char* _serv_ip;
-    int _serv_port;
-    sock_t _fd;
     fastring _passwd;
     fastream _fs;
 
@@ -373,50 +325,19 @@ class ClientImpl : public Client {
 };
 
 ClientImpl::ClientImpl(const char* serv_ip, int serv_port, const char* passwd)
-    : _serv_ip(serv_ip), _serv_port(serv_port), _fd(-1) {
-    if (!_serv_ip || !*_serv_ip) _serv_ip = "127.0.0.1";
+    : tcp::Client(serv_ip, serv_port) {
     if (passwd && *passwd) _passwd = md5sum(passwd);
 }
 
-ClientImpl::~ClientImpl() {
-    if (co::sched_id() != -1) this->disconnect();
-}
-
-void ClientImpl::disconnect() {
-    if (_fd != -1) {
-        co::close(_fd);
-        _fd = -1;
-    }
-}
-
 bool ClientImpl::connect() {
-    if (_fd != -1) return true;
-
-    _fd = co::tcp_socket();
-    if (_fd == -1) {
-        ELOG << "create tcp socket failed..";
-        return false;
-    }
-
-    struct sockaddr_in addr;
-    co::init_ip_addr(&addr, _serv_ip, _serv_port);
-
-    int r = co::connect(_fd, &addr, sizeof(addr), FLG_rpc_conn_timeout);
-    if (r == -1) {
-        ELOG << "connect to server " << _serv_ip << ':' << _serv_port
-             << " failed, error: " << co::strerror();
-        this->disconnect();
-        return false;
-    }
-
-    co::set_tcp_nodelay(_fd);
+    if (!tcp::Client::connect(FLG_rpc_conn_timeout)) return false;
 
     if (!_passwd.empty() && !this->auth()) {
         this->disconnect();
         return false;
     }
 
-    LOG << "connect to server " << _serv_ip << ':' << _serv_port << " success";
+    LOG << "connect to rpc server " << _ip << ':' << _port << " success";
     return true;
 }
 
@@ -441,7 +362,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         r = co::send(_fd, _fs.data(), (int) _fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
-        RPCLOG << "send req: " << req;
+        RPCLOG << "rpc send req: " << req;
     } while (0);
 
     // wait for response
@@ -461,34 +382,30 @@ void ClientImpl::call(const Json& req, Json& res) {
 
         res = json::parse(_fs.c_str(), _fs.size());
         if (res.is_null()) goto json_parse_err;
-        RPCLOG << "recv res: " << res;
+        RPCLOG << "rpc recv res: " << res;
         return;
     } while (0);
 
   magic_err:
-    ELOG << "recv error: bad magic number";
-    this->disconnect();
-    return;
+    ELOG << "rpc recv error: bad magic number";
+    goto err_end;
   msg_too_long_err:
-    ELOG << "recv error: body too long: " << len;
-    this->disconnect();
-    return;
+    ELOG << "rpc recv error: body too long: " << len;
+    goto err_end;
   recv_zero_err:
-    ELOG << "server close the connection..";
-    this->disconnect();
-    return;
+    ELOG << "rpc server close the connection..";
+    goto err_end;
   recv_err:
-    ELOG << "recv error: " << co::strerror();
-    this->disconnect();
-    return;
+    ELOG << "rpc recv error: " << co::strerror();
+    goto err_end;
   send_err:
-    ELOG << "send error: " << co::strerror();
-    this->disconnect();
-    return;
+    ELOG << "rpc send error: " << co::strerror();
+    goto err_end;
   json_parse_err:
-    ELOG << "json parse error: " << _fs;
+    ELOG << "rpc json parse error: " << _fs;
+    goto err_end;
+  err_end:
     this->disconnect();
-    return;
 }
 
 bool ClientImpl::auth() {
@@ -607,3 +524,4 @@ Client* new_client(const char* ip, int port, const char* passwd) {
 }
 
 } // rpc
+} // so

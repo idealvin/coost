@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "co/rpc.h"
+#include "co/so.h"
 #include "co/hash.h"
 #include <unordered_map>
 

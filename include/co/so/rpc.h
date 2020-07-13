@@ -1,7 +1,8 @@
 #pragma once
 
-#include "json.h"
+#include "../json.h"
 
+namespace so {
 namespace rpc {
 
 class Service {
@@ -34,3 +35,6 @@ Server* new_server(const char* ip, int port, const char* passwd="");
 Client* new_client(const char* ip, int port, const char* passwd="");
 
 } // rpc
+} // so
+
+namespace rpc = so::rpc;
