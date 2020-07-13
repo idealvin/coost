@@ -76,7 +76,7 @@ class Client {
     }
 
     // @ms: timeout in milliseconds
-    bool connect(int ms=3000);
+    bool connect(int ms);
 
     bool connected() const {
         return _fd != (sock_t)-1;
