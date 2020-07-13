@@ -3,7 +3,7 @@
 namespace co {
 
 #ifdef _WIN32
-Epoll::Epoll() : _signaled(false) {
+Epoll::Epoll() : _signaled(0) {
     _iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
     CHECK(_iocp != 0) << "create iocp failed..";
 }
@@ -13,30 +13,12 @@ Epoll::~Epoll() {
 }
 
 void Epoll::close() {
-    if (_iocp != 0) {
-        CloseHandle(_iocp);
-        _iocp = 0;
-    }
-}
-
-bool Epoll::add_event(sock_t fd, int ev) {
-    COLOG << "add ev, fd: " << fd << ", ev: " << ev;
-    int& x = _ev_map[fd];
-    if (x != 0) {
-        if (!(x & ev)) x |= ev;
-        return true; // already exists
-    } else {
-        if (CreateIoCompletionPort((HANDLE)fd, _iocp, fd, 1) != 0) {
-            x = ev | 4;
-            return true;
-        }
-        ELOG << "iocp add fd " << fd << " failed: " << GetLastError() << " " << co::strerror();
-        return false;
-    }
+    if (_iocp == 0) return;
+    CloseHandle(_iocp);
+    _iocp = 0;
 }
 
 #else
-
 void Epoll::handle_ev_pipe() {
     int dummy;
     while (true) {

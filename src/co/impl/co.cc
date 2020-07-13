@@ -6,7 +6,7 @@
 namespace co {
 
 void go(Closure* cb) {
-    sched_mgr()->next()->add_task(cb);
+    sched_mgr()->next()->add_new_task(cb);
 }
 
 void sleep(uint32 ms) {
@@ -94,9 +94,9 @@ void EventImpl::signal() {
         Coroutine* co = it->first;
         if (atomic_compare_swap(&co->state, S_wait, S_ready) == S_wait) {
             if (it->second != null_timer_id) {
-                co->s->add_task(co, it->second);
+                co->s->add_ready_timer_task(co, it->second);
             } else {
-                co->s->add_task(co);
+                co->s->add_ready_task(co);
             }
         }
     }
@@ -168,7 +168,7 @@ inline void MutexImpl::unlock() {
         Coroutine* co = _co_wait.front();
         _co_wait.pop_front();
         _mtx.unlock();
-        co->s->add_task(co);
+        co->s->add_ready_task(co);
     }
 }
 

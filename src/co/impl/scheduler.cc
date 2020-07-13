@@ -25,6 +25,7 @@ void Scheduler::stop() {
         _epoll.signal();
         _ev.wait();
         _epoll.close();
+        LOG << "stop scheduler: " << this->id();
     }
 }
 
@@ -46,17 +47,17 @@ static void main_func(tb_context_from_t from) {
  *       <-------- co->cb->run():  run on _stack
  */
 void Scheduler::resume(Coroutine* co) {
-    SOLOG << "resume co: " << co->id;
+    SOLOG << ">>> resume co: " << co->id;
     tb_context_from_t from;
     _running = co;
-    if (_stack == 0) _stack = (char*) malloc(FLG_co_stack_size);
+    if (_stack == 0) _stack = (char*) malloc(_stack_size);
 
     if (co->ctx == 0) {
-        co->ctx = tb_context_make(_stack, FLG_co_stack_size, main_func);
+        co->ctx = tb_context_make(_stack, _stack_size, main_func);
         from = tb_context_jump(co->ctx, _main_co);
     } else {
         // restore stack for the coroutine
-        assert((_stack + FLG_co_stack_size) == (char*)co->ctx + co->stack.size());
+        assert((_stack + _stack_size) == (char*)co->ctx + co->stack.size());
         memcpy(co->ctx, co->stack.data(), co->stack.size());
         from = tb_context_jump(co->ctx, _main_co);
     }
@@ -70,9 +71,11 @@ void Scheduler::resume(Coroutine* co) {
 
 void Scheduler::loop() {
     gSched = this;
-    std::vector<Closure*> task_cb;
-    std::vector<Coroutine*> task_co;
-    std::unordered_map<Coroutine*, timer_id_t> timer_tasks;
+    LOG << "start scheduler: " << this->id();
+
+    std::vector<Closure*> new_tasks;
+    std::vector<Coroutine*> ready_tasks;
+    std::unordered_map<Coroutine*, timer_id_t> ready_timer_tasks;
 
     while (!_stop) {
         int n = _epoll.wait(_wait_ms);
@@ -103,51 +106,52 @@ void Scheduler::loop() {
           #endif
         }
 
-        SOLOG << "> check newly or ready tasks..";
+        SOLOG << "> check tasks ready to resume..";
         do {
-            _task_mgr.get_tasks(task_cb, task_co);
+            _task_mgr.get_all_tasks(new_tasks, ready_tasks, ready_timer_tasks);
 
-            if (!task_cb.empty()) {
-                for (size_t i = 0; i < task_cb.size(); ++i) {
-                    this->resume(this->new_coroutine(task_cb[i]));
+            if (!new_tasks.empty()) {
+                SOLOG << ">> resume new tasks, num: " << new_tasks.size();
+                for (size_t i = 0; i < new_tasks.size(); ++i) {
+                    this->resume(this->new_coroutine(new_tasks[i]));
                 }
-                task_cb.clear();
+                new_tasks.clear();
             }
 
-            if (!task_co.empty()) {
-                for (size_t i = 0; i < task_co.size(); ++i) {
-                    this->resume(task_co[i]);
+            if (!ready_tasks.empty()) {
+                SOLOG << ">> resume ready tasks, num: " << ready_tasks.size();
+                for (size_t i = 0; i < ready_tasks.size(); ++i) {
+                    this->resume(ready_tasks[i]);
                 }
-                task_co.clear();
+                ready_tasks.clear();
             }
-        } while (0);
 
-        SOLOG << "> check ready timer tasks..";
-        do {
-            _timer_mgr.get_tasks(timer_tasks);
-            if (!timer_tasks.empty()) {
-                for (auto it = timer_tasks.begin(); it != timer_tasks.end(); ++it) {
+            if (!ready_timer_tasks.empty()) {
+                SOLOG << ">> resume ready timer tasks, num: " << ready_timer_tasks.size();
+                for (auto it = ready_timer_tasks.begin(); it != ready_timer_tasks.end(); ++it) {
                     if (it->first->state == S_ready) this->del_timer(it->second);
                     this->resume(it->first);
                 }
-                timer_tasks.clear();
+                ready_timer_tasks.clear();
             }
         } while (0);
 
-        SOLOG << "> check timeout tasks..";
+        SOLOG << "> check timedout tasks..";
         do {
-            _wait_ms = _timer_mgr.check_timeout(task_co);
-            SOLOG << ">> timeout n: " << task_co.size();
+            _wait_ms = _timer_mgr.check_timeout(ready_tasks);
 
-            if (!task_co.empty()) {
+            if (!ready_tasks.empty()) {
+                SOLOG << ">> resume timedout tasks, num: " << ready_tasks.size();
                 _timeout = true;
-                for (size_t i = 0; i < task_co.size(); ++i) {
-                    this->resume(task_co[i]);
+                for (size_t i = 0; i < ready_tasks.size(); ++i) {
+                    this->resume(ready_tasks[i]);
                 }
                 _timeout = false;
-                task_co.clear();
+                ready_tasks.clear();
             }
         } while (0);
+
+        if (_running) _running = NULL;
     }
 
     this->cleanup();
@@ -157,26 +161,20 @@ void Scheduler::loop() {
 uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     if (_timer.empty()) return -1;
 
-    SOLOG << ">> check timeout, timed_wait num: " << _timer.size();
     int64 now_ms = now::ms();
-
     auto it = _timer.begin();
     for (; it != _timer.end(); ++it) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
         if (co->state == S_init || atomic_swap(&co->state, S_init) == S_wait) {
-            SOLOG << ">>> timedout timer: " << COTID(it);
             res.push_back(co);
         }
     }
 
     if (it != _timer.begin()) {
-        if (_it != _timer.end() && _it->first <= now_ms) {
-            _it = it;
-        }
+        if (_it != _timer.end() && _it->first <= now_ms) _it = it;
         _timer.erase(_timer.begin(), it);
     }
-    SOLOG << ">> check timeout, remain timed_wait num: " << _timer.size();
 
     if (_timer.empty()) return -1;
     return (int) (_timer.begin()->first - now_ms);
@@ -186,11 +184,13 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
 extern void wsa_startup();
 extern void wsa_cleanup();
 #else
-inline void wsa_startup() {}
-inline void wsa_cleanup() {}
+static inline void wsa_startup() {}
+static inline void wsa_cleanup() {}
 #endif
 
 SchedManager::SchedManager() {
+    wsa_startup();
+
     if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
     if (FLG_co_sched_num > (uint32)co::max_sched_num()) FLG_co_sched_num = co::max_sched_num();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
@@ -198,8 +198,6 @@ SchedManager::SchedManager() {
     _n = -1;
     _r = static_cast<uint32>((1ULL << 32) % FLG_co_sched_num);
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
-
-    wsa_startup();
 
     LOG << "coroutine schedulers start, sched num: " << FLG_co_sched_num
         << ", stack size: " << (FLG_co_stack_size >> 10) << 'k';
@@ -212,16 +210,12 @@ SchedManager::SchedManager() {
 }
 
 SchedManager::~SchedManager() {
-    for (size_t i = 0; i < _scheds.size(); ++i) {
-        delete _scheds[i];
-    }
+    for (size_t i = 0; i < _scheds.size(); ++i) delete _scheds[i];
     wsa_cleanup();
 }
 
 void SchedManager::stop() {
-    for (size_t i = 0; i < _scheds.size(); ++i) {
-        _scheds[i]->stop();
-    }
+    for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 
 } // co

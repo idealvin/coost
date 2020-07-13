@@ -34,6 +34,10 @@ extern const timer_id_t null_timer_id;
 class Scheduler;
 extern __thread Scheduler* gSched;
 
+inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
+    return fs << *(void**)(&id);
+}
+
 // coroutine status
 //   co::Event::wait()    ->  S_wait
 //   co::Event::signal()  ->  S_ready
@@ -44,8 +48,8 @@ enum _CoState {
 };
 
 struct Coroutine {
-    explicit Coroutine(int coid)
-        : id(coid), state(S_init), ctx(0), stack(), cb(0) {
+    explicit Coroutine(int i)
+        : id(i), state(S_init), ctx(0), stack(), cb(0) {
     }
 
     ~Coroutine() = default;
@@ -60,12 +64,12 @@ struct Coroutine {
     };
 };
 
-// pool for coroutines, using index as the coroutine id.
+// pool of Coroutine, using index as the coroutine id.
 class Copool {
   public:
-    Copool() {
-        _pool.reserve(1024);
-        _ids.reserve(1024);
+    Copool(size_t cap=1024) {
+        _pool.reserve(cap);
+        _ids.reserve(cap);
     }
 
     ~Copool() {
@@ -97,47 +101,55 @@ class Copool {
     std::vector<int> _ids;         // id of available coroutines in _pool
 };
 
+// Tasks may be added from any thread. We need a Mutex here.
 class TaskManager {
   public:
     TaskManager() = default;
     ~TaskManager() = default;
 
-    void add_task(Closure* cb) {
+    void add_new_task(Closure* cb) {
         ::MutexGuard g(_mtx);
-       _task_cb.push_back(cb);
+       _new_tasks.push_back(cb);
     }
 
-    void add_task(Coroutine* co) {
+    void add_ready_task(Coroutine* co) {
         ::MutexGuard g(_mtx);
-        _task_co.push_back(co);
+        _ready_tasks.push_back(co);
     }
 
-    void get_tasks(std::vector<Closure*>& task_cb, std::vector<Coroutine*>& task_co) {
+    void add_ready_timer_task(Coroutine* co, const timer_id_t& id) {
         ::MutexGuard g(_mtx);
-        if (!_task_cb.empty()) _task_cb.swap(task_cb);
-        if (!_task_co.empty()) _task_co.swap(task_co);
+        _ready_timer_tasks.insert(std::make_pair(co, id));
+    }
+
+    void get_all_tasks(
+        std::vector<Closure*>& new_tasks,
+        std::vector<Coroutine*>& ready_tasks,
+        std::unordered_map<Coroutine*, timer_id_t>& ready_timer_tasks
+    ) {
+        ::MutexGuard g(_mtx);
+        if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
+        if (!_ready_tasks.empty()) _ready_tasks.swap(ready_tasks);
+        if (!_ready_timer_tasks.empty()) _ready_timer_tasks.swap(ready_timer_tasks);
     }
  
   private:
     ::Mutex _mtx;
-    std::vector<Closure*> _task_cb;   // newly added tasks
-    std::vector<Coroutine*> _task_co; // tasks ready to resume
+    std::vector<Closure*> _new_tasks;   
+    std::vector<Coroutine*> _ready_tasks;
+    std::unordered_map<Coroutine*, timer_id_t> _ready_timer_tasks;
 };
 
+// Timer must be added in the scheduler thread. We need no lock here.
 class TimerManager {
   public:
-    TimerManager() : _timer() {
-        _it = _timer.end();
-    }
-
+    TimerManager() : _timer(), _it(_timer.end()) {}
     ~TimerManager() = default;
 
-    // for sleep, co::Event...
     timer_id_t add_timer(uint32 ms, Coroutine* co) {
         return _timer.insert(std::make_pair(now::ms() + ms, co));
     }
 
-    // for co::IoEvent
     timer_id_t add_io_timer(uint32 ms, Coroutine* co) {
         return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, co));
     }
@@ -147,25 +159,19 @@ class TimerManager {
         _timer.erase(id);
     }
 
-    void add_task(Coroutine* co, const timer_id_t& id) {
-        ::MutexGuard g(_mtx);
-        _timer_tasks.insert(std::make_pair(co, id));
-    }
-
-    void get_tasks(std::unordered_map<Coroutine*, timer_id_t>& tasks) {
-        ::MutexGuard g(_mtx);
-        if (!_timer_tasks.empty()) _timer_tasks.swap(tasks);
-    }
-
-    // return time until next timeout
+    // return time(ms) to wait for the next timeout.
+    // all timedout coroutine will be pushed into @res.
     uint32 check_timeout(std::vector<Coroutine*>& res);
+
+    // ========================================================================
+    // for unitest/co
+    // ========================================================================
+    bool assert_empty() const { return _timer.empty() && _it == _timer.end(); }
+    bool assert_it(const timer_id_t& it) const { return _it == it; }
 
   private:
     std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
     std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
-
-    ::Mutex _mtx;
-    std::unordered_map<Coroutine*, timer_id_t> _timer_tasks; // timer tasks ready to resume
 };
 
 class Scheduler {
@@ -183,45 +189,8 @@ class Scheduler {
         tb_context_jump(_main_co->ctx, _running);
     }
 
-    void add_task(Closure* cb) {
-        _task_mgr.add_task(cb);
-        _epoll.signal();
-    }
-
-    void add_task(Coroutine* co) {
-        _task_mgr.add_task(co);
-        _epoll.signal();
-    }
-
-    void add_task(Coroutine* co, const timer_id_t& id) {
-        _timer_mgr.add_task(co, id);
-        _epoll.signal();
-    }
-
-    void sleep(uint32 ms) {
-        if (_wait_ms > ms) _wait_ms = ms;
-        auto it = _timer_mgr.add_timer(ms, _running);
-        COLOG << "sleep " << ms << " ms, add timer: " << COTID(it);
-        this->yield();
-    }
-
-    timer_id_t add_timer(uint32 ms) {
-        if (_wait_ms > ms) _wait_ms = ms;
-        auto it = _timer_mgr.add_timer(ms, _running);
-        COLOG << "add timer" << "(" << ms << " ms): " << COTID(it);
-        return it;
-    }
-
-    timer_id_t add_io_timer(uint32 ms) {
-        if (_wait_ms > ms) _wait_ms = ms;
-        auto it = _timer_mgr.add_io_timer(ms, _running);
-        COLOG << "add io timer" << "(" << ms << " ms): " << COTID(it);
-        return it;
-    }
-
-    void del_timer(const timer_id_t& id) {
-        COLOG << "del timer: " << COTID(id);
-        _timer_mgr.del_timer(id);
+    void recycle(Coroutine* co) {
+        _co_pool.push(co);
     }
 
     void loop();
@@ -232,41 +201,99 @@ class Scheduler {
 
     void stop();
 
-  #if defined(_WIN32)
-    bool add_event(sock_t fd, int ev) {
-        return _epoll.add_event(fd, ev);
-    }
-  #elif defined(__linux__)
-    bool add_event(sock_t fd, int ev) {
-        return _epoll.add_event(fd, ev, _running->id);
-    }
-  #else
-    bool add_event(sock_t fd, int ev) {
-        return _epoll.add_event(fd, ev, _running);
-    }
-  #endif
-
-    void del_event(sock_t fd, int ev) {
-        _epoll.del_event(fd, ev);
-    }
-
-    void del_event(sock_t fd) {
-        _epoll.del_event(fd);
-    }
-
-    void recycle(Coroutine* co) {
-        _co_pool.push(co);
-    }
-
     bool timeout() const { return _timeout; }
 
     bool on_stack(void* p) const {
         return (_stack <= (char*)p) && ((char*)p < _stack + _stack_size);
     }
 
-    // the cleanup callbacks are called at the end of loop()
+    // these callbacks are called at the end of loop()
     void add_cleanup_cb(std::function<void()>&& cb) {
         _cbs.push_back(std::move(cb));
+    }
+
+    // =========================================================================
+    // add task ready to resume
+    // =========================================================================
+    // for go(...)
+    void add_new_task(Closure* cb) {
+        _task_mgr.add_new_task(cb);
+        _epoll.signal();
+    }
+
+    // Mutex::unlock()
+    // Event::signal() to Event::wait()
+    void add_ready_task(Coroutine* co) {
+        _task_mgr.add_ready_task(co);
+        _epoll.signal();
+    }
+
+    // Event::signal() to Event::wait(ms)   (co->state: S_wait -> S_ready)
+    void add_ready_timer_task(Coroutine* co, const timer_id_t& id) {
+        assert(id != null_timer_id);
+        COLOG << "add ready timer task, S" << co->s->id() << '.' << co->id << ", timer_id: " << id;
+        _task_mgr.add_ready_timer_task(co, id);
+        _epoll.signal();
+    }
+
+    // =========================================================================
+    // add or delete a timer
+    // =========================================================================
+    void sleep(uint32 ms) {
+        if (_wait_ms > ms) _wait_ms = ms;
+        auto it = _timer_mgr.add_timer(ms, _running);
+        COLOG << "sleep " << ms << " ms, add timer: " << it;
+        this->yield();
+    }
+
+    // for Event::wait(ms)
+    timer_id_t add_timer(uint32 ms) {
+        if (_wait_ms > ms) _wait_ms = ms;
+        auto it = _timer_mgr.add_timer(ms, _running);
+        COLOG << "add timer: " << it << " (" << ms << " ms)";
+        return it;
+    }
+
+    // for IoEvent
+    timer_id_t add_io_timer(uint32 ms) {
+        if (_wait_ms > ms) _wait_ms = ms;
+        auto it = _timer_mgr.add_io_timer(ms, _running);
+        COLOG << "add io timer: " << it << " (" << ms << " ms)";
+        return it;
+    }
+
+    void del_timer(const timer_id_t& id) {
+        COLOG << "del timer: " << id;
+        _timer_mgr.del_timer(id);
+    }
+
+    // =========================================================================
+    // add or delete io event
+    // =========================================================================
+  #if defined(_WIN32)
+    bool add_event(sock_t fd) {
+        return _epoll.add_event(fd);
+    }
+  #elif defined(__linux__)
+    bool add_event(sock_t fd, int ev) {
+        return _epoll.add_event(fd, ev, _running->id);
+    }
+
+    void del_event(sock_t fd, int ev) {
+        _epoll.del_event(fd, ev);
+    }
+  #else
+    bool add_event(sock_t fd, int ev) {
+        return _epoll.add_event(fd, ev, _running);
+    }
+
+    void del_event(sock_t fd, int ev) {
+        _epoll.del_event(fd, ev);
+    }
+  #endif
+
+    void del_event(sock_t fd) {
+        _epoll.del_event(fd);
     }
 
   private:
@@ -287,7 +314,7 @@ class Scheduler {
     }
 
   private:
-    uint32 _id;          // scheduler id   
+    uint32 _id;          // scheduler id
     uint32 _stack_size;  // size of stack
     char* _stack;        // stack shared by coroutines in this scheduler
     Coroutine* _main_co; // save the main context

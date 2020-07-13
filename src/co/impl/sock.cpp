@@ -40,10 +40,8 @@ int close(sock_t fd, int ms) {
 int shutdown(sock_t fd, char c) {
     CHECK(gSched) << "must be called in coroutine..";
     if (c == 'r') {
-        gSched->del_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
     } else if (c == 'w') {
-        gSched->del_event(fd, EV_write);
         return ::shutdown(fd, SD_SEND);
     } else {
         gSched->del_event(fd);
@@ -59,26 +57,29 @@ int listen(sock_t fd, int backlog) {
     return ::listen(fd, backlog);
 }
 
-// We have to figure out the address family of the listening socket @fd here.
+// cache for address family of the listening socket
+static int find_address_family(sock_t fd) {
+    static std::vector<std::unordered_map<sock_t, int>> kAf(co::max_sched_num());
+
+    auto& map = kAf[gSched->id()];
+    int af = map[fd];
+    if (af != 0) return af;
+    {
+        WSAPROTOCOL_INFO info;
+        int len = sizeof(info);
+        int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
+        if (r != 0) return -1;
+        map[fd] = af = info.iAddressFamily;
+    }
+    return af;
+}
+
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
     CHECK(gSched) << "must be called in coroutine..";
 
-    // cache for address family of the listening socket
-    static __thread std::unordered_map<int, int>* kAf = 0;
-    if (kAf == 0) kAf = new std::unordered_map<int, int>();
-
-    int af;
-    do {
-        af = (*kAf)[(int)fd];
-        if (af != 0) break;
-        {
-            WSAPROTOCOL_INFO info;
-            int len = sizeof(info);
-            int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
-            if (r != 0) return (sock_t)-1;
-            (*kAf)[(int)fd] = af = info.iAddressFamily;
-        }
-    } while (0);
+    // We have to figure out the address family of the listening socket here.
+    int af = find_address_family(fd);
+    if (af < 0) return (sock_t)-1;
 
     sock_t connfd = co::tcp_socket(af);
     if (connfd == INVALID_SOCKET) return connfd;
@@ -90,7 +91,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 
     sockaddr *serv = 0, *peer = 0;
     int serv_len = sockaddr_len, peer_len = sockaddr_len;
-    IoEvent ev(fd, EV_read);
+    IoEvent ev(fd);
 
     int r = accept_ex(
         fd, connfd, info->s, 0,
@@ -160,13 +161,14 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         } else {
             addr.v6.sin6_family = AF_INET6;
         }
+
         if (co::bind(fd, &addr, addrlen) != 0) {
             ELOG << "connectex bind local addr failed..";
             return -1;
         }
     } while (0);
 
-    IoEvent ev(fd, EV_write);
+    IoEvent ev(fd);
 
     int r = connect_ex(
         fd, (const sockaddr*)addr, addrlen,
@@ -175,7 +177,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        if (!ev.wait(ms)) return -1; // timeout
+        if (!ev.wait(ms)) { info->co = 0; return -1; } // timeout
     }
 
     r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
@@ -203,18 +205,20 @@ int recv(sock_t fd, void* buf, int n, int ms) {
         new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
     );
 
-    IoEvent ev(fd, EV_read);
+    IoEvent ev(fd);
     int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
 
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
+        // We must set info->co to NULL here when wait() timeout.
         if (!ev.wait(ms)) { info->co = 0; return -1; }
     } else {
         return -1;
     }
 
     if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
+    if (info->n == 0) info->co = 0; // connection closed
     return (int) info->n;
 }
 
@@ -223,7 +227,7 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
         new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
     );
 
-    IoEvent ev(fd, EV_read);
+    IoEvent ev(fd);
 
     do {
         int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
@@ -241,7 +245,7 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
                 return n;
             }
 
-            if (info->n == 0) return 0;
+            if (info->n == 0) { info->co = 0; return 0; }
 
             info->move(info->n);
             info->resetol();
@@ -273,7 +277,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 
     int r;
     char* s = 0;
-    IoEvent ev(fd, EV_read);
+    IoEvent ev(fd);
 
     if (addr && addrlen) {
         s = (char*) malloc(*addrlen + 8);
@@ -304,6 +308,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     }
 
     if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
+    if (info->n == 0) info->co = 0;
     return (int) info->n;
 }
 
@@ -316,7 +321,7 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
         memcpy(info->s, buf, n);
     }
 
-    IoEvent ev(fd, EV_write);
+    IoEvent ev(fd);
 
     do {
         int r = WSASend(fd, &info->buf, 1, &info->n, 0, &info->ol, 0);
@@ -364,7 +369,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
         memcpy(info->s, buf, n);
     }
 
-    IoEvent ev(fd, EV_write);
+    IoEvent ev(fd);
 
     do {
         int r = WSASendTo(

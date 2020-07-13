@@ -55,26 +55,26 @@ struct PerIoInfo {
     WSABUF buf;
 };
 
-// single thread for each iocp
+// Epoll based on iocp for windows.
 class Epoll {
   public:
     Epoll();
     ~Epoll();
 
+    bool add_event(sock_t fd) {
+        int& x = _ev_map[fd];
+        if (x) return true;
+
+        x = (CreateIoCompletionPort((HANDLE)fd, _iocp, fd, 1) != 0);
+        if (x) return true;
+
+        ELOG << "iocp add fd " << fd << " error: " << co::strerror();
+        return false;
+    }
+
+    void del_event(sock_t fd) { _ev_map.erase(fd); }
+
     void close();
-
-    bool add_event(sock_t fd, int ev);
-
-    void del_event(sock_t fd, int ev) {
-        COLOG << "del ev, fd: " << fd << ", ev: " << ev;
-        auto it = _ev_map.find(fd);
-        if (it != _ev_map.end() && (it->second & ev)) it->second &= ~ev;
-    }
-
-    void del_event(sock_t fd) {
-        COLOG << "del ev, fd: " << fd;
-        _ev_map.erase(fd);
-    }
 
     int wait(int ms) {
         ULONG n = 0;
@@ -87,18 +87,6 @@ class Epoll {
         return _ev[i];
     }
 
-    void signal() {
-        if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
-            if (PostQueuedCompletionStatus(_iocp, 0, 0, 0) == 0) {
-                ELOG << "PostQueuedCompletionStatus error: " << co::strerror();
-            }
-        }
-    }
-
-    void handle_ev_pipe() {
-        atomic_swap(&_signaled, false);
-    }
-
     static bool is_ev_pipe(const epoll_event& ev) {
         return ev.lpOverlapped == 0;
     }
@@ -109,11 +97,22 @@ class Epoll {
         return info->co;
     }
 
+    void signal() {
+        if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
+            BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
+            ELOG_IF(!r) << "PostQueuedCompletionStatus error: " << co::strerror();
+        }
+    }
+
+    void handle_ev_pipe() {
+        atomic_swap(&_signaled, 0);
+    }
+
   private:
     HANDLE _iocp;
     epoll_event _ev[1024];
     std::unordered_map<sock_t, int> _ev_map;
-    bool _signaled;
+    int _signaled;
 };
 
 #else
