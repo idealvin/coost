@@ -1,4 +1,4 @@
-## Ads (Supporting the project)
+## Ads
 
 co is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial.
 
@@ -6,49 +6,97 @@ co is being sponsored by the following tool; please help to support us by taking
  <img src="https://images.gitads.io/co" alt="GitAds"/> 
 </a>
 
+
 ## Basic [(English)](readme.md)
 
-`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。  
+`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库。
 
-`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，仅使用了少量 C++11 特性。
+`CO` 包含协程库(golang-style)、网络库(tcp/http/rpc)、日志库、命令行与配置文件解析库、单元测试框架、json 库等基本组件。
 
-- CO 包含如下的功能组件：
-    - 基本定义(def)
-    - 原子操作(atomic)
-    - 快速随机数生成器(random)
-    - LruMap
-    - 基本类型快速转字符串(fast)
-    - 高效字符流(fastream)
-    - 高效字符串(fastring)
-    - 字符串操作(str)
-    - 命令行参数与配置文件解析库(flag)
-    - 高效流式日志库(log)
-    - 单元测试框架(unitest)
-    - 时间库(time)
-    - 线程库(thread)
-    - 协程库(co)
-    - 高效 json 库
-    - 高性能 json rpc 框架
-    - hash 库
-    - path 库
-    - 文件系统操作(fs)
-    - 系统操作(os)
 
 ## 参考文档
 
-- [pdf (中文)](https://code.aliyun.com/idealvin/docs/raw/82c15508bf31fd5e9b89a1b1484b7684c369709b/pdf/co.pdf)
 - [md (中文)](docs/cn.md)
 - [md (English)](docs/en.md)
 
+
 ## 亮点功能
 
-- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
+- **[co](https://github.com/idealvin/co/tree/master/src/co)**
 
-  这是一个真正为程序员考虑的命令行参数及配置文件解析库，支持自动生成配置文件，支持整数类型带单位 `k, m, g, t, p`，不区分大小写。
+  `co` 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，有如下特性:
+  - 内置多线程调度，默认线程数为系统 CPU 核数.
+  - 同一线程内的协程共享一个栈(默认为 1MB)，内存占用极低，单机可轻松创建数百万协程.
+  - Linux 与 Mac 平台支持系统 api hook.
+  - 支持协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - 支持协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - 支持协程池 [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+
+  创建协程非常容易，直接用 `go()` 方法即可:
+  ```cpp
+  void fun() {
+      std::cout << "hello world" << std::endl;
+  }
+  
+  go(fun);
+  ```
+
+- **[so](https://github.com/idealvin/co/tree/master/src/so)**
+
+  `so` 是基于协程的 C++ 网络库，同时支持 ipv4 与 ipv6，包含如下组件:
+  - tcp 模块，实现 `tcp::Server`, `tcp::Client`.
+  - http 模块，实现 `http::Server`, `http::Client`, `so::easy()`.
+  - rpc 模块，基于 json 的 rpc 框架，单线程 qps 能达到 12w+.
+
+  几行代码即可实现一个静态 **web server**:
+  ```cpp
+  #include "co/flag.h"
+  #include "co/log.h"
+  #include "co/so.h"
+
+  DEF_string(d, ".", "root dir"); // 指定 web server 根目录
+
+  int main(int argc, char** argv) {
+      flag::init(argc, argv);
+      log::init();
+
+      so::easy(FLG_d.c_str()); // mum never have to worry again
+
+      return 0;
+  }
+  ```
+
+  实现一个一般的 http server 也非常简单:
+  ```cpp
+  http::Server serv("0.0.0.0", 80);
+
+  serv.on_req(
+      [](const http::Req& req, http::Res& res) {
+          if (req.is_method_get()) {
+              if (req.url() == "/hello") {
+                  res.set_status(200);
+                  res.set_body("hello world");
+              } else {
+                  res.set_status(404);
+              }
+          } else {
+              res.set_status(501);
+          }
+      }
+  );
+
+  serv.start();
+  ```
 
 - **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
-  这是一个超级快的本地日志系统，直观感受一下:  
+  `log` 是一个超级快的本地日志系统，打印日志非常简单:
+  ```cpp
+  LOG << "hello " << 23;  // info
+  ELOG << "hello again";  // error
+  ```
+
+  下面直观感受一下 `log` 的性能:  
 
   | log vs glog | google glog | co/log |
   | ------ | ------ | ------ |
@@ -61,19 +109,38 @@ co is being sponsored by the following tool; please help to support us by taking
 
   为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
+- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
+
+  `flag` 是一个命令行及配置文件解析库，支持自动生成配置文件，整数类型可以带单位 `k, m, g, t, p`。
+
+  ```cpp
+  // xx.cc
+  #include "co/flag.h"
+
+  DEF_int32(i, 32, "comments");
+  DEF_string(s, "xxx", "string type");
+
+  int main(int argc, char** argv) {
+      flag::init(argc, argv);
+      std::cout << "i: " << FLG_i << std::endl;
+      std::cout << "s: " << FLG_s << std::endl;
+      return 0;
+  }
+  ```
+
+  编译后运行:
+  ```sh
+  ./xx                          # 以默认参数启动
+  ./xx -i=4k -s="hello world"   # 4k 即 4096，单位不区分大小写
+  ./xx -i 4k -s "hello world"   # 与上等价
+  ./xx --mkconf                 # 自动生成配置文件 xx.conf
+  ./xx -config=xx.conf          # 从配置文件启动
+  ```
+
 - **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  这是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
+  `json` 是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。此库对 json 标准的支持不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
 
-  co/json 对 json 标准的支持不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
-
-- **[co](https://github.com/idealvin/co/tree/master/src/co)**
-
-  这是一个 [golang](https://github.com/golang/go) 风格的协程库，内置多线程调度，是网络编程之利器。
-
-- **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
-
-  这是一个基于协程与 json 的高性能 rpc 框架，支持代码自动生成，简单易用，单线程 qps 能达到 12w+。
 
 ## 代码构成
 
@@ -91,6 +158,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - [co/gen](https://github.com/idealvin/co/tree/master/gen)  
   代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
+
 
 ## 编译执行
 
@@ -125,7 +193,6 @@ co is being sponsored by the following tool; please help to support us by taking
   ```sh
   xmake build libco       # 编译 libco
   xmake -b libco          # 与上同
-  xmake b libco           # 与上同，可能需要较新版本的 xmake
   ```
 
 - 编译及运行 unitest 代码
@@ -145,11 +212,12 @@ co is being sponsored by the following tool; please help to support us by taking
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build flag       # 编译 flag_test.cc
-  xmake build log        # 编译 log_test.cc
-  xmake build json       # 编译 json_test.cc
-  xmake build rapidjson  # 编译 rapidjson_test.cc
-  xmake build rpc        # 编译 rpc_test.cc
+  xmake build flag       # 编译 flag.cc
+  xmake build log        # 编译 log.cc
+  xmake build json       # 编译 json.cc
+  xmake build rapidjson  # 编译 rapidjson.cc
+  xmake build rpc        # 编译 rpc.cc
+  xmake build easy       # 编译 so/easy.cc
   
   xmake r flag -xz       # 测试 flag 库
   xmake r log            # 测试 log 库
@@ -159,14 +227,14 @@ co is being sponsored by the following tool; please help to support us by taking
   xmake r rapidjson      # 测试 rapidjson
   xmake r rpc            # 启动 rpc server
   xmake r rpc -c         # 启动 rpc client
+  xmake r easy -d xxx    # 启动 web server
   ```
 
 - 编译 gen
 
   ```sh
-  xmake build gen
-  
   # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
+  xmake build gen
   gen hello_world.proto
   ```
 
@@ -197,9 +265,11 @@ make -j8
 make install
 ```
 
+
 ## License
 
 `CO` 以 `MIT` License 发布. `CO` 包含了一些其他项目的代码，可能使用了与 `CO` 不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+
 
 ## 特别致谢
 

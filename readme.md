@@ -1,4 +1,4 @@
-## Ads (Supporting the project)
+## Ads
 
 co is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial.
 
@@ -6,48 +6,97 @@ co is being sponsored by the following tool; please help to support us by taking
  <img src="https://images.gitads.io/co" alt="GitAds"/> 
 </a>
 
+
 ## Basic [(中文)](readme_cn.md)
 
-`CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms.
+`CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It pursues minimalism and efficiency, and does not rely on third-party library such as [boost](https://www.boost.org/).
 
-`CO` pursues minimalism and efficiency. It does not rely on third-party libraries such as [boost](https://www.boost.org/), and uses only a few C++11 features.
+`CO` includes coroutine library (golang-style), network library (tcp/http/rpc), log library, command line and configuration file parsing library, unit testing framework, json library and other basic components.
 
-- CO contains the following functional components:
-    - Basic definitions (def)
-    - Atomic operations (atomic)
-    - Fast random number generator (random)
-    - LruMap
-    - Fast string casting for basic types (fast)
-    - Efficient byte stream (fastream)
-    - Efficient strings (fastring)
-    - String operations (str)
-    - Command line arguments and configuration file parsing library (flag)
-    - Efficient streaming log library (log)
-    - Unit testing framework (unitest)
-    - Time library (time)
-    - Thread library (thread)
-    - Coroutine library (co)
-    - Efficient json library
-    - High-performance json rpc framework
-    - Hash library
-    - Path library
-    - File system operations (fs)
-    - System operations (os)
 
 ## Documents
 
 - [md (English)](docs/en.md)
 - [md (中文)](docs/cn.md)
 
-## Highlight function
 
-- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
+## Highlights
 
-  This is a command line arguments and configuration file parsing library that is really considered for programmers. It supports automatic generation of configuration files. It supports integer types with units `k, m, g, t, p`.
+- **[co](https://github.com/idealvin/co/tree/master/src/co)**
+
+  `co` is a [golang-style](https://github.com/golang/go) C++ coroutine library with the following features:
+  - Built-in multi-thread scheduling, the default number of threads is the number of system CPU cores.
+  - Coroutines in the same thread share a stack (default is 1MB), the memory footprint is extremely low, a single machine can easily create millions of coroutines.
+  - Linux and Mac platform support system api hook.
+  - Support coroutine lock [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - Support coroutine synchronization event [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - Support coroutine pool [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+
+  It is very easy to create a coroutine, just use the `go()` method:
+  ```cpp
+  void fun() {
+      std::cout << "hello world" << std::endl;
+  }
+  
+  go(fun);
+  ```
+
+- **[so](https://github.com/idealvin/co/tree/master/src/so)**
+
+  `so` is a C++ network library based on coroutines, it supports both ipv4 and ipv6, including the following components:
+  - tcp module, which implements `tcp::Server`, `tcp::Client`.
+  - http module, which implements `http::Server`, `http::Client`, `so::easy()`.
+  - rpc module, rpc framework based on json, single thread qps can reach `120k+`.
+
+  A few lines of code can implement a **static web server**:
+  ```cpp
+  #include "co/flag.h"
+  #include "co/log.h"
+  #include "co/so.h"
+
+  DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
+
+  int main(int argc, char** argv) {
+      flag::init(argc, argv);
+      log::init();
+
+      so::easy(FLG_d.c_str()); // mum never have to worry again
+
+      return 0;
+  }
+  ```
+
+  Implementing a general http server is also very simple:
+  ```cpp
+  http::Server serv("0.0.0.0", 80);
+
+  serv.on_req(
+      [](const http::Req& req, http::Res& res) {
+          if (req.is_method_get()) {
+              if (req.url() == "/hello") {
+                  res.set_status(200);
+                  res.set_body("hello world");
+              } else {
+                  res.set_status(404);
+              }
+          } else {
+              res.set_status(501);
+          }
+      }
+  );
+
+  serv.start();
+  ```
 
 - **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
-  This is a super fast local logging system, see how fast it is below:
+  `log` is a super fast local logging system, printing logs is very simple:
+  ```cpp
+  LOG << "hello "<< 23;   // info
+  ELOG << "hello again";  // error
+  ```
+
+  Let's see how fast it is below:
 
   | log vs glog | google glog | co/log |
   | ------ | ------ | ------ |
@@ -55,24 +104,43 @@ co is being sponsored by the following tool; please help to support us by taking
   | win10 SSD | 3.7MB/s | 560MB/s |
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
-
-  The above table is the test result of one million info log (about 50 bytes) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
+  
+  The above table is the test result of one million info logs (about 50 bytes for each for) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
 
   Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
 
+- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
+
+  `flag` is a command line and configuration file parsing library that supports automatic generation of configuration files, and integer types can take units `k, m, g, t, p`.
+
+  ```cpp
+  // xx.cc
+  #include "co/flag.h"
+
+  DEF_int32(i, 32, "comments");
+  DEF_string(s, "xxx", "string type");
+
+  int main(int argc, char** argv) {
+      flag::init(argc, argv);
+      std::cout << "i: "<< FLG_i << std::endl;
+      std::cout << "s: "<< FLG_s << std::endl;
+      return 0;
+  }
+  ```
+
+  Build and run:
+  ```sh
+  ./xx                         # start with default parameters
+  ./xx -i=4k -s="hello world"  # 4k is 4096, the unit is not case sensitive
+  ./xx -i 4k -s "hello world"  # equivalent to above
+  ./xx --mkconf                # automatically generate configuration file xx.conf
+  ./xx -config=xx.conf         # start from configuration file
+  ```
+
 - **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  This is a json library that is comparable to [rapidjson](https://github.com/Tencent/rapidjson) in performance. If you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved.
+  `json` is a json library comparable to [rapidjson](https://github.com/Tencent/rapidjson), if you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved. This library's support for the json standard is not as comprehensive as rapidjson, but it can meet the basic needs of programmers and is easier to use.
 
-  It does not support the json standard as comprehensively as rapidjson, but meets the basic needs of programmers and is easier to use.
-
-- **[co](https://github.com/idealvin/co/tree/master/src/co)**
-
-  This is a [golang-style](https://github.com/golang/go) coroutine library with built-in multi-threaded scheduling, which is a great tool for network programming.
-
-- **[json rpc](https://github.com/idealvin/co/blob/master/src/rpc.cc)**
-
-  This is a high-performance rpc framework based on coroutines and json. It supports automatic code generation, easy to use, and single-threaded qps can reach 120k+.
 
 ## Components
 
@@ -90,6 +158,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - [co/gen](https://github.com/idealvin/co/tree/master/gen)  
   A code generation tool automatically generates rpc framework code according to the `proto` file.
+
 
 ## Compiling
 
@@ -125,7 +194,6 @@ co is being sponsored by the following tool; please help to support us by taking
   ```sh
   xmake build libco       # build libco only
   xmake -b libco          # the same as above
-  xmake b libco           # the same as above, required newer version of xmake
   ```
 
 - Build and run unitest code
@@ -142,14 +210,15 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - Build and run test code
 
-  [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx_test.cc` source file in the `co/test` directory, and then execute `xmake build xxx` in the co root directory to build it.
+  [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx.cc` source file in the `co/test` directory, and then execute `xmake build xxx` to build it.
 
   ```sh
-  xmake build flag       # compile flag_test.cc
-  xmake build log        # compile log_test.cc
-  xmake build json       # compile json_test.cc
-  xmake build rapidjson  # compile rapidjson_test.cc
-  xmake build rpc        # compile rpc_test.cc
+  xmake build flag       # flag.cc
+  xmake build log        # log.cc
+  xmake build json       # json.cc
+  xmake build rapidjson  # rapidjson.cc
+  xmake build rpc        # rpc.cc
+  xmake build easy       # so/easy.cc
   
   xmake r flag -xz       # test flag
   xmake r log            # test log
@@ -159,14 +228,14 @@ co is being sponsored by the following tool; please help to support us by taking
   xmake r rapidjson      # test rapidjson
   xmake r rpc            # start rpc server
   xmake r rpc -c         # start rpc client
+  xmake r easy -d xxx    # start web server
   ```
 
 - Build gen
 
   ```sh
-  xmake build gen
-  
   # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
+  xmake build gen
   gen hello_world.proto
   ```
 
@@ -197,9 +266,11 @@ make -j8
 make install
 ```
 
+
 ## License
 
 `CO` is licensed under the `MIT` License. It includes code from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
+
 
 ## Special thanks
 
