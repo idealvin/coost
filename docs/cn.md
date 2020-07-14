@@ -17,10 +17,10 @@ idealvin@qq.com
 
 CO 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，仅使用了少量的 C++11 特性。
 
-- CO 实现的功能组件：
+- CO 包含的功能组件：
     - 基本定义(def)
     - 原子操作(atomic)
-    - 快速伪随机数生成器(ramdom)
+    - 随机数生成器(random)
     - LruMap
     - 基本类型快速转字符串(fast)
     - 高效字符流(fastream)
@@ -29,25 +29,15 @@ CO 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三�
     - 命令行参数与配置文件解析库(flag)
     - 高效流式日志库(log)
     - 单元测试框架(unitest)
+    - 高效 json 库(json)
     - 时间库(time)
     - 线程库(thread)
     - 协程库(co)
-    - 高效 json 库(json)
-    - 高性能 json rpc 框架(rpc)
+    - 网络库(so)
     - hash 库(hash)
     - path 库(path)
     - 文件系统操作(fs)
     - 系统操作(os)
-
-- CO 使用的 C++11 特性:
-    - auto
-    - std::move
-    - std::bind
-    - std::function
-    - std::unique_ptr
-    - std::unordered_map
-    - std::unordered_set
-    - variadic templates
 
 
 ## 2. 基本定义(def)
@@ -1013,11 +1003,195 @@ xmake r unitest -os
 ```
 
 
-## 13. 时间库(time)
+## 13. 高效 json 库(json)
+
+include: [co/json.h](https://github.com/idealvin/co/blob/master/include/co/json.h).
+
+`json` 库的设计原则是精简、高效、易用，其性能堪比 [rapidjson](https://github.com/Tencent/rapidjson)，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
+
+- json 库的特性
+    - 支持 null、bool、int、double、string 五种基本类型.
+    - 支持 array、object 两种复合类型.
+    - 所有类型统一用一个 `Json` 类表示.
+    - Json 类内部仅一个指针数据成员，`sizeof(Json) == sizeof(void*)`.
+    - Json 内置引用计数，复制操作仅增加引用计数(**原子操作，线程安全**)，不进行内存拷贝.
+    - 内置一个简单的内存分配器(Jalloc)，对大部分内存分配操作进行优化.
+
+### 13.1 基本类型
+
+- 代码示例
+
+```cpp
+Json x;                          // null
+x.is_null();                     // 判断是否为 null
+
+Json x = false;                  // bool 类型
+x.is_bool();                     // 判断是否为 bool 类型
+bool b = x.get_bool();           // 获取 bool 类型的值
+
+Json x = 123;                    // int 类型
+int i = x.get_int();             // 获取 int 类型的值
+
+Json x = (int64) 23;             // int 类型，64位
+int64 i = x.get_int64();         // 返回 64 位整数
+
+Json x = 3.14;                   // double 类型
+double d = x.get_double();       // 获取 double 类型的值
+
+Json x = "hello world";          // 字符串类型
+Json x(s, n);                    // 字符串类型 (const char* s, size_t n)
+x.is_string();                   // 判断是否为字符串类型
+x.size();                        // 返回字符串的长度
+const char* s = x.get_string();  // 返回字符串指针，字符串以 '\0' 结尾
+```
+
+### 13.2 array 类型
+
+`array` 是一种数组类型，可以存储任意类型的 Json 对象。
+
+```cpp
+Json x = json::array();      // 创建空数组，不同于 null
+x.is_array();                // 判断是否为 array 类型
+x.size();                    // 返回 array 中元素个数
+x.empty();                   // 判断 array 是否为空
+
+Json x;                      // null，调用 push_back 后自动变成 array 类型
+x.push_back(false);          // 添加 bool 类型的值
+x.push_back(1);              // 添加 int 类型的值
+x.push_back(3.14);           // 添加 double 类型的值
+x.push_back("hello");        // 添加 string 类型的值
+x.push_back(x);              // 添加 array 类型的对象
+x.push_back(obj);            // 添加 object 类型的对象
+
+// 访问 array 成员
+x[0].get_bool();
+x[1].get_int();
+
+// 遍历 array
+for (uint32 i = 0; i < x.size(); ++i) {
+    Json& v = x[i];
+}
+```
+
+### 13.3 object 类型
+
+`object` 类型内部以 key-value 形式存储，value 可以是任意类型的 Json 对象，key 则有下面几条限制：
+
+- key 必须是 `'\0'` 结尾的 C 字符串.
+- key 中不能包含双引号 `"`.
+
+```cpp
+Json x = json::object();       // 创建空 object 对象，不同于 null
+x.is_object();                 // 判断是否为 object 类型
+x.size();                      // 返回 object 中元素个数
+x.empty();                     // 判断 object 是否为空
+
+Json x;                        // null, 调用 add_member() 后自动变成 object 类型
+x.add_member("name", "Bob");   // 添加字符串对象
+x.add_member("age", 23);       // 添加整数类型
+x.add_member("height", 1.68);  // 添加 double 类型
+x.add_member("array", array);  // 添加 array 类型
+x.add_member("obj", obj);      // 添加 object 类型
+
+// has_member 与 [] 各需查找一次
+x.has_member("name");          // 判断是否包含成员 "name"
+x["name"].get_string();        // 获取成员的值
+
+// key 不存在时返回 null
+Json v = x.find("age");        // Json 内置引用计数，返回对象不会影响性能.
+if (v.is_int()) v.get_int();
+
+if (!(v = x.find("obj")).is_null()) {
+    do_something();
+}
+
+// 遍历
+for (auto it = x.begin(); it != x.end(); ++it) {
+    const char* key = it->key;  // key
+    Json& v = it->value;        // value
+}
+```
+
+### 13.4 json 转字符串
+
+Json 类提供 `str()` 与 `pretty()` 方法，将 Json 转化成字符串:
+
+```cpp
+Json x;
+fastring s = x.str();     // 返回字符串
+fastring s = x.pretty();  // 返回 pretty 字符串
+
+fastream fs;
+fs << x;                  // 与 fs << x.str() 同，但效率更高
+LOG << x;                 // 日志库基于 fastream 实现，可以直接打印 json 对象
+```
+
+另外 Json 类还提供一个 `dbg()` 方法，将 Json 转化成 debug 字符串，Json 内部较长的字符串类型可能被截断:
+
+```cpp
+Json x;
+fastring s = x.dbg();
+LOG << x; // 实际上相当于 LOG << x.dbg();
+```
+
+### 13.5 字符串转 json
+
+`json::parse()` 或者 Json 类中的 `parse_from()` 方法可以将字符串转化成 Json 对象:
+
+```cpp
+Json x;
+fastring s = x.str();
+
+// parse 失败时，y 为 null
+Json y = json::parse(s);
+Json y = json::parse(s.data(), s.size());
+y.parse_from(x.str());
+```
+
+### 13.6 object 类型如何高效添加与查找成员
+
+`object` 类型，内部用数组保存 key-value 对，这样可以保持成员添加时的顺序，但同时增加了查找成员的开销。`operator[]` 会进行查找操作，实际应用中应该尽量避免使用。
+
+- 添加成员时用 `add_member()` 取代 operator[]
+
+```cpp
+// add_member 不查找，直接将成员添加到尾部
+x.add_member("age", 23);  // 比 x["age"] = 23 效率更高
+```
+
+- 查找成员时用 `find` 取代 operator[]
+
+```cpp
+// 传统的成员访问，3 次查找操作，效率低
+if (x.has_member("age") && x["age"].is_int()) {
+    int i = x["age"].get_int();
+}
+
+// 用 find 只需一次查找操作
+Json v = x.find("age");  
+if (v.is_int()) {
+    int i = v.get_int();
+}
+```
+
+### 13.7 字符串类型中的特殊字符
+
+json 字符串内部以 '\0' 结尾，应该避免在字符串中包含二进制字符。
+
+json 字符串支持包含 `"` 与 `\`，也支持 `\r, \n, \t` 等转义字符。但包含这些特殊字符，会降低 `json::parse()` 的性能，实际应用中应该尽量少用。
+
+```cpp
+Json x = "hello\r\n\t";      // ok, 字符串中包含转义字符
+Json x = "hello\"world";     // ok, 字符串中包含 "
+Json x = "hello\\world";     // ok, 字符串中包含 \
+```
+
+
+## 14. 时间库(time)
 
 include: [co/time.h](https://github.com/idealvin/co/blob/master/include/co/time.h).
 
-### 13.1 monotonic time
+### 14.1 monotonic time
 
 `monotonic time` 在多数平台实现为自系统启动开始的时间，一般用于计时，比系统时间稳定，不受系统时间的影响。
 
@@ -1028,7 +1202,7 @@ int64 us = now::us(); // 微秒
 int64 ms = now::ms(); // 毫秒
 ```
 
-### 13.2 时间字符串(now::str())
+### 14.2 时间字符串(now::str())
 
 `now::str()` 基于 `strftime` 实现，以指定格式返回当前系统时间的字符串形式。
 
@@ -1046,7 +1220,7 @@ fastring s = now::str();     // "2018-08-08 08:08:08"
 fastring s = now::str("%Y"); // "2028"
 ```
 
-### 13.3 sleep
+### 14.3 sleep
 
 Linux 平台支持微秒级的 sleep，但 Windows 平台难以实现。因此，time 库中仅支持毫秒、秒级的 sleep。
 
@@ -1057,7 +1231,7 @@ sleep::ms(10); // sleep for 10 milliseconds
 sleep::sec(1); // sleep for 1 second
 ```
 
-### 13.4 计时器(Timer)
+### 14.4 计时器(Timer)
 
 `Timer` 基于 monotonic 时间实现，对象创建时，即开始计时。
 
@@ -1072,11 +1246,11 @@ t.restart();       // 重新开始计时
 ```
 
 
-## 14. 线程库(thread)
+## 15. 线程库(thread)
 
 include: [co/thread.h](https://github.com/idealvin/co/blob/master/include/co/thread.h).
 
-### 14.1 互斥锁(Mutex)
+### 15.1 互斥锁(Mutex)
 
 `Mutex` 是多线程编程中常用的一种互斥锁，同一时刻，只能有一个线程抢到锁，其他线程必须等待锁被释放。
 
@@ -1095,7 +1269,7 @@ m.try_lock();     // 获取锁，若锁已被其他线程占用，返回 false, 
 MutexGuard g(m);  // 构造函数中调用 m.lock() 获取锁，析构函数中调用 m.unlock() 释放锁
 ```
 
-### 14.2 同步事件(SyncEvent)
+### 15.2 同步事件(SyncEvent)
 
 `SyncEvent` 是多线程编程中常用的一种同步机制，适用于生产者-消费者模型。
 
@@ -1120,7 +1294,7 @@ ev.reset();                // 线程 A，手动设置 event 状态为 unsignaled
 ev.signal();               // 线程 B，事件同步通知
 ```
 
-### 14.3 线程(Thread)
+### 15.3 线程(Thread)
 
 `Thread` 类是对线程的封装，创建 Thread 对象时，线程就会启动，线程函数执行完时，线程自动退出。
 
@@ -1146,7 +1320,7 @@ x.join();
 Thread(f).detach();
 ```
 
-### 14.4 获取当前线程的 id
+### 15.4 获取当前线程的 id
 
 `current_thread_id()` 用于获取当前线程的 id，thread 库利用 [TLS](https://wiki.osdev.org/Thread_Local_Storage) 保存线程 id，每个线程只需一次系统调用。
 
@@ -1158,7 +1332,7 @@ Linux glibc 从 `2.30` 版本开始增加了 gettid 系统调用，为避免冲�
 int id = current_thread_id();
 ```
 
-### 14.5 基于 TLS 的 thread_ptr
+### 15.5 基于 TLS 的 thread_ptr
 
 `thread_ptr` 用法与 `std::unique_ptr` 类似，但内部使用了 `TLS` 机制，每个线程设置并拥有自己的 ptr。 
 
@@ -1182,7 +1356,7 @@ if (pt == NULL) pt.reset(new T);
 pt->run();  // 打印 thread 2 的 id
 ```
 
-### 14.6 定时任务调度器(TaskSched)
+### 15.6 定时任务调度器(TaskSched)
 
 `TaskSched` 类用于定时任务的调度，内部由单线程调度所有任务，但可以从任意线程添加任务。
 
@@ -1220,11 +1394,11 @@ s.stop();                         // 退出任务调度线程
 ```
 
 
-## 15. 协程库(co)
+## 16. 协程库(co)
 
 include: [co/co.h](https://github.com/idealvin/co/blob/master/include/co/co.h).
 
-### 15.1 基本概念
+### 16.1 基本概念
 
 - 协程是运行于线程中的轻量级调度单位.
 - 协程之于线程，类似于线程之于进程.
@@ -1246,7 +1420,7 @@ co 协程库在 linux, mac, windows 等平台，分别基于 [epoll](http://man7
 
 co 协程库中 context 切换的相关代码，取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox/)，而 tbox 则参考了 [boost](https://www.boost.org/doc/libs/1_70_0/libs/context/doc/html/index.html) 的实现，在此表示感谢！
 
-### 15.2 创建协程(go)
+### 16.2 创建协程(go)
 
 `golang` 中用关键字 `go` 创建协程，与之类似，co 库中提供 `go()` 方法创建协程。
 
@@ -1277,7 +1451,7 @@ go(std::bind(f, 7));         // void f(int);
 go(std::bind(&T::f, p, 7));  // void T::f(int);  T* p;
 ```
 
-### 15.3 协程 api
+### 16.3 协程 api
 
 除 `go()` 之外，co 协程库还提供了如下的几个 api (位于 namespace co 中):
 
@@ -1318,11 +1492,11 @@ int main(int argc, char** argv) {
 }
 ```
 
-### 15.4 网络编程
+### 16.4 网络编程
 
 co 包装了常用的 socket api，以支持一般的网络编程。这些 api 都在 `namespace co` 中，除了少数几个，一般必须在协程中调用。与原生 api 不同的是，这些 api 在 io 阻塞或调用 sleep 等操作时，调度线程会挂起当前协程，切换到其他等待执行的协程运行。
 
-#### 15.4.1 常用的 socket api
+#### 16.4.1 常用的 socket api
 
 co 提供了一些常用的 socket api:
 
@@ -1363,7 +1537,7 @@ int shutdown(sock_t fd, char c='b');
 
 上述 api 发生错误时返回 -1，可以用 `co::error()` 获取错误码，`co::strerror()` 查看错误描述。
 
-#### 15.4.2 常用的 socket option 设置
+#### 16.4.2 常用的 socket option 设置
 
 co 提供了下面的几个 api，用于设置常用的 socket 选项:
 
@@ -1375,7 +1549,7 @@ void set_send_buffer_size(sock_t fd, int n);  // 设置发送缓冲区大小
 void set_recv_buffer_size(sock_t fd, int n);  // 设置接收缓冲区大小
 ```
 
-#### 15.4.3 其他 api
+#### 16.4.3 其他 api
 
 ```cpp
 // 填充 ip 地址
@@ -1395,7 +1569,7 @@ const char* strerror();         // 返回当前错误码对应的字符串
 const char* strerror(int err);  // 返回 @err 对应的字符串
 ```
 
-#### 15.4.4 hook 系统 api
+#### 16.4.4 hook 系统 api
 
 在协程中调用 co 库的 socket api 不会阻塞，但一些三方库中调用的是系统的 socket api，仍然可能阻塞。为了解决这个问题，需要 hook 系统的 api，迫使三方库调用 hook 后的 api。
 
@@ -1418,7 +1592,7 @@ kevent      // mac
 
 用户一般不需要关心 api hook，有兴趣可以查看 [hook](https://github.com/idealvin/co/tree/master/src/co/impl) 的源码实现。
 
-#### 15.4.5 基于协程的一般网络编程模式
+#### 16.4.5 基于协程的一般网络编程模式
 
 协程可以实现高性能的同步网络编程方式。以 TCP 程序为例，服务端一般采用一个连接一个协程的模式，为每个连接创建新的协程，在协程中处理连接上的数据；客户端没必要一个连接一个协程，一般使用连接池，多个协程共用连接池中的连接。
 
@@ -1445,7 +1619,7 @@ void client_fun() {
 }
 ```
 
-#### 15.4.6 基于协程的 tcp server/client 示例
+#### 16.4.6 基于协程的 tcp server/client 示例
 
 - server 代码示例
 
@@ -1537,11 +1711,11 @@ void client_fun() {
 go(client_fun);  // 启动 client 协程
 ```
 
-### 15.5 协程的同步机制
+### 16.5 协程的同步机制
 
 co 协程库实现了与线程类似的同步机制，熟悉多线程编程的开发人员，很容易从线程切换到协程编程。
 
-#### 15.5.1 协程锁(co::Mutex)
+#### 16.5.1 协程锁(co::Mutex)
 
 `co::Mutex` 与线程库中的 `Mutex` 类似，只是需要在协程环境中使用。协程锁获取失败时，调度线程会挂起当前协程，调度线程自身不会阻塞。
 
@@ -1567,7 +1741,7 @@ go(f1);
 go(f2);
 ```
 
-#### 15.5.2 协程同步事件(co::Event)
+#### 16.5.2 协程同步事件(co::Event)
 
 `co::Event` 与线程库中的 `SyncEvent` 类似，但需要在协程环境中使用。调用 `wait()` 方法时，调度线程会挂起当前协程，调度线程自身不会阻塞。
 
@@ -1592,9 +1766,9 @@ go(f1);
 go(f2);
 ```
 
-### 15.6 协程池
+### 16.6 协程池
 
-#### 15.6.1 co::Pool
+#### 16.6.1 co::Pool
 
 线程支持 `TLS` 机制，协程也可以支持类似的 `CLS` 机制，但考虑到系统中可能创建上百万协程，CLS 似乎不怎么高效，co 最终放弃了 CLS，取而代之实现了 `co::Pool` 类:
 
@@ -1642,7 +1816,7 @@ void f {
 go(f);
 ```
 
-#### 15.6.2 co::PoolGuard
+#### 16.6.2 co::PoolGuard
 
 `co::PoolGuard` 是一个模板类，它在构造时从 co::Pool 拉取元素，析构时将元素放回 co::Pool 中。另外, 它还重载了 `operator->`，可以像智能指针一样使用它。
 
@@ -1666,7 +1840,7 @@ go(f);
 使用 CLS 机制，100w 协程需要建立 100w 连接，但使用 pool 机制，100w 协程可能只需要共用少量的连接。Pool 看起来比 CLS 更高效、更合理，这也是本协程库不支持 CLS 的原因。
 
 
-### 15.7 配置项
+### 16.7 配置项
 
 co 库支持的配置项如下:
 
@@ -1687,204 +1861,197 @@ co 库支持的配置项如下:
   `co::send` 一次能发送的最大数据长度，默认为 1M，超过此大小，分批发送。
 
 
-## 16. 高效 json 库(json)
+## 17. 网络库(so)
 
-include: [co/json.h](https://github.com/idealvin/co/blob/master/include/co/json.h).
+include: [co/so.h](https://github.com/idealvin/co/blob/master/include/co/so.h).
 
-`json` 库的设计原则是精简、高效、易用，其性能堪比 [rapidjson](https://github.com/Tencent/rapidjson)，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。
+`so` 是基于协程的网络库，包含 `tcp`, `http`, `rpc` 三个模块。
 
-- json 库的特性
-    - 支持 null、bool、int、double、string 五种基本类型.
-    - 支持 array、object 两种复合类型.
-    - 所有类型统一用一个 `Json` 类表示.
-    - Json 类内部仅一个指针数据成员，`sizeof(Json) == sizeof(void*)`.
-    - Json 内置引用计数，复制操作仅增加引用计数(**原子操作，线程安全**)，不进行内存拷贝.
-    - 内置一个简单的内存分配器(Jalloc)，对大部分内存分配操作进行优化.
+### 17.1 TCP 编程
 
-### 16.1 基本类型
+[so/tcp](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h) 模块实现了两个类 `tcp::Server` 与 `tcp::Client`，它们同时支持 `ipv4` 与 `ipv6`，可用于一般性的 TCP 编程。
 
-- 代码示例
+#### 17.1.1 [tcp::Server](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
 
 ```cpp
-Json x;                          // null
-x.is_null();                     // 判断是否为 null
+namespace tcp {
+struct Connection {
+    sock_t fd;   // conn fd
+    fastring ip; // peer ip
+    int port;    // peer port
+    void* p;     // pointer to Server where this connection was accepted
+};
 
-Json x = false;                  // bool 类型
-x.is_bool();                     // 判断是否为 bool 类型
-bool b = x.get_bool();           // 获取 bool 类型的值
+class Server {
+  public:
+    Server(const char* ip, int port)
+        : _ip((ip && *ip) ? ip : "0.0.0.0"), _port(port) {
+    }
 
-Json x = 123;                    // int 类型
-int i = x.get_int();             // 获取 int 类型的值
+    virtual ~Server() = default;
 
-Json x = (int64) 23;             // int 类型，64位
-int64 i = x.get_int64();         // 返回 64 位整数
+    virtual void start() {
+        go(&Server::loop, this);
+    }
 
-Json x = 3.14;                   // double 类型
-double d = x.get_double();       // 获取 double 类型的值
+    virtual void on_connection(Connection* conn) = 0;
 
-Json x = "hello world";          // 字符串类型
-Json x(s, n);                    // 字符串类型 (const char* s, size_t n)
-x.is_string();                   // 判断是否为字符串类型
-x.size();                        // 返回字符串的长度
-const char* s = x.get_string();  // 返回字符串指针，字符串以 '\0' 结尾
+  protected:
+    fastring _ip;
+    uint32 _port;
+
+  private:
+    void loop();
+};
+} // tcp
 ```
 
-### 16.2 array 类型
+`tcp::Server` 采用一个连接一个协程的模型，调用 `start()` 方法即进入事件循环，接收到新连接时，就创建一个协程，在协程中调用 `on_connection()` 方法，处理连接上的数据。
 
-`array` 是一种数组类型，可以存储任意类型的 Json 对象。
+此类只能做为基类使用，用户需要继承此类，并实现 `on_connection()` 方法，注意参数 `conn` 是动态分配的，用户使用完后需要 `delete` 掉。
+
+[pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) 基于 `tcp::Server` 实现了一个简单的 pingpong server，读者可以参考其用法。
+
+#### 17.1.2 [tcp::Client](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
+
+此类是基于协程的 tcp 客户端类，需要在协程环境中使用。用户需要手动调用 `connect()` 方法建立连接。推荐在调用 `recv`, `send` 之前，判断连接是否建立，没有的话，就调用 `connect()` 建立连接，这种方式容易实现自动重连。
+
+一个 `tcp::Client` 对应一个连接，不要同时在多个协程中使用同一个 tcp::Client 对象。`co` 协程库理论上支持两个协程同时使用一个连接，一个协程 recv，一个协程 send，但不推荐这种用法。标准的做法是，recv 与 send 都在同一个协程中完成，以实现同步的编码方式。
+
+客户端没有必要采用一个协程一个连接的模式，推荐的做法是，将 `tcp::Client` 放到 `co::Pool` 中，多个协程共用 pool 中的连接。对每个协程而言，需要时即从 pool 中取出一个空闲连接，用完后再放回 pool 中。这种方式可以减少所需要的连接数。
+
+`tcp::Client` 的具体用法，读者可以参考 [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) 中的 `client_fun()`，另外还可以参考 [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) 与 [rpc::Client](https://github.com/idealvin/co/blob/master/src/so/rpc.cc) 的实现。
+
+### 17.2 HTTP 编程
+
+[so/http](https://github.com/idealvin/co/blob/master/include/co/so/http.h) 模块基于 `so/tcp` 模块实现了 `http::Server` 类与 `http::Client` 类，同时还提供一个 `so::easy()` 方法，用于快速的创建静态 web server。
+
+#### 17.2.1 实现一个简单的 http server
 
 ```cpp
-Json x = json::array();      // 创建空数组，不同于 null
-x.is_array();                // 判断是否为 array 类型
-x.size();                    // 返回 array 中元素个数
-x.empty();                   // 判断 array 是否为空
+http::Server serv("0.0.0.0", 80);
 
-Json x;                      // null，调用 push_back 后自动变成 array 类型
-x.push_back(false);          // 添加 bool 类型的值
-x.push_back(1);              // 添加 int 类型的值
-x.push_back(3.14);           // 添加 double 类型的值
-x.push_back("hello");        // 添加 string 类型的值
-x.push_back(x);              // 添加 array 类型的对象
-x.push_back(obj);            // 添加 object 类型的对象
+serv.on_req(
+    [](const http::Req& req, http::Res& res) {
+        if (req.is_method_get()) {
+            if (req.url() == "/hello") {
+                res.set_status(200);
+                res.set_body("hello world");
+            } else {
+                res.set_status(404);
+            }
+        } else {
+            res.set_status(501);
+        }
+    }
+);
 
-// 访问 array 成员
-x[0].get_bool();
-x[1].get_int();
+serv.start();
+```
 
-// 遍历 array
-for (uint32 i = 0; i < x.size(); ++i) {
-    Json& v = x[i];
+用户只需指定 ip 和端口，调用 `on_req()` 方法注册一个用于处理 HTTP 请求的 callback，然后就可以调用 `start()` 方法启动 server。
+
+`co/test` 提供了一个简单的 [demo](https://github.com/idealvin/co/blob/master/test/so/http_serv.cc)，读者可以按下述方式编译运行:
+```sh
+xmake -b http_serv
+xmake r http_serv
+```
+
+启动 `http_serv` 后，可以在浏览器的地址栏中输入 `127.0.0.1/hello` 看结果。
+
+#### 17.2.2 实现一个静态 web server
+
+```cpp
+#include "co/flag.h"
+#include "co/log.h"
+#include "co/so.h"
+
+DEF_string(d, ".", "root dir"); // 指定 web server 根目录
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    log::init();
+
+    so::easy(FLG_d.c_str()); // mum never have to worry again
+
+    return 0;
 }
 ```
 
-### 16.3 object 类型
+读者可以编译 `co/test` 中的 [easy.cc](https://github.com/idealvin/co/blob/master/test/so/easy.cc)，运行 web server:
 
-`object` 类型内部以 key-value 形式存储，value 可以是任意类型的 Json 对象，key 则有下面几条限制：
-
-- key 必须是 `'\0'` 结尾的 C 字符串.
-- key 中不能包含双引号 `"`.
-
-```cpp
-Json x = json::object();       // 创建空 object 对象，不同于 null
-x.is_object();                 // 判断是否为 object 类型
-x.size();                      // 返回 object 中元素个数
-x.empty();                     // 判断 object 是否为空
-
-Json x;                        // null, 调用 add_member() 后自动变成 object 类型
-x.add_member("name", "Bob");   // 添加字符串对象
-x.add_member("age", 23);       // 添加整数类型
-x.add_member("height", 1.68);  // 添加 double 类型
-x.add_member("array", array);  // 添加 array 类型
-x.add_member("obj", obj);      // 添加 object 类型
-
-// has_member 与 [] 各需查找一次
-x.has_member("name");          // 判断是否包含成员 "name"
-x["name"].get_string();        // 获取成员的值
-
-// key 不存在时返回 null
-Json v = x.find("age");        // Json 内置引用计数，返回对象不会影响性能.
-if (v.is_int()) v.get_int();
-
-if (!(v = x.find("obj")).is_null()) {
-    do_something();
-}
-
-// 遍历
-for (auto it = x.begin(); it != x.end(); ++it) {
-    const char* key = it->key;  // key
-    Json& v = it->value;        // value
-}
+```sh
+xmake -b easy
+xmake r easy -d xxx  # xxx 作为 web server 的根目录
 ```
 
-### 16.4 json 转字符串
-
-Json 类提供 `str()` 与 `pretty()` 方法，将 Json 转化成字符串:
+#### 17.2.3 http client 的用法
 
 ```cpp
-Json x;
-fastring s = x.str();     // 返回字符串
-fastring s = x.pretty();  // 返回 pretty 字符串
+http::Client cli("www.xxx.com", 80);
+http::Req req;
+http::Res res;
 
-fastream fs;
-fs << x;                  // 与 fs << x.str() 同，但效率更高
-LOG << x;                 // 日志库基于 fastream 实现，可以直接打印 json 对象
+req.set_method_get();
+req.set_url("/");
+cli.call(req, res); // 获取 www.xxx.com 首页
+
+fastring s = res.body();
 ```
 
-另外 Json 类还提供一个 `dbg()` 方法，将 Json 转化成 debug 字符串，Json 内部较长的字符串类型可能被截断:
+`http::Client` 会在 `call()` 方法中自动建立连接，无需用户手动调用 `connect()`。需要注意，`http::Client` 必须在协程中使用。
 
-```cpp
-Json x;
-fastring s = x.dbg();
-LOG << x; // 实际上相当于 LOG << x.dbg();
+`co/test` 提供了一个简单的 [demo](https://github.com/idealvin/co/blob/master/test/so/http_cli.cc)，读者可以按下述方式编译运行:
+
+```sh
+xmake -b http_cli
+xmake r http_cli -ip=github.com -port=80
 ```
 
-### 16.5 字符串转 json
+#### 17.2.4 配置项
 
-`json::parse()` 或者 Json 类中的 `parse_from()` 方法可以将字符串转化成 Json 对象:
+- http_max_header_size
 
-```cpp
-Json x;
-fastring s = x.str();
+  指定 http header 部分的最大长度，默认为 `4k`。
 
-// parse 失败时，y 为 null
-Json y = json::parse(s);
-Json y = json::parse(s.data(), s.size());
-y.parse_from(x.str());
-```
+- http_max_body_size
 
-### 16.6 注意事项
+  指定 http body 部分的最大长度，默认为 `8M`。
 
-#### 16.6.1 添加与查找成员
+- http_recv_timeout
 
-`object` 类型，内部用数组保存 key-value 对，这样可以保持成员添加时的顺序，但同时增加了查找成员的开销。`operator[]` 会进行查找操作，实际应用中应该尽量避免使用。
+  指定 http recv 操作的超时时间，单位毫秒，默认为 `1024 ms`。
 
-- 添加成员时用 add_member 取代 operator[]
+- http_send_timeout
 
-```cpp
-// add_member 不查找，直接将成员添加到尾部
-x.add_member("age", 23);  // 比 x["age"] = 23 效率更高
-```
+  指定 http send 操作的超时时间，单位毫秒，默认为 `1024 ms`。
 
-- 查找成员时用 find 取代 operator[]
+- http_conn_timeout
 
-```cpp
-// 传统的成员访问，3 次查找操作，效率低
-if (x.has_member("age") && x["age"].is_int()) {
-    int i = x["age"].get_int();
-}
+  指定 http connect 操作的超时时间，单位毫秒，默认为 `3000 ms`。
 
-// 用 find 取代 []，只需一次查找操作
-Json v = x.find("age");  
-if (v.is_int()) {
-    int i = v.get_int();
-}
-```
+- http_conn_idle_sec
 
-#### 16.6.2 字符串类型中的特殊字符
+  指定 http server 空闲连接的超时时间，单位为秒，默认为 `180` 秒。
 
-json 字符串内部以 '\0' 结尾，应该避免在字符串中包含二进制字符。
+- http_max_idle_conn
 
-json 字符串支持包含 `"` 与 `\`，也支持 `\r, \n, \t` 等转义字符。但包含这些特殊字符，会降低 `json::parse()` 的性能，实际应用中应该尽量少用。
+  指定 http server 最大空闲连接数，默认为 `128`。
 
-```cpp
-Json x = "hello\r\n\t";      // ok, 字符串中包含转义字符
-Json x = "hello\"world";     // ok, 字符串中包含 "
-Json x = "hello\\world";     // ok, 字符串中包含 \
-```
+- http_log
 
+  http 日志开关，默认为 `true`。(注意日志只打印 http 的头部)
 
-## 17. 高性能 json rpc 框架(rpc)
+### 17.3 rpc 框架
 
-include: [co/rpc.h](https://github.com/idealvin/co/blob/master/include/co/rpc.h).
-
-`rpc` 框架基于协程实现，内部使用 `tcp/json` 作为传输协议，简单的测试显示单线程 qps 可以达到 `12w+`。json 与基于结构体的二进制协议相比，至少有下面几个好处：
+[so/rpc](https://github.com/idealvin/co/blob/master/include/co/so/rpc.h) 模块基于 `so/tcp` 实现了一个 rpc 框架，内部使用 `tcp/json` 作为传输协议，简单的测试显示单线程 qps 可以达到 `12w+`。json 与基于结构体的二进制协议相比，至少有下面几个好处：
 
 - 抓包可以直接看到传输的 json 对象，方便调试。
 - rpc 调用直接传输 json 对象，不需要定义各种结构体，大大减少代码量。
 - rpc 调用参数形式一致，固定为 `(const Json& req, Json& res)`，很容易自动生成代码。
 - 可以实现通用的 rpc client，不需要为不同的 rpc server 生成不同的 client 代码。
 
-### 17.1 rpc server 接口介绍
+#### 17.3.1 rpc server 接口介绍
 
 rpc server 的接口非常简单：
 
@@ -1912,9 +2079,7 @@ Server* new_server(const char* ip, int port, const char* passwd="");
 
 具体的业务处理，需要继承 rpc::Service 并实现 process() 方法。实际上，process() 的代码是自动生成的，用户只需要实现具体的 rpc 调用方法。
 
-### 17.2 实现一个 rpc server
-
-#### 17.2.1 定义 proto 文件
+#### 17.3.2 rpc proto 文件介绍
 
 下面是一个简单的 proto 文件 `hello_world.proto`:
 
@@ -1954,22 +2119,15 @@ world.res {
 
 `hello.req, hello.res, world.req, world.res` 是请求参数及响应结果的示例，生成代码时不需要这些。
 
-- 需要注意，一个 proto 文件只能定义一个 service。
+需要注意，一个 proto 文件只能定义一个 service。
 
-#### 17.2.2 生成 service 代码
+#### 17.3.3 rpc 代码生成器
 
-代码生成器见 [co/gen](https://github.com/idealvin/co/tree/master/gen) 目录。
-
-- 生成 gen
+代码生成器源码见 [co/gen](https://github.com/idealvin/co/tree/master/gen) 目录，可按下述方法构建 `gen`，并根据 proto 文件自动生成代码。
 
 ```sh
-xmake -b gen    // 在 co 根目录执行此命令，构建 gen
-```
-
-- 生成 service 代码
-
-```sh
-gen hello_world.proto
+xmake -b gen           # 构建 gen
+gen hello_world.proto  # 生成代码
 ```
 
 下面是生成的 C++ 头文件 `hello_world.h`:
@@ -1977,14 +2135,14 @@ gen hello_world.proto
 ```cpp
 #pragma once
 
-#include "co/rpc.h"
+#include "co/so/rpc.h"
 #include "co/hash.h"
 #include <unordered_map>
 
 namespace xx {
 
 class HelloWorld : public rpc::Service {
-  public:
+public:
     typedef void (HelloWorld::*Fun)(const Json&, Json&);
 
     HelloWorld() {
@@ -2023,20 +2181,20 @@ class HelloWorld : public rpc::Service {
 
     virtual void world(const Json& req, Json& res) = 0;
 
-  private:
+private:
     std::unordered_map<uint64, Fun> _methods;
 };
 
 } // xx
 ```
 
-可以看到 HelloWrold 的构造函数已经将 hello, world 方法注册到内部的 map 中，process() 方法根据 req 中的 `method` 字段，找到并调用对应的 rpc 方法。用户只需继承 `HelloWorld` 类，实现具体进行业务处理的 hello, world 方法即可。
+可以看到 HelloWrold 的构造函数已经将 hello, world 方法注册到内部的 map 中，process() 方法根据 req 中的 `method` 字段，调用对应的 rpc 方法。用户只需继承 `HelloWorld` 类，实现具体进行业务处理的 hello, world 方法即可。
 
 业务处理方法可能在不同的线程中调用，实现时需要注意线程安全性。业务处理方法内部需要连接到其他网络服务时，可以用协程安全的 `co::Pool` 管理这些网络连接。
 
 生成的头文件可以直接放到 server 代码所在目录，客户端不需要用到。客户端只需参考 proto 文件中的 req/res 定义，就知道怎么构造 req 发起 rpc 调用了。
-
-#### 17.2.3 具体的业务实现
+  
+#### 17.3.4 实现 rpc server
 
 下面的示例代码 `hello_world.cc` 给出了一个简单的实现:
 
@@ -2066,9 +2224,7 @@ class HelloWorldImpl : public HelloWorld {
 } // xx
 ```
 
-#### 17.2.4 启动 rpc server
-
-启动 rpc server 一般只需要如下的三行代码:
+完成上述的业务实现后，就可以启动 rpc server，一般只需要如下的三行代码:
 
 ```cpp
 rpc::Server* server = rpc::new_server("127.0.0.1", 7788, "passwd");
@@ -2078,7 +2234,7 @@ server->start();
 
 注意调用 `start()` 方法会创建一个协程，server 在协程中运行，防止主线程退出是用户需要关心的事。
 
-### 17.3 rpc client
+#### 17.3.5 rpc client
 
 rpc client 的接口如下:
 
@@ -2102,7 +2258,7 @@ Client* new_client(const char* ip, int port, const char* passwd="");
 
 - 特别提醒
     - rpc::Client 创建时，并没有立即建立连接，第一次发起 rpc 请求才会建立连接。
-    - `delete rpc::Client`会关闭连接，这个操作一般需要在协程内进行。
+    - `delete rpc::Client`会关闭连接，这个操作需要在协程内进行。
 
 下面是一个简单的 rpc client 示例：
 
@@ -2150,9 +2306,7 @@ for (int i = 0; i < 8; ++i) {
 }
 ```
 
-### 17.4 配置项
-
-rpc 库支持的配置项如下:
+#### 17.3.6  配置项
 
 - rpc_max_msg_size
 
@@ -2172,7 +2326,7 @@ rpc 库支持的配置项如下:
 
 - rpc_conn_idle_sec
 
-  rpc 保持空闲连接的时间，单位为秒，默认 `180` 秒。一个连接超过此时间没有收到任何数据，server 可能会关掉此连接。
+  rpc 空闲连接超时时间，单位为秒，默认 `180` 秒。一个连接超过此时间没有收到任何数据，server 可能会关掉此连接。
 
 - rpc_max_idle_conn
 
@@ -2390,7 +2544,9 @@ os::daemon();    // 后台运行，仅支持 Linux 平台
 
 ## 22. 编译
 
-`CO` 使用 [xmake](https://github.com/xmake-io/xmake) 进行编译，同时提供 [cmake 支持](#cmake-编译)(由 [izhengfan](https://github.com/izhengfan) 贡献)。
+### xmake
+
+`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 进行编译。
 
 - 编译器
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -2419,7 +2575,6 @@ os::daemon();    // 后台运行，仅支持 Linux 平台
   ```sh
   xmake build libco       # 编译 libco
   xmake -b libco          # 与上同
-  xmake b libco           # 与上同，可能需要较新版本的 xmake
   ```
 
 - 编译及运行 unitest 代码
@@ -2439,28 +2594,33 @@ os::daemon();    // 后台运行，仅支持 Linux 平台
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build flag       # 编译 flag_test.cc
-  xmake build log        # 编译 log_test.cc
-  xmake build json       # 编译 json_test.cc
-  xmake build rapidjson  # 编译 rapidjson_test.cc
-  xmake build rpc        # 编译 rpc_test.cc
+  xmake build flag             # 编译 flag.cc
+  xmake build log              # 编译 log.cc
+  xmake build json             # 编译 json.cc
+  xmake build rapidjson        # 编译 rapidjson.cc
+  xmake build rpc              # 编译 rpc.cc
+  xmake build easy             # 编译 so/easy.cc
+  xmake build pingpong         # 编译 so/pingpong.cc
   
-  xmake r flag -xz       # 测试 flag 库
-  xmake r log            # 测试 log 库
-  xmake r log -cout      # 终端也打印日志
-  xmake r log -perf      # log 库性能测试
-  xmake r json           # 测试 json
-  xmake r rapidjson      # 测试 rapidjson
-  xmake r rpc            # 启动 rpc server
-  xmake r rpc -c         # 启动 rpc client
+  xmake r flag -xz             # 测试 flag 库
+  xmake r log                  # 测试 log 库
+  xmake r log -cout            # 终端也打印日志
+  xmake r log -perf            # log 库性能测试
+  xmake r json                 # 测试 json
+  xmake r rapidjson            # 测试 rapidjson
+  xmake r rpc                  # 启动 rpc server
+  xmake r rpc -c               # 启动 rpc client
+  xmake r easy -d xxx          # 启动 web server
+  xmake r pingpong             # pingpong server:   127.0.0.1:9988
+  xmake r pingpong ip=::       # pingpong server:   :::9988  (ipv6)
+  xmake r pingpong -c ip=::1   # pingpong client -> ::1:9988
   ```
 
 - 编译 gen
 
   ```sh
-  xmake build gen
-  
   # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
+  xmake build gen
   gen hello_world.proto
   ```
 
@@ -2475,51 +2635,26 @@ os::daemon();    // 后台运行，仅支持 Linux 平台
   xmake install -o /usr/local   # 安装到 /usr/local 目录
   ```
 
-  
-### cmake 编译
+### cmake
 
-- 构建 libco 库和 gen
-  
-  在 Unix 系统命令行下，使用 cmake/make 进行构建：
+[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
+- 默认只编译 `libco` 与 `gen`.
+- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下.
+- 可以用 `BUILD_ALL` 指定编译所有项目.
+- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
 
-  ```sh
-  cd co
-  mkdir build && cd build
-  cmake ..
-  make -j8
-  ```
-
-  构建完成后会在 `build/lib` 目录下生成 libco 库文件，在 `buildb/bin` 目录下生成 `gen` 可执行文件。
-
-- 构建 test 和 unitest
-
-  默认不开启 test 和 unitest 的构建，如需开启，可如下设置：
-
-  ```sh
-  cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
-  cmake .. -DBUILD_ALL
-  ```
-
-- 安装 co 库
-
-  在 Unix 命令行下，在 `make` 完成后，可进行安装：
-
-  ```sh
-  make install
-  ```
-  
-  此命令会将头文件、库文件，以及 gen 可执行文件复制到安装目录下的相应子目录。 Linux 下默认的安装位置是 `/usr/local/`，故 `make install` 时可能需要 root 权限。
-
-  如需更改安装位置，需在 cmake 时设置 `CMAKE_INSTALL_PREFIX` 参数：
-
-  ```sh
-  cmake .. -DCMAKE_INSTALL_PREFIX=pkg
-  ```
+```sh
+mkdir build && cd build
+cmake ..
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+make -j8
+make install
+```
 
 <div STYLE="page-break-after: always;"></div>
 
 
-## 23. 结语
+## 23. 结束语
 
 这份文档其实还可以写得更详细一点，终因语言乏力、精力有限作罢，只能说声抱歉了。文档中难免有些疏漏、错误之处，敬请海涵与指正！
 

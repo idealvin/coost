@@ -21,7 +21,7 @@ Section 1-10 was translated by [Leedehai](https://github.com/Leedehai), 11-15 wa
 - CO contains the following functional components:
     - Basic definitions (def)
     - Atomic operations (atomic)
-    - Fast random number generator (ramdom)
+    - Fast random number generator (random)
     - LruMap
     - Fast string casting for basic types (fast)
     - Efficient byte stream (fastream)
@@ -30,25 +30,15 @@ Section 1-10 was translated by [Leedehai](https://github.com/Leedehai), 11-15 wa
     - Command line arguments and configuration file parsing library (flag)
     - Efficient streaming log library (log)
     - Unit testing framework (unitest)
+    - Efficient json library (json)
     - Time library (time)
     - Thread library (thread)
     - Coroutine library (co)
-    - Efficient json library
-    - High-performance json rpc framework
+    - Network library (so)
     - Hash library
     - Path library
     - File system operations (fs)
     - System operations (os)
-
-- C++11 features used by CO:
-    - `auto`
-    - `std::move`
-    - `std::bind`
-    - `std::function`
-    - `std::unique_ptr`
-    - `std::unordered_map`
-    - `std::unordered_set`
-    - variadic templates
 
 
 ## 2. Basic definitions (def)
@@ -1021,11 +1011,194 @@ xmake r unitest -os
 ```
 
 
-## 13. Time library (time)
+## 13. Efficient json library (json)
+
+include: [co/json.h](https://github.com/idealvin/co/blob/master/include/co/json.h).
+
+The `json` library is designed to be streamlined, efficient, and easy to use. It is comparable to [rapidjson](https://github.com/Tencent/rapidjson) in performance. If you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved.
+
+- Features of the json library
+    - Supports 5 basic types: null, bool, int, double and string.
+    - Supports two composite types, array and object.
+    - All types are represented by a single Json class.
+    - There is only one pointer data member in the Json class, `sizeof(Json) == sizeof(void*)`.
+    - Json has a built-in reference count. The copy operation only increments the reference count (**atomic operation, thread-safe**), no memory copy is performed.
+    - A built-in memory allocator (Jalloc) is used to optimize most memory allocation operations.
+
+### 13.1 Basic types
+
+- Code example
+
+```cpp
+Json x;                          // null
+x.is_null();                     // determine if it is null
+
+Json x = false;                  // bool type
+x.is_bool();                     // determine whether it is bool type
+bool b = x.get_bool();           // get value of bool type
+
+Json x = 123;                    // int type
+int i = x.get_int();             // get value of int type
+
+Json x = (int64) 23;             // int type, 64-bit
+int64 i = x.get_int64();         // returns a 64-bit integer
+
+Json x = 3.14;                   // double type
+double d = x.get_double();       // get value of double type
+
+Json x = "hello world";          // string type
+Json x(s, n);                    // string type (const char* s, size_t n)
+x.is_string();                   // determine if it is a string type
+x.size();                        // returns the length of the string
+const char* s = x.get_string();  // returns pointer to a null-terminated string
+```
+
+### 13.2 Array type
+
+`array` is an array type that can store any type of Json object.
+
+```cpp
+Json x = json::array();      // create an empty array, different from null
+x.is_array();                // determine if it is an array
+x.size();                    // returns the number of elements in the array
+x.empty();                   // determine if the array is empty
+
+Json x;                      // null, becomes array type after push_back is called
+x.push_back(false);          // add a value of type bool
+x.push_back(1);              // add a value of type int
+x.push_back(3.14);           // add a value of type double
+x.push_back("hello");        // add a value of type string
+x.push_back(x);              // add a value of type array
+x.push_back(obj);            // add a value of type object
+
+// access members of array
+x[0].get_bool();
+x[1].get_int();
+
+// traverse the array
+for (uint32 i = 0; i < x.size(); ++i) {
+    Json& v = x[i];
+}
+```
+
+### 13.3 Object type
+
+The `object` type is stored internally in the form of key-value. The value can be any type of Json object. The key has the following restrictions:
+
+- key must be a C-style string ending in `'\0'`.
+- The key cannot contain double quotes `"`.
+
+```cpp
+Json x = json::object();       // create an empty object, different from null
+x.is_object();                 // determine if it is object type
+x.size();                      // returns the number of elements in object
+x.empty();                     // determine if object is empty
+
+Json x;                        // null, becomes object after calling add_member()
+x.add_member("name", "Bob");   // add string
+x.add_member("age", 23);       // add int
+x.add_member("height", 1.68);  // add double
+x.add_member("array", array);  // add array
+x.add_member("obj", obj);      // add object
+
+x.has_member("name");          // determine if the member exists
+x["name"].get_string();        // get value of the member
+
+// return null if the key does not exist
+Json v = x.find("age");
+if (v.is_int()) v.get_int();
+
+if (!(v = x.find("obj")).is_null()) {
+    do_something();
+}
+
+// traverse the object
+for (auto it = x.begin(); it != x.end(); ++it) {
+    const char* key = it->key;  // key
+    Json& v = it->value;        // value
+}
+```
+
+### 13.4 Json to string
+
+The Json class provides `str()` and `pretty()` methods to convert a Json object into a string:
+
+```cpp
+Json x;
+fastring s = x.str();     // returns a string
+fastring s = x.pretty();  // returns a pretty string
+
+fastream fs;
+fs << x;   // write json string to fastream
+LOG << x;  // write json string to log file
+```
+
+In addition, the Json class also provides a `dbg()` method to convert Json into a debug string. The long strings inside Json object may be truncated:
+
+```cpp
+Json x;
+fastring s = x.dbg();
+LOG << x; // Actually equivalent to LOG << x.dbg();
+```
+
+### 13.5 String to json
+
+`json::parse()` or the `parse_from()` method in the Json class can convert a string into a Json object:
+
+```cpp
+Json x;
+fastring s = x.str();
+
+// When parse fails, y is null
+Json y = json::parse(s);
+Json y = json::parse(s.data(), s.size());
+y.parse_from(x.str());
+```
+
+### 13.6 Object type: adding and finding members efficiently
+
+For the `object` type, an internal array is used to store the key-value pairs. This keeps the order in which members are added, but at the same time increases the cost of finding members. `operator[]` may be slow as it requires to find the member first.
+
+- Use `add_member` instead of `operator[]` when adding members
+
+  ```cpp
+  // add members directly to the end without member searching.
+  x.add_member("age", 23); // more efficient than x["age"] = 23
+  ```
+
+- Replace `operator[]` with `find` when finding members
+
+  ```cpp
+  // not so efficient member access with 3 search operations.
+  if (x.has_member("age") && x["age"].is_int()) {
+      int i = x["age"].get_int();
+  }
+  
+  // using find(), need only one search operation.
+  Json v = x.find("age");
+  if (v.is_int()) {
+      int i = v.get_int();
+  }
+  ```
+
+### 13.7 Special characters in string types
+
+The json string internally ends with '\0' and mustn't contain any binary character.
+
+The json string supports escape characters such as `"` and `\`, as well as `\r, \n, \t`. However, containing these special characters will reduce the performance of `json::parse()`.
+
+```cpp
+Json x = "hello \r \n \t";  // ok, the string contains escape characters
+Json x = "hello \" world";  // ok, the string contains "
+Json x = "hello \\ world";  // ok, the string contains \ 
+```
+
+
+## 14. Time library (time)
 
 include: [co/time.h](https://github.com/idealvin/co/blob/master/include/co/time.h).
 
-### 13.1 monotonic time
+### 14.1 monotonic time
 
 `monotonic time` is implemented on most platforms as the time since system startup. It is generally used for timing, which is more stable than system time and is not affected by system time.
 
@@ -1036,7 +1209,7 @@ int64 us = now::us(); // Microsecond
 int64 ms = now::ms(); // Millisecond
 ```
 
-### 13.2 Time string (now::str())
+### 14.2 Time string (now::str())
 
 `now::str()` is based on `strftime` and returns a string representation of the current system time in the specified format.
 
@@ -1054,7 +1227,7 @@ fastring s = now::str();     // "2018-08-08 08:08:08"
 fastring s = now::str("%Y"); // "2028"
 ```
 
-### 13.3 sleep
+### 14.3 sleep
 
 The Linux platform supports microsecond-level sleep, but it is difficult to implement on Windows. Therefore, only millisecond, second-level sleep is supported in this library.
 
@@ -1065,7 +1238,7 @@ sleep::ms(10); // sleep for 10 milliseconds
 sleep::sec(1); // sleep for 1 second
 ```
 
-### 13.4 Timer(Timer)
+### 14.4 Timer(Timer)
 
 `Timer` is based on monotonic time. When a Timer object is created, it starts timing.
 
@@ -1080,11 +1253,11 @@ t.restart();       // Restart timing
 ```
 
 
-## 14. Thread library (thread)
+## 15. Thread library (thread)
 
 include: [co/thread.h](https://github.com/idealvin/co/blob/master/include/co/thread.h).
 
-### 14.1 Mutex
+### 15.1 Mutex
 
 `Mutex` is a mutex commonly used in multi-threaded programming. At the same time, at most one thread owns the lock, and other threads must wait for the lock to be released.
 
@@ -1104,7 +1277,7 @@ MutexGuard g(m);  // Call m.lock () in the constructor,
                   // and call m.unlock () in the destructor.
 ```
 
-### 14.2 SyncEvent
+### 15.2 SyncEvent
 
 `SyncEvent` is a synchronization mechanism commonly used in multi-threaded programming and is suitable for the producer-consumer model.
 
@@ -1132,7 +1305,7 @@ ev.reset();                // Thread A, manually set event status to unsignaled
 ev.signal();               // Thread B, event synchronization notification
 ```
 
-### 14.3 Thread
+### 15.3 Thread
 
 The `Thread` class is a wrapper around a thread. When a Thread object is created, the thread is started, and when the thread function ends, the thread automatically exits.
 
@@ -1159,7 +1332,7 @@ x.join();
 Thread(f).detach();
 ```
 
-### 14.4 Get the id of the current thread
+### 15.4 Get the id of the current thread
 
 `current_thread_id ()` is used to get the id of the current thread. The thread library uses [TLS] (https://wiki.osdev.org/Thread_Local_Storage) to save the thread id. Each thread only needs one system call.
 
@@ -1173,7 +1346,7 @@ The Linux glibc has added the `gettid` system call since `2.30`. To avoid confli
 int id = current_thread_id();
 ```
 
-### 14.5 thread_ptr based on TLS
+### 15.5 thread_ptr based on TLS
 
 `thread_ptr` is similar to`std::unique_ptr`, but uses the `TLS` mechanism internally. Each thread sets and has its own ptr.
 
@@ -1197,7 +1370,7 @@ if (pt == NULL) pt.reset(new T);
 pt->run();  // Print id of thread 2
 ```
 
-### 14.6 Timed task scheduler (TaskSched)
+### 15.6 Timed task scheduler (TaskSched)
 
 The `TaskSched` class is used for scheduling scheduled tasks. All tasks are scheduled by a single thread internally, but tasks can be added from any thread.
 
@@ -1235,11 +1408,11 @@ s.stop();                         // stop the task scheduling thread
 ```
 
 
-## 15. Coroutine library (co)
+## 16. Coroutine library (co)
 
 include: [co/co.h](https://github.com/idealvin/co/blob/master/include/co/co.h).
 
-### 15.1 Basic Concepts
+### 16.1 Basic Concepts
 
 - Coroutines are lightweight scheduling units that run in threads.
 - Coroutines are to threads, similar to threads to processes.
@@ -1261,7 +1434,7 @@ The co coroutine library is based on [epoll](http://man7.org/linux/man-pages/man
 
 The relevant code for context switching in the co coroutine library is taken from [tbox](https://github.com/tboox/tbox/) by [ruki](https://github.com/waruqi), and tbox refers to the implementation of [boost](https://www.boost.org/doc/libs/1_70_0/libs/context/doc/html/index.html), thanks here!
 
-### 15.2 Create coroutines (go)
+### 16.2 Create coroutines (go)
 
 `Golang` uses the keyword `go` to create coroutines. Similarly, the co library provides the `go()` method to create coroutines.
 
@@ -1291,7 +1464,7 @@ go(std::bind(f, 7));         // void f(int);
 go(std::bind(&T::f, p, 7));  // void T::f(int);  T* p;
 ```
 
-### 15.3 coroutine api
+### 16.3 coroutine api
 
 In addition to `go()`, the co-coroutine library also provides the following apis (located in namespace co):
 
@@ -1332,11 +1505,11 @@ int main(int argc, char** argv) {
 }
 ```
 
-### 15.4 Network Programming
+### 16.4 Network Programming
 
 co wraps commonly used socket APIs to support general network programming. All these APIs are in the `namespace co`, which must generally be called in a coroutine. Unlike the native APIs, when IO is blocked or sleep is called for these APIs, the scheduling thread will suspend the current coroutine and switch to other coroutines waiting to be executed.
 
-#### 15.4.1 Commonly used socket APIs
+#### 16.4.1 Commonly used socket APIs
 
 Co provides some commonly used socket APIs:
 
@@ -1377,7 +1550,7 @@ int shutdown(sock_t fd, char c='b');
 
 The above api returns -1 when an error occurs, you can use `co::error()` to get the error code, and `co::strerror()` to see the error description.
 
-#### 15.4.2 Common socket option settings
+#### 16.4.2 Common socket option settings
 
 co provides the following APIs for setting commonly used socket options:
 
@@ -1389,7 +1562,7 @@ void set_send_buffer_size(sock_t fd, int n); // Set the send buffer size
 void set_recv_buffer_size(sock_t fd, int n); // Set the receive buffer size
 ```
 
-#### 15.4.3 Other APIs
+#### 16.4.3 Other APIs
 
 ```cpp
 // Fill in the ip address
@@ -1411,7 +1584,7 @@ const char* strerror();        // returns the current string error
 const char* strerror(int err); // returns the string corresponding to @err
 ```
 
-#### 15.4.4 hook system api
+#### 16.4.4 hook system api
 
 Calling the socket api of the co library in coroutines will not block, but the native socket API called in some third-party libraries may still block. In order to solve this problem, it's necessary to hook related system APIs.
 
@@ -1434,7 +1607,7 @@ kevent     // mac
 
 Users generally don't need to care about api hooks. If you are interested, you can read the source code implementation of [hook](https://github.com/idealvin/co/tree/master/src/co/impl).
 
-#### 15.4.5 General network programming mode based on coroutines
+#### 16.4.5 General network programming mode based on coroutines
 
 Coroutines can achieve high-performance synchronous network programming. Taking the TCP program as an example, the server generally adopts a mode of one coroutine per connection, creating a new coroutine for each connection, and processing the data on the connection in the coroutine; the client does not need one connection per coroutine, connection pool is generally used instead, and multiple coroutines share the connections in the pool.
 
@@ -1461,7 +1634,7 @@ void client_fun() {
 }
 ```
 
-#### 15.4.6 Example of tcp server/client based on coroutine
+#### 16.4.6 Example of tcp server/client based on coroutine
 
 - server code example
 
@@ -1553,11 +1726,11 @@ void client_fun() {
 go(client_fun); // Start client coroutine
 ```
 
-### 15.5 Coroutine synchronization mechanism
+### 16.5 Coroutine synchronization mechanism
 
 The co library implements a synchronization mechanism similar to threads. Developers familiar with multithreaded programming can easily switch from threads to coroutine programming.
 
-#### 15.5.1 Coroutine lock (co::Mutex)
+#### 16.5.1 Coroutine lock (co::Mutex)
 
 `co::Mutex` is similar to `Mutex` in the thread library, except that it needs to be used in coroutine environment. When the acquisition of the lock fails, the scheduling thread will suspend the current coroutine, and the scheduling thread itself will not block.
 
@@ -1583,7 +1756,7 @@ go(f1);
 go(f2);
 ```
 
-#### 15.5.2 Coroutine synchronization event (co::Event)
+#### 16.5.2 Coroutine synchronization event (co::Event)
 
 `co::Event` is similar to `SyncEvent` in the thread library, but it needs to be used in coroutine environment. When the `wait()` method is called, the scheduling thread will suspend the current coroutine, and the scheduling thread itself will not block.
 
@@ -1608,9 +1781,9 @@ go(f1);
 go(f2);
 ```
 
-### 15.6 Coroutine Pool
+### 16.6 Coroutine Pool
 
-#### 15.6.1 co::Pool
+#### 16.6.1 co::Pool
 
 Threads supports the `TLS` mechanism, and coroutines can also support a similar `CLS` mechanism, but considering that millions of coroutines may be created, CLS does not seem to be very efficient. The co library eventually gave up CLS and implemented `co::Pool` instead:
 
@@ -1659,7 +1832,7 @@ void f {
 go(f);
 ```
 
-#### 15.6.2 co::PoolGuard
+#### 16.6.2 co::PoolGuard
 
 `co::PoolGuard` is a template class that pulls an element from co::Pool during construction and puts it back when destructuring. In addition, it also overloads `operator->`, so that we can use it like a smart pointer.
 
@@ -1682,7 +1855,7 @@ go(f);
 
 With CLS mechanism, 100k coroutines needs to establish 100k connections. But using Pool, 100k coroutines may only need to share a small number of connections. Pool seems to be more efficient and reasonable than CLS, which is why this library does not support CLS.
 
-### 15.7 Configuration items
+### 16.7 Configuration items
 
 The configuration items supported by the co library are as follows:
 
@@ -1703,204 +1876,198 @@ The configuration items supported by the co library are as follows:
   The maximum data length that can be sent at one time for `co::send`. The default is 1M. If it exceeds this size, data will be sent in multiple calls of `co::send`.
 
 
+## 17. Network library (so)
 
-## 16. Efficient json library (json)
+include: [co/so.h](https://github.com/idealvin/co/blob/master/include/co/so.h).
 
-include: [co/json.h](https://github.com/idealvin/co/blob/master/include/co/json.h).
+`so` is a network library based on coroutines, including three modules `tcp`, `http`, and `rpc`.
 
-The `json` library is designed to be streamlined, efficient, and easy to use. It is comparable to [rapidjson](https://github.com/Tencent/rapidjson) in performance. If you use [jemalloc](https://github.com/jemalloc/jemalloc), the performance of `parse` and `stringify` will be further improved.
+### 17.1 TCP programming
 
-- Features of the json library
-    - Supports 5 basic types: null, bool, int, double and string.
-    - Supports two composite types, array and object.
-    - All types are represented by a single Json class.
-    - There is only one pointer data member in the Json class, `sizeof(Json) == sizeof(void*)`.
-    - Json has a built-in reference count. The copy operation only increments the reference count (**atomic operation, thread-safe**), no memory copy is performed.
-    - A built-in memory allocator (Jalloc) is used to optimize most memory allocation operations.
+[so/tcp](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h) module provides two classes `tcp::Server` and `tcp::Client`, which support both `ipv4` and `ipv6`, and can be used for general TCP programming.
 
-### 16.1 Basic types
-
-- Code example
+#### 17.1.1 [tcp::Server](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
 
 ```cpp
-Json x;                          // null
-x.is_null();                     // determine if it is null
+namespace tcp {
+struct Connection {
+    sock_t fd;   // conn fd
+    fastring ip; // peer ip
+    int port;    // peer port
+    void* p;     // pointer to Server where this connection was accepted
+};
 
-Json x = false;                  // bool type
-x.is_bool();                     // determine whether it is bool type
-bool b = x.get_bool();           // get value of bool type
+class Server {
+  public:
+    Server(const char* ip, int port)
+        : _ip((ip && *ip)? ip: "0.0.0.0"), _port(port) {
+    }
 
-Json x = 123;                    // int type
-int i = x.get_int();             // get value of int type
+    virtual ~Server() = default;
 
-Json x = (int64) 23;             // int type, 64-bit
-int64 i = x.get_int64();         // returns a 64-bit integer
+    virtual void start() {
+        go(&Server::loop, this);
+    }
 
-Json x = 3.14;                   // double type
-double d = x.get_double();       // get value of double type
+    virtual void on_connection(Connection* conn) = 0;
 
-Json x = "hello world";          // string type
-Json x(s, n);                    // string type (const char* s, size_t n)
-x.is_string();                   // determine if it is a string type
-x.size();                        // returns the length of the string
-const char* s = x.get_string();  // returns pointer to a null-terminated string
+  protected:
+    fastring _ip;
+    uint32 _port;
+
+  private:
+    void loop();
+};
+} // tcp
 ```
 
-### 16.2 Array type
+`tcp::Server` creates one coroutine for each connection. Calling the `start()` method enters the event loop. When a new connection is received, a coroutine is created, in which the `on_connection()` method is called to send or recv data on the connection.
 
-`array` is an array type that can store any type of Json object.
+This class can only be used as a base class. User must inherit this class and implement the `on_connection()` method. Note that the parameter `conn` is dynamically allocated, remember to delete it after using it.
+
+[pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) implements a simple pingpong server based on `tcp::Server`, readers can refer to its usage .
+
+#### 17.1.2 [tcp::Client](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
+
+It is a tcp client class based on coroutines and needs to be used in coroutine environment. User needs to manually call the `connect()` method to establish a connection. It is recommended to determine whether the connection is established before calling `recv`, `send`. If not, call `connect()` to establish the connection. It is easy to achieve automatic reconnection in this way.
+
+A `tcp::Client` corresponds to one connection, do not use the same tcp::Client object in multiple coroutines at the same time. The `co` coroutine library theoretically supports two coroutines using one connection at the same time, one recv, and one send, but it is not recommended to do so. The standard approach is that both recv and send are done in the same coroutine.
+
+It does not need to create a connection for each coroutine. The recommended method is to put `tcp::Client` in `co::Pool`, and multiple coroutines share the connections in the pool. For each coroutine, a connection is taken from the pool when needed, and then put it back after use. This method can reduce the number of connections.
+
+For specific usage of `tcp::Client`, readers can refer to `client_fun()` in [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc). In addition, you can also refer to [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) and [rpc::Client](https:// github.com/idealvin/co/blob/master/src/so/rpc.cc).
+
+### 17.2 HTTP Programming
+
+[so/http](https://github.com/idealvin/co/blob/master/include/co/so/http.h) module implements the `http::Server` and `http::Client` class based on `so/tcp` module, and it also provides a `so::easy()` method for quickly creating a static web server.
+
+#### 17.2.1 Implement a simple http server
 
 ```cpp
-Json x = json::array();      // create an empty array, different from null
-x.is_array();                // determine if it is an array
-x.size();                    // returns the number of elements in the array
-x.empty();                   // determine if the array is empty
+http::Server serv("0.0.0.0", 80);
 
-Json x;                      // null, becomes array type after push_back is called
-x.push_back(false);          // add a value of type bool
-x.push_back(1);              // add a value of type int
-x.push_back(3.14);           // add a value of type double
-x.push_back("hello");        // add a value of type string
-x.push_back(x);              // add a value of type array
-x.push_back(obj);            // add a value of type object
+serv.on_req(
+    [](const http::Req& req, http::Res& res) {
+        if (req.is_method_get()) {
+            if (req.url() == "/hello") {
+                res.set_status(200);
+                res.set_body("hello world");
+            } else {
+                res.set_status(404);
+            }
+        } else {
+            res.set_status(501);
+        }
+    }
+);
 
-// access members of array
-x[0].get_bool();
-x[1].get_int();
+serv.start();
+```
 
-// traverse the array
-for (uint32 i = 0; i < x.size(); ++i) {
-    Json& v = x[i];
+User only needs to specify the ip and port, call the `on_req()` method to register a callback for handling HTTP requests, and then the `start()` method can be called to start the server.
+
+`co/test` provides a simple [demo](https://github.com/idealvin/co/blob/master/test/so/http_serv.cc), you can build and run it as follow:
+
+```sh
+xmake -b http_serv
+xmake r http_serv
+```
+
+After starting `http_serv`, you can enter `127.0.0.1/hello` in the address bar of the browser to get the result.
+
+#### 17.2.2 Implement a static web server
+
+```cpp
+#include "co/flag.h"
+#include "co/log.h"
+#include "co/so.h"
+
+DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    log::init();
+
+    so::easy(FLG_d.c_str()); // mum never have to worry again
+
+    return 0;
 }
 ```
 
-### 16.3 Object type
+Readers can build [easy.cc](https://github.com/idealvin/co/blob/master/test/so/easy.cc) in `co/test` and run the web server as follow:
 
-The `object` type is stored internally in the form of key-value. The value can be any type of Json object. The key has the following restrictions:
-
-- key must be a C-style string ending in `'\0'`.
-- The key cannot contain double quotes `"`.
-
-```cpp
-Json x = json::object();       // create an empty object, different from null
-x.is_object();                 // determine if it is object type
-x.size();                      // returns the number of elements in object
-x.empty();                     // determine if object is empty
-
-Json x;                        // null, becomes object after calling add_member()
-x.add_member("name", "Bob");   // add string
-x.add_member("age", 23);       // add int
-x.add_member("height", 1.68);  // add double
-x.add_member("array", array);  // add array
-x.add_member("obj", obj);      // add object
-
-x.has_member("name");          // determine if the member exists
-x["name"].get_string();        // get value of the member
-
-// return null if the key does not exist
-Json v = x.find("age");
-if (v.is_int()) v.get_int();
-
-if (!(v = x.find("obj")).is_null()) {
-    do_something();
-}
-
-// traverse the object
-for (auto it = x.begin(); it != x.end(); ++it) {
-    const char* key = it->key;  // key
-    Json& v = it->value;        // value
-}
+```sh
+xmake -b easy
+xmake r easy -d xxx # xxx as the root directory of the web server
 ```
 
-### 16.4 Json to string
-
-The Json class provides `str()` and `pretty()` methods to convert a Json object into a string:
+#### 17.2.3 Usage of http client
 
 ```cpp
-Json x;
-fastring s = x.str();     // returns a string
-fastring s = x.pretty();  // returns a pretty string
+http::Client cli("www.xxx.com", 80);
+http::Req req;
+http::Res res;
 
-fastream fs;
-fs << x;   // write json string to fastream
-LOG << x;  // write json string to log file
+req.set_method_get();
+req.set_url("/");
+cli.call(req, res); // Get the homepage of www.xxx.com
+
+fastring s = res.body();
 ```
 
-In addition, the Json class also provides a `dbg()` method to convert Json into a debug string. The long strings inside Json object may be truncated:
+`http::Client` will automatically establish a connection in the `call()` method, user needn't call `connect()` manually. Note that `http::Client` must be used in coroutines.
 
-```cpp
-Json x;
-fastring s = x.dbg();
-LOG << x; // Actually equivalent to LOG << x.dbg();
+`co/test` provides a simple [demo](https://github.com/idealvin/co/blob/master/test/so/http_cli.cc), build and run it as follow:
+
+```sh
+xmake -b http_cli
+xmake r http_cli -ip=github.com -port=80
 ```
 
-### 16.5 String to json
+#### 17.2.4 Configuration items
 
-`json::parse()` or the `parse_from()` method in the Json class can convert a string into a Json object:
+- http_max_header_size
 
-```cpp
-Json x;
-fastring s = x.str();
+  Specify the maximum length of the http header part. The default is `4k`.
 
-// When parse fails, y is null
-Json y = json::parse(s);
-Json y = json::parse(s.data(), s.size());
-y.parse_from(x.str());
-```
+- http_max_body_size
 
-### 16.6 Notes
+  Specify the maximum length of the http body part. The default is `8M`.
 
-#### 16.6.1 Adding and finding members
+- http_recv_timeout
 
-For the `object` type, an internal array is used to store the key-value pairs. This keeps the order in which members are added, but at the same time increases the cost of finding members. `operator[]` may be slow as it requires to find the member first.
+  Specify the timeout time for http recv, in milliseconds. The default is `1024 ms`.
 
-- Use `add_member` instead of `operator[]` when adding members
+- http_send_timeout
 
-  ```cpp
-  // add members directly to the end without member searching.
-  x.add_member("age", 23); // more efficient than x["age"] = 23
-  ```
+  Specify the timeout time for http send, in milliseconds. The default is `1024 ms`.
 
-- Replace `operator[]` with `find` when finding members
+- http_conn_timeout
 
-  ```cpp
-  // not so efficient member access with 3 search operations.
-  if (x.has_member("age") && x["age"].is_int()) {
-      int i = x["age"].get_int();
-  }
-  
-  // using find() instead of operator[], need only a single search operation.
-  Json v = x.find("age");
-  if (v.is_int()) {
-      int i = v.get_int();
-  }
-  ```
+  Specify the timeout time for http connect, in milliseconds. The default is `3000 ms`.
 
-#### 16.6.2 Special characters in string types
+- http_conn_idle_sec
 
-The json string internally ends with '\0' and mustn't contain any binary character.
+  Specify the timeout time for idle connections, in seconds. The default is `180` seconds.
 
-The json string supports escape characters such as `"` and `\`, as well as `\r, \n, \t`. However, containing these special characters will reduce the performance of `json::parse()`.
+- http_max_idle_conn
 
-```cpp
-Json x = "hello \r \n \t";  // ok, the string contains escape characters
-Json x = "hello \" world";  // ok, the string contains "
-Json x = "hello \\ world";  // ok, the string contains \ 
-```
+  Specify the maximum number of idle connections for http server. The default is `128`.
 
+- http_log
 
-## 17. High-performance json rpc framework (rpc)
+  http log switch, the default is `true`. (Note that the log only prints the header of http)
 
-include: [co/rpc.h](https://github.com/idealvin/co/blob/master/include/co/rpc.h).
+### 17.3 rpc framework
 
-The `rpc` framework is implemented based on coroutines and internally uses `tcp/json` as the transmission protocol. Simple tests show that single-threaded qps can reach `120k+`. Compared with struct-based binary protocols, json has at least the following advantages:
+[so/rpc](https://github.com/idealvin/co/blob/master/include/co/so/rpc.h) module implements an rpc framework based on `so/tcp`. It uses `tcp/json` as the transmission protocol internally. Simple tests show that single-threaded qps can reach `120k+`. Compared with struct-based binary protocols, json has at least the following advantages:
 
 - It's easy to capture the package to see the transmitted json object, which is convenient for debugging.
 - The rpc call directly transmits the json object without defining various structures, which greatly reduces the amount of codes.
 - The rpc call parameters have the same form, fixed to `(const Json& req, Json& res)`, it is easy to generate code automatically.
 - A general rpc client can be implemented, no need to generate different client codes for different rpc server.
 
-### 17.1 Introduction to rpc server interface
+#### 17.3.1 Introduction to rpc server interface
 
 The interface of the rpc server is very simple:
 
@@ -1933,9 +2100,7 @@ Server* new_server(const char* ip, int port, const char* passwd="");
 
 For specific business processing, you need to inherit `rpc::Service` and implement the `process()` method. In fact, the code of `process()` is automatically generated, and users only need to implement the specific rpc calling method.
 
-### 17.2 Implementing an rpc server
-
-#### 17.2.1 Define proto files
+#### 17.3.2 Introduction to rpc proto file
 
 Here is a simple proto file `hello_world.proto`:
 
@@ -1977,28 +2142,21 @@ world.res {
 
 - Note that only one service can be defined in a proto file.
 
-#### 17.2.2 Generate service code
+#### 17.3.3 rpc code generator
 
-See [co/gen](https://github.com/idealvin/co/tree/master/gen) for the code generator.
+See [co/gen](https://github.com/idealvin/co/tree/master/gen) for souces of the code generator.
 
-- Generate gen
-
-  ```sh
-  xmake -b gen   # run this command in the co root directory to build gen
-  ```
-
-- Generate service code
-
-  ```sh
-  gen hello_world.proto
-  ```
+```sh
+xmake -b gen           # build gen
+gen hello_world.proto  # generator code of the rpc framework
+```
 
 Here is the generated C++ header `hello_world.h`:
 
 ```cpp
 #pragma once
 
-#include "co/rpc.h"
+#include "co/so/rpc.h"
 #include "co/hash.h"
 #include <unordered_map>
 
@@ -2057,7 +2215,7 @@ If you need to connect to other network services internally in the business proc
 
 The generated header file can be directly placed where the server code is located, as the client does not need it at all. The client only refers to the req/res definition in the proto file, which is enough for constructing req to make rpc calls.
 
-#### 17.2.3 Specific business implementation
+#### 17.3.4 implement rpc server
 
 The following example code `hello_world.cc` gives a simple implementation:
 
@@ -2087,9 +2245,7 @@ class HelloWorldImpl: public HelloWorld {
 } // xx
 ```
 
-#### 17.2.4 Start the rpc server
-
-Generally, only three lines of code are needed to start the rpc server:
+Once implements the above business method, you can start the rpc server like this:
 
 ```cpp
 rpc::Server* server = rpc::new_server("127.0.0.1", 7788, "passwd");
@@ -2099,8 +2255,7 @@ server->start();
 
 Note that calling the `start()` method will create a coroutine, and the server runs in the coroutine. Preventing the main thread from exiting is something the user needs to care about.
 
-
-### 17.3 rpc client
+#### 17.3.5 rpc client
 
 The interface of the rpc client is as follows:
 
@@ -2151,26 +2306,28 @@ int main (int argc, char** argv) {
 Note that one `rpc::Client` corresponds to one connection. Do not use the same rpc::Client in multiple threads. In a multi-threaded environment, you can use `co::Pool` to manage client connections. Here is an example:
 
 ```cpp
-co::Pool cli_pool;
+co::Pool p(
+    std::bind(&rpc::new_client, "127.0.0.1", 7788, "passwd"),
+    [](void* p) { delete (rpc::Client*) p; }
+);
 
 void client_fun() {
-    co::Kakalot<rpc::Client> c(cli_pool);
-    if (c == NULL) c = rpc::new_client("127.0.0.1", 7788, "passwd");
+    co::PoolGuard<rpc::Client> c(p);
 
-    for (int i = 0; i < 10; ++i) {
-        Json req, res;
-        req.add_member("method", "hello");
-        c->call(req, res); // call the hello method
-    }
+    for (int i = 0; i < 10; ++i) {
+        Json req, res;
+        req.add_member("method", "hello");
+        c->call(req, res); // call the hello method
+    }
 }
 
 // create 8 coroutines
-for (int i = 0; i < 8; ++ i) {
-    go(client_fun);
+for (int i = 0; i < 8; ++i) {
+    go(client_fun);
 }
 ```
 
-### 17.4 Configuration Items
+#### 17.3.6 Configuration Items
 
 The rpc library supports the following configuration items:
 
@@ -2412,11 +2569,12 @@ os::daemon();   // runs as a daemon, only supports Linux platforms
 ```
 
 
+
 ## Compiling
 
-[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project.
+### xmake
 
-[izhengfan](https://github.com/izhengfan) has helped to provide cmake support. If you need to compile with cmake, please refer to [here](#compile-with-cmake).
+[Xmake](https://github.com/xmake-io/xmake) is recommended for compiling the `CO` project.
 
 - Compiler
     - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -2444,9 +2602,8 @@ os::daemon();   // runs as a daemon, only supports Linux platforms
 - Build libco
 
   ```sh
-  xmake build libco       # build libco only
-  xmake -b libco          # the same as above
-  xmake b libco           # the same as above, required newer version of xmake
+  xmake build libco      # build libco only
+  xmake -b libco         # the same as above
   ```
 
 - Build and run unitest code
@@ -2463,31 +2620,36 @@ os::daemon();   // runs as a daemon, only supports Linux platforms
 
 - Build and run test code
 
-  [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx_test.cc` source file in the `co/test` directory, and then execute `xmake build xxx` in the co root directory to build it.
+  [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx.cc` source file in the `co/test` directory, and then execute `xmake build xxx` to build it.
 
   ```sh
-  xmake build flag       # compile flag_test.cc
-  xmake build log        # compile log_test.cc
-  xmake build json       # compile json_test.cc
-  xmake build rapidjson  # compile rapidjson_test.cc
-  xmake build rpc        # compile rpc_test.cc
+  xmake build flag             # flag.cc
+  xmake build log              # log.cc
+  xmake build json             # json.cc
+  xmake build rapidjson        # rapidjson.cc
+  xmake build rpc              # rpc.cc
+  xmake build easy             # so/easy.cc
+  xmake build pingpong         # so/pingpong.cc
   
-  xmake r flag -xz       # test flag
-  xmake r log            # test log
-  xmake r log -cout      # also log to terminal
-  xmake r log -perf      # performance test
-  xmake r json           # test json
-  xmake r rapidjson      # test rapidjson
-  xmake r rpc            # start rpc server
-  xmake r rpc -c         # start rpc client
+  xmake r flag -xz             # test flag
+  xmake r log                  # test log
+  xmake r log -cout            # also log to terminal
+  xmake r log -perf            # performance test
+  xmake r json                 # test json
+  xmake r rapidjson            # test rapidjson
+  xmake r rpc                  # start rpc server
+  xmake r rpc -c               # start rpc client
+  xmake r easy -d xxx          # start web server
+  xmake r pingpong             # pingpong server:   127.0.0.1:9988
+  xmake r pingpong ip=::       # pingpong server:   :::9988  (ipv6)
+  xmake r pingpong -c ip=::1   # pingpong client -> ::1:9988
   ```
 
 - Build gen
 
   ```sh
-  xmake build gen
-  
   # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
+  xmake build gen
   gen hello_world.proto
   ```
 
@@ -2502,46 +2664,21 @@ os::daemon();   // runs as a daemon, only supports Linux platforms
   xmake install -o /usr/local  # install to the /usr/local directory
   ```
 
+### cmake
 
-### compile with cmake
+[izhengfan](https://github.com/izhengfan) has helped to provide cmake support:  
+- Build `libco` and `gen` by default.
+- The library files are in the `build/lib` directory, and the executable files are in the `build/bin` directory.
+- You can use `BUILD_ALL` to compile all projects.
+- You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
 
-- Build libco and gen
-
-  On the Unix system command line, use `cmake/make` to build:
-  
-  ```sh
-  cd co
-  mkdir build && cd build
-  cmake ..
-  make -j8
-  ```
-
-  After the building is completed, the `libco` library file is generated in `build/lib`, and the `gen` executable file is generated in `build/bin`.
-
-- Build test and unitest
-
-  The `test` and `unitest` are not built by default. You may use the following options to enable them:
-
-  ```sh
-  cmake .. -DBUILD_TEST=ON -DBUILD_UNITEST=ON
-  cmake .. -DBUILD_ALL=ON
-  ```
-
-- Install co libraries
-
-  On the Unix command line, after `make` is completed, you can install:
-
-  ```sh
-  make install
-  ```
-
-  This command copies the header files, library files, and the gen executable to the appropriate subdirectories under the installation directory. The default installation location under Linux is `/usr/local/`, so root permission may be required when `make install`.
-
-  To change the installation location, set the `CMAKE_INSTALL_PREFIX` parameter when cmake:
-
-  ```sh
-  cmake .. -DCMAKE_INSTALL_PREFIX=pkg
-  ```
+```sh
+mkdir build && cd build
+cmake ..
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+make -j8
+make install
+```
 
 
 ## Donate

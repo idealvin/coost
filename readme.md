@@ -46,7 +46,7 @@ co is being sponsored by the following tool; please help to support us by taking
   `so` is a C++ network library based on coroutines, it supports both ipv4 and ipv6, including the following components:
   - tcp module, which implements `tcp::Server`, `tcp::Client`.
   - http module, which implements `http::Server`, `http::Client`, `so::easy()`.
-  - rpc module, rpc framework based on json, single thread qps can reach `120k+`.
+  - rpc module, rpc framework based on json, single-threaded qps can reach `120k+`.
 
   A few lines of code can implement a **static web server**:
   ```cpp
@@ -192,8 +192,8 @@ co is being sponsored by the following tool; please help to support us by taking
 - Build libco
 
   ```sh
-  xmake build libco       # build libco only
-  xmake -b libco          # the same as above
+  xmake build libco      # build libco only
+  xmake -b libco         # the same as above
   ```
 
 - Build and run unitest code
@@ -213,22 +213,26 @@ co is being sponsored by the following tool; please help to support us by taking
   [co/test](https://github.com/idealvin/co/tree/master/test) contains some test code. You can easily add a `xxx.cc` source file in the `co/test` directory, and then execute `xmake build xxx` to build it.
 
   ```sh
-  xmake build flag       # flag.cc
-  xmake build log        # log.cc
-  xmake build json       # json.cc
-  xmake build rapidjson  # rapidjson.cc
-  xmake build rpc        # rpc.cc
-  xmake build easy       # so/easy.cc
+  xmake build flag             # flag.cc
+  xmake build log              # log.cc
+  xmake build json             # json.cc
+  xmake build rapidjson        # rapidjson.cc
+  xmake build rpc              # rpc.cc
+  xmake build easy             # so/easy.cc
+  xmake build pingpong         # so/pingpong.cc
   
-  xmake r flag -xz       # test flag
-  xmake r log            # test log
-  xmake r log -cout      # also log to terminal
-  xmake r log -perf      # performance test
-  xmake r json           # test json
-  xmake r rapidjson      # test rapidjson
-  xmake r rpc            # start rpc server
-  xmake r rpc -c         # start rpc client
-  xmake r easy -d xxx    # start web server
+  xmake r flag -xz             # test flag
+  xmake r log                  # test log
+  xmake r log -cout            # also log to terminal
+  xmake r log -perf            # performance test
+  xmake r json                 # test json
+  xmake r rapidjson            # test rapidjson
+  xmake r rpc                  # start rpc server
+  xmake r rpc -c               # start rpc client
+  xmake r easy -d xxx          # start web server
+  xmake r pingpong             # pingpong server:   127.0.0.1:9988
+  xmake r pingpong ip=::       # pingpong server:   :::9988  (ipv6)
+  xmake r pingpong -c ip=::1   # pingpong client -> ::1:9988
   ```
 
 - Build gen

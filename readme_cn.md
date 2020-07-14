@@ -212,22 +212,26 @@ co is being sponsored by the following tool; please help to support us by taking
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build flag       # 编译 flag.cc
-  xmake build log        # 编译 log.cc
-  xmake build json       # 编译 json.cc
-  xmake build rapidjson  # 编译 rapidjson.cc
-  xmake build rpc        # 编译 rpc.cc
-  xmake build easy       # 编译 so/easy.cc
+  xmake build flag             # 编译 flag.cc
+  xmake build log              # 编译 log.cc
+  xmake build json             # 编译 json.cc
+  xmake build rapidjson        # 编译 rapidjson.cc
+  xmake build rpc              # 编译 rpc.cc
+  xmake build easy             # 编译 so/easy.cc
+  xmake build pingpong         # 编译 so/pingpong.cc
   
-  xmake r flag -xz       # 测试 flag 库
-  xmake r log            # 测试 log 库
-  xmake r log -cout      # 终端也打印日志
-  xmake r log -perf      # log 库性能测试
-  xmake r json           # 测试 json
-  xmake r rapidjson      # 测试 rapidjson
-  xmake r rpc            # 启动 rpc server
-  xmake r rpc -c         # 启动 rpc client
-  xmake r easy -d xxx    # 启动 web server
+  xmake r flag -xz             # 测试 flag 库
+  xmake r log                  # 测试 log 库
+  xmake r log -cout            # 终端也打印日志
+  xmake r log -perf            # log 库性能测试
+  xmake r json                 # 测试 json
+  xmake r rapidjson            # 测试 rapidjson
+  xmake r rpc                  # 启动 rpc server
+  xmake r rpc -c               # 启动 rpc client
+  xmake r easy -d xxx          # 启动 web server
+  xmake r pingpong             # pingpong server:   127.0.0.1:9988
+  xmake r pingpong ip=::       # pingpong server:   :::9988  (ipv6)
+  xmake r pingpong -c ip=::1   # pingpong client -> ::1:9988
   ```
 
 - 编译 gen
