@@ -39,12 +39,13 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
 }
 
 // coroutine status
-//   co::Event::wait()    ->  S_wait
+//   co::Event::wait()    ->  S_wait  ->  S_init (end of wait)
 //   co::Event::signal()  ->  S_ready
+//   check_timeout()      ->  S_init
 enum _CoState {
-    S_init = 0,    // initial state
-    S_wait = 1,    // wait for a event
-    S_ready = 2,   // ready to resume
+    S_init = 0,  // initial state
+    S_wait = 1,  // wait for a event
+    S_ready = 2, // ready to resume
 };
 
 struct Coroutine {
@@ -58,6 +59,9 @@ struct Coroutine {
     int state;        // coroutine state
     tb_context_t ctx; // context, a pointer points to the stack bottom
     fastream stack;   // save stack data for this coroutine
+
+    // Once the coroutine starts, we no longer need the cb, and it can
+    // be used to store the Scheduler pointer.
     union {
         Closure* cb;  // coroutine function
         Scheduler* s; // scheduler this coroutines runs in
@@ -78,7 +82,11 @@ class Copool {
 
     Coroutine* pop() {
         if (!_ids.empty()) {
+            // We must reset the Coroutine here.
             Coroutine* co = _pool[_ids.back()];
+            assert(co->state == S_init);
+            co->stack.clear();
+            co->ctx = 0;
             _ids.pop_back();
             return co;
         } else {
@@ -189,11 +197,7 @@ class Scheduler {
         tb_context_jump(_main_co->ctx, _running);
     }
 
-    // We must reset the Coroutine here.
     void recycle(Coroutine* co) {
-        assert(co->state == S_init);
-        co->stack.clear();
-        co->ctx = 0;
         _co_pool.push(co);
     }
 
@@ -282,19 +286,15 @@ class Scheduler {
     bool add_event(sock_t fd, int ev) {
         return _epoll.add_event(fd, ev, _running->id);
     }
-
-    void del_event(sock_t fd, int ev) {
-        _epoll.del_event(fd, ev);
-    }
   #else
     bool add_event(sock_t fd, int ev) {
         return _epoll.add_event(fd, ev, _running);
     }
+  #endif
 
     void del_event(sock_t fd, int ev) {
         _epoll.del_event(fd, ev);
     }
-  #endif
 
     void del_event(sock_t fd) {
         _epoll.del_event(fd);

@@ -40,8 +40,10 @@ int close(sock_t fd, int ms) {
 int shutdown(sock_t fd, char c) {
     CHECK(gSched) << "must be called in coroutine..";
     if (c == 'r') {
+        gSched->del_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
     } else if (c == 'w') {
+        gSched->del_event(fd, EV_write);
         return ::shutdown(fd, SD_SEND);
     } else {
         gSched->del_event(fd);
@@ -57,19 +59,18 @@ int listen(sock_t fd, int backlog) {
     return ::listen(fd, backlog);
 }
 
-// cache for address family of the listening socket
 static int find_address_family(sock_t fd) {
     static std::vector<std::unordered_map<sock_t, int>> kAf(co::max_sched_num());
 
     auto& map = kAf[gSched->id()];
-    int af = map[fd];
+    int& af = map[fd];
     if (af != 0) return af;
     {
         WSAPROTOCOL_INFO info;
         int len = sizeof(info);
         int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
         if (r != 0) return -1;
-        map[fd] = af = info.iAddressFamily;
+        af = info.iAddressFamily;
     }
     return af;
 }
@@ -211,14 +212,13 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        // We must set info->co to NULL here when wait() timeout.
         if (!ev.wait(ms)) { info->co = 0; return -1; }
     } else {
         return -1;
     }
 
     if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
-    if (info->n == 0) info->co = 0; // connection closed
+    if (info->n == 0) info->co = 0;
     return (int) info->n;
 }
 
@@ -407,8 +407,7 @@ const char* strerror(int err) {
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
         0, err,
-        //MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
+        MAKELANGID(LANG_ENGLISH /*LANG_NEUTRAL*/, SUBLANG_DEFAULT),
         (LPTSTR)&s, 0, 0
     );
 
@@ -496,15 +495,12 @@ void wsa_startup() {
     );
 
     CHECK_EQ(r, 0) << "get GetAccpetExSockAddrs failed: " << co::strerror();
-
     ::closesocket(fd);
-
+    
     can_skip_iocp_on_success = _Can_skip_iocp_on_success();
 }
 
-void wsa_cleanup() {
-    WSACleanup();
-}
+void wsa_cleanup() { WSACleanup(); }
 
 } // co
 

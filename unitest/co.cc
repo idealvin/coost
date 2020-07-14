@@ -7,6 +7,18 @@ namespace test {
 DEF_test(co) {
     EXPECT(co::null_timer_id == co::timer_id_t());
 
+    DEF_case(sched.SchedManager) {
+        int n = (int) FLG_co_sched_num;
+        co::Scheduler* s;
+        for (int i = 0; i < n; ++i) {
+            s = co::sched_mgr()->next();
+            EXPECT_EQ(s->id(), i);
+        }
+
+        s = co::sched_mgr()->next();
+        EXPECT_EQ(s->id(), 0);
+    }
+
     DEF_case(sched.Copool) {
         co::Copool pool(4);
         co::Coroutine* c = pool.pop();
@@ -108,6 +120,8 @@ DEF_test(co) {
             delete cos[i];
         }
     }
+
+    //DEF_case(epoll) {}
 }
 
 } // namespace test

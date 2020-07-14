@@ -33,7 +33,7 @@ void Epoll::handle_ev_pipe() {
             break;
         }
     }
-    atomic_swap(&_signaled, false);
+    atomic_swap(&_signaled, 0);
 }
 
 inline void closesocket(sock_t& fd) {
@@ -44,7 +44,7 @@ inline void closesocket(sock_t& fd) {
 }
 
 #ifdef __linux__
-Epoll::Epoll() {
+Epoll::Epoll() : _signaled(0) {
     _efd = epoll_create(1024);
     CHECK_NE(_efd, -1) << "epoll create error: " << co::strerror();
     co::set_cloexec(_efd);
@@ -67,7 +67,6 @@ void Epoll::close() {
 }
 
 bool Epoll::add_ev_read(int fd, int ud) {
-    COLOG << "add ev read, fd: " << fd << " coid: " << ud;
     auto& x = _ev_map[fd];
     if (x >> 32) return true; // already exists
 
@@ -77,16 +76,14 @@ bool Epoll::add_ev_read(int fd, int ud) {
 
     if (epoll_ctl(_efd, x ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &event) == 0) {
         x = event.data.u64;
-        COLOG << "add ev read ok, fd: " << fd << ", r=" << (x >> 32) << " w=" << (uint32)x;
         return true;
     }
 
-    ELOG << "add ev read error: " << co::strerror() << ", fd: " << fd << ", coid: " << ud;
+    ELOG << "add ev read error: " << co::strerror() << ", fd: " << fd << ", co: " << ud;
     return false;
 }
 
 bool Epoll::add_ev_write(int fd, int ud) {
-    COLOG << "add ev write, fd: " << fd << " coid: " << ud;
     auto& x = _ev_map[fd];
     if ((uint32)x) return true; // already exists
 
@@ -95,17 +92,15 @@ bool Epoll::add_ev_write(int fd, int ud) {
     event.data.u64 = x | ud;
 
     if (epoll_ctl(_efd, x ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &event) == 0) {
-        COLOG << "add ev write ok, fd: " << fd << ", r=" << (x >> 32) << " w=" << (uint32)x;
         x = event.data.u64;
         return true;
     }
 
-    ELOG << "add ev write error: " << co::strerror() << ", fd: " << fd << ", coid: " << ud;
+    ELOG << "add ev write error: " << co::strerror() << ", fd: " << fd << ", co: " << ud;
     return false;
 }
 
 void Epoll::del_ev_read(int fd) {
-    COLOG << "del ev read, fd: " << fd;
     auto it = _ev_map.find(fd);
     if (it == _ev_map.end() || !(it->second >> 32)) return; // not exists
 
@@ -113,23 +108,18 @@ void Epoll::del_ev_read(int fd) {
     if (!(uint32)it->second) {
         _ev_map.erase(it);
         r = epoll_ctl(_efd, EPOLL_CTL_DEL, fd, (epoll_event*)8);
-        COLOG << "del ev read, fd: " << fd << ", ret: " << (r == 0);
     } else {
         it->second = (uint32)it->second;
         epoll_event event;
         event.events = EPOLLOUT | EPOLLET;
         event.data.u64 = it->second;
         r = epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &event);
-        COLOG << "del(mod) ev read, fd: " << fd << ", ret: " << (r == 0);
     }
 
-    if (r != 0) {
-        ELOG << "del ev read error: " << co::strerror() << ", fd: " << fd;
-    }
+    ELOG_IF(r != 0) << "del ev read error: " << co::strerror() << ", fd: " << fd;
 }
 
 void Epoll::del_ev_write(int fd) {
-    COLOG << "del ev write, fd: " << fd;
     auto it = _ev_map.find(fd);
     if (it == _ev_map.end() || !(uint32)it->second) return; // not exists
 
@@ -137,23 +127,19 @@ void Epoll::del_ev_write(int fd) {
     if (!(it->second >> 32)) {
         _ev_map.erase(it);
         r = epoll_ctl(_efd, EPOLL_CTL_DEL, fd, (epoll_event*)8);
-        COLOG << "del ev write, fd: " << fd << ", ret: " << (r == 0);
     } else {
         it->second &= ((uint64)-1 << 32);
         epoll_event event;
         event.events = EPOLLIN | EPOLLET;
         event.data.u64 = it->second;
         r = epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &event);
-        COLOG << "del(mod) ev write, fd: " << fd << ", ret: " << (r == 0);
     }
 
-    if (r != 0) {
-        ELOG << "del ev write error: " << co::strerror() << ", fd: " << fd;
-    }
+    ELOG_IF(r != 0) << "del ev write error: " << co::strerror() << ", fd: " << fd;
 }
 
 #else  // kqueue
-Epoll::Epoll() {
+Epoll::Epoll() : _signaled(0) {
     _kq = kqueue();
     CHECK_NE(_kq, -1) << "kqueue create error: " << co::strerror();
 
@@ -175,7 +161,6 @@ void Epoll::close() {
 }
 
 bool Epoll::add_event(int fd, int ev, void* p) {
-    COLOG << "add ev, fd: " << fd << ", ev: " << ev;
     int& x = _ev_map[fd];
     if (x & ev) return true; // already exists
 
@@ -193,7 +178,6 @@ bool Epoll::add_event(int fd, int ev, void* p) {
 }
 
 void Epoll::del_event(int fd, int ev) {
-    COLOG << "del ev, fd: " << fd << ", ev: " << ev;
     auto it = _ev_map.find(fd);
     if (it == _ev_map.end() || !(it->second & ev)) return;
 
@@ -210,7 +194,6 @@ void Epoll::del_event(int fd, int ev) {
 }
 
 void Epoll::del_event(int fd) {
-    COLOG << "del ev, fd: " << fd;
     auto it = _ev_map.find(fd);
     if (it == _ev_map.end()) return;
 
@@ -226,7 +209,6 @@ void Epoll::del_event(int fd) {
         ELOG << "kqueue del event error: " << co::strerror() << ", fd: " << fd;
     }
 }
-
 #endif
 #endif // _WIN32
 

@@ -25,7 +25,6 @@ void Scheduler::stop() {
         _epoll.signal();
         _ev.wait();
         _epoll.close();
-        LOG << "stop scheduler: " << this->id();
     }
 }
 
@@ -71,8 +70,6 @@ void Scheduler::resume(Coroutine* co) {
 
 void Scheduler::loop() {
     gSched = this;
-    LOG << "start scheduler: " << this->id();
-
     std::vector<Closure*> new_tasks;
     std::vector<Coroutine*> ready_tasks;
     std::unordered_map<Coroutine*, timer_id_t> ready_timer_tasks;
@@ -190,7 +187,6 @@ static inline void wsa_cleanup() {}
 
 SchedManager::SchedManager() {
     wsa_startup();
-
     if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
     if (FLG_co_sched_num > (uint32)co::max_sched_num()) FLG_co_sched_num = co::max_sched_num();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;

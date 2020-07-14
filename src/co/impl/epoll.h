@@ -1,6 +1,5 @@
 #pragma once
 
-#include "dbg.h"
 #include "hook.h"
 #include "co/co.h"
 #include "co/atomic.h"
@@ -65,16 +64,35 @@ class Epoll {
         int& x = _ev_map[fd];
         if (x) return true;
 
-        x = (CreateIoCompletionPort((HANDLE)fd, _iocp, fd, 1) != 0);
-        if (x) return true;
+        if (CreateIoCompletionPort((HANDLE)fd, _iocp, fd, 1) != 0) {
+            x = EV_read | EV_write; // 3
+            return true;
+        }
 
         ELOG << "iocp add fd " << fd << " error: " << co::strerror();
         return false;
     }
 
+    bool add_event(sock_t fd, int ev) {
+        int& x = _ev_map[fd];
+        if (x) return true;
+        return x = EV_read | EV_write; // 3
+    }
+
     void del_event(sock_t fd) { _ev_map.erase(fd); }
 
+    void del_event(sock_t fd, int ev) {
+        auto it = _ev_map.find(fd);
+        if (it != _ev_map.end() && it->second & ev) it->second &= ~ev;
+    }
+
     void close();
+
+    // for unitest/co
+    bool assert_ev(sock_t fd, int ev) {
+        auto it = _ev_map.find(fd);
+        return ev == (it != _ev_map.end() ? it->second : 0);
+    }
 
     int wait(int ms) {
         ULONG n = 0;
@@ -123,36 +141,25 @@ class Epoll {
     Epoll();
     ~Epoll();
 
-    void close();
-
     bool add_event(int fd, int ev, int ud) {
-        if (ev == EV_read) return this->add_ev_read(fd, ud);
-        return this->add_ev_write(fd, ud);
+        return (ev == EV_read) ? add_ev_read(fd, ud) : add_ev_write(fd, ud);
     }
 
     void del_event(int fd, int ev) {
-        if (ev == EV_read) return this->del_ev_read(fd);
-        return this->del_ev_write(fd);
+        (ev == EV_read) ? del_ev_read(fd) : del_ev_write(fd);
     }
 
-    bool add_ev_read(int fd, int ud);
-    bool add_ev_write(int fd, int ud);
-
-    void del_ev_read(int fd);
-    void del_ev_write(int fd);
-
     void del_event(int fd) {
-        COLOG << "del ev, fd: " << fd;
         auto it = _ev_map.find(fd);
         if (it != _ev_map.end()) {
             _ev_map.erase(it);
             if (epoll_ctl(_efd, EPOLL_CTL_DEL, fd, (epoll_event*)8) != 0) {
                 ELOG << "epoll del error: " << co::strerror() << ", fd: " << fd;
-            } else {
-                COLOG << "epoll del ev ok, fd: " << fd;
             }
         }
     }
+
+    void close();
 
     int wait(int ms) {
         return fp_epoll_wait(_efd, _ev, 1024, ms);
@@ -167,13 +174,8 @@ class Epoll {
     }
 
     // @ev.data.u64:
-    //   higher 32 bits: id of read coroutine
-    //    lower 32 bits: id of write coroutine
-    // 
-    //   IN  &   OUT  ->  ev.data.u64
-    //  !IN  &  !OUT  ->  ev.data.u64         (EPOLLERR | EPOLLHUP)
-    //   IN  &  !OUT  ->  ev.data.u64 >> 32   
-    //  !IN  &   OUT  ->  ev.data.u64 << 32
+    //   higher 32 bits: id of coroutine waiting for EV_read
+    //   lower  32 bits: id of coroutine waiting for EV_write
     static uint64 ud(const epoll_event& ev) {
         if (ev.events & EPOLLIN) {
             return (ev.events & EPOLLOUT) ? ev.data.u64 : (ev.data.u64 >> 32);
@@ -192,11 +194,17 @@ class Epoll {
     void handle_ev_pipe();
 
   private:
+    bool add_ev_read(int fd, int ud);
+    bool add_ev_write(int fd, int ud);
+    void del_ev_read(int fd);
+    void del_ev_write(int fd);
+
+  private:
     int _efd;
     int _fds[2]; // pipe fd
+    int _signaled;
     epoll_event _ev[1024];
     std::unordered_map<int, uint64> _ev_map;
-    bool _signaled;
 };
 
 #else // kqueue
@@ -207,13 +215,13 @@ class Epoll {
     Epoll();
     ~Epoll();
 
-    void close();
-
     bool add_event(int fd, int ev, void* ud);
 
     void del_event(int fd, int ev);
 
     void del_event(int fd);
+
+    void close();
 
     int wait(int ms) {
         if (ms >= 0) {
@@ -248,9 +256,9 @@ class Epoll {
   private:
     int _kq;
     int _fds[2]; // pipe fd
+    int _signaled;
     epoll_event _ev[1024];
     std::unordered_map<int, int> _ev_map;
-    bool _signaled;
 };
 
 #endif // kqueue

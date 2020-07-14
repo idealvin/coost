@@ -7,6 +7,7 @@ namespace co {
 #ifdef _WIN32
 class IoEvent {
   public:
+    // We don't care what kind of event it is on Windows.
     IoEvent(sock_t fd)
         : _fd(fd), _id(null_timer_id) {
         gSched->add_event(fd);
@@ -43,20 +44,14 @@ class IoEvent {
 
     ~IoEvent() {
         if (_has_ev) gSched->del_event(_fd, _ev);
-        if (_id != null_timer_id) {
-            COLOG << "IoEvent del io_timer: " << _id << " fd: " << _fd;
-            gSched->del_timer(_id);
-        }
+        if (_id != null_timer_id) gSched->del_timer(_id);
     }
 
     bool wait(int ms=-1) {
         if (!_has_ev) _has_ev = gSched->add_event(_fd, _ev);
         if (ms < 0) { gSched->yield(); return true; }
 
-        if (_id == null_timer_id) {
-            _id = gSched->add_io_timer(ms);
-            COLOG << " IoEvent add io_timer: " << _id << " fd: " << _fd;
-        }
+        if (_id == null_timer_id) _id = gSched->add_io_timer(ms);
         gSched->yield();
         if (!gSched->timeout()) return true;
 
