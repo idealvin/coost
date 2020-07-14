@@ -17,7 +17,7 @@ DEF_int32(http_recv_timeout, 1024, "#2 recv timeout in ms");
 DEF_int32(http_send_timeout, 1024, "#2 send timeout in ms");
 DEF_int32(http_conn_timeout, 3000, "#2 connect timeout in ms");
 DEF_int32(http_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
-DEF_int32(http_max_idle_conn, 1024, "#2 max idle connections");
+DEF_int32(http_max_idle_conn, 128, "#2 max idle connections");
 DEF_bool(http_log, true, "#2 enable http log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
@@ -191,12 +191,13 @@ Client::~Client() = default;
 //   579: "Send Timeout";   580: "Recv Timeout";
 //   581: "Send Failed";    582: "Recv Failed";
 void Client::call(const Req& req, Res& res) {
-    int r = 0, body_len = 0;
-    size_t pos = 0;
-    if (_fd == -1 && !this->connect(FLG_http_conn_timeout)) {
+    if (!this->connected() && !this->connect(FLG_http_conn_timeout)) {
         res.set_status(577); // Connection Timeout
         return;
     }
+
+    int r = 0, body_len = 0;
+    size_t pos = 0;
 
     // send request
     do {
@@ -546,7 +547,6 @@ const char** Res::create_status_table() {
 
 void easy(const char* root_dir, const char* ip, int port) {
     http::Server serv(ip, port);
-
     std::vector<LruMap<fastring, std::pair<fastring, int64>>> contents(co::max_sched_num());
     fastring root(root_dir);
     if (root.empty()) root.append('.');

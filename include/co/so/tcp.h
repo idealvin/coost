@@ -30,8 +30,8 @@ class Server {
     }
 
     // The derived class must implement this method.
-    // The @conn was created by operator new. Remember to delete it when 
-    // the connection was closed.
+    // The @conn was created by operator new. Remember to delete it 
+    // when the connection was closed.
     virtual void on_connection(Connection* conn) = 0;
 
   protected:
@@ -57,16 +57,12 @@ class Client {
           _fd((sock_t)-1), _sched_id(-1) {
     }
 
-    virtual ~Client() {
-        if (_sched_id == co::sched_id()) this->disconnect();
-    }
+    virtual ~Client() { this->disconnect(); }
 
-    // @ms: timeout in milliseconds, -1 means no timeout.
     int recv(void* buf, int n, int ms=-1) {
         return co::recv(_fd, buf, n, ms);
     }
 
-    // recv until all @n bytes are done, or any error occured
     int recvn(void* buf, int n, int ms=-1) {
         return co::recvn(_fd, buf, n, ms);
     }
@@ -75,15 +71,15 @@ class Client {
         return co::send(_fd, buf, n, ms);
     }
 
+    bool connected() const { return _fd != (sock_t)-1; }
+
     // @ms: timeout in milliseconds
     bool connect(int ms);
 
-    bool connected() const {
-        return _fd != (sock_t)-1;
-    }
-
+    // MUST be called in the thread where it is connected.
     void disconnect() {
-        if (_fd != (sock_t)-1) {
+        if (this->connected()) {
+            assert(_sched_id == co::sched_id());
             co::close(_fd);
             _fd = (sock_t)-1;
             _sched_id = -1;
@@ -93,7 +89,7 @@ class Client {
   protected:
     fastring _ip;
     uint32 _port;
-    int _sched_id;   // id of coroutine scheduler where this client runs in
+    int _sched_id;  // id of scheduler where this client runs in
     sock_t _fd;
 
     DISALLOW_COPY_AND_ASSIGN(Client);

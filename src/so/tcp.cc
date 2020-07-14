@@ -69,7 +69,7 @@ void Server::loop() {
         }
         conn->p = this;
 
-        co::go(on_new_connection, conn);
+        go(on_new_connection, conn);
     }
 }
 
