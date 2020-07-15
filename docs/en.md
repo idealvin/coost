@@ -1,8 +1,8 @@
-# Documents for co v1.1
+# Documents for co v1.2
 
 <font face="Arial" size=3>
 <center>
-Alvin &nbsp;2020/07/07
+Alvin &nbsp;2020/07/23
 </center>
 <center>
 idealvin@qq.com
@@ -1921,21 +1921,21 @@ class Server {
 } // tcp
 ```
 
-`tcp::Server` creates one coroutine for each connection. Calling the `start()` method enters the event loop. When a new connection is received, a coroutine is created, in which the `on_connection()` method is called to send or recv data on the connection.
+`tcp::Server` creates one coroutine for each connection. Calling the `start()` method enters the event loop. When a new connection is accepted, a coroutine is created, in which the `on_connection()` method is called to send or recv data on the connection.
 
 This class can only be used as a base class. User must inherit this class and implement the `on_connection()` method. Note that the parameter `conn` is dynamically allocated, remember to delete it after using it.
 
-[pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) implements a simple pingpong server based on `tcp::Server`, readers can refer to its usage .
+There is a demo in `co/test` which implements a simple pingpong server based on `tcp::Server`. The source code can be found in [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so /pingpong.cc).
 
 #### 17.1.2 [tcp::Client](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
 
-It is a tcp client class based on coroutines and needs to be used in coroutine environment. User needs to manually call the `connect()` method to establish a connection. It is recommended to determine whether the connection is established before calling `recv`, `send`. If not, call `connect()` to establish the connection. It is easy to achieve automatic reconnection in this way.
+`tcp::Client` must be used in coroutine environment. User needs to manually call the `connect()` method to establish a connection. It is recommended to determine whether the connection is established before calling `recv`, `send`. If not, call connect() to establish the connection. It is easy to achieve automatic reconnection in this way.
 
 A `tcp::Client` corresponds to one connection, do not use the same tcp::Client object in multiple coroutines at the same time. The `co` coroutine library theoretically supports two coroutines using one connection at the same time, one recv, and one send, but it is not recommended to do so. The standard approach is that both recv and send are done in the same coroutine.
 
-It does not need to create a connection for each coroutine. The recommended method is to put `tcp::Client` in `co::Pool`, and multiple coroutines share the connections in the pool. For each coroutine, a connection is taken from the pool when needed, and then put it back after use. This method can reduce the number of connections.
+There is no need to create a connection for each coroutine. The recommended method is to put `tcp::Client` in `co::Pool`, and multiple coroutines share the connections in the pool. For each coroutine, a connection is taken from the pool when needed, and then put it back after use. This method can reduce the number of connections.
 
-For specific usage of `tcp::Client`, readers can refer to `client_fun()` in [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc). In addition, you can also refer to [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) and [rpc::Client](https:// github.com/idealvin/co/blob/master/src/so/rpc.cc).
+For the specific usage of `tcp::Client`, you can refer to `client_fun()` in [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc). In addition you can refer to [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) and [rpc::Client](https://github.com /idealvin/co/blob/master/src/so/rpc.cc).
 
 ### 17.2 HTTP Programming
 
@@ -1973,7 +1973,7 @@ xmake -b http_serv
 xmake r http_serv
 ```
 
-After starting `http_serv`, you can enter `127.0.0.1/hello` in the address bar of the browser to get the result.
+After starting the http server, you can enter `127.0.0.1/hello` in the address bar of the browser to see the result.
 
 #### 17.2.2 Implement a static web server
 
@@ -2015,7 +2015,15 @@ cli.call(req, res); // Get the homepage of www.xxx.com
 fastring s = res.body();
 ```
 
-`http::Client` will automatically establish a connection in the `call()` method, user needn't call `connect()` manually. Note that `http::Client` must be used in coroutines.
+In the above code, users can precisely control various details with the `http::Req` and `http::Res` classes. If you want to be lazy, you can also write as the following:
+
+```cpp
+http::Client cli("www.xxx.com", 80);
+fastring s = cli.get("/");
+fastring x = cli.post("/url", "body");
+```
+
+`http::Client` inherits from `tcp::Client` and must be used in coroutines. It will automatically establish the connection in the `call()` method, users needn't call `connect()` manually.
 
 `co/test` provides a simple [demo](https://github.com/idealvin/co/blob/master/test/so/http_cli.cc), build and run it as follow:
 
@@ -2366,6 +2374,10 @@ include: [co/hash.h](https://github.com/idealvin/co/blob/master/include/co/hash.
 
 The `hash` library provides the following functions:
 
+- murmur_hash
+
+   Return a value of type `size_t`. This hash function is used in the implementation of `std::hash<fastring>`.
+
 - hash64
 
   Calculates a 64-bit hash value. The murmur 2 hash algorithm is used internally.
@@ -2569,8 +2581,7 @@ os::daemon();   // runs as a daemon, only supports Linux platforms
 ```
 
 
-
-## Compiling
+## 22. Compiling
 
 ### xmake
 
@@ -2681,7 +2692,7 @@ make install
 ```
 
 
-## Donate
+## 23. Donate
 
 <font face="Arial" size=3>
 <img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">

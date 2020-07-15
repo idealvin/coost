@@ -25,14 +25,15 @@ co is being sponsored by the following tool; please help to support us by taking
 - **[co](https://github.com/idealvin/co/tree/master/src/co)**
 
   `co` is a [golang-style](https://github.com/golang/go) C++ coroutine library with the following features:
-  - Built-in multi-thread scheduling, the default number of threads is the number of system CPU cores.
-  - Coroutines in the same thread share a stack (default is 1MB), the memory footprint is extremely low, a single machine can easily create millions of coroutines.
-  - Linux and Mac platform support system api hook.
+
+  - Support multi-thread scheduling, the default number of threads is the number of system CPU cores.
+  - Coroutines share the thread stack (the default size is 1MB), and the memory footprint is extremely low, a single machine can easily create millions of coroutines.
+  - Support system api hook (Linux & Mac).
   - Support coroutine lock [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - Support coroutine synchronization event [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - Support coroutine pool [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
 
-  It is very easy to create a coroutine, just use the `go()` method:
+  -  create coroutine with `go()`:
   ```cpp
   void fun() {
       std::cout << "hello world" << std::endl;
@@ -43,12 +44,13 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - **[so](https://github.com/idealvin/co/tree/master/src/so)**
 
-  `so` is a C++ network library based on coroutines, it supports both ipv4 and ipv6, including the following components:
-  - tcp module, which implements `tcp::Server`, `tcp::Client`.
-  - http module, which implements `http::Server`, `http::Client`, `so::easy()`.
-  - rpc module, rpc framework based on json, single-threaded qps can reach `120k+`.
+  `so` is a C++ network library based on coroutines. You can easily write network programs that support both `ipv4` and `ipv6` with this library. It includes the following modules:
 
-  A few lines of code can implement a **static web server**:
+  - tcp module, supports general tcp programming.
+  - http module, supports basic http programming.
+  - rpc module, implements a rpc framework based on json, single-threaded qps can reach 120k+.
+
+  - Write a **static web server**:
   ```cpp
   #include "co/flag.h"
   #include "co/log.h"
@@ -66,7 +68,7 @@ co is being sponsored by the following tool; please help to support us by taking
   }
   ```
 
-  Implementing a general http server is also very simple:
+  - Write a general http server
   ```cpp
   http::Server serv("0.0.0.0", 80);
 
@@ -90,7 +92,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
-  `log` is a super fast local logging system, printing logs is very simple:
+  `log` is a super fast local logging system, printing logs is safer than `printf`:
   ```cpp
   LOG << "hello "<< 23;   // info
   ELOG << "hello again";  // error
@@ -105,16 +107,15 @@ co is being sponsored by the following tool; please help to support us by taking
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
   
-  The above table is the test result of one million info logs (about 50 bytes for each for) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
+  The above table is the test result of one million info logs (about 50 bytes each) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
 
   Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
 
 - **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
 
-  `flag` is a command line and configuration file parsing library that supports automatic generation of configuration files, and integer types can take units `k, m, g, t, p`.
+  `flag` is a command line and configuration file parsing library that supports automatic generation of configuration files.
 
   ```cpp
-  // xx.cc
   #include "co/flag.h"
 
   DEF_int32(i, 32, "comments");
@@ -131,7 +132,7 @@ co is being sponsored by the following tool; please help to support us by taking
   Build and run:
   ```sh
   ./xx                         # start with default parameters
-  ./xx -i=4k -s="hello world"  # 4k is 4096, the unit is not case sensitive
+  ./xx -i=4k -s="hello world"  # integers can take unit k,m,g,t,p (case insensitive)
   ./xx -i 4k -s "hello world"  # equivalent to above
   ./xx --mkconf                # automatically generate configuration file xx.conf
   ./xx -config=xx.conf         # start from configuration file

@@ -1,8 +1,8 @@
-# C++ 基础库 CO 参考文档 v1.1
+# C++ 基础库 CO 参考文档 v1.2
 
 <font face="Arial" size=3>
 <center>
-Alvin &nbsp;2020/07/07
+Alvin &nbsp;2020/07/23
 </center>
 <center>
 idealvin@qq.com
@@ -1466,8 +1466,8 @@ int coroutine_id();
 - `sleep` 在协程中调用时，调度线程会挂起此协程，切换到其他等待执行的协程运行。
 - `stop` 会退出所有的调度线程，一般在进程退出前调用。
 - `max_sched_num` 返回支持的最大调度线程数，目前这个值是系统 cpu 核数。
-- `sched_id` 返回当前调度线程的 id，若当前线程不是调度线程，则返回 -1。id 的取值范围是 0 到 `max_sched_num-1`。
-- `coroutine_id` 返回当前协程的 id，若当前线程不是协程，则返回 -1。不同调度线程中的协程可能拥有相同的 id。
+- `sched_id` 返回当前调度线程的 id，若当前线程不是调度线程，返回 -1。id 取值范围是 0 到 `max_sched_num-1`。
+- `coroutine_id` 返回当前协程的 id，若当前线程不是协程，返回 -1。不同调度线程中的协程可能拥有相同的 id。
 
 - 代码示例
 
@@ -1790,13 +1790,13 @@ class Pool {
 
 第二个构造函数中的参数 `ccb` 与 `dcb` 可用于创建、销毁元素，`cap` 则用于指定 pool 的最大容量。此处的最大容量是对单个线程而言，如 cap 设置为 1024，调度线程有 8 个，则总的最大容量实际上是 8192。另外注意，最大容量只有在同时指定了 dcb 时有效。
 
-- pop
+- `pop`
 
 此方法从 pool 中拉取一个元素。pool 为空时，若设置了 ccb，则调用 ccb 创建一个元素并返回；若没有设置 ccb，则返回 NULL。
 
-- push
+- `push`
 
-此方法将元素放回 pool 中，若元素为 NULL 指针，则直接忽略。若超过最大容量，且指定了 dcb，则直接调用 dcb 销毁元素，而不放入 pool 中。
+此方法将元素放回 pool 中，若元素为 NULL，则直接忽略。若超过最大容量，且指定了 dcb，则直接调用 dcb 销毁元素，而不放入 pool 中。
 
 co::Pool 类是协程安全的，调用 pop, push 方法不需要加锁，但必须在协程中调用。
 
@@ -1869,7 +1869,7 @@ include: [co/so.h](https://github.com/idealvin/co/blob/master/include/co/so.h).
 
 ### 17.1 TCP 编程
 
-[so/tcp](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h) 模块实现了两个类 `tcp::Server` 与 `tcp::Client`，它们同时支持 `ipv4` 与 `ipv6`，可用于一般性的 TCP 编程。
+[so/tcp](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h) 模块实现了 `tcp::Server` 与 `tcp::Client` 类，它们同时支持 `ipv4` 与 `ipv6`，可用于一般性的 TCP 编程。
 
 #### 17.1.1 [tcp::Server](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
 
@@ -1906,21 +1906,21 @@ class Server {
 } // tcp
 ```
 
-`tcp::Server` 采用一个连接一个协程的模型，调用 `start()` 方法即进入事件循环，接收到新连接时，就创建一个协程，在协程中调用 `on_connection()` 方法，处理连接上的数据。
+tcp::Server 采用一个连接一个协程的模型，调用 `start()` 方法即进入事件循环，接收到新连接时，就创建一个协程，在协程中调用 `on_connection()` 方法，处理连接上的数据。
 
-此类只能做为基类使用，用户需要继承此类，并实现 `on_connection()` 方法，注意参数 `conn` 是动态分配的，用户使用完后需要 `delete` 掉。
+此类只能做为基类使用，用户需要继承此类，并实现 on_connection() 方法，注意参数 `conn` 是动态分配的，用户使用完后需要 delete 掉。
 
-[pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) 基于 `tcp::Server` 实现了一个简单的 pingpong server，读者可以参考其用法。
+`co/test` 中有一个 demo，基于 tcp::Server 实现了一个简单的 pingpong server，源码见 [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc)。
 
 #### 17.1.2 [tcp::Client](https://github.com/idealvin/co/blob/master/include/co/so/tcp.h)
 
-此类是基于协程的 tcp 客户端类，需要在协程环境中使用。用户需要手动调用 `connect()` 方法建立连接。推荐在调用 `recv`, `send` 之前，判断连接是否建立，没有的话，就调用 `connect()` 建立连接，这种方式容易实现自动重连。
+tcp::Client 必须在协程环境中使用，用户需要手动调用 `connect()` 方法建立连接。建议在调用 `recv`, `send` 之前，判断连接是否建立，没有的话，就调用 connect() 建立连接，这种方式容易实现自动重连。
 
-一个 `tcp::Client` 对应一个连接，不要同时在多个协程中使用同一个 tcp::Client 对象。`co` 协程库理论上支持两个协程同时使用一个连接，一个协程 recv，一个协程 send，但不推荐这种用法。标准的做法是，recv 与 send 都在同一个协程中完成，以实现同步的编码方式。
+一个 tcp::Client 对应一个连接，不要同时在多个协程中使用同一个 tcp::Client 对象。co 协程库理论上支持两个协程同时使用一个连接，一个协程 recv，一个协程 send，但不推荐这种用法。标准的做法是，recv 与 send 都在同一个协程中完成，以实现同步的编码方式。
 
-客户端没有必要采用一个协程一个连接的模式，推荐的做法是，将 `tcp::Client` 放到 `co::Pool` 中，多个协程共用 pool 中的连接。对每个协程而言，需要时即从 pool 中取出一个空闲连接，用完后再放回 pool 中。这种方式可以减少所需要的连接数。
+一般建议将 tcp::Client 放到 `co::Pool` 中，多个协程共用 pool 中的连接。对每个协程而言，需要时即从 pool 中取出一个空闲连接，用完后再放回 pool 中，这种方式可以减少所需的连接数。
 
-`tcp::Client` 的具体用法，读者可以参考 [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) 中的 `client_fun()`，另外还可以参考 [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) 与 [rpc::Client](https://github.com/idealvin/co/blob/master/src/so/rpc.cc) 的实现。
+tcp::Client 的具体用法，可以参考 [pingpong.cc](https://github.com/idealvin/co/blob/master/test/so/pingpong.cc) 中的 `client_fun()`，另外还可以参考 [http::Client](https://github.com/idealvin/co/blob/master/include/co/so/http.h) 与 [rpc::Client](https://github.com/idealvin/co/blob/master/src/so/rpc.cc) 的实现。
 
 ### 17.2 HTTP 编程
 
@@ -1957,7 +1957,7 @@ xmake -b http_serv
 xmake r http_serv
 ```
 
-启动 `http_serv` 后，可以在浏览器的地址栏中输入 `127.0.0.1/hello` 看结果。
+启动 http server 后，可以在浏览器的地址栏中输入 `127.0.0.1/hello` 看结果。
 
 #### 17.2.2 实现一个静态 web server
 
@@ -1978,7 +1978,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-读者可以编译 `co/test` 中的 [easy.cc](https://github.com/idealvin/co/blob/master/test/so/easy.cc)，运行 web server:
+`co/test` 中的 [easy.cc](https://github.com/idealvin/co/blob/master/test/so/easy.cc) 即利用 `so::easy()` 实现了一个 web server，可以编译运行如下：
 
 ```sh
 xmake -b easy
@@ -1999,9 +1999,17 @@ cli.call(req, res); // 获取 www.xxx.com 首页
 fastring s = res.body();
 ```
 
-`http::Client` 会在 `call()` 方法中自动建立连接，无需用户手动调用 `connect()`。需要注意，`http::Client` 必须在协程中使用。
+上述代码中，利用 `http::Req` 与 `http::Res` 类，用户可以精准的控制各种细节。如果想偷懒的话，也可以写成下面这样：
 
-`co/test` 提供了一个简单的 [demo](https://github.com/idealvin/co/blob/master/test/so/http_cli.cc)，读者可以按下述方式编译运行:
+```cpp
+http::Client cli("www.xxx.com", 80);
+fastring s = cli.get("/");
+fastring x = cli.post("/url", "body");
+```
+
+http::Client 继承于 tcp::Client，必须在协程中使用。 http::Client 会在 `call()` 方法中自动建立连接，无需用户手动调用 connect()。
+
+`co/test` 提供了一个简单的 [demo](https://github.com/idealvin/co/blob/master/test/so/http_cli.cc)，可以按下述方式编译运行:
 
 ```sh
 xmake -b http_cli
@@ -2343,6 +2351,10 @@ include: [co/hash.h](https://github.com/idealvin/co/blob/master/include/co/hash.
 
 `hash` 库提供了如下的几个函数：
 
+- murmur_hash
+
+  返回结果为 `size_t` 类型，`std::hash<fastring>` 的实现即使用了此 hash 函数。
+
 - hash64
 
 计算 64 位的 hash 值，内部使用 `murmur 2 hash` 算法。 
@@ -2591,7 +2603,7 @@ os::daemon();    // 后台运行，仅支持 Linux 平台
 
 - 编译及运行 test 代码
 
-  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
+  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
   xmake build flag             # 编译 flag.cc
@@ -2651,7 +2663,9 @@ make -j8
 make install
 ```
 
+<!--
 <div STYLE="page-break-after: always;"></div>
+-->
 
 
 ## 23. 结束语
@@ -2662,7 +2676,7 @@ make install
 
 - 赞助、商务合作请联系 `idealvin@qq.com`.
 
-- 小赏作者请扫码:
+- 支持作者请扫码:
 
 <font face="Arial" size=3>
 <img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">

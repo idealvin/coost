@@ -25,30 +25,30 @@ co is being sponsored by the following tool; please help to support us by taking
 - **[co](https://github.com/idealvin/co/tree/master/src/co)**
 
   `co` 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，有如下特性:
-  - 内置多线程调度，默认线程数为系统 CPU 核数.
-  - 同一线程内的协程共享一个栈(默认为 1MB)，内存占用极低，单机可轻松创建数百万协程.
-  - Linux 与 Mac 平台支持系统 api hook.
+  - 支持多线程调度，默认线程数为系统 CPU 核数.
+  - 协程共享线程栈(默认大小为 1MB)，内存占用极低，单机可轻松创建数百万协程.
+  - 支持系统 api hook (Linux & Mac).
   - 支持协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - 支持协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - 支持协程池 [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
 
-  创建协程非常容易，直接用 `go()` 方法即可:
+  - 用 `go()` 创建协程:
   ```cpp
   void fun() {
       std::cout << "hello world" << std::endl;
   }
-  
+
   go(fun);
   ```
 
 - **[so](https://github.com/idealvin/co/tree/master/src/so)**
 
-  `so` 是基于协程的 C++ 网络库，同时支持 ipv4 与 ipv6，包含如下组件:
-  - tcp 模块，实现 `tcp::Server`, `tcp::Client`.
-  - http 模块，实现 `http::Server`, `http::Client`, `so::easy()`.
-  - rpc 模块，基于 json 的 rpc 框架，单线程 qps 能达到 12w+.
+  `so` 是基于协程的 C++ 网络库，可轻松实现同时支持 `ipv4` 与 `ipv6` 的网络程序，包含如下几个模块:
+  - tcp 模块, 支持一般的 tcp 编程.
+  - http 模块, 支持基本的 http 编程.
+  - rpc 模块，基于 json 的 rpc 框架，单线程 qps 可达到 12w+.
 
-  几行代码即可实现一个静态 **web server**:
+  - 实现静态 **web server**:
   ```cpp
   #include "co/flag.h"
   #include "co/log.h"
@@ -66,7 +66,7 @@ co is being sponsored by the following tool; please help to support us by taking
   }
   ```
 
-  实现一个一般的 http server 也非常简单:
+  - 实现一般的 http server:
   ```cpp
   http::Server serv("0.0.0.0", 80);
 
@@ -90,7 +90,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
 
-  `log` 是一个超级快的本地日志系统，打印日志非常简单:
+  `log` 是一个超级快的本地日志系统，打印日志比 `printf` 更安全:
   ```cpp
   LOG << "hello " << 23;  // info
   ELOG << "hello again";  // error
@@ -105,16 +105,15 @@ co is being sponsored by the following tool; please help to support us by taking
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
   
-  上表是单线程连续打印 100w 条 info 日志(50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
+  上表是单线程连续打印 100 万条 info 日志(每条 50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
   为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
 - **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
 
-  `flag` 是一个命令行及配置文件解析库，支持自动生成配置文件，整数类型可以带单位 `k, m, g, t, p`。
+  `flag` 是一个方便、易用的命令行及配置文件解析库，支持自动生成配置文件。
 
   ```cpp
-  // xx.cc
   #include "co/flag.h"
 
   DEF_int32(i, 32, "comments");
@@ -131,7 +130,7 @@ co is being sponsored by the following tool; please help to support us by taking
   编译后运行:
   ```sh
   ./xx                          # 以默认参数启动
-  ./xx -i=4k -s="hello world"   # 4k 即 4096，单位不区分大小写
+  ./xx -i=4k -s="hello world"   # 整数类型可以带单位 k,m,g,t,p, 不分大小写
   ./xx -i 4k -s "hello world"   # 与上等价
   ./xx --mkconf                 # 自动生成配置文件 xx.conf
   ./xx -config=xx.conf          # 从配置文件启动
@@ -145,18 +144,23 @@ co is being sponsored by the following tool; please help to support us by taking
 ## 代码构成
 
 - [co/include](https://github.com/idealvin/co/tree/master/include)  
+
   `libco` 的头文件。
 
 - [co/src](https://github.com/idealvin/co/tree/master/src)  
+
   `libco` 的源代码。
 
 - [co/test](https://github.com/idealvin/co/tree/master/test)  
+
   一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
 
 - [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
+
   一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
 - [co/gen](https://github.com/idealvin/co/tree/master/gen)  
+
   代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
 
 
@@ -209,7 +213,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - 编译及运行 test 代码
 
-  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx_test.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
+  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
   xmake build flag             # 编译 flag.cc
@@ -287,7 +291,7 @@ make install
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin@qq.com`.
-- 小赏作者请扫码:
+- 支持作者请扫码:
 
 <font face="Arial" size=3>
 <img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">
