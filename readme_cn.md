@@ -16,6 +16,7 @@ co is being sponsored by the following tool; please help to support us by taking
 
 ## 参考文档
 
+- [pdf (中文)](https://pan.baidu.com/s/1Qzsap0xGSylt3huD5X0C-Q) 提取码: pin5
 - [md (中文)](docs/cn.md)
 - [md (English)](docs/en.md)
 
