@@ -12,7 +12,7 @@ enum Version {
 };
 
 enum Method {
-    kGet, kHead, kPost, kPut, kDelete,
+    kGet, kHead, kPost, kPut, kDelete, kOptions,
 };
 
 class Base {
@@ -35,6 +35,7 @@ class Base {
     void set_version_http11() { _version = kHTTP11; }
 
     const fastring& body() const { return _body; }
+    fastring& mutable_body() { return _body; }
     void set_body(fastring&& s) { _body = std::move(s); }
     void set_body(const fastring& s) { _body = s; }
     int body_len() const { return (int) _body.size(); }
@@ -82,13 +83,14 @@ class Base {
 class Req : public Base {
   public:
     Req() : _method(kGet) {}
+    explicit Req(Method method) : _method(method) {}
     ~Req() = default;
 
     int method() const { return _method; }
 
     const char* method_str() const {
         static const char* s[] = {
-            "GET", "HEAD", "POST", "PUT", "DELETE"
+            "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"
         };
         return s[_method];
     }
@@ -98,12 +100,14 @@ class Req : public Base {
     void set_method_post() { _method = kPost; }
     void set_method_put() { _method = kPut; }
     void set_method_delete() { _method = kDelete; }
+    void set_method_options() { _method = kOptions; }
 
     bool is_method_get() const { return _method == kGet; }
     bool is_method_head() const { return _method == kHead; }
     bool is_method_post() const { return _method == kPost; }
     bool is_method_put() const { return _method == kPut; }
     bool is_method_delete() const { return _method == kDelete; }
+    bool is_method_options() const { return _method == kOptions; }
 
     const fastring& url() const { return _url; }
     void set_url(fastring&& s) { _url = std::move(s); }
@@ -196,6 +200,89 @@ class Client : public tcp::Client {
     virtual ~Client();
 
     void call(const Req& req, Res& res);
+
+    fastring get(fastring&& url) {
+        return on_method(kGet, std::move(url));
+    }
+
+    fastring get(const fastring& url) {
+        return on_method(kGet, url);
+    }
+
+    fastring post(fastring&& url, fastring&& body) {
+        return on_method(kPost, std::move(url), std::move(body));
+    }
+
+    fastring post(const fastring& url, const fastring& body) {
+        return on_method(kPost, url, body);
+    }
+
+    fastring head(fastring&& url) {
+        return on_method(kHead, std::move(url));
+    }
+
+    fastring head(const fastring& url) {
+        return on_method(kHead, url);
+    }
+
+    fastring del(fastring&& url) {
+        return on_method(kDelete, std::move(url));
+    }
+
+    fastring del(const fastring& url) {
+        return on_method(kDelete, url);
+    }
+
+    fastring put(fastring&& url, fastring&& body) {
+        return on_method(kPut, std::move(url), std::move(body));
+    }
+
+    fastring put(const fastring& url, const fastring& body) {
+        return on_method(kPut, url, body);
+    }
+
+    fastring options() {
+        Req req(kOptions);
+        Res res;
+        req.set_url("*");
+        this->call(req, res);
+        return res.header("Allow");
+    }
+
+  private:
+    fastring on_method(Method method, fastring&& url) {
+        Req req(method);
+        Res res;
+        req.set_url(std::move(url));
+        this->call(req, res);
+        return std::move(res.mutable_body());
+    }
+
+    fastring on_method(Method method, const fastring& url) {
+        Req req(method);
+        Res res;
+        req.set_url(url);
+        this->call(req, res);
+        return std::move(res.mutable_body());
+    }
+
+    fastring on_method(Method method, fastring&& url, fastring&& body) {
+        Req req(method);
+        Res res;
+        req.set_url(std::move(url));
+        req.set_body(std::move(body));
+        this->call(req, res);
+        return std::move(res.mutable_body());
+    }
+
+    fastring on_method(Method method, const fastring& url, const fastring& body) {
+        Req req(method);
+        Res res;
+        req.set_url(url);
+        req.set_body(body);
+        this->call(req, res);
+        return std::move(res.mutable_body());
+    }
 };
 
 } // http
