@@ -195,7 +195,7 @@ atomic_compare_swap(&p, 0, 8);
 
 include: [co/random.h](https://github.com/idealvin/co/blob/master/include/co/random.h).
 
-`Random` 是一个速度极快的伪随机数生成器，可以连续无重复的生成 1 ~ 2G-2 之间的整数。[leveldb](https://github.com/google/leveldb/blob/master/util/random.h) 用到了这种算法，本库选用了与 leveldb 不同的常数 `16385`，计算速度更快。算法的数学原理可以参考[一种快速的随机数生成算法](https://github.com/idealvin/docs/tree/master/pdf)一文。
+`Random` 是一个速度极快的伪随机数生成器，可以连续无重复的生成 1 ~ 2G-2 之间的整数。[leveldb](https://github.com/google/leveldb/blob/master/util/random.h) 用到了这种算法，本库选用了与 leveldb 不同的常数 `16385`，计算速度更快。算法的数学原理可以参考[一种快速的随机数生成算法](https://idealvin.github.io/coding/2018/08/random/)一文。
 
 - 代码示例
 
