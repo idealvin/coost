@@ -13,6 +13,7 @@ class IoEvent {
         gSched->add_event(fd);
     }
 
+    // We needn't delete the event on windows.
     ~IoEvent() {
         if (_id != null_timer_id) gSched->del_timer(_id);
     }
@@ -24,7 +25,6 @@ class IoEvent {
         gSched->yield();
         if (!gSched->timeout()) return true;
 
-        ELOG_IF(!CancelIo((HANDLE)_fd)) << "cancel io for fd " << _fd << " failed..";
         _id = null_timer_id;
         WSASetLastError(ETIMEDOUT);
         return false;
