@@ -14,11 +14,10 @@ static void on_new_connection(void* p) {
 void Server::loop() {
     sock_t fd, connfd;
 
-    // use union here to support both ipv4 and ipv6
     union {
         struct sockaddr_in  v4;
         struct sockaddr_in6 v6;
-    } addr;
+    } addr; // use union here to support both ipv4 and ipv6
 
     int addrlen = sizeof(addr);
 
@@ -60,6 +59,7 @@ void Server::loop() {
 
         Connection* conn = new Connection;
         conn->fd = connfd;
+        conn->p = this;
         if (addrlen == sizeof(sockaddr_in)) {
             conn->ip = co::ip_str(&addr.v4);
             conn->port = ntoh16(addr.v4.sin_port);
@@ -67,7 +67,6 @@ void Server::loop() {
             conn->ip = co::ip_str(&addr.v6);
             conn->port = ntoh16(addr.v6.sin6_port);
         }
-        conn->p = this;
 
         go(on_new_connection, conn);
     }
@@ -91,14 +90,15 @@ bool Client::connect(int ms) {
 
     r = co::connect(_fd, info->ai_addr, (int) info->ai_addrlen, ms);
     if (r == -1) {
-        this->disconnect();
+        co::close(_fd);
+        _fd = (sock_t)-1;
+        ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
         freeaddrinfo(info);
         return false;
     }
 
     _sched_id = co::sched_id();
     co::set_tcp_nodelay(_fd);
-
     freeaddrinfo(info);
     return true;
 }
