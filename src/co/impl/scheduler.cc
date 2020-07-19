@@ -10,7 +10,7 @@ const timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
 
 Scheduler::Scheduler(uint32 id, uint32 stack_size)
-    : _id(id), _stack_size(stack_size), _stack(0), _running(0), 
+    : _id(id), _stack_size(stack_size), _stack(0), _stack_top(0), _running(0), 
       _wait_ms(-1), _co_pool(), _stop(false), _timeout(false) {
     _main_co = _co_pool.pop();
 }
@@ -46,25 +46,30 @@ static void main_func(tb_context_from_t from) {
  *       <-------- co->cb->run():  run on _stack
  */
 void Scheduler::resume(Coroutine* co) {
-    SOLOG << ">>> resume co: " << co->id;
     tb_context_from_t from;
     _running = co;
-    if (_stack == 0) _stack = (char*) malloc(_stack_size);
+    if (_stack == 0) {
+        _stack = (char*) malloc(_stack_size);
+        _stack_top = _stack + _stack_size;
+    }
 
     if (co->ctx == 0) {
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
+        SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
-        // restore stack for the coroutine
-        assert((_stack + _stack_size) == (char*)co->ctx + co->stack.size());
-        memcpy(co->ctx, co->stack.data(), co->stack.size());
+        SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
+        CHECK(_stack_top == (char*)co->ctx + co->stack.size());
+        memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
         from = tb_context_jump(co->ctx, _main_co);
     }
 
     if (from.priv) {
         assert(_running == from.priv);
         _running->ctx = from.ctx;   // update context for the coroutine
-        this->save_stack(_running); // save stack of the coroutine        
+        SOLOG << "yield co: " << _running->id << ", ctx: " << from.ctx 
+              << ", sd: " << (size_t)(_stack_top - (char*)from.ctx);
+        this->save_stack(_running); // save stack data for the coroutine
     }
 }
 
@@ -102,6 +107,10 @@ void Scheduler::loop() {
             this->resume((Coroutine*)_epoll.ud(ev));
           #endif
         }
+
+      #ifdef _WIN32
+        _epoll.clear_timeout();
+      #endif
 
         SOLOG << "> check tasks ready to resume..";
         do {

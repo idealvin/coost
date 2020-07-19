@@ -4,6 +4,7 @@
 #include "co/co.h"
 #include "co/atomic.h"
 #include "co/log.h"
+#include <vector>
 #include <unordered_map>
 
 #ifndef _WIN32
@@ -73,12 +74,6 @@ class Epoll {
         return false;
     }
 
-    bool add_event(sock_t fd, int ev) {
-        int& x = _ev_map[fd];
-        if (x) return true;
-        return x = EV_read | EV_write; // 3
-    }
-
     void del_event(sock_t fd) { _ev_map.erase(fd); }
 
     void del_event(sock_t fd, int ev) {
@@ -86,13 +81,20 @@ class Epoll {
         if (it != _ev_map.end() && it->second & ev) it->second &= ~ev;
     }
 
-    void close();
-
-    // for unitest/co
-    bool assert_ev(sock_t fd, int ev) {
-        auto it = _ev_map.find(fd);
-        return ev == (it != _ev_map.end() ? it->second : 0);
+    void on_timeout(sock_t fd, PerIoInfo* p) {
+        CancelIo((HANDLE)fd);
+        p->co = 0;
+        _timeout.push_back(p);
     }
+
+    void clear_timeout() {
+        if (!_timeout.empty()) {
+            for (size_t i = 0; i < _timeout.size(); ++i) delete _timeout[i];
+            _timeout.clear();
+        }
+    }
+
+    void close();
 
     int wait(int ms) {
         ULONG n = 0;
@@ -130,6 +132,7 @@ class Epoll {
     HANDLE _iocp;
     epoll_event _ev[1024];
     std::unordered_map<sock_t, int> _ev_map;
+    std::vector<PerIoInfo*> _timeout;
     int _signaled;
 };
 

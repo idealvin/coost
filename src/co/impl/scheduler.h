@@ -82,7 +82,6 @@ class Copool {
 
     Coroutine* pop() {
         if (!_ids.empty()) {
-            // We must reset the Coroutine here.
             Coroutine* co = _pool[_ids.back()];
             assert(co->state == S_init);
             co->stack.clear();
@@ -275,10 +274,11 @@ class Scheduler {
         _timer_mgr.del_timer(id);
     }
 
-    // =========================================================================
-    // add or delete io event
-    // =========================================================================
   #if defined(_WIN32)
+    void on_timeout(sock_t fd, PerIoInfo* p) {
+        _epoll.on_timeout(fd, p);
+    }
+
     bool add_event(sock_t fd) {
         return _epoll.add_event(fd);
     }
@@ -303,7 +303,7 @@ class Scheduler {
   private:
     void save_stack(Coroutine* co) {
         co->stack.clear();
-        co->stack.append(co->ctx, _stack + _stack_size - (char*)co->ctx);
+        co->stack.append(co->ctx, _stack_top - (char*)co->ctx);
     }
 
     Coroutine* new_coroutine(Closure* cb) {
@@ -321,6 +321,7 @@ class Scheduler {
     uint32 _id;          // scheduler id
     uint32 _stack_size;  // size of stack
     char* _stack;        // stack shared by coroutines in this scheduler
+    char* _stack_top;    // stack top, equal to _stack + _stack_size
     Coroutine* _main_co; // save the main context
     Coroutine* _running; // the current running coroutine
     Epoll _epoll;
@@ -341,7 +342,6 @@ class SchedManager {
     SchedManager();
     ~SchedManager();
 
-    // return next scheduler
     Scheduler* next() {
         if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
         uint32 n = atomic_inc(&_n);
