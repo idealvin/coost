@@ -116,7 +116,7 @@ idealvin@qq.com
         - [17.3.3 rpc 代码生成器](#1733-rpc-代码生成器)
         - [17.3.4 实现 rpc server](#1734-实现-rpc-server)
         - [17.3.5 rpc client](#1735-rpc-client)
-        - [17.3.6  配置项](#1736--配置项)
+        - [17.3.6  配置项](#1736-配置项)
 - [18. hash 库(hash)](#18-hash-库hash)
 - [19. path 库(path)](#19-path-库path)
 - [20. 文件系统操作(fs)](#20-文件系统操作fs)
@@ -2431,7 +2431,7 @@ for (int i = 0; i < 8; ++i) {
 }
 ```
 
-#### 17.3.6  配置项
+#### 17.3.6 配置项
 
 - rpc_max_msg_size
 
