@@ -144,7 +144,17 @@ void Server::on_connection(Connection* conn) {
             s.resize(s.size() - res.body_len());
             HTTPLOG << "http send res: " << s;
 
-            if (req.header("CONNECTION") == "close") {
+            // Base on RFC2616 at
+            // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
+            fastring connection = req.header("CONNECTION");
+            bool should_close = true;
+            if (req.is_version_http10()) {
+                should_close = true;
+            } else if (req.is_version_http11()) {
+                should_close = (connection == "close");
+            }
+
+            if (should_close) {
                 co::close(fd);
                 goto cleanup;
             }
