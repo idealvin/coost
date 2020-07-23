@@ -17,6 +17,7 @@ int main(int argc, char** argv) {
     COUT << "now: " << now::str();
 
     TaskSched s;
+    s.run_in(f, 0);
     s.run_in(f, 1);
     s.run_every(g, 3);
     s.run_daily(f, 23, 14, 0);
