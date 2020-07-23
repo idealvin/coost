@@ -14,6 +14,7 @@
 
 #ifndef _WIN32
 #include <sys/select.h>
+#include <sys/time.h>
 #endif
 
 DEF_string(log_dir, "logs", "#0 log dir, will be created if not exists");
@@ -55,19 +56,22 @@ class LogTime {
     }
 
     void reset() {
-        _start = time(0);
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        _start = tv.tv_sec * 1000 + tv.tv_usec;
       #ifdef _WIN32
-        _localtime64_s(&_tm, &_start);
+        _localtime64_s(&_tm, &tv.tv_sec);
       #else
-        localtime_r(&_start, &_tm);
+        localtime_r(&tv.tv_sec, &_tm);
       #endif
         strftime(_buf, 16, "%m%d %H:%M:%S", &_tm);
+        snprintf(_buf + 13, 8, ".%06d", (int) tv.tv_usec);
     }
 
   private:
     time_t _start;
     struct tm _tm;
-    char _buf[16];
+    char _buf[21];
     uint16 _cache[60];
 };
 
@@ -100,8 +104,11 @@ class LevelLogger {
     void push(fastream* log, int level) {
         if (level < _config->min_log_level) return;
 
+        const char* updated = _log_time.update();
+
         MutexGuard g(_log_mutex);
-        memcpy((char*)(log->data() + 1), _time_str, 13);
+        if (updated) memcpy(_time_str, updated, 20);
+        memcpy((char*)(log->data() + 1), _time_str, 20);
 
         if (unlikely(_fs->size() >= _config->max_log_buffer_size)) {
             const char* p = strchr(_fs->data() + (_fs->size() >> 1) + 7, '\n');
@@ -150,7 +157,7 @@ class LevelLogger {
     std::unique_ptr<Config> _config;
 
     LogTime _log_time;
-    char _time_str[16];
+    char _time_str[21];
     int _stop;
     std::unique_ptr<StackTrace> _stack_trace;
 };
@@ -161,7 +168,7 @@ LevelLogger::LevelLogger()
     _stack_trace.reset(new_stack_trace());
     _stack_trace->set_callback(&xx::on_failure);
     install_signal_handler();
-    memcpy(_time_str, _log_time.get(), 16);
+    memcpy(_time_str, _log_time.get(), 20);
 }
 
 void LevelLogger::init() {
@@ -219,10 +226,8 @@ void LevelLogger::thread_fun() {
         bool signaled = _log_event.wait(128);
         if (_stop) break;
 
-        const char* updated = _log_time.update();
         {
             MutexGuard g(_log_mutex);
-            if (updated) memcpy(_time_str, updated, 13);
             if (!_fs->empty()) _fs.swap(fs);
             if (signaled) _log_event.reset();
         }
@@ -255,7 +260,7 @@ void LevelLogger::write(fastream* fs) {
 void LevelLogger::push_fatal_log(fastream* log) {
     log::close();
 
-    fastring s(log->size() + 14);
+    fastring s(log->size() + 20);
     s.append(_log_time.get()).append(log->data(), log->size());
     fwrite(s.data(), 1, s.size(), stderr);
 
@@ -337,7 +342,7 @@ void push_level_log(fastream* fs, int level) {
 }
 
 LogTime::LogTime() {
-    memset(_buf, 0, 16);
+    memset(_buf, 0, 21);
     for (int i = 0; i < 60; ++i) {
         char* p = (char*) &_cache[i];
         p[0] = i / 10 + '0';
@@ -347,10 +352,14 @@ LogTime::LogTime() {
 }
 
 const char* LogTime::update() {
-    time_t now_sec = time(0);
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    long ms = tv.tv_usec / 1000;
+    long us = tv.tv_usec % 1000;
+    time_t now_sec = tv.tv_sec * 1000000 + tv.tv_usec;
     if (now_sec == _start) return 0;
 
-    int dt = (int) (now_sec - _start);
+    int dt = (int) (now_sec - _start) / 1000000;
     if (unlikely(dt < 0 || dt > 60)) goto reset;
 
     _tm.tm_sec += dt;
@@ -371,6 +380,14 @@ const char* LogTime::update() {
             _buf[11] = p[0];
             _buf[12] = p[1];
         }
+
+        // Set millisecond & microsecond
+        _buf[14] = ((char*)&_cache[ms / 100])[1];
+        _buf[15] = ((char*)&_cache[ms % 100 / 10])[1];
+        _buf[16] = ((char*)&_cache[ms % 10])[1];
+        _buf[17] = ((char*)&_cache[us / 100])[1];
+        _buf[18] = ((char*)&_cache[us % 100 / 10])[1];
+        _buf[19] = ((char*)&_cache[us % 10])[1];
 
         return _buf;
     } while (0);

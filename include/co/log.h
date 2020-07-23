@@ -42,7 +42,7 @@ class LevelLogSaver {
         xxLog->clear();
 
         (*xxLog) << "DIWEF"[level];
-        xxLog->resize(14); // make room for time: 1108 18:16:08
+        xxLog->resize(21); // make room for time: 1108 18:16:08.123456
         (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
