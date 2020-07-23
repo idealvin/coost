@@ -93,6 +93,7 @@ void Server::on_connection(Connection* conn) {
             r = parse_req(*buf, pos, &req, &body_len);
             if (r != 0) {
                 fastring s;
+                // Use HTTP 1.1 when parse req failed.
                 s << "HTTP/1.1" << ' ' << r << ' ' << Res::status_str(r) << "\r\n";
                 s << "Content-Length: 0" << "\r\n";
                 s << "Connection: close" << "\r\n";
@@ -130,6 +131,8 @@ void Server::on_connection(Connection* conn) {
                 }
             } while (0);
         } while (0);
+
+        res.set_version(Version(req.version()));
 
         do {
             HTTPLOG << "http recv req: " << req.dbg();

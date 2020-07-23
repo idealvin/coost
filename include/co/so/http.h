@@ -21,6 +21,7 @@ class Base {
     ~Base() = default;
 
     int version() const { return _version; }
+    void set_version(Version version) { _version = version; }
 
     const char* version_str() const {
         static const char* s[] = {
