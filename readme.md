@@ -18,7 +18,6 @@ co is being sponsored by the following tool; please help to support us by taking
 
 - [md (English)](docs/en.md)
 - [md (中文)](docs/cn.md)
-- [pdf (中文)](https://github.com/idealvin/co/releases/download/v1.2/co_v1.2.pdf)
 
 
 ## Highlights
