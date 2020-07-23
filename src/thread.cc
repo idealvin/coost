@@ -118,7 +118,7 @@ class TaskSchedImpl {
     };
 
     TaskSchedImpl()
-        : _stop(0), _mtx(), _ev(), _t(NULL) {
+        : _stop(0), _mtx(), _ev(), _t(&TaskSchedImpl::loop, this) {
     }
 
     ~TaskSchedImpl() {
@@ -128,13 +128,12 @@ class TaskSchedImpl {
     void run_in(F&& f, int sec) {
         MutexGuard g(_mtx);
         _tmp.push_back(new Task(std::move(f), 0, sec));
-        if (_t == NULL) this->loop_in_thread();
+        if (sec <= 0) _ev.signal();
     }
 
     void run_every(F&& f, int sec) {
         MutexGuard g(_mtx);
         _tmp.push_back(new Task(std::move(f), sec, sec));
-        if (_t == NULL) this->loop_in_thread();
     }
 
     void run_daily(F&& f, int hour, int min, int sec);
@@ -143,11 +142,6 @@ class TaskSchedImpl {
 
   private:
     void loop();
-
-    void loop_in_thread() {
-        _t = new Thread(&TaskSchedImpl::loop, this);
-        if (_stop) _stop = false;
-    }
 
     void clear(std::vector<Task*>& v) {
         for (size_t i = 0; i < v.size(); ++i) delete v[i];
@@ -158,7 +152,7 @@ class TaskSchedImpl {
     bool _stop;
     Mutex _mtx;
     SyncEvent _ev;
-    Thread* _t;
+    Thread _t;
 
     std::vector<Task*> _tasks;
     std::vector<Task*> _tmp;
@@ -177,26 +171,28 @@ void TaskSchedImpl::run_daily(F&& f, int hour, int min, int sec) {
 
     MutexGuard g(_mtx);
     _tmp.push_back(new Task(std::move(f), 86400, diff));
-    if (_t == NULL) this->loop_in_thread();
 }
 
 void TaskSchedImpl::loop() {
     int64 ms = 0;
     int sec = 0;
     Timer t;
+    std::vector<Task*> tmp;
 
     while (!_stop) {
         t.restart();
         {
             MutexGuard g(_mtx);
-            if (!_tmp.empty()) {
-                _tasks.insert(_tasks.end(), _tmp.begin(), _tmp.end());
-                _tmp.clear();
-            }
+            if (!_tmp.empty()) _tmp.swap(tmp);
+        }
+
+        if (!tmp.empty()) {
+            _tasks.insert(_tasks.end(), tmp.begin(), tmp.end());
+            tmp.clear();
         }
 
         if (ms >= 1000) {
-            sec += (int) (ms / 1000);
+            sec = (int) (ms / 1000);
             ms -= sec * 1000;
         }
 
@@ -217,17 +213,16 @@ void TaskSchedImpl::loop() {
             }
         }
 
-        ms += t.ms();
         _ev.wait(1000);
         if (_stop) return;
-        sec = 1;
+        ms += t.ms();
     }
 }
 
 void TaskSchedImpl::stop() {
     if (atomic_swap(&_stop, 1) == 0) {
         _ev.signal();
-        if (_t) delete _t;
+        _t.join();
         MutexGuard g(_mtx);
         this->clear(_tasks);
         this->clear(_tmp);
