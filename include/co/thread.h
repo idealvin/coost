@@ -18,6 +18,13 @@ class TaskSched {
         t._p = 0;
     }
 
+    // run f() immediately
+    void run(F&& f);
+
+    void run(const F& f) {
+        this->run(F(f));
+    }
+
     // run f() once @sec seconds later
     void run_in(F&& f, int sec);
 

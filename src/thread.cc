@@ -125,6 +125,14 @@ class TaskSchedImpl {
         this->stop();
     }
 
+    void run(F&& f) {
+        {
+            MutexGuard g(_mtx);
+            _tmp.push_back(new Task(std::move(f), 0, 0));
+        }
+        _ev.signal();
+    }
+
     void run_in(F&& f, int sec) {
         MutexGuard g(_mtx);
         _tmp.push_back(new Task(std::move(f), 0, sec));
@@ -235,6 +243,10 @@ TaskSched::~TaskSched() {
         delete (TaskSchedImpl*) _p;
         _p = 0;
     }
+}
+
+void TaskSched::run(F&& f) {
+    ((TaskSchedImpl*)_p)->run(std::move(f));
 }
 
 void TaskSched::run_in(F&& f, int sec) {
