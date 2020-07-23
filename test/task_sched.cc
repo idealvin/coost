@@ -19,12 +19,11 @@ int main(int argc, char** argv) {
     TaskSched s;
     s.run_in(f, 0);
     s.run_in(f, 1);
+    s.run_in(f, 2);
+    s.run_in(f, 0);
     s.run_every(g, 3);
-    s.run_daily(f, 23, 14, 0);
+    s.run_daily(f, 5, 18, 0);
 
-    while (1) {
-        sleep::sec(1024);
-    }
-
+    while (1) sleep::sec(1024);
     return 0;
 }
