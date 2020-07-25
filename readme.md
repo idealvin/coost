@@ -287,4 +287,4 @@ make install
 
 ## Donate
 
-Goto the [Donate](https://idealvin.github.io/coding/2020/07/donate/) page.
+Goto the [Donate](https://idealvin.github.io/donate/) page.
