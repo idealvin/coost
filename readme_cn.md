@@ -290,9 +290,5 @@ make install
 ## 友情合作
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
-- 赞助、商务合作请联系 `idealvin@qq.com`.
-- 支持作者请扫码:
-
-<font face="Arial" size=3>
-<img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">
-</font>
+- 赞助、商务合作请联系 `idealvin at qq.com`.
+- [Donate](https://idealvin.github.io/coding/2020/07/donate/)
