@@ -2811,6 +2811,4 @@ make install
 
 ## 23. Donate
 
-<font face="Arial" size=3>
-<img src="https://idealvin.github.io/images/wxzfb.png" alt="" align="center" width="668">
-</font>
+Goto the [Donate](https://idealvin.github.io/donate/) page.
