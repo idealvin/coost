@@ -8,19 +8,20 @@ SyncEvent ev;
 
 void fun() {
     http::Client cli(FLG_ip.c_str(), FLG_port);
-    
+ 
+    for (int i = 0; i < FLG_n; ++i) {
+        fastring s = cli.get("/");
+        COUT << "content length: " << s.size();
+    }
+   
     for (int i = 0; i < FLG_n; ++i) {
         http::Req req;
         http::Res res;
+        req.set_version_http10();
         req.set_method_get();
         req.set_url("/");
         cli.call(req, res);
         COUT << "content length: " << res.body_len();
-    }
-
-    for (int i = 0; i < FLG_n; ++i) {
-        fastring s = cli.get("/");
-        COUT << "content length: " << s.size();
     }
 
     ev.signal();
