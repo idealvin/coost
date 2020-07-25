@@ -291,4 +291,4 @@ make install
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin at qq.com`.
-- [Donate](https://idealvin.github.io/coding/2020/07/donate/)
+- [Donate](https://idealvin.github.io/donate/)
