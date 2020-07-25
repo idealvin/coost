@@ -133,6 +133,17 @@ void Server::on_connection(Connection* conn) {
 
         do {
             HTTPLOG << "http recv req: " << req.dbg();
+            bool need_close = false;
+            const fastring& conn = req.header("CONNECTION");
+            if (!conn.empty()) res.add_header("Connection", conn);
+
+            if (req.is_version_http10()) {
+                res.set_version_http10();
+                if (conn.empty() || conn.lower() != "keep-alive") need_close = true;
+            } else {
+                if (!conn.empty() && conn == "close") need_close = true;
+            }
+
             this->process(req, res);
             fastring s = res.str();
             r = co::send(fd, s.data(), (int) s.size(), FLG_http_send_timeout);
@@ -141,7 +152,7 @@ void Server::on_connection(Connection* conn) {
             s.resize(s.size() - res.body_len());
             HTTPLOG << "http send res: " << s;
 
-            if (req.header("CONNECTION") == "close") {
+            if (need_close) {
                 co::close(fd);
                 goto cleanup;
             }
@@ -158,7 +169,7 @@ void Server::on_connection(Connection* conn) {
     goto cleanup;
   idle_err:
     ELOG << "http close idle connection: " << *conn;
-    co::close(fd);
+    co::reset_tcp_socket(fd);
     goto cleanup;
   header_too_long_err:
     ELOG << "http recv error: header too long";
@@ -170,7 +181,7 @@ void Server::on_connection(Connection* conn) {
     ELOG << "http send error: " << co::strerror();
     goto err_end;
   err_end:
-    co::close(fd, 1000);
+    co::reset_tcp_socket(fd, 1000);
   cleanup:
     atomic_dec(&_conn_num);
     if (buf) { 
