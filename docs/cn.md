@@ -2796,5 +2796,5 @@ make install
 - 支持作者请扫码:
 
 <font face="Arial" size=3>
-<img src="https://github.com/idealvin/docs/raw/master/img/wxzfb.png" alt="" align="center" width="668">
+<img src="https://idealvin.github.io/images/wxzfb.png" alt="" align="center" width="668">
 </font>
