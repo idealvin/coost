@@ -16,8 +16,8 @@ co is being sponsored by the following tool; please help to support us by taking
 
 ## 参考文档
 
-- [md (中文)](docs/cn.md)
-- [md (English)](docs/en.md)
+- [中文](https://idealvin.github.io/coding/2020/07/co/)
+- [English](https://idealvin.github.io/coding/2020/07/co_en/)
 
 
 ## 亮点功能
