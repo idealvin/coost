@@ -1,12 +1,3 @@
-## Ads
-
-co is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial.
-
-<a href="https://tracking.gitads.io/?repo=co">
- <img src="https://images.gitads.io/co" alt="GitAds"/> 
-</a>
-
-
 ## Basic [(English)](readme.md)
 
 `CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库。
