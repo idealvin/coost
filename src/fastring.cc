@@ -54,10 +54,12 @@ fastring& fastring::append(const fastring& s) {
     if (&s != this) {
         if (s.empty()) return *this;
         return (fastring&) this->_Append(s.data(), s.size());
-    } else if (_p) { /* append itself */
-        this->reserve(_size << 1);
-        memcpy(_p + _size, _p, _size);
-        _size <<= 1;
+    } else { /* append itself */
+        if (_p) {
+            this->reserve(_size << 1);
+            memcpy(_p + _size, _p, _size);
+            _size <<= 1;
+        }
         return *this;
     }
 }
