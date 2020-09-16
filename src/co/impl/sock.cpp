@@ -66,7 +66,7 @@ static int find_address_family(sock_t fd) {
     int& af = map[fd];
     if (af != 0) return af;
     {
-        WSAPROTOCOL_INFO info;
+        WSAPROTOCOL_INFOW info;
         int len = sizeof(info);
         int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
         if (r != 0) return -1;
