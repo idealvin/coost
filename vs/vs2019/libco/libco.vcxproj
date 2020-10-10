@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{96C28471-555C-4095-B2D4-6890517C12EE}</ProjectGuid>
     <RootNamespace>libco</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Label="Configuration">
@@ -151,24 +151,6 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\json.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\json.cc.obj</ObjectFileName>
     </ClCompile>
-    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Include="..\..\..\src\co\context\context_x64.asm">
-      <ExcludedFromBuild>false</ExcludedFromBuild>
-      <FileType>Document</FileType>
-      <Outputs>..\..\..\build\.objs\libco\windows\x64\debug\src\co\context\context_x64.asm.obj</Outputs>
-      <Command>ml64.exe -c -W3 -I..\..\..\include -nologo -Fo..\..\..\build\.objs\libco\windows\x64\debug\src\co\context\context_x64.asm.obj ..\..\..\src\co\context\context_x64.asm</Command>
-    </CustomBuild>
-    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'" Include="..\..\..\src\co\context\context_x64.asm">
-      <ExcludedFromBuild>false</ExcludedFromBuild>
-      <FileType>Document</FileType>
-      <Outputs>..\..\..\build\.objs\libco\windows\x64\release\src\co\context\context_x64.asm.obj</Outputs>
-      <Command>ml64.exe -c -W3 -I..\..\..\include -nologo -Fo..\..\..\build\.objs\libco\windows\x64\release\src\co\context\context_x64.asm.obj ..\..\..\src\co\context\context_x64.asm</Command>
-    </CustomBuild>
-    <ClCompile Include="..\..\..\src\co\impl\sock.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\sock.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\sock.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\sock.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\sock.cc.obj</ObjectFileName>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\co\impl\scheduler.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\scheduler.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\scheduler.cc.obj</ObjectFileName>
@@ -180,6 +162,48 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\path.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\path.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\path.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\hash\base64.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\base64.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\hash\base64.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\hash\base64.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\hash\base64.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\so\http.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\so\http.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\so\http.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\so\http.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\so\http.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\stack_trace\stack_trace_win.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\hash\murmur_hash.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\murmur_hash.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\hash\murmur_hash.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\hash\murmur_hash.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\hash\murmur_hash.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\flag.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\flag.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\flag.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\flag.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\flag.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\co\impl\co.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\co.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\co.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\co.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\co.cc.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\co\impl\sock.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\sock.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\sock.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\sock.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\sock.cc.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\src\so\tcp.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\so\tcp.cc.obj</ObjectFileName>
@@ -205,53 +229,29 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\log.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\log.cc.obj</ObjectFileName>
     </ClCompile>
-    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Include="..\..\..\src\co\context\context_x86.asm">
+    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Include="..\..\..\src\co\context\context_x64.asm">
       <ExcludedFromBuild>false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <Outputs>..\..\..\build\.objs\libco\windows\x86\debug\src\co\context\context_x86.asm.obj</Outputs>
-      <Command>ml.exe -c -W3 -I..\..\..\include -nologo -Gd -Fo..\..\..\build\.objs\libco\windows\x86\debug\src\co\context\context_x86.asm.obj ..\..\..\src\co\context\context_x86.asm</Command>
+      <Outputs>..\..\..\build\.objs\libco\windows\x64\debug\src\co\context\context_x64.asm.obj</Outputs>
+      <Command>ml64.exe -c -W3 -I..\..\..\include -nologo -Fo..\..\..\build\.objs\libco\windows\x64\debug\src\co\context\context_x64.asm.obj ..\..\..\src\co\context\context_x64.asm</Command>
     </CustomBuild>
-    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'" Include="..\..\..\src\co\context\context_x86.asm">
+    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'" Include="..\..\..\src\co\context\context_x64.asm">
       <ExcludedFromBuild>false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <Outputs>..\..\..\build\.objs\libco\windows\x86\release\src\co\context\context_x86.asm.obj</Outputs>
-      <Command>ml.exe -c -W3 -I..\..\..\include -nologo -Gd -Fo..\..\..\build\.objs\libco\windows\x86\release\src\co\context\context_x86.asm.obj ..\..\..\src\co\context\context_x86.asm</Command>
+      <Outputs>..\..\..\build\.objs\libco\windows\x64\release\src\co\context\context_x64.asm.obj</Outputs>
+      <Command>ml64.exe -c -W3 -I..\..\..\include -nologo -Fo..\..\..\build\.objs\libco\windows\x64\release\src\co\context\context_x64.asm.obj ..\..\..\src\co\context\context_x64.asm</Command>
     </CustomBuild>
-    <ClCompile Include="..\..\..\src\co\impl\epoll.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\epoll.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\epoll.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\epoll.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\epoll.cc.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\stack_trace\StackWalker.cpp">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\hash\md5.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\hash\md5.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\md5.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\hash\md5.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\hash\md5.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\hash\base64.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\base64.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\hash\base64.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\hash\base64.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\hash\base64.cc.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\win\fs.cpp">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\win\fs.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\win\fs.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\win\fs.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\win\fs.cpp.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\win\time.cpp">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\win\time.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\win\time.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\win\time.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\win\time.cpp.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\src\co\impl\epoll.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\epoll.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\epoll.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\epoll.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\epoll.cc.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\src\str.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\str.cc.obj</ObjectFileName>
@@ -265,11 +265,11 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\fast.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\fast.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\hash\murmur_hash.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\murmur_hash.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\hash\murmur_hash.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\hash\murmur_hash.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\hash\murmur_hash.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\src\stack_trace\StackWalker.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\stack_trace\StackWalker.cpp.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\src\hash\crc16.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\hash\crc16.cc.obj</ObjectFileName>
@@ -283,17 +283,17 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\thread.cc.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\thread.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\flag.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\flag.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\flag.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\flag.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\flag.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\src\co\impl\hook.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\hook.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\hook.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\hook.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\hook.cc.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\rpc.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\rpc.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\rpc.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\rpc.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\rpc.cc.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\src\so\rpc.cc">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\so\rpc.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\so\rpc.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\so\rpc.cc.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\so\rpc.cc.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\src\unitest.cc">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\unitest.cc.obj</ObjectFileName>
@@ -331,23 +331,29 @@
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\sock.cpp.obj</ObjectFileName>
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\sock.cpp.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\stack_trace\stack_trace_win.cpp">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\stack_trace\stack_trace_win.cpp.obj</ObjectFileName>
+    <ClCompile Include="..\..\..\src\win\fs.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\win\fs.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\win\fs.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\win\fs.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\win\fs.cpp.obj</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\co\impl\co.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\co.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\co.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\co.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\co.cc.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\co\impl\hook.cc">
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\co\impl\hook.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\co\impl\hook.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\co\impl\hook.cc.obj</ObjectFileName>
-      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\co\impl\hook.cc.obj</ObjectFileName>
+    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Include="..\..\..\src\co\context\context_x86.asm">
+      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Outputs>..\..\..\build\.objs\libco\windows\x86\debug\src\co\context\context_x86.asm.obj</Outputs>
+      <Command>ml.exe -c -W3 -I..\..\..\include -nologo -Gd -Fo..\..\..\build\.objs\libco\windows\x86\debug\src\co\context\context_x86.asm.obj ..\..\..\src\co\context\context_x86.asm</Command>
+    </CustomBuild>
+    <CustomBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'" Include="..\..\..\src\co\context\context_x86.asm">
+      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Outputs>..\..\..\build\.objs\libco\windows\x86\release\src\co\context\context_x86.asm.obj</Outputs>
+      <Command>ml.exe -c -W3 -I..\..\..\include -nologo -Gd -Fo..\..\..\build\.objs\libco\windows\x86\release\src\co\context\context_x86.asm.obj ..\..\..\src\co\context\context_x86.asm</Command>
+    </CustomBuild>
+    <ClCompile Include="..\..\..\src\win\time.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|x64'">..\..\..\build\.objs\libco\windows\x64\release\src\win\time.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='release|Win32'">..\..\..\build\.objs\libco\windows\x86\release\src\win\time.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">..\..\..\build\.objs\libco\windows\x86\debug\src\win\time.cpp.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='debug|x64'">..\..\..\build\.objs\libco\windows\x64\debug\src\win\time.cpp.obj</ObjectFileName>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
