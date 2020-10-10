@@ -6,7 +6,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\test\so\udp_test.cc">
+    <ClCompile Include="..\..\..\test\so\udp.cc">
       <Filter>so</Filter>
     </ClCompile>
   </ItemGroup>
