@@ -7,8 +7,8 @@
 
 ## Documents
 
-- [English](https://idealvin.github.io/coding/2020/07/co_en/)
-- [中文](https://idealvin.github.io/coding/2020/07/co/)
+- [English](https://idealvin.gitee.io/coding/2020/07/co_en/)
+- [中文](https://idealvin.gitee.io/coding/2020/07/co/)
 
 
 ## Highlights
