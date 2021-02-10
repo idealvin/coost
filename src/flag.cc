@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <map>
 
+DEF_string(help, "", ".help info");
 DEF_string(config, "", ".path of config file");
 DEF_bool(mkconf, false, ".generate config file");
 DEF_bool(daemon, false, "#0 run program as a daemon");
@@ -188,6 +189,11 @@ void show_flags_info() {
 }
 
 void show_help_info(const fastring& exe) {
+    if (!FLG_help.empty()) {
+        COUT << FLG_help;
+        return;
+    }
+
     fastring s(exe);
   #ifdef _WIN32
     if (s.size() > 1 && s[1] == ':') {
@@ -198,7 +204,7 @@ void show_help_info(const fastring& exe) {
   #endif
     COUT << "usage:\n"
          << "    " << s << " --                   print flags info\n"
-         << "    " << s << " --help               print this help info\n"
+         << "    " << s << " --help               print help info\n"
          << "    " << s << " --mkconf             generate config file\n"
          << "    " << s << " --daemon             run as a daemon (Linux)\n"
          << "    " << s << " xx.conf              run with config file\n"

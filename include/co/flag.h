@@ -79,4 +79,5 @@ struct FlagSaver {
 #define DEF_string(name, value, help)  _DEFINE_FLAG(string, name, value, help)
 #define DEF_double(name, value, help)  _DEFINE_FLAG(double, name, value, help)
 
+DEC_string(help);
 DEC_string(config);
