@@ -164,20 +164,32 @@ class fastring : public fast::stream {
         return _p[r] ? r : npos;
     }
 
+    size_t find_first_of(const char* s, size_t pos) const {
+        if (this->size() <= pos) return npos;
+        size_t r = strcspn(this->c_str() + pos, s) + pos;
+        return _p[r] ? r : npos;
+    }
+
     size_t find_first_not_of(const char* s) const {
         if (this->empty()) return npos;
         size_t r = strspn(this->c_str(), s);
         return _p[r] ? r : npos;
     }
 
-    size_t find_first_not_of(char c) const {
-        char s[2] = { c, '\0' };
-        return this->find_first_not_of((const char*)s);
+    size_t find_first_not_of(const char* s, size_t pos) const {
+        if (this->size() <= pos) return npos;
+        size_t r = strspn(this->c_str() + pos, s) + pos;
+        return _p[r] ? r : npos;
     }
 
-    size_t find_last_of(const char* s) const;
-    size_t find_last_not_of(const char* s) const;
-    size_t find_last_not_of(char c) const;
+    size_t find_first_not_of(char c, size_t pos=0) const {
+        char s[2] = { c, '\0' };
+        return this->find_first_not_of((const char*)s, pos);
+    }
+
+    size_t find_last_of(const char* s, size_t pos=npos) const;
+    size_t find_last_not_of(const char* s, size_t pos=npos) const;
+    size_t find_last_not_of(char c, size_t pos=npos) const;
 
     // @maxreplace: 0 for unlimited
     void replace(const char* sub, const char* to, size_t maxreplace=0);

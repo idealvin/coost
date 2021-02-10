@@ -140,18 +140,29 @@ DEF_test(fastring) {
 
         EXPECT_EQ(s.find_first_of("xy"), 0);
         EXPECT_EQ(s.find_first_of("yz"), 3);
+        EXPECT_EQ(s.find_first_of("xy", 2), 2);
+        EXPECT_EQ(s.find_first_of("yz", 2), 3);
         EXPECT_EQ(s.find_first_not_of('x'), 3);
+        EXPECT_EQ(s.find_first_not_of('x', 2), 3);
+        EXPECT_EQ(s.find_first_not_of('x', 4), 4);
         EXPECT_EQ(s.find_first_not_of("xy"), 6);
+        EXPECT_EQ(s.find_first_not_of("xy", 2), 6);
+        EXPECT_EQ(s.find_first_not_of("xy", 7), 7);
 
         s = "xyz";
         EXPECT_EQ(s.find_last_of("ax"), 0);
+        EXPECT_EQ(s.find_last_of("ax", 1), 0);
+        EXPECT_EQ(s.find_last_of("ax", 3), 0);
         EXPECT_EQ(s.find_last_of("xy"), 1);
         EXPECT_EQ(s.find_last_of("yz"), 2);
+        EXPECT_EQ(s.find_last_of("yz", 0), s.npos);
         EXPECT_EQ(s.find_last_of("xz"), 2);
         EXPECT_EQ(s.find_last_of("abc"), s.npos);
         EXPECT_EQ(s.find_last_not_of('x'), 2);
+        EXPECT_EQ(s.find_last_not_of('x', 1), 1);
         EXPECT_EQ(s.find_last_not_of('z'), 1);
         EXPECT_EQ(s.find_last_not_of("yz"), 0);
+        EXPECT_EQ(s.find_last_not_of("yz", 1), 0);
         EXPECT_EQ(s.find_last_not_of("xyz"), s.npos);
     }
 
