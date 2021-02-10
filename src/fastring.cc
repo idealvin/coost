@@ -90,39 +90,44 @@ size_t fastring::rfind(const char* sub) const {
     return npos;
 }
 
-size_t fastring::find_last_of(const char* s) const {
+size_t fastring::find_last_of(const char* s, size_t pos) const {
     if (this->empty()) return npos;
 
     typedef unsigned char u8;
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (size_t i = _size; i > 0;) {
+    size_t i = (pos >= _size ? _size : (pos + 1));
+    for (; i > 0;) {
         if (bs[(u8) (_p[--i])]) return i;
     }
 
     return npos;
 }
 
-size_t fastring::find_last_not_of(const char* s) const {
+size_t fastring::find_last_not_of(const char* s, size_t pos) const {
     if (this->empty()) return npos;
 
     typedef unsigned char u8;
     char bs[256] = { 0 };
     while (*s) bs[(const u8) (*s++)] = 1;
 
-    for (size_t i = _size; i > 0;) {
+    size_t i = (pos >= _size ? _size : (pos + 1));
+    for (; i > 0;) {
         if (!bs[(u8) (_p[--i])]) return i;
     }
 
     return npos;
 }
 
-size_t fastring::find_last_not_of(char c) const {
+size_t fastring::find_last_not_of(char c, size_t pos) const {
     if (this->empty()) return npos;
-    for (size_t i = _size; i > 0;) {
+
+    size_t i = (pos >= _size ? _size : (pos + 1));
+    for (; i > 0;) {
         if (_p[--i] != c) return i;
     }
+
     return npos;
 }
 

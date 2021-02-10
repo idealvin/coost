@@ -414,44 +414,27 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
     return v;
 }
 
-size_t find_not_in_qm(const char* s, const char* sub) {
-    if (!s || *s == '\0') return (size_t)-1;
+size_t find_comment(const fastring& s) {
+    if (s.empty()) return s.npos;
 
-    char x = 0, y = 0;
-    const char* i = s;
-    const char* e = s + strlen(s);
+    size_t p, q;
+    char c = s[0];
+    if (c != '"' && c != '\'' && c != '`') {
+        goto no_quotes;
+    } else {
+        p = s.find(c, 1);
+        if (p == s.npos) goto no_quotes;
 
-    while (true) {
-        const char* p = strstr(i, sub);
-        if (p == 0) return (size_t)-1;
-
-        for (; i <= p; ++i) {
-            if (*i != '"' && *i != '\'') continue;
-
-            if (*i == x) {
-                x = y = 0;
-            } else if (*i == y) {
-                y = 0;
-            } else if (x == 0) {
-                x = *i;
-            } else {  /* y == 0 */
-                y = *i;
-            }
-        }
-
-        if (x == 0) return p - s; // left qm not found before p
-
-        for (i = p + strlen(sub); i < e; ++i) {
-            if (*i != '"' && *i != '\'') continue;
-
-            if (*i == x || *i == y) {
-                x = y = 0;
-                break;
-            }
-        }
-
-        if (i++ == e) return p - s;
+        p = s.find_first_not_of(" \t", p + 1);
+        if (p == s.npos || s[p] == '#' || s.substr(p, 2) == "//") return p;
+        goto no_quotes;
     }
+
+  no_quotes:
+    p = s.find('#');
+    q = s.find("//");
+    if (p == s.npos && q == s.npos) return s.npos;
+    return p < q ? p : q;
 }
 
 fastring getline(std::vector<fastring>& lines, size_t& n) {
@@ -493,13 +476,7 @@ void parse_config(const fastring& config) {
         fastring s = getline(lines, i);
         if (s.empty() || s[0] == '#' || s.starts_with("//")) continue;
 
-        // remove tailing comments.
-        size_t p = find_not_in_qm(s.c_str(), "#");
-        size_t q = find_not_in_qm(s.c_str(), "//");
-        if (p > q) p = q;
-        if (p != s.npos) s = str::strip(s.substr(0, p), " \t", 'r');
-
-        p = find_not_in_qm(s.c_str(), "=");
+        size_t p = s.find('=');
         if (p == 0 || p == s.npos) {
             COUT << "invalid config: " << s << ", at " << config << ':' << (lineno + 1);
             exit(0);
@@ -508,11 +485,14 @@ void parse_config(const fastring& config) {
         fastring flg = str::strip(s.substr(0, p), " \t", 'r');
         fastring val = str::strip(s.substr(p + 1), " \t", 'l');
 
-        if (val.size() > 1) {
+        // remove tailing comments
+        p = find_comment(val);
+        if (p != val.npos) val = str::strip(val.substr(0, p), " \t", 'r');
+
+        // remove quotes
+        if (val.size() > 1 && val.front() == val.back()) {
             char c = val.front();
-            if ((c == '"' || c == '\'') && c == val.back()) {
-                val.strip(c);
-            }
+            if (c == '"' || c == '\'' || c == '`') val.strip(c);
         }
 
         fastring err = set_flag_value(flg, val);
