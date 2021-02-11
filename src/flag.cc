@@ -217,10 +217,12 @@ void show_help_info(const fastring& exe) {
 fastring format_str(const fastring& s) {
     size_t px = s.find('"');
     size_t py = s.find('\'');
-    if (px == s.npos && py == s.npos) return s;
+    size_t pz = s.find('`');
+    if (px == s.npos && py == s.npos && pz == s.npos) return s;
     if (px == s.npos) return fastring(s.size() + 3).append('"').append(s).append('"');
     if (py == s.npos) return fastring(s.size() + 3).append('\'').append(s).append('\'');
-    return fastring(s.size() + 8).append('\'').append(str::replace(s, "'", "\\'")).append('\'');
+    if (pz == s.npos) return fastring(s.size() + 3).append('`').append(s).append('`');
+    return fastring(s.size() + 8).append("```").append(s).append("```");
 }
 
 #define COMMENT_LINE_LEN 72
@@ -414,27 +416,41 @@ std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
     return v;
 }
 
-size_t find_comment(const fastring& s) {
-    if (s.empty()) return s.npos;
+fastring remove_quotes_and_comments(const fastring& s) {
+    if (s.empty()) return s;
 
-    size_t p, q;
+    fastring r;
+    size_t p, q, l;
     char c = s[0];
-    if (c != '"' && c != '\'' && c != '`') {
-        goto no_quotes;
-    } else {
-        p = s.find(c, 1);
+
+    if (c == '"' || c == '\'' || c == '`') {
+        if (s.starts_with("```")) {
+            p = s.find("```", 3);
+            l = 3;
+        } else {
+            p = s.find(c, 1);
+            l = 1;
+        }
+
         if (p == s.npos) goto no_quotes;
 
-        p = s.find_first_not_of(" \t", p + 1);
-        if (p == s.npos || s[p] == '#' || s.substr(p, 2) == "//") return p;
-        goto no_quotes;
+        p = s.find_first_not_of(" \t", p + l);
+        if (p == s.npos) {
+            r = str::strip(s, " \t", 'r');
+        } else if (s[p] == '#' || s.substr(p, 2) == "//") {
+            r = str::strip(s.substr(0, p), " \t", 'r');
+        } else {
+            goto no_quotes;
+        }
+
+        return r.substr(l, r.size() - l * 2);
     }
 
   no_quotes:
     p = s.find('#');
     q = s.find("//");
-    if (p == s.npos && q == s.npos) return s.npos;
-    return p < q ? p : q;
+    if (p == s.npos && q == s.npos) return s;
+    return str::strip(s.substr(0, p < q ? p : q), " \t", 'r');
 }
 
 fastring getline(std::vector<fastring>& lines, size_t& n) {
@@ -484,16 +500,7 @@ void parse_config(const fastring& config) {
 
         fastring flg = str::strip(s.substr(0, p), " \t", 'r');
         fastring val = str::strip(s.substr(p + 1), " \t", 'l');
-
-        // remove tailing comments
-        p = find_comment(val);
-        if (p != val.npos) val = str::strip(val.substr(0, p), " \t", 'r');
-
-        // remove quotes
-        if (val.size() > 1 && val.front() == val.back()) {
-            char c = val.front();
-            if (c == '"' || c == '\'' || c == '`') val.strip(c);
-        }
+        val = remove_quotes_and_comments(val);
 
         fastring err = set_flag_value(flg, val);
         if (!err.empty()) {
