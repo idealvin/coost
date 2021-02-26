@@ -12,7 +12,7 @@ class Array {
   public:
     typedef const void* T;
 
-    Array() : Array(7) {}
+    Array() : Array(31) {}
 
     explicit Array(uint32 cap) {
         _mem = (_Mem*) malloc(sizeof(_Mem) + sizeof(T) * cap);
