@@ -301,6 +301,7 @@ class Value {
     Value& operator[](Key key) const;
 
     Value find(Key key) const;
+
     bool has_member(Key key) const;
 
     // iterator must be operated on null or object types.
@@ -316,24 +317,24 @@ class Value {
     // stringify
     fastring str() const {
         fastring s(256);
-        this->_Json2str(*(fastream*)&s);
+        this->_Json2str(*(fastream*)&s, false);
         return s;
     }
 
     // append json string to @fs
     void str(fastream& fs) const {
-        this->_Json2str(fs);
+        this->_Json2str(fs, false);
     }
 
     // json to debug string
     fastring dbg() const {
         fastring s(256);
-        this->_Json2dbg(*(fastream*)&s);
+        this->_Json2str(*(fastream*)&s, true);
         return std::move(s);
     }
 
     void dbg(fastream& fs) const {
-        this->_Json2dbg(fs);
+        this->_Json2str(fs, true);
     }
 
     // convert json to pretty string
@@ -387,8 +388,7 @@ class Value {
         return s;
     }
 
-    void _Json2str(fastream& fs) const;
-    void _Json2dbg(fastream& fs) const;
+    void _Json2str(fastream& fs, bool debug) const;
     void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
 
     friend const char* parse_json (const char*, const char*, Value*);

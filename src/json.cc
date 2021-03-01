@@ -95,96 +95,25 @@ void Value::_UnRef() {
     }
 }
 
-void Value::_Json2str(fastream& fs) const {
+void Value::_Json2str(fastream& fs, bool debug) const {
     if (_mem == 0) {
         fs << "null";
 
     } else if (_mem->type & kString) {
         fs << '"';
         const char* s = _mem->s;
+        bool trunc = debug && (_mem->l[-1] > 256);
+        if (trunc) {
+            _mem->s[-7] = _mem->s[256];
+            _mem->s[256] = '\0';
+        }
+
         const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
         if (!p) {
-            fs.append(s, _mem->l[-1]);
-        } else {
-            do {
-                fs.append(s, p - s).append('\\');
-                if (*p == '\\' || *p == '"') {
-                    fs.append(*p);
-                } else if (*p == '\n') {
-                    fs.append('n');
-                } else if (*p == '\r') {
-                    fs.append('r');
-                } else if (*p == '\t') {
-                    fs.append('t');
-                } else if (*p == '\b') {
-                    fs.append('b');
-                } else {
-                    fs.append('f');
-                }
-
-                s = p + 1;
-                p = strpbrk(s, "\r\n\t\b\f\"\\");
-
-                if (!p) {
-                    fs.append(s);
-                    break;
-                }
-            } while (true);
-        }
-        fs << '"';
-
-    } else if (_mem->type & kObject) {
-        fs << '{';
-        auto it = this->begin();
-        if (it != this->end()) {
-            fs << '"' << it->key << '"' << ':';
-            it->value._Json2str(fs);
-        }
-        for (; ++it != this->end();) {
-            fs << ',' << '"' << it->key << '"' << ':';
-            it->value._Json2str(fs);
-        }
-        fs << '}';
-
-    } else if (_mem->type & kArray) {
-        fs << '[';
-        auto& a = _mem->a;
-        if (!a.empty()) ((Value*) &a[0])->_Json2str(fs);
-        for (uint32 i = 1; i < a.size(); ++i) {
-            fs << ',';
-            ((Value*) &a[i])->_Json2str(fs);
-        }
-        fs << ']';
-
-    } else {
-        if (_mem->type & kInt) {
-            fs << _mem->i;
-        } else if (_mem->type & kBool) {
-            fs << _mem->b;
-        } else {
-            assert(_mem->type & kDouble);
-            fs << _mem->d;
-        }
-    }
-}
-
-void Value::_Json2dbg(fastream& fs) const {
-    if (unlikely(_mem == 0)) {
-        fs << "null";
-        return;
-    }
-
-    if (_mem->type & kString) {
-        fs << '"';
-        const char* s = _mem->s;
-        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
-        if (!p) {
-            uint32 len = _mem->l[-1];
-            if (len < 256) {
-                fs.append(s, len);
+            if (!trunc) {
+                fs.append(s, _mem->l[-1]);
             } else {
                 fs.append(s, 256);
-                fs.append(3, '.');
             }
         } else {
             do {
@@ -205,59 +134,51 @@ void Value::_Json2dbg(fastream& fs) const {
 
                 s = p + 1;
                 p = strpbrk(s, "\r\n\t\b\f\"\\");
-
                 if (!p) {
                     fs.append(s);
                     break;
                 }
             } while (true);
         }
+
+        if (trunc) {
+            fs.append(3, '.');
+            _mem->s[256] = _mem->s[-7];
+        }
         fs << '"';
-        return;
-    }
 
-    if (_mem->type & kObject) {
-        auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
-
+    } else if (_mem->type & kObject) {
         fs << '{';
-        fs << '"' << it.key() << '"' << ':';
-        it.value()._Json2dbg(fs);
-
-        for (; ++it != this->end();) {
-            fs << ',' << '"' << it.key() << '"' << ':';
-            it.value()._Json2dbg(fs);
+        auto it = this->begin();
+        if (it != this->end()) {
+            fs << '"' << it->key << '"' << ':';
+            it->value._Json2str(fs, debug);
+            for (; ++it != this->end();) {
+                fs << ',' << '"' << it->key << '"' << ':';
+                it->value._Json2str(fs, debug);
+            }
         }
-
         fs << '}';
-        return;
-    }
 
-    if (_mem->type & kArray) {
+    } else if (_mem->type & kArray) {
         fs << '[';
         auto& a = _mem->a;
-        if (!a.empty()) ((Value*) &a[0])->_Json2dbg(fs);
+        if (!a.empty()) ((Value*)&a[0])->_Json2str(fs, debug);
         for (uint32 i = 1; i < a.size(); ++i) {
             fs << ',';
-            ((Value*) &a[i])->_Json2dbg(fs);
+            ((Value*)&a[i])->_Json2str(fs, debug);
         }
         fs << ']';
-        return;
-    }
 
-    switch (_mem->type) {
-      case kInt:
-        fs << _mem->i;
-        break;
-      case kBool:
-        fs << _mem->b;
-        break;
-      case kDouble:
-        fs << _mem->d;
-        break;
+    } else {
+        if (_mem->type & kInt) {
+            fs << _mem->i;
+        } else if (_mem->type & kBool) {
+            fs << _mem->b;
+        } else {
+            assert(_mem->type & kDouble);
+            fs << _mem->d;
+        }
     }
 }
 
@@ -285,7 +206,7 @@ void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) cons
             if (v.is_object() || v.is_array()) {
                 v._Json2pretty(base_indent, current_indent + base_indent, fs);
             } else {
-                v._Json2str(fs);
+                v._Json2str(fs, false);
             }
 
             if (++it != this->end()) {
@@ -317,7 +238,7 @@ void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) cons
             if (v.is_object() || v.is_array()) {
                 v._Json2pretty(base_indent, current_indent + base_indent, fs);
             } else {
-                v._Json2str(fs);
+                v._Json2str(fs, false);
             }
 
             if (++i < a.size()) {
@@ -334,7 +255,7 @@ void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) cons
         return;
     }
 
-    _Json2str(fs);
+    _Json2str(fs, false);
 }
 
 // json parser
