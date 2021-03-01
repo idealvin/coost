@@ -35,17 +35,30 @@ void* Value::Jalloc::alloc(uint32 n) {
 void Value::Jalloc::dealloc(void* p) {
     char* s = (char*)p - 8;
     int c = *s; // 0, 1, 2, 3
-    if (c < 3 && _ks[c].size() < 8 * 1024) {
+    if (c < 3 && _ks[c].size() < 4095) {
         _ks[c].push_back(p);
     } else {
         free(s);
     }
 }
 
+Value& Value::operator[](Key key) const {
+    if (_mem) assert(_mem->type & kObject);
+    else new ((void*)&_mem) Value(Value::JObject());
+
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (strcmp(it->key, key) == 0) return it->value;
+    }
+
+    _mem->a.push_back(_Alloc_key(key));
+    _mem->a.push_back(0); // null value 
+    return *(Value*) &_mem->a.back();
+}
+
 Value Value::find(Key key) const {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
-            if (strcmp(it.key(), key) == 0) return it.value();
+            if (strcmp(it->key, key) == 0) return it->value;
         }
     }
     return Value();
@@ -54,38 +67,27 @@ Value Value::find(Key key) const {
 bool Value::has_member(Key key) const {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
-            if (strcmp(it.key(), key) == 0) return true;
+            if (strcmp(it->key, key) == 0) return true;
         }
     }
     return false;
 }
 
-Value& Value::operator[](Key key) const {
-    ((Value*)this)->_Assert_object();
-    for (auto it = this->begin(); it != this->end(); ++it) {
-        if (strcmp(it.key(), key) == 0) return it.value();
-    }
-
-    _Array().push_back(_Alloc_key(key));
-    _Array().push_back(0); // empty Value
-    return *(Value*) &_Array().back();
-}
-
 void Value::_UnRef() {
     if (atomic_dec(&_mem->refn) == 0) {
         if (_mem->type & kObject) {
-            Array& a = _Array();
+            Array& a = _mem->a;
             for (uint32 i = 0; i < a.size(); i += 2) {
                 Jalloc::instance()->dealloc((void*)a[i]);
                 ((Value*)&a[i + 1])->~Value();
             }
-            free(_mem->p);
+            a.~Array();
         } else if (_mem->type & kArray) {
-            Array& a = _Array();
+            Array& a = _mem->a;
             for (uint32 i = 0; i < a.size(); ++i) {
                 ((Value*)&a[i])->~Value();
             }
-            free(_mem->p);
+            a.~Array();
         } else if (_mem->type & kString) {
             Jalloc::instance()->dealloc(_mem->s);
         }
@@ -93,23 +95,11 @@ void Value::_UnRef() {
     }
 }
 
-void Value::_Init_string(const void* data, size_t size) {
-    _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-    _mem->type = kString;
-    _mem->refn = 1;
-    _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
-    memcpy(_mem->s, data, size);
-    _mem->s[size] = '\0';
-    _mem->l[-1] = (uint32) size;
-}
-
 void Value::_Json2str(fastream& fs) const {
-    if (unlikely(_mem == 0)) {
+    if (_mem == 0) {
         fs << "null";
-        return;
-    }
 
-    if (_mem->type & kString) {
+    } else if (_mem->type & kString) {
         fs << '"';
         const char* s = _mem->s;
         const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
@@ -142,51 +132,39 @@ void Value::_Json2str(fastream& fs) const {
             } while (true);
         }
         fs << '"';
-        return;
-    }
 
-    if (_mem->type & kObject) {
-        auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
-
+    } else if (_mem->type & kObject) {
         fs << '{';
-        fs << '"' << it.key() << '"' << ':';
-        it.value()._Json2str(fs);
-
-        for (; ++it != this->end();) {
-            fs << ',' << '"' << it.key() << '"' << ':';
-            it.value()._Json2str(fs);
+        auto it = this->begin();
+        if (it != this->end()) {
+            fs << '"' << it->key << '"' << ':';
+            it->value._Json2str(fs);
         }
-
+        for (; ++it != this->end();) {
+            fs << ',' << '"' << it->key << '"' << ':';
+            it->value._Json2str(fs);
+        }
         fs << '}';
-        return;
-    }
 
-    if (_mem->type & kArray) {
+    } else if (_mem->type & kArray) {
         fs << '[';
-        auto& a = _Array();
+        auto& a = _mem->a;
         if (!a.empty()) ((Value*) &a[0])->_Json2str(fs);
         for (uint32 i = 1; i < a.size(); ++i) {
             fs << ',';
             ((Value*) &a[i])->_Json2str(fs);
         }
         fs << ']';
-        return;
-    }
 
-    switch (_mem->type) {
-      case kInt:
-        fs << _mem->i;
-        break;
-      case kBool:
-        fs << _mem->b;
-        break;
-      case kDouble:
-        fs << _mem->d;
-        break;
+    } else {
+        if (_mem->type & kInt) {
+            fs << _mem->i;
+        } else if (_mem->type & kBool) {
+            fs << _mem->b;
+        } else {
+            assert(_mem->type & kDouble);
+            fs << _mem->d;
+        }
     }
 }
 
@@ -260,7 +238,7 @@ void Value::_Json2dbg(fastream& fs) const {
 
     if (_mem->type & kArray) {
         fs << '[';
-        auto& a = _Array();
+        auto& a = _mem->a;
         if (!a.empty()) ((Value*) &a[0])->_Json2dbg(fs);
         for (uint32 i = 1; i < a.size(); ++i) {
             fs << ',';
@@ -324,7 +302,7 @@ void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) cons
         return;
 
     } else if (_mem->type & kArray) {
-        auto& a = _Array();
+        auto& a = _mem->a;
         if (unlikely(a.empty())) {
             fs << "[]";
             return;
@@ -578,7 +556,6 @@ inline const char* read_token(const char* b, const char* e, void** v) {
  */
 const char* parse_json(const char* b, const char* e, Value* res) {
     char* key = 0;
-    res->set_object();
 
     for (; b < e; ++b) {
         if (unlikely(is_white_char(*b))) continue;
@@ -607,9 +584,9 @@ const char* parse_json(const char* b, const char* e, Value* res) {
             if (*b == '"') {
                 b = read_string(b + 1, e, &v);
             } else if (*b == '{') {
-                b = parse_json(b + 1, e, (Value*)&v);
+                b = parse_json(b + 1, e, new (&v) Value(Value::JObject()));
             } else if (*b == '[') {
-                b = parse_array(b + 1, e, (Value*)&v);
+                b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
             } else {
                 b = read_token(b, e, &v);
             }
@@ -620,8 +597,8 @@ const char* parse_json(const char* b, const char* e, Value* res) {
                 return 0;
             }
 
-            res->_Array().push_back(key);
-            res->_Array().push_back(v);
+            res->_mem->a.push_back(key);
+            res->_mem->a.push_back(v);
             break;
         }
 
@@ -638,8 +615,6 @@ const char* parse_json(const char* b, const char* e, Value* res) {
 }
 
 const char* parse_array(const char* b, const char* e, Value* res) {
-    res->set_array();
-
     for (; b < e; ++b) {
         if (unlikely(is_white_char(*b))) continue;
         if (*b == ']') return b; // ARR_END
@@ -648,9 +623,9 @@ const char* parse_array(const char* b, const char* e, Value* res) {
         if (*b == '"') {
             b = read_string(b + 1, e, &v);
         } else if (*b == '{') {
-            b = parse_json(b + 1, e, (Value*)&v);
+            b = parse_json(b + 1, e, new (&v) Value(Value::JObject()));
         } else if (*b == '[') {
-            b = parse_array(b + 1, e, (Value*)&v);
+            b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
         } else {
             b = read_token(b, e, &v);
         }
@@ -660,7 +635,7 @@ const char* parse_array(const char* b, const char* e, Value* res) {
             return 0;
         }
 
-        res->_Array().push_back(v);
+        res->_mem->a.push_back(v);
 
         for (++b; b < e; ++b) {
             if (unlikely(is_white_char(*b))) continue;
@@ -685,9 +660,9 @@ bool Value::parse_from(const char* s, size_t n) {
     if (unlikely(p == e)) return false;
 
     if (*p == '{') {
-        p = parse_json(p + 1, e, this);
+        p = parse_json(p + 1, e, new (&_mem) Value(JObject()));
     } else if (*p == '[') {
-        p = parse_array(p + 1, e, this);
+        p = parse_array(p + 1, e, new (&_mem) Value(JArray()));
     } else {
         return false;
     }

@@ -3,6 +3,8 @@
 #include "co/log.h"
 
 int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    log::init();
     json::Value v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
