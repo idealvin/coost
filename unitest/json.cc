@@ -60,9 +60,11 @@ DEF_test(json) {
         EXPECT(ds.is_string());
         EXPECT_EQ(ds.size(), 300);
         EXPECT_EQ(ds.dbg(), fastring("\"").append(200, 'x').append("\\n").append(55, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(ds.str(), fastring("\"").append(200, 'x').append("\\n").append(99, 'x').append('"'));
 
         ds = fastring(300, 'x');
         EXPECT_EQ(ds.dbg(), fastring("\"").append(256, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(ds.str(), fastring("\"").append(300, 'x').append('"'));
 
         Json s = fastring("hello world");
         EXPECT(s.is_string());
