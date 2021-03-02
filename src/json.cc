@@ -95,56 +95,40 @@ void Value::_UnRef() {
     }
 }
 
+static inline const char* init_table() {
+    static char tb[256] = { 0 };
+    tb['\r'] = 'r';
+    tb['\n'] = 'n';
+    tb['\t'] = 't';
+    tb['\b'] = 'b';
+    tb['\f'] = 'f';
+    tb['\"'] = '"';
+    tb['\\'] = '\\';
+    return tb;
+}
+
 void Value::_Json2str(fastream& fs, bool debug) const {
     if (_mem == 0) {
         fs << "null";
 
     } else if (_mem->type & kString) {
         fs << '"';
+        static const char* tb = init_table();
+        uint32 len = _mem->l[-1];
+        bool trunc = debug && len > 256;
         const char* s = _mem->s;
-        bool trunc = debug && (_mem->l[-1] > 256);
-        if (trunc) {
-            _mem->s[-7] = _mem->s[256];
-            _mem->s[256] = '\0';
-        }
+        const char* e = trunc ? s + 256 : s + len;
 
-        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
-        if (!p) {
-            if (!trunc) {
-                fs.append(s, _mem->l[-1]);
-            } else {
-                fs.append(s, 256);
-            }
-        } else {
-            do {
-                fs.append(s, p - s).append('\\');
-                if (*p == '\\' || *p == '"') {
-                    fs.append(*p);
-                } else if (*p == '\n') {
-                    fs.append('n');
-                } else if (*p == '\r') {
-                    fs.append('r');
-                } else if (*p == '\t') {
-                    fs.append('t');
-                } else if (*p == '\b') {
-                    fs.append('b');
-                } else {
-                    fs.append('f');
-                }
-
+        for (const char* p = s; p != e; ++p) {
+            char c = tb[(uint8)*p];
+            if (c) {
+                fs.append(s, p - s).append('\\').append(c);
                 s = p + 1;
-                p = strpbrk(s, "\r\n\t\b\f\"\\");
-                if (!p) {
-                    fs.append(s);
-                    break;
-                }
-            } while (true);
+            }
         }
 
-        if (trunc) {
-            fs.append(3, '.');
-            _mem->s[256] = _mem->s[-7];
-        }
+        if (s != e) fs.append(s, e - s);
+        if (trunc) fs.append(3, '.');
         fs << '"';
 
     } else if (_mem->type & kObject) {
@@ -163,10 +147,12 @@ void Value::_Json2str(fastream& fs, bool debug) const {
     } else if (_mem->type & kArray) {
         fs << '[';
         auto& a = _mem->a;
-        if (!a.empty()) ((Value*)&a[0])->_Json2str(fs, debug);
-        for (uint32 i = 1; i < a.size(); ++i) {
-            fs << ',';
-            ((Value*)&a[i])->_Json2str(fs, debug);
+        if (!a.empty()) {
+            ((Value*)&a[0])->_Json2str(fs, debug);
+            for (uint32 i = 1; i < a.size(); ++i) {
+                fs << ',';
+                ((Value*)&a[i])->_Json2str(fs, debug);
+            }
         }
         fs << ']';
 
@@ -182,85 +168,107 @@ void Value::_Json2str(fastream& fs, bool debug) const {
     }
 }
 
-void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) const {
-    if (unlikely(_mem == 0)) {
+// @indent:  4 spaces by default
+// @n:       number of spaces to insert at the beginning for the current line
+void Value::_Json2pretty(fastream& fs, int indent, int n) const {
+    if (_mem == 0) {
         fs << "null";
-        return;
-    }
 
-    if (_mem->type & kObject) {
+    } else if (_mem->type & kObject) {
+        fs << '{';
         auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
+        if (it != this->end()) {
+            for (;;) {
+                fs.append('\n').append(n, ' ');
+                fs << '"' << it->key << '"' << ": ";
 
-        fs << '{' << '\n';
+                Value& v = it->value;
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs);
+                }
 
-        for (;;) {
-            fs.append(' ', current_indent);
-            fs << '"' << it.key() << '"' << ": ";
-
-            Value& v = it.value();
-
-            if (v.is_object() || v.is_array()) {
-                v._Json2pretty(base_indent, current_indent + base_indent, fs);
-            } else {
-                v._Json2str(fs, false);
-            }
-
-            if (++it != this->end()) {
-                fs << ',' << '\n';
-            } else {
-                fs << '\n';
-                break;
+                if (++it != this->end()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
             }
         }
 
-        current_indent -= base_indent;
-        if (current_indent > 0) fs.append(' ', current_indent);
+        if (n > indent) fs.append(n - indent, ' ');
         fs << '}';
-        return;
 
     } else if (_mem->type & kArray) {
+        fs << '[';
         auto& a = _mem->a;
-        if (unlikely(a.empty())) {
-            fs << "[]";
-            return;
-        }
+        if (!a.empty()) {
+            for (uint32 i = 0;;) {
+                fs.append('\n').append(n, ' ');
 
-        fs << '[' << '\n';
+                Value& v = *(Value*) &a[i];
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs);
+                }
 
-        for (uint32 i = 0;;) {
-            fs.append(' ', current_indent);
-
-            Value& v = *(Value*) &a[i];
-            if (v.is_object() || v.is_array()) {
-                v._Json2pretty(base_indent, current_indent + base_indent, fs);
-            } else {
-                v._Json2str(fs, false);
-            }
-
-            if (++i < a.size()) {
-                fs << ',' << '\n';
-            } else {
-                fs << '\n';
-                break;
+                if (++i < a.size()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
             }
         }
 
-        current_indent -= base_indent;
-        if (current_indent > 0) fs.append(' ', current_indent);
+        if (n > indent) fs.append(n - indent, ' ');
         fs << ']';
-        return;
-    }
 
-    _Json2str(fs, false);
+    } else {
+        _Json2str(fs);
+    }
 }
 
 // json parser
 inline bool is_white_char(char c) {
-    return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
+    return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
+}
+
+const char* parse_object(const char* b, const char* e, Value* r);
+const char* parse_array(const char* b, const char* e, Value* r);
+
+// @b: beginning of the string
+// @e: end of the string
+static inline bool parse(const char* b, const char* e, Value* r) {
+    while (b != e && is_white_char(*b)) ++b;
+    if (b == e) return false;
+
+    if (*b == '{') {
+        b = parse_object(b, e, r);
+    } else if (*b == '[') {
+        b = parse_array(b, e, r);
+    } else {
+        return false;
+    }
+
+    if (b == 0) return false;
+    while (b != e && is_white_char(*b)) ++b;
+    return b == e;
+}
+
+inline const char* parse_key(const char* b, const char* e, char** key) {
+    if (*b++ != '"') return 0;
+    const char* p = (const char*) memchr(b, '"', e - b);
+    if (p ) {
+        char* s = (char*) Json::Jalloc::instance()->alloc((uint32)(p - b + 1));
+        memcpy(s, b, p - b);
+        s[p - b] = '\0';
+        *key = s;
+    }
+    return p;
 }
 
 // Read unicode sequences as a UTF8 string.
@@ -374,17 +382,6 @@ inline const char* read_string(const char* b, const char* e, void** v) {
     } while (true);
 }
 
-inline const char* read_key(const char* b, const char* e, char** key) {
-    const char* p = (const char*) memchr(b, '"', e - b);
-    if (p ) {
-        char* s = (char*) Json::Jalloc::instance()->alloc((uint32)(p - b + 1));
-        memcpy(s, b, p - b);
-        s[p - b] = '\0';
-        *key = s;
-    }
-    return p;
-}
-
 int64 fastatoi(const char* s, size_t n) {
     uint64 v = 0;
     size_t i = 0;
@@ -470,68 +467,58 @@ inline const char* read_token(const char* b, const char* e, void** v) {
     return 0;
 }
 
-/*
- * b: beginning of the string.
- * e: end of the string.
- * res: parse result
- */
-const char* parse_json(const char* b, const char* e, Value* res) {
+const char* parse_object(const char* b, const char* e, Value* res) {
     char* key = 0;
+    void* val = 0;
 
-    for (; b < e; ++b) {
-        if (unlikely(is_white_char(*b))) continue;
-        if (*b == '}') return b;   // OBJ_END
-        if (*b != '"') return 0;   // not key
+    for (; ++b < e;) {
+        if (is_white_char(*b)) continue;
+        if (*b == '}') return b;
 
-        // read key
-        b = read_key(b + 1, e, &key);
+        // key
+        b = parse_key(b, e, &key);
         if (b == 0) return 0;
 
-        // read ':'
+        // ':'
         for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b != ':') {
-                Value::Jalloc::instance()->dealloc(key);
-                return 0;
-            }
-            break;
+            if (is_white_char(*b)) continue;
+            if (*b != ':') goto err;
         }
 
-        // read value
+        // value
         for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
+            if (is_white_char(*b)) continue;
 
-            void* v = 0;
+            val = 0;
             if (*b == '"') {
-                b = read_string(b + 1, e, &v);
+                b = read_string(b + 1, e, &val);
             } else if (*b == '{') {
-                b = parse_json(b + 1, e, new (&v) Value(Value::JObject()));
+                b = parse_object(b + 1, e, new (&val) Value(Value::JObject()));
             } else if (*b == '[') {
-                b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
+                b = parse_array(b + 1, e, new (&val) Value(Value::JArray()));
             } else {
-                b = read_token(b, e, &v);
+                b = read_token(b, e, &val);
             }
 
-            if (unlikely(b == 0)) {
-                if (v) ((Value*)&v)->~Value();
-                Value::Jalloc::instance()->dealloc(key);
-                return 0;
-            }
+            if (b == 0) goto err;
 
             res->_mem->a.push_back(key);
-            res->_mem->a.push_back(v);
+            res->_mem->a.push_back(val);
             break;
         }
 
         // check value end
         for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b == '}') return b; // OBJ_END
+            if (is_white_char(*b)) continue;
+            if (*b == '}') return b;
             if (*b != ',') return 0;
             break;
         }
     }
 
+  err:
+    if (key) Value::Jalloc::instance()->dealloc(key);
+    if (val) ((Value*)&val)->~Value();
     return 0;
 }
 
@@ -544,7 +531,7 @@ const char* parse_array(const char* b, const char* e, Value* res) {
         if (*b == '"') {
             b = read_string(b + 1, e, &v);
         } else if (*b == '{') {
-            b = parse_json(b + 1, e, new (&v) Value(Value::JObject()));
+            b = parse_object(b + 1, e, new (&v) Value(Value::JObject()));
         } else if (*b == '[') {
             b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
         } else {
@@ -569,6 +556,7 @@ const char* parse_array(const char* b, const char* e, Value* res) {
     return 0;
 }
 
+
 bool Value::parse_from(const char* s, size_t n) {
     if (unlikely(_mem)) {
         this->_UnRef();
@@ -581,7 +569,7 @@ bool Value::parse_from(const char* s, size_t n) {
     if (unlikely(p == e)) return false;
 
     if (*p == '{') {
-        p = parse_json(p + 1, e, new (&_mem) Value(JObject()));
+        p = parse_object(p + 1, e, new (&_mem) Value(JObject()));
     } else if (*p == '[') {
         p = parse_array(p + 1, e, new (&_mem) Value(JArray()));
     } else {

@@ -314,16 +314,16 @@ class Value {
         return iterator(_mem ? &_mem->a[_mem->a.size()] : 0);
     }
 
-    // stringify
+    // json to string
     fastring str() const {
         fastring s(256);
-        this->_Json2str(*(fastream*)&s, false);
-        return s;
+        this->_Json2str(*(fastream*)&s);
+        return std::move(s);
     }
 
-    // append json string to @fs
+    // write json string to fastream
     void str(fastream& fs) const {
-        this->_Json2str(fs, false);
+        this->_Json2str(fs);
     }
 
     // json to debug string
@@ -333,14 +333,15 @@ class Value {
         return std::move(s);
     }
 
+    // write json debug string to fastream
     void dbg(fastream& fs) const {
         this->_Json2str(fs, true);
     }
 
-    // convert json to pretty string
-    fastring pretty(int indent = 4) const {
+    // json to pretty string
+    fastring pretty(int indent=4) const {
         fastring s(256);
-        this->_Json2pretty(indent, indent, *(fastream*)&s);
+        this->_Json2pretty(*(fastream*)&s, indent, indent);
         return std::move(s);
     }
 
@@ -388,10 +389,10 @@ class Value {
         return s;
     }
 
-    void _Json2str(fastream& fs, bool debug) const;
-    void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
+    void _Json2str(fastream& fs, bool debug=false) const;
+    void _Json2pretty(fastream& fs, int indent, int n) const;
 
-    friend const char* parse_json (const char*, const char*, Value*);
+    friend const char* parse_object(const char*, const char*, Value*);
     friend const char* parse_array(const char*, const char*, Value*);
 
   private:
@@ -404,7 +405,6 @@ class Value {
             int64 i;
             double d;
             Array a;     // for array and object
-            //void* p;     // for array and object
             char* s;     // for string
             uint32* l;   // for length of string
         };
