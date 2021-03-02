@@ -243,23 +243,23 @@ const char* parse_array(const char* b, const char* e, Value* r);
 // @b: beginning of the string
 // @e: end of the string
 static inline bool parse(const char* b, const char* e, Value* r) {
-    while (b != e && is_white_char(*b)) ++b;
+    while (b < e && is_white_char(*b)) ++b;
     if (b == e) return false;
 
     if (*b == '{') {
-        b = parse_object(b, e, r);
+        b = parse_object(b, e, new (r) Value(Value::JObject()));
     } else if (*b == '[') {
-        b = parse_array(b, e, r);
+        b = parse_array(b, e, new (r) Value(Value::JArray()));
     } else {
-        return false;
+        b = parse_value(b, e, r);
     }
 
     if (b == 0) return false;
-    while (b != e && is_white_char(*b)) ++b;
+    while (b < e && is_white_char(*b)) ++b;
     return b == e;
 }
 
-inline const char* parse_key(const char* b, const char* e, char** key) {
+const char* parse_key(const char* b, const char* e, char** key) {
     if (*b++ != '"') return 0;
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p ) {
@@ -270,6 +270,122 @@ inline const char* parse_key(const char* b, const char* e, char** key) {
     }
     return p;
 }
+
+const char* parse_string(const char* b, const char* e, Value* r);
+const char* parse_number(const char* b, const char* e, Value* r);
+
+inline const char* parse_false(const char* b, const char* e, Value* r) {
+    if (b[1] != 'a' || b[2] != 'l' || b[3] != 's' || b[4] != 'e') return 0;
+    new (r) Value(false);
+    return b + 5;
+}
+
+inline const char* parse_true(const char* b, const char* e, Value* r) {
+    if (b[1] != 'r' || b[2] != 'u' || b[3] != 'e') return 0;
+    new (r) Value(true);
+    return b + 4;
+}
+
+inline const char* parse_null(const char* b, const char* e, Value* r) {
+    if (b[1] != 'u' || b[2] != 'l' || b[3] != 'l') return 0;
+    return b + 4;
+}
+
+const char* parse_value(const char* b, const char* e, Value* r) {
+    if (*b == '"') {
+        return parse_string(b, e, r);
+    } else if (*b == '{') {
+        return parse_object(b, e, new (r) Value(Value::JObject()));
+    } else if (*b == '[') {
+        return parse_array(b, e, new (r) Value(Value::JArray()));
+    } else if (*b == 'f') {
+        return parse_false(b, e, r);
+    } else if (*b == 't') {
+        return parse_true(b, e, r);
+    } else if (*b == 'n') {
+        return parse_null(b, e, r);
+    } else {
+        return parse_number(b, e, r);
+    }
+}
+
+const char* parse_object(const char* b, const char* e, Value* res) {
+    char* key = 0;
+    void* val;
+
+    for (; ++b < e;) {
+        if (is_white_char(*b)) continue;
+        if (*b == '}') return b;
+
+        // key
+        b = parse_key(b, e, &key);
+        if (b == 0) return 0;
+
+        // ':'
+        while (++b < e && is_white_char(*b));
+        if (b == e || *b != ':') goto free_key;
+
+        while (++b < e && is_white_char(*b));
+        if (b == e) goto free_key;
+
+        // value
+        val = 0;
+        b = parse_value(b, e, (Value*)&val);
+        if (b == 0) goto free_val;
+
+        res->add_member(key, std::move(*(Value*)&val));
+
+        // check value end
+        while (++b < e && is_white_char(*b));
+        if (b == e) return 0;
+        if (*b == '}') return b;
+        if (*b != ',') return 0;
+    }
+
+    return 0;
+
+  free_val:
+    if (val) ((Value*)&val)->~Value();
+  free_key:
+    Value::Jalloc::instance()->dealloc(key);
+  end:
+    return 0;
+}
+
+const char* parse_array(const char* b, const char* e, Value* res) {
+    for (; b < e; ++b) {
+        if (unlikely(is_white_char(*b))) continue;
+        if (*b == ']') return b; // ARR_END
+
+        void* v = 0;
+        if (*b == '"') {
+            b = read_string(b + 1, e, &v);
+        } else if (*b == '{') {
+            b = parse_object(b + 1, e, new (&v) Value(Value::JObject()));
+        } else if (*b == '[') {
+            b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
+        } else {
+            b = read_token(b, e, &v);
+        }
+
+        if (unlikely(b == 0)) {
+            if (v) ((Value*)&v)->~Value();
+            return 0;
+        }
+
+        res->_mem->a.push_back(v);
+
+        for (++b; b < e; ++b) {
+            if (unlikely(is_white_char(*b))) continue;
+            if (*b == ']') return b; // ARR_END
+            if (*b != ',') return 0;
+            break;
+        }
+    }
+
+    return 0;
+}
+
 
 // Read unicode sequences as a UTF8 string.
 // The following function is neally taken from jsoncpp, all rights belongs to JSONCPP.
@@ -461,95 +577,6 @@ inline const char* read_token(const char* b, const char* e, void** v) {
 
         } else if (c == '.' || c == 'e' || c == 'E') {
             is_double = true;
-        }
-    }
-
-    return 0;
-}
-
-const char* parse_object(const char* b, const char* e, Value* res) {
-    char* key = 0;
-    void* val = 0;
-
-    for (; ++b < e;) {
-        if (is_white_char(*b)) continue;
-        if (*b == '}') return b;
-
-        // key
-        b = parse_key(b, e, &key);
-        if (b == 0) return 0;
-
-        // ':'
-        for (; ++b < e;) {
-            if (is_white_char(*b)) continue;
-            if (*b != ':') goto err;
-        }
-
-        // value
-        for (; ++b < e;) {
-            if (is_white_char(*b)) continue;
-
-            val = 0;
-            if (*b == '"') {
-                b = read_string(b + 1, e, &val);
-            } else if (*b == '{') {
-                b = parse_object(b + 1, e, new (&val) Value(Value::JObject()));
-            } else if (*b == '[') {
-                b = parse_array(b + 1, e, new (&val) Value(Value::JArray()));
-            } else {
-                b = read_token(b, e, &val);
-            }
-
-            if (b == 0) goto err;
-
-            res->_mem->a.push_back(key);
-            res->_mem->a.push_back(val);
-            break;
-        }
-
-        // check value end
-        for (; ++b < e;) {
-            if (is_white_char(*b)) continue;
-            if (*b == '}') return b;
-            if (*b != ',') return 0;
-            break;
-        }
-    }
-
-  err:
-    if (key) Value::Jalloc::instance()->dealloc(key);
-    if (val) ((Value*)&val)->~Value();
-    return 0;
-}
-
-const char* parse_array(const char* b, const char* e, Value* res) {
-    for (; b < e; ++b) {
-        if (unlikely(is_white_char(*b))) continue;
-        if (*b == ']') return b; // ARR_END
-
-        void* v = 0;
-        if (*b == '"') {
-            b = read_string(b + 1, e, &v);
-        } else if (*b == '{') {
-            b = parse_object(b + 1, e, new (&v) Value(Value::JObject()));
-        } else if (*b == '[') {
-            b = parse_array(b + 1, e, new (&v) Value(Value::JArray()));
-        } else {
-            b = read_token(b, e, &v);
-        }
-
-        if (unlikely(b == 0)) {
-            if (v) ((Value*)&v)->~Value();
-            return 0;
-        }
-
-        res->_mem->a.push_back(v);
-
-        for (++b; b < e; ++b) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b == ']') return b; // ARR_END
-            if (*b != ',') return 0;
-            break;
         }
     }
 
