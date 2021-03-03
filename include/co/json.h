@@ -63,14 +63,6 @@ class Value {
             return *(MemberItem*) _p;
         }
 
-        Key key() const {
-            return (Key) _p[0];
-        }
-
-        Value& value() const {
-            return *(Value*) &_p[1];
-        }
-
         bool operator==(const iterator& i) const {
             return _p == i._p;
         }
@@ -392,8 +384,8 @@ class Value {
     void _Json2str(fastream& fs, bool debug=false) const;
     void _Json2pretty(fastream& fs, int indent, int n) const;
 
-    friend const char* parse_object(const char*, const char*, Value*);
-    friend const char* parse_array(const char*, const char*, Value*);
+    friend const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
+    friend const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
 
   private:
     struct _Mem {
@@ -428,7 +420,6 @@ inline Value object() {
     return Value(Value::JObject());
 }
 
-// parse json from string
 inline Value parse(const char* s, size_t n) {
     Value v;
     if (v.parse_from(s, n)) return v;
