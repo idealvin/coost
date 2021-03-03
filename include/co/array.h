@@ -12,7 +12,7 @@ class Array {
   public:
     typedef const void* T;
 
-    Array() : Array(32) {}
+    Array() : Array(31) {}
 
     explicit Array(uint32 cap) {
         _mem = (_Mem*) malloc(sizeof(_Mem) + sizeof(T) * cap);
@@ -22,10 +22,6 @@ class Array {
 
     ~Array() {
         free(_mem);
-    }
-
-    uint32 capicity() const {
-        return _mem->cap;
     }
 
     uint32 size() const {
@@ -50,9 +46,9 @@ class Array {
 
     void push_back(T v) {
         if (_mem->size == _mem->cap) {
-            _mem = (_Mem*) realloc(_mem, sizeof(_Mem) + sizeof(T) * (_mem->cap << 1));
+            _mem->cap += (_mem->cap >> 1) + 1;
+            _mem = (_Mem*) realloc(_mem, sizeof(_Mem) + sizeof(T) * _mem->cap);
             assert(_mem);
-            _mem->cap <<= 1;
         }
         _mem->p[_mem->size++] = v;
     }

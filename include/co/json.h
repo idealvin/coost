@@ -8,7 +8,7 @@ namespace json {
 
 class Value {
   public:
-    enum {
+    enum Type {
         kBool = 1,
         kInt = 2,
         kDouble = 4,
@@ -17,6 +17,8 @@ class Value {
         kObject = 32,
     };
 
+    struct JArray {};
+    struct JObject {};
     typedef const char* Key;
 
     class Jalloc {
@@ -34,7 +36,7 @@ class Value {
         }
 
         void dealloc_mem(void* p) {
-            _mp.size() < 8 * 1024 ? _mp.push_back(p) : free(p);
+            _mp.size() < 4095 ? _mp.push_back(p) : free(p);
         }
 
         void* alloc(uint32 n);
@@ -57,12 +59,8 @@ class Value {
             return (MemberItem*) _p;
         }
 
-        Key key() const {
-            return (Key) _p[0];
-        }
-
-        Value& value() const {
-            return *(Value*) &_p[1];
+        MemberItem& operator*() const {
+            return *(MemberItem*) _p;
         }
 
         bool operator==(const iterator& i) const {
@@ -73,13 +71,11 @@ class Value {
             return _p != i._p;
         }
 
-        // ++it
         iterator& operator++() {
             _p += 2;
             return *this;
         }
 
-        // it++
         iterator operator++(int) {
             iterator r(_p);
             _p += 2;
@@ -124,44 +120,50 @@ class Value {
     }
 
     Value(bool v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kBool;
-        _mem->refn = 1;
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kBool);
         _mem->b = v;
     }
 
     Value(int64 v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kInt;
-        _mem->refn = 1;
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kInt);
         _mem->i = v;
     }
 
-    Value(int32 v) : Value((int64)v) {}
+    Value(int32 v)  : Value((int64)v) {}
     Value(uint32 v) : Value((int64)v) {}
     Value(uint64 v) : Value((int64)v) {}
 
     Value(double v) {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kDouble;
-        _mem->refn = 1;
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kDouble);
         _mem->d = v;
     }
 
-    Value(const char* v) {
-        this->_Init_string(v, strlen(v));
+    // string type:
+    //   |        header(8)        | body |
+    //   | kind(1) | 3 | length(4) | body |
+    //
+    // _mem->s and _mem->l point to the beginning of the body.
+    // We can simply use _mem->l[-1] to get the length.
+    Value(const void* s, size_t n) {
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kString);
+        _mem->s = (char*) Jalloc::instance()->alloc((uint32)n + 1);
+        memcpy(_mem->s, s, n);
+        _mem->s[n] = '\0';
+        _mem->l[-1] = (uint32)n;
     }
 
-    Value(const fastring& v) {
-        this->_Init_string(v.data(), v.size());
+    Value(const char* s)        : Value(s, strlen(s)) {}
+    Value(const fastring& s)    : Value(s.data(), s.size()) {}
+    Value(const std::string& s) : Value(s.data(), s.size()) {}
+
+    Value(JArray) {
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kArray);
+        new (&_mem->a) Array(7);
     }
 
-    Value(const std::string& v) {
-        this->_Init_string(v.data(), v.size());
-    }
-
-    Value(const void* data, size_t size) {
-        this->_Init_string(data, size);
+    Value(JObject) {
+        _mem = new (Jalloc::instance()->alloc_mem()) _Mem(kObject);
+        new (&_mem->a) Array(14);        
     }
 
     bool is_null() const {
@@ -223,42 +225,29 @@ class Value {
         return _mem->d;
     }
 
-    // null terminated string
     const char* get_string() const {
         assert(this->is_string());
         return _mem->s;
     }
 
-    void set_array() {
-        if (_mem) {
-            if (_mem->type & kArray) return;
-            this->_UnRef();
-        }
-        this->_Init_array();
-    }
-
-    void set_object() {
-        if (_mem) {
-            if (_mem->type & kObject) return;
-            this->_UnRef();
-        }
-        this->_Init_object();
-    }
-
-    // for array type
+    // push_back() must be operated on null or array types.
     void push_back(Value&& v) {
-        this->_Push_back(v._mem);
+        if (_mem) assert(_mem->type & kArray);
+        else new (&_mem) Value(Value::JArray());
+        _mem->a.push_back(v._mem);
         v._mem = 0;
     }
 
     void push_back(const Value& v) {
-        this->_Push_back(v._mem);
+        if (_mem) assert(_mem->type & kArray);
+        else new (&_mem) Value(Value::JArray());
+        _mem->a.push_back(v._mem);
         if (v._mem) v._Ref();
     }
 
     Value& operator[](uint32 i) const {
         assert(this->is_array());
-        return *(Value*) &_Array()[i];
+        return *(Value*) &_mem->a[i];
     }
 
     Value& operator[](int i) const {
@@ -270,8 +259,8 @@ class Value {
     // for other types, return sizeof(type)
     uint32 size() const {
         if (_mem == 0) return 0;
-        if (_mem->type & kObject) return _Array().size() >> 1;
-        if (_mem->type & kArray) return _Array().size();
+        if (_mem->type & kArray) return _mem->a.size();
+        if (_mem->type & kObject) return _mem->a.size() >> 1;
         if (_mem->type & kString) return _mem->l[-1];
         if (_mem->type & kInt) return 8;
         if (_mem->type & kBool) return 1;
@@ -283,43 +272,48 @@ class Value {
         return this->size() == 0;
     }
 
-    // prefer to use find() than has_member() and operator[].
-    // return null if the key not found.
-    //   Json x = obj.find(key);
-    //   if (!x.is_null()) do_something();
-    Value find(Key key) const;
-
-    bool has_member(Key key) const;
-
+    // add_member() must be operated on null or object types.
     // add_member(key, val) is faster than obj[key] = val
     void add_member(Key key, Value&& val) {
-        this->_Add_member(key, val._mem);
+        if (_mem) assert(_mem->type & kObject);
+        else new (&_mem) Value(Value::JObject());
+        _mem->a.push_back(_Alloc_key(key));
+        _mem->a.push_back(val._mem);
         val._mem = 0;
     }
 
     void add_member(Key key, const Value& val) {
-        this->_Add_member(key, val._mem);
+        if (_mem) assert(_mem->type & kObject);
+        else new (&_mem) Value(Value::JObject());
+        _mem->a.push_back(_Alloc_key(key));
+        _mem->a.push_back(val._mem);
         if (val._mem) val._Ref();
-    }
-
-    iterator begin() const {
-        return iterator(_mem ? &_Array()[0] : 0);
-    }
-
-    iterator end() const {
-        return iterator(_mem ? &_Array()[_Array().size()] : 0);
     }
 
     Value& operator[](Key key) const;
 
-    // stringify
+    Value find(Key key) const;
+
+    bool has_member(Key key) const;
+
+    // iterator must be operated on null or object types.
+    iterator begin() const {
+        assert(_mem == 0 || (_mem->type & kObject));
+        return iterator(_mem ? &_mem->a[0] : 0);
+    }
+
+    iterator end() const {
+        return iterator(_mem ? &_mem->a[_mem->a.size()] : 0);
+    }
+
+    // json to string
     fastring str() const {
         fastring s(256);
         this->_Json2str(*(fastream*)&s);
-        return s;
+        return std::move(s);
     }
 
-    // append json string to @fs
+    // write json string to fastream
     void str(fastream& fs) const {
         this->_Json2str(fs);
     }
@@ -327,18 +321,19 @@ class Value {
     // json to debug string
     fastring dbg() const {
         fastring s(256);
-        this->_Json2dbg(*(fastream*)&s);
+        this->_Json2str(*(fastream*)&s, true);
         return std::move(s);
     }
 
+    // write json debug string to fastream
     void dbg(fastream& fs) const {
-        this->_Json2dbg(fs);
+        this->_Json2str(fs, true);
     }
 
-    // convert json to pretty string
-    fastring pretty(int indent = 4) const {
+    // json to pretty string
+    fastring pretty(int indent=4) const {
         fastring s(256);
-        this->_Json2pretty(indent, indent, *(fastream*)&s);
+        this->_Json2pretty(*(fastream*)&s, indent, indent);
         return std::move(s);
     }
 
@@ -379,47 +374,6 @@ class Value {
 
     void _UnRef();
 
-    void _Init_string(const void* data, size_t size);
-
-    Array& _Array() const {
-        return *(Array*) &_mem->p;
-    }
-
-    void _Init_array() {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kArray;
-        _mem->refn = 1;
-        new (&_mem->p) Array(8);
-    }
-
-    void _Init_object() {
-        _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-        _mem->type = kObject;
-        _mem->refn = 1;
-        new (&_mem->p) Array(16);
-    }
-
-    void _Assert_array() {
-        if (_mem) {
-            assert(_mem->type & kArray);
-        } else {
-            this->_Init_array();
-        }
-    }
-
-    void _Assert_object() {
-        if (_mem) {
-            assert(_mem->type & kObject);
-        } else {
-            this->_Init_object();
-        }
-    }
-
-    void _Push_back(void* v) {
-        _Assert_array();
-        _Array().push_back(v);
-    }
-
     void* _Alloc_key(Key key) const {
         size_t len = strlen(key);
         void* s = Jalloc::instance()->alloc((uint32)len + 1);
@@ -427,28 +381,22 @@ class Value {
         return s;
     }
 
-    void _Add_member(Key key, void* val) {
-        _Assert_object();
-        _Array().push_back(_Alloc_key(key));
-        _Array().push_back(val);
-    }
+    void _Json2str(fastream& fs, bool debug=false) const;
+    void _Json2pretty(fastream& fs, int indent, int n) const;
 
-    void _Json2str(fastream& fs) const;
-    void _Json2dbg(fastream& fs) const;
-    void _Json2pretty(int base_indent, int current_indent, fastream& fs) const;
-
-    friend const char* parse_json (const char*, const char*, Value*);
-    friend const char* parse_array(const char*, const char*, Value*);
+    friend const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
+    friend const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
 
   private:
     struct _Mem {
+        _Mem(Type t) : type(t), refn(1) {}
         uint32 type;
         uint32 refn;
         union {
             bool b;
             int64 i;
             double d;
-            void* p;     // for array and object
+            Array a;     // for array and object
             char* s;     // for string
             uint32* l;   // for length of string
         };
@@ -464,19 +412,14 @@ struct Value::MemberItem {
 
 // return an empty array
 inline Value array() {
-    Value v;
-    v.set_array();
-    return v;
+    return Value(Value::JArray());
 }
 
 // return an empty object
 inline Value object() {
-    Value v;
-    v.set_object();
-    return v;
+    return Value(Value::JObject());
 }
 
-// parse json from string
 inline Value parse(const char* s, size_t n) {
     Value v;
     if (v.parse_from(s, n)) return v;

@@ -35,17 +35,30 @@ void* Value::Jalloc::alloc(uint32 n) {
 void Value::Jalloc::dealloc(void* p) {
     char* s = (char*)p - 8;
     int c = *s; // 0, 1, 2, 3
-    if (c < 3 && _ks[c].size() < 8 * 1024) {
+    if (c < 3 && _ks[c].size() < 4095) {
         _ks[c].push_back(p);
     } else {
         free(s);
     }
 }
 
+Value& Value::operator[](Key key) const {
+    if (_mem) assert(_mem->type & kObject);
+    else new ((void*)&_mem) Value(Value::JObject());
+
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (strcmp(it->key, key) == 0) return it->value;
+    }
+
+    _mem->a.push_back(_Alloc_key(key));
+    _mem->a.push_back(0); // null value 
+    return *(Value*) &_mem->a.back();
+}
+
 Value Value::find(Key key) const {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
-            if (strcmp(it.key(), key) == 0) return it.value();
+            if (strcmp(it->key, key) == 0) return it->value;
         }
     }
     return Value();
@@ -54,38 +67,27 @@ Value Value::find(Key key) const {
 bool Value::has_member(Key key) const {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
-            if (strcmp(it.key(), key) == 0) return true;
+            if (strcmp(it->key, key) == 0) return true;
         }
     }
     return false;
 }
 
-Value& Value::operator[](Key key) const {
-    ((Value*)this)->_Assert_object();
-    for (auto it = this->begin(); it != this->end(); ++it) {
-        if (strcmp(it.key(), key) == 0) return it.value();
-    }
-
-    _Array().push_back(_Alloc_key(key));
-    _Array().push_back(0); // empty Value
-    return *(Value*) &_Array().back();
-}
-
 void Value::_UnRef() {
     if (atomic_dec(&_mem->refn) == 0) {
         if (_mem->type & kObject) {
-            Array& a = _Array();
+            Array& a = _mem->a;
             for (uint32 i = 0; i < a.size(); i += 2) {
                 Jalloc::instance()->dealloc((void*)a[i]);
                 ((Value*)&a[i + 1])->~Value();
             }
-            free(_mem->p);
+            a.~Array();
         } else if (_mem->type & kArray) {
-            Array& a = _Array();
+            Array& a = _mem->a;
             for (uint32 i = 0; i < a.size(); ++i) {
                 ((Value*)&a[i])->~Value();
             }
-            free(_mem->p);
+            a.~Array();
         } else if (_mem->type & kString) {
             Jalloc::instance()->dealloc(_mem->s);
         }
@@ -93,391 +95,163 @@ void Value::_UnRef() {
     }
 }
 
-void Value::_Init_string(const void* data, size_t size) {
-    _mem = (_Mem*) Jalloc::instance()->alloc_mem();
-    _mem->type = kString;
-    _mem->refn = 1;
-    _mem->s = (char*) Jalloc::instance()->alloc((uint32)size + 1);
-    memcpy(_mem->s, data, size);
-    _mem->s[size] = '\0';
-    _mem->l[-1] = (uint32) size;
+static inline const char* init_e2s_table() {
+    static char tb[256] = { 0 };
+    tb['\r'] = 'r';
+    tb['\n'] = 'n';
+    tb['\t'] = 't';
+    tb['\b'] = 'b';
+    tb['\f'] = 'f';
+    tb['\"'] = '"';
+    tb['\\'] = '\\';
+    return tb;
 }
 
-void Value::_Json2str(fastream& fs) const {
-    if (unlikely(_mem == 0)) {
+void Value::_Json2str(fastream& fs, bool debug) const {
+    if (_mem == 0) {
         fs << "null";
-        return;
-    }
 
-    if (_mem->type & kString) {
+    } else if (_mem->type & kString) {
         fs << '"';
+        static const char* tb = init_e2s_table();
+        uint32 len = _mem->l[-1];
+        bool trunc = debug && len > 256;
         const char* s = _mem->s;
-        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
-        if (!p) {
-            fs.append(s, _mem->l[-1]);
-        } else {
-            do {
-                fs.append(s, p - s).append('\\');
-                if (*p == '\\' || *p == '"') {
-                    fs.append(*p);
-                } else if (*p == '\n') {
-                    fs.append('n');
-                } else if (*p == '\r') {
-                    fs.append('r');
-                } else if (*p == '\t') {
-                    fs.append('t');
-                } else if (*p == '\b') {
-                    fs.append('b');
-                } else {
-                    fs.append('f');
-                }
+        const char* e = trunc ? s + 256 : s + len;
 
+        for (const char* p = s; p != e; ++p) {
+            char c = tb[(uint8)*p];
+            if (c) {
+                fs.append(s, p - s).append('\\').append(c);
                 s = p + 1;
-                p = strpbrk(s, "\r\n\t\b\f\"\\");
-
-                if (!p) {
-                    fs.append(s);
-                    break;
-                }
-            } while (true);
+            }
         }
+
+        if (s != e) fs.append(s, e - s);
+        if (trunc) fs.append(3, '.');
         fs << '"';
-        return;
-    }
 
-    if (_mem->type & kObject) {
-        auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
-
+    } else if (_mem->type & kObject) {
         fs << '{';
-        fs << '"' << it.key() << '"' << ':';
-        it.value()._Json2str(fs);
-
-        for (; ++it != this->end();) {
-            fs << ',' << '"' << it.key() << '"' << ':';
-            it.value()._Json2str(fs);
-        }
-
-        fs << '}';
-        return;
-    }
-
-    if (_mem->type & kArray) {
-        fs << '[';
-        auto& a = _Array();
-        if (!a.empty()) ((Value*) &a[0])->_Json2str(fs);
-        for (uint32 i = 1; i < a.size(); ++i) {
-            fs << ',';
-            ((Value*) &a[i])->_Json2str(fs);
-        }
-        fs << ']';
-        return;
-    }
-
-    switch (_mem->type) {
-      case kInt:
-        fs << _mem->i;
-        break;
-      case kBool:
-        fs << _mem->b;
-        break;
-      case kDouble:
-        fs << _mem->d;
-        break;
-    }
-}
-
-void Value::_Json2dbg(fastream& fs) const {
-    if (unlikely(_mem == 0)) {
-        fs << "null";
-        return;
-    }
-
-    if (_mem->type & kString) {
-        fs << '"';
-        const char* s = _mem->s;
-        const char* p = strpbrk(s, "\r\n\t\b\f\"\\");
-        if (!p) {
-            uint32 len = _mem->l[-1];
-            if (len < 256) {
-                fs.append(s, len);
-            } else {
-                fs.append(s, 256);
-                fs.append(3, '.');
-            }
-        } else {
-            do {
-                fs.append(s, p - s).append('\\');
-                if (*p == '\\' || *p == '"') {
-                    fs.append(*p);
-                } else if (*p == '\n') {
-                    fs.append('n');
-                } else if (*p == '\r') {
-                    fs.append('r');
-                } else if (*p == '\t') {
-                    fs.append('t');
-                } else if (*p == '\b') {
-                    fs.append('b');
-                } else {
-                    fs.append('f');
-                }
-
-                s = p + 1;
-                p = strpbrk(s, "\r\n\t\b\f\"\\");
-
-                if (!p) {
-                    fs.append(s);
-                    break;
-                }
-            } while (true);
-        }
-        fs << '"';
-        return;
-    }
-
-    if (_mem->type & kObject) {
         auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
-
-        fs << '{';
-        fs << '"' << it.key() << '"' << ':';
-        it.value()._Json2dbg(fs);
-
-        for (; ++it != this->end();) {
-            fs << ',' << '"' << it.key() << '"' << ':';
-            it.value()._Json2dbg(fs);
-        }
-
-        fs << '}';
-        return;
-    }
-
-    if (_mem->type & kArray) {
-        fs << '[';
-        auto& a = _Array();
-        if (!a.empty()) ((Value*) &a[0])->_Json2dbg(fs);
-        for (uint32 i = 1; i < a.size(); ++i) {
-            fs << ',';
-            ((Value*) &a[i])->_Json2dbg(fs);
-        }
-        fs << ']';
-        return;
-    }
-
-    switch (_mem->type) {
-      case kInt:
-        fs << _mem->i;
-        break;
-      case kBool:
-        fs << _mem->b;
-        break;
-      case kDouble:
-        fs << _mem->d;
-        break;
-    }
-}
-
-void Value::_Json2pretty(int base_indent, int current_indent, fastream& fs) const {
-    if (unlikely(_mem == 0)) {
-        fs << "null";
-        return;
-    }
-
-    if (_mem->type & kObject) {
-        auto it = this->begin();
-        if (unlikely(it == this->end())) {
-            fs << "{}";
-            return;
-        }
-
-        fs << '{' << '\n';
-
-        for (;;) {
-            fs.append(' ', current_indent);
-            fs << '"' << it.key() << '"' << ": ";
-
-            Value& v = it.value();
-
-            if (v.is_object() || v.is_array()) {
-                v._Json2pretty(base_indent, current_indent + base_indent, fs);
-            } else {
-                v._Json2str(fs);
-            }
-
-            if (++it != this->end()) {
-                fs << ',' << '\n';
-            } else {
-                fs << '\n';
-                break;
+        if (it != this->end()) {
+            fs << '"' << it->key << '"' << ':';
+            it->value._Json2str(fs, debug);
+            for (; ++it != this->end();) {
+                fs << ',' << '"' << it->key << '"' << ':';
+                it->value._Json2str(fs, debug);
             }
         }
-
-        current_indent -= base_indent;
-        if (current_indent > 0) fs.append(' ', current_indent);
         fs << '}';
-        return;
 
     } else if (_mem->type & kArray) {
-        auto& a = _Array();
-        if (unlikely(a.empty())) {
-            fs << "[]";
-            return;
-        }
-
-        fs << '[' << '\n';
-
-        for (uint32 i = 0;;) {
-            fs.append(' ', current_indent);
-
-            Value& v = *(Value*) &a[i];
-            if (v.is_object() || v.is_array()) {
-                v._Json2pretty(base_indent, current_indent + base_indent, fs);
-            } else {
-                v._Json2str(fs);
-            }
-
-            if (++i < a.size()) {
-                fs << ',' << '\n';
-            } else {
-                fs << '\n';
-                break;
+        fs << '[';
+        auto& a = _mem->a;
+        if (!a.empty()) {
+            ((Value*)&a[0])->_Json2str(fs, debug);
+            for (uint32 i = 1; i < a.size(); ++i) {
+                fs << ',';
+                ((Value*)&a[i])->_Json2str(fs, debug);
             }
         }
-
-        current_indent -= base_indent;
-        if (current_indent > 0) fs.append(' ', current_indent);
         fs << ']';
-        return;
-    }
 
-    _Json2str(fs);
+    } else {
+        if (_mem->type & kInt) {
+            fs << _mem->i;
+        } else if (_mem->type & kBool) {
+            fs << _mem->b;
+        } else {
+            assert(_mem->type & kDouble);
+            fs << _mem->d;
+        }
+    }
+}
+
+// @indent:  4 spaces by default
+// @n:       number of spaces to insert at the beginning for the current line
+void Value::_Json2pretty(fastream& fs, int indent, int n) const {
+    if (_mem == 0) {
+        fs << "null";
+
+    } else if (_mem->type & kObject) {
+        fs << '{';
+        auto it = this->begin();
+        if (it != this->end()) {
+            for (;;) {
+                fs.append('\n').append(n, ' ');
+                fs << '"' << it->key << '"' << ": ";
+
+                Value& v = it->value;
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs);
+                }
+
+                if (++it != this->end()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
+            }
+        }
+
+        if (n > indent) fs.append(n - indent, ' ');
+        fs << '}';
+
+    } else if (_mem->type & kArray) {
+        fs << '[';
+        auto& a = _mem->a;
+        if (!a.empty()) {
+            for (uint32 i = 0;;) {
+                fs.append('\n').append(n, ' ');
+
+                Value& v = *(Value*) &a[i];
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs);
+                }
+
+                if (++i < a.size()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
+            }
+        }
+
+        if (n > indent) fs.append(n - indent, ' ');
+        fs << ']';
+
+    } else {
+        _Json2str(fs);
+    }
 }
 
 // json parser
+//   @b: beginning of the string
+//   @e: end of the string
+//   @s: stack for parsing string type
+//   @r: result
+// return the current position, or NULL on any error
+const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
+const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
+const char* parse_string(const char* b, const char* e, fastream& s, Value* r);
+const char* parse_unicode(const char* b, const char* e, fastream& s);
+const char* parse_number(const char* b, const char* e, Value* r);
+
 inline bool is_white_char(char c) {
-    return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
+    return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
 }
 
-// Read unicode sequences as a UTF8 string.
-// The following function is neally taken from jsoncpp, all rights belongs to JSONCPP.
-// See more details on https://github.com/open-source-parsers/jsoncpp.
-const char* read_unicode(const char* b, const char* e, fastream& fs) {
-    if (unlikely(e < b + 3)) return 0;
-
-    unsigned int v = 0;
-    for (int i = 0; i < 4; ++i) {
-        v <<= 4;
-        char c = *b++;
-        if ('0' <= c && c <= '9') {
-            v += c - '0';
-        } else if ('a' <= c && c <= 'f') {
-            v += c - 'a' + 10;
-        } else if ('A' <= c && c <= 'F') {
-            v += c - 'A' + 10;
-        } else {
-            return 0;
-        }
-    }
-
-    if (0xd800 <= v && v <= 0xdbff) {
-        if (unlikely(e < b + 5)) return 0;
-        if (unlikely(*b++ != '\\' || *b++ != 'u')) return 0;
-
-        unsigned int u = 0;
-        for (int i = 0; i < 4; ++i) {
-            u <<= 4;
-            char c = *b++;
-            if ('0' <= c && c <= '9') {
-                u += c - '0';
-            } else if ('a' <= c && c <= 'f') {
-                u += c - 'a' + 10;
-            } else if ('A' <= c && c <= 'F') {
-                u += c - 'A' + 10;
-            } else {
-                return 0;
-            }
-        }
-
-        if (unlikely(u < 0xdc00 || u > 0xdfff)) return 0;
-        v = 0x10000 + ((v & 0x3ff) << 10) + (u & 0x3ff);
-    }
-
-    // convert to UTF8
-    if (v <= 0x7f) {
-        fs.append((char) v);
-    } else if (v <= 0x7ff) {
-        fs.append((char) (0xc0 | (0x1f & (v >> 6))));
-        fs.append((char) (0x80 | (0x3f & v)));
-    } else if (v <= 0xffff) {
-        fs.append((char) (0xe0 | (0x0f & (v >> 12))));
-        fs.append((char) (0x80 | (0x3f & (v >> 6))));
-        fs.append((char) (0x80 | (0x3f & v)));
-    } else if (v <= 0x10ffff) {
-        fs.append((char) (0xf0 | (0x07 & (v >> 18))));
-        fs.append((char) (0x80 | (0x3f & (v >> 12))));
-        fs.append((char) (0x80 | (0x3f & (v >> 6))));
-        fs.append((char) (0x80 | (0x3f & v)));
-    } else {
-        return 0;
-    }
-
-    return b - 1;
-}
-
-inline const char* read_string(const char* b, const char* e, void** v) {
-    const char* p = strpbrk(b, "\"\\"); // find the first '\\' or '"'
-    if (unlikely(!p || p >= e)) return 0;
-    if (*p == '"') {
-        new (v) Value(b, p - b);
-        return p;
-    }
-
-    fastream fs;
-    do {
-        fs.append(b, p - b);
-        if (unlikely(++p == e)) return 0;
-
-        if (*p == '"' || *p == '\\' || *p == '/') {
-            fs.append(*p);
-        } else if (*p == 'u') {
-            p = read_unicode(p + 1, e, fs);
-            if (!p) return 0;
-        } else if (*p == 'n') {
-            fs.append('\n');
-        } else if (*p == 'r') {
-            fs.append('\r');
-        } else if (*p == 't') {
-            fs.append('\t');
-        } else if (*p == 'b') {
-            fs.append('\b');
-        } else if (*p == 'f') {
-            fs.append('\f');
-        } else {
-            return 0;
-        }
-
-        b = p + 1;
-        p = strpbrk(b, "\"\\");
-        if (unlikely(!p || p >= e)) return 0;
-
-        if (*p == '"') {
-            fs.append(b, p - b);
-            new (v) Value(fs.data(), fs.size());
-            return p;
-        }
-
-    } while (true);
-}
-
-inline const char* read_key(const char* b, const char* e, char** key) {
+inline const char* parse_key(const char* b, const char* e, char** key) {
+    if (*b++ != '"') return 0;
     const char* p = (const char*) memchr(b, '"', e - b);
-    if (p ) {
+    if (p) {
         char* s = (char*) Json::Jalloc::instance()->alloc((uint32)(p - b + 1));
         memcpy(s, b, p - b);
         s[p - b] = '\0';
@@ -486,219 +260,320 @@ inline const char* read_key(const char* b, const char* e, char** key) {
     return p;
 }
 
-int64 fastatoi(const char* s, size_t n) {
-    uint64 v = 0;
-    size_t i = 0;
+inline const char* parse_false(const char* b, const char* e, Value* r) {
+    if (e - b < 5) return 0;
+    if (b[1] != 'a' || b[2] != 'l' || b[3] != 's' || b[4] != 'e') return 0;
+    new (r) Value(false);
+    return b + 4;
+}
 
-    if (*s != '-') { /* positiv */
-        if (unlikely(*s == '+')) { ++s; --n; }
-        if (unlikely(n == 0)) throw 0;
+inline const char* parse_true(const char* b, const char* e, Value* r) {
+    if (e - b < 4) return 0;
+    if (b[1] != 'r' || b[2] != 'u' || b[3] != 'e') return 0;
+    new (r) Value(true);
+    return b + 3;
+}
 
-        for (; i < n - 1; ++i) {
-            if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-            v = v * 10 + s[i] - '0';
-        }
+inline const char* parse_null(const char* b, const char* e, Value* r) {
+    if (e - b < 4) return 0;
+    if (b[1] != 'u' || b[2] != 'l' || b[3] != 'l') return 0;
+    return b + 3;
+}
 
-        if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-
-        if (n < 20) return v * 10 + s[i] - '0';
-
-        if (n == 20) {
-            if (v > (MAX_UINT64 - (s[i] - '0')) / 10) throw 0;
-            return v * 10 + s[i] - '0';
-        }
-
-        throw 0; // n > 20
-
+inline const char* parse_value(const char* b, const char* e, fastream& s, Value* r) {
+    if (*b == '"') {
+        return parse_string(b, e, s, r);
+    } else if (*b == '{') {
+        return parse_object(b, e, s, new (r) Value(Value::JObject()));
+    } else if (*b == '[') {
+        return parse_array(b, e, s, new (r) Value(Value::JArray()));
+    } else if (*b == 'f') {
+        return parse_false(b, e, r);
+    } else if (*b == 't') {
+        return parse_true(b, e, r);
+    } else if (*b == 'n') {
+        return parse_null(b, e, r);
     } else {
-        ++s;
-        --n;
-        if (unlikely(n == 0)) throw 0;
-
-        for (; i < n - 1; ++i) {
-            if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-            v = v * 10 + s[i] - '0';
-        }
-
-        if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-
-        if (n < 19) return -static_cast<int64>(v * 10 + s[i] - '0');
-
-        if (n == 19) {
-            if (v > (static_cast<uint64>(MIN_INT64) - (s[i] - '0')) / 10) throw 0;
-            return -static_cast<int64>(v * 10 + s[i] - '0');
-        }
-
-        throw 0; // n > 19
+        return parse_number(b, e, r);
     }
 }
 
-inline const char* read_token(const char* b, const char* e, void** v) {
-    bool is_double = false;
-    const char* p = b++;
+static inline bool parse(const char* b, const char* e, Value* r) {
+    while (b < e && is_white_char(*b)) ++b;
+    if (b == e) return false;
 
-    for (; b < e; ++b) {
-        char c = *b;
-
-        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) {
-            if (*p == 'f') {
-                if (b - p != 5 || memcmp(p, "false", 5) != 0) return 0;
-                new (v) Value(false);
-            } else if (*p == 't') {
-                if (b - p != 4 || memcmp(p, "true", 4) != 0) return 0;
-                new (v) Value(true);
-            } else if (unlikely(*p == 'n')) {
-                if (b - p != 4 || memcmp(p, "null", 4) != 0) return 0;
-                new (v) Value();
-            } else {
-                try {
-                    if (!is_double) {
-                        new (v) Value(fastatoi(p, b - p));
-                    } else {
-                        new (v) Value(str::to_double(fastring(p, b - p)));
-                    }
-                } catch (...) {
-                    return 0; // invalid number
-                }
-            }
-            return b - 1;
-
-        } else if (c == '.' || c == 'e' || c == 'E') {
-            is_double = true;
-        }
+    fastream s;
+    if (*b == '{') {
+        b = parse_object(b, e, s, new (r) Value(Value::JObject()));
+    } else if (*b == '[') {
+        b = parse_array(b, e, s, new (r) Value(Value::JArray()));
+    } else {
+        b = parse_value(b, e, s, r);
     }
 
-    return 0;
+    if (b == 0) return false;
+    while (++b < e && is_white_char(*b));
+    return b == e;
 }
 
-/*
- * b: beginning of the string.
- * e: end of the string.
- * res: parse result
- */
-const char* parse_json(const char* b, const char* e, Value* res) {
-    char* key = 0;
-    res->set_object();
+const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
+    char* key;
+    void* val;
 
-    for (; b < e; ++b) {
-        if (unlikely(is_white_char(*b))) continue;
-        if (*b == '}') return b;   // OBJ_END
-        if (*b != '"') return 0;   // not key
+    while (true) {
+        while (++b < e && is_white_char(*b));
+        if (b == e) return 0;
+        if (*b == '}') return b; // object end
 
-        // read key
-        b = read_key(b + 1, e, &key);
+        // key
+        b = parse_key(b, e, &key);
         if (b == 0) return 0;
 
-        // read ':'
-        for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b != ':') {
-                Value::Jalloc::instance()->dealloc(key);
-                return 0;
-            }
-            break;
+        // ':'
+        while (++b < e && is_white_char(*b));
+        if (b == e || *b != ':') {
+            Value::Jalloc::instance()->dealloc(key);
+            return 0;
         }
 
-        // read value
-        for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
-
-            void* v = 0;
-            if (*b == '"') {
-                b = read_string(b + 1, e, &v);
-            } else if (*b == '{') {
-                b = parse_json(b + 1, e, (Value*)&v);
-            } else if (*b == '[') {
-                b = parse_array(b + 1, e, (Value*)&v);
-            } else {
-                b = read_token(b, e, &v);
-            }
-
-            if (unlikely(b == 0)) {
-                if (v) ((Value*)&v)->~Value();
-                Value::Jalloc::instance()->dealloc(key);
-                return 0;
-            }
-
-            res->_Array().push_back(key);
-            res->_Array().push_back(v);
-            break;
+        while (++b < e && is_white_char(*b));
+        if (b == e) {
+            Value::Jalloc::instance()->dealloc(key);
+            return 0;
         }
+
+        // value
+        val = 0;
+        b = parse_value(b, e, s, (Value*)&val);
+        if (b == 0) {
+            if (val != 0) ((Value*)&val)->~Value();
+            Value::Jalloc::instance()->dealloc(key);
+            return 0;
+        }
+
+        r->_mem->a.push_back(key);
+        r->_mem->a.push_back(val);
 
         // check value end
-        for (; ++b < e;) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b == '}') return b; // OBJ_END
-            if (*b != ',') return 0;
-            break;
-        }
+        while (++b < e && is_white_char(*b));
+        if (b == e) return 0;
+        if (*b == '}') return b;
+        if (*b != ',') return 0;
     }
-
-    return 0;
 }
 
-const char* parse_array(const char* b, const char* e, Value* res) {
-    res->set_array();
-
-    for (; b < e; ++b) {
-        if (unlikely(is_white_char(*b))) continue;
-        if (*b == ']') return b; // ARR_END
+const char* parse_array(const char* b, const char* e, fastream& s, Value* r) {
+    while (true) {
+        while (++b < e && is_white_char(*b));
+        if (*b == ']') return b; // array end
 
         void* v = 0;
-        if (*b == '"') {
-            b = read_string(b + 1, e, &v);
-        } else if (*b == '{') {
-            b = parse_json(b + 1, e, (Value*)&v);
-        } else if (*b == '[') {
-            b = parse_array(b + 1, e, (Value*)&v);
-        } else {
-            b = read_token(b, e, &v);
-        }
-
-        if (unlikely(b == 0)) {
+        b = parse_value(b, e, s, (Value*)&v);
+        if (b == 0) {
             if (v) ((Value*)&v)->~Value();
             return 0;
         }
 
-        res->_Array().push_back(v);
+        r->_mem->a.push_back(v);
 
-        for (++b; b < e; ++b) {
-            if (unlikely(is_white_char(*b))) continue;
-            if (*b == ']') return b; // ARR_END
-            if (*b != ',') return 0;
-            break;
-        }
+        while (++b < e && is_white_char(*b));
+        if (b == e) return 0;
+        if (*b == ']') return b; // array end
+        if (*b != ',') return 0;
     }
+}
 
+// find '"' or '\\'
+inline const char* find_quote_or_escape(const char* b, const char* e) {
+    for (; b < e; ++b) {
+        if (*b == '"' || *b == '\\') return b;
+    }
     return 0;
 }
 
+static inline const char* init_s2e_table() {
+    static char tb[256] = { 0 };
+    tb['r'] = '\r';
+    tb['n'] = '\n';
+    tb['t'] = '\t';
+    tb['b'] = '\b';
+    tb['f'] = '\f';
+    tb['"'] = '"';
+    tb['\\'] = '\\';
+    tb['/'] = '/';
+    tb['u'] = 'u';
+    return tb;
+}
+
+const char* parse_string(const char* b, const char* e, fastream& s, Value* r) {
+    const char* p = find_quote_or_escape(++b, e); // find the first '"' or '\\'
+    if (p == 0) return 0;
+    if (*p == '"') {
+        new (r) Value(b, p - b);
+        return p;
+    }
+
+    s.clear();
+    do {
+        s.append(b, p - b);
+        if (++p == e) return 0;
+
+        static const char* tb = init_s2e_table();
+        char c = tb[(uint8)*p];
+        if (c == 0) return 0; // invalid escape
+
+        if (*p == 'u') {
+            p = parse_unicode(p + 1, e, s);
+            if (p == 0) return 0;
+        } else {
+            s.append(c);
+        }
+
+        b = p + 1;
+        p = find_quote_or_escape(b, e);
+        if (p == 0) return 0;
+
+        if (*p == '"') {
+            s.append(b, p - b);
+            new (r) Value(s.data(), s.size());
+            return p;
+        }
+    } while (true);
+}
+
+inline const char* parse_hex(const char* b, const char* e, uint32& u) {
+    if (e - b < 4) return 0;
+    for (int i = 0; i < 4; ++i) {
+        u <<= 4;
+        char c = b[i];
+        if ('0' <= c && c <= '9') {
+            u += c - '0';
+        } else if ('A' <= c && c <= 'F') {
+            u += c - 'A' + 10;
+        } else if ('a' <= c && c <= 'f') {
+            u += c - 'a' + 10;
+        } else {
+            return 0;
+        }
+    }
+    return b + 3;
+}
+
+// utf8:
+//   0000 - 007F      0xxxxxxx            
+//   0080 - 07FF      110xxxxx  10xxxxxx        
+//   0800 - FFFF      1110xxxx  10xxxxxx  10xxxxxx    
+//  10000 - 10FFFF    11110xxx  10xxxxxx  10xxxxxx  10xxxxxx
+//
+// \uXXXX
+// \uXXXX\uYYYY
+//   D800 <= XXXX <= DBFF
+//   DC00 <= XXXX <= DFFF
+const char* parse_unicode(const char* b, const char* e, fastream& s) {
+    uint32 u = 0;
+    b = parse_hex(b, e, u);
+    if (b == 0) return 0;
+
+    if (0xD800 <= u && u <= 0xDBFF) {
+        if (e - b < 3) return 0;
+        if (b[1] != '\\' || b[2] != 'u') return 0;
+
+        uint32 v = 0;
+        b = parse_hex(b + 3, e, v);
+        if (b == 0) return 0;
+        if (v < 0xDC00 || v > 0xDFFF) return 0;
+
+        u = 0x10000 + (((u - 0xD800) << 10) | (v - 0xDC00));
+    }
+
+    // encode to UTF8
+    if (u <= 0x7F) {
+        s.append((char)u);
+    } else if (u <= 0x7FF) {
+        s.append((char) (0xC0 | (0xFF & (u >> 6))));
+        s.append((char) (0x80 | (0x3F & u)));
+    } else if (u <= 0xFFFF) {
+        s.append((char) (0xE0 | (0xFF & (u >> 12))));
+        s.append((char) (0x80 | (0x3F & (u >> 6))));
+        s.append((char) (0x80 | (0x3F & u)));
+    } else {
+        assert(u <= 0x10FFFF);
+        s.append((char) (0xF0 | (0xFF & (u >> 18))));
+        s.append((char) (0x80 | (0x3F & (u >> 12))));
+        s.append((char) (0x80 | (0x3F & (u >>  6))));
+        s.append((char) (0x80 | (0x3F & u)));
+    } 
+
+    return b;
+}
+
+static int64 fastatoi(const char* s, size_t n) {
+    uint64 v = 0;
+    uint64 max_value;
+    size_t max_digit;
+
+    if (*s != '-') {
+        max_value = MAX_UINT64;
+        max_digit = 20;
+    } else {
+        max_value = (uint64)MIN_INT64;
+        max_digit = 19;
+        ++s;
+        if (--n == 0) throw "invalid integer value";
+    }
+
+    if (*s == '0') {
+        if (n == 1) return 0;
+        throw "invalid integer value";
+    }
+
+    if (n > max_digit) throw "out of range for integer";
+
+    for (size_t i = 0; i < n - 1; ++i) {
+        if (s[i] < '0' || s[i] > '9') throw "invalid integer value";
+        v = v * 10 + s[i] - '0';
+    }
+
+    char c = s[n - 1];
+    if (c < '0' || c > '9') throw "invalid integer value";
+    if (n == max_digit) {
+        if (v > (max_value - (c - '0')) / 10) throw "out of range for integer";
+    }
+
+    v = v * 10 + c - '0';
+    return max_digit == 20 ? v : -(int64)v;
+}
+
+const char* parse_number(const char* b, const char* e, Value* r) {
+    bool is_double = false;
+    const char* p = b;
+
+    for (; p < e; ++p) {
+        char c = *p;
+        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) break;
+        if (c == '.' || c == 'e' || c == 'E') is_double = true;
+    }
+
+    if (p == b) return 0;
+    try {
+        if (!is_double) {
+            new (r) Value(fastatoi(b, p - b));
+        } else {
+            new (r) Value(str::to_double(fastring(b, p - b)));
+        }
+    } catch (...) {
+        return 0; // invalid number
+    }
+    
+    return p - 1; // return pointer to the end of the number
+}
+
 bool Value::parse_from(const char* s, size_t n) {
-    if (unlikely(_mem)) {
+    if (_mem) {
         this->_UnRef();
         _mem = 0;
     }
-
-    const char* p = s;
-    const char* e = s + n;
-    while (p < e && is_white_char(*p)) ++p;
-    if (unlikely(p == e)) return false;
-
-    if (*p == '{') {
-        p = parse_json(p + 1, e, this);
-    } else if (*p == '[') {
-        p = parse_array(p + 1, e, this);
-    } else {
-        return false;
-    }
-
-    if (!p) return false;
-
-    for (; ++p < e;) {
-        if (!is_white_char(*p)) return false;
-    }
-
-    return true;
+    return parse(s, s + n, this);
 }
 
 } // namespace json

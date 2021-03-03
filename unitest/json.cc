@@ -56,6 +56,16 @@ DEF_test(json) {
         EXPECT_EQ(cs.str(), "\"hello world\"");
         EXPECT_EQ(cs.pretty(), "\"hello world\"");
 
+        Json ds = fastring(200, 'x').append('\n').append(99, 'x');
+        EXPECT(ds.is_string());
+        EXPECT_EQ(ds.size(), 300);
+        EXPECT_EQ(ds.dbg(), fastring("\"").append(200, 'x').append("\\n").append(55, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(ds.str(), fastring("\"").append(200, 'x').append("\\n").append(99, 'x').append('"'));
+
+        ds = fastring(300, 'x');
+        EXPECT_EQ(ds.dbg(), fastring("\"").append(256, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(ds.str(), fastring("\"").append(300, 'x').append('"'));
+
         Json s = fastring("hello world");
         EXPECT(s.is_string());
         EXPECT_EQ(s.size(), 11);
@@ -113,7 +123,7 @@ DEF_test(json) {
         Json v;
         v["name"] = "vin";
         v["age"] = 29;
-        v["phone"] = "1234567";
+        v.add_member("phone", "1234567");
 
         EXPECT(v.is_object());
         EXPECT_EQ(v.size(), 3);
@@ -134,6 +144,25 @@ DEF_test(json) {
         Json v;
         v.parse_from("");
         EXPECT(v.is_null());
+
+        v = json::parse("false");
+        EXPECT(v.is_bool());
+        EXPECT_EQ(v.get_bool(), false);
+
+        v = json::parse("true");
+        EXPECT(v.is_bool());
+        EXPECT_EQ(v.get_bool(), true);
+
+        v = json::parse("32");
+        EXPECT(v.is_int());
+        EXPECT_EQ(v.get_int(), 32);
+
+        v = json::parse("03");
+        EXPECT(v.is_null());
+
+        v = json::parse("0.3");
+        EXPECT(v.is_double());
+        EXPECT_EQ(v.get_double(), 0.3);
 
         v = json::parse("{}");
         EXPECT(v.is_object());
