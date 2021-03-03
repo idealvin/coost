@@ -160,6 +160,10 @@ DEF_test(json) {
         v = json::parse("03");
         EXPECT(v.is_null());
 
+        v = json::parse("0.3");
+        EXPECT(v.is_double());
+        EXPECT_EQ(v.get_double(), 0.3);
+
         v = json::parse("{}");
         EXPECT(v.is_object());
         EXPECT_EQ(v.str(), "{}");
