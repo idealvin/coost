@@ -509,73 +509,63 @@ const char* parse_unicode(const char* b, const char* e, fastream& s) {
 
 static int64 fastatoi(const char* s, size_t n) {
     uint64 v = 0;
-    size_t i = 0;
+    uint64 max_value;
+    size_t max_digit;
 
-    if (*s != '-') { /* positiv */
-        if (unlikely(*s == '+')) { ++s; --n; }
-        if (unlikely(n == 0)) throw 0;
-
-        for (; i < n - 1; ++i) {
-            if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-            v = v * 10 + s[i] - '0';
-        }
-
-        if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-
-        if (n < 20) return v * 10 + s[i] - '0';
-
-        if (n == 20) {
-            if (v > (MAX_UINT64 - (s[i] - '0')) / 10) throw 0;
-            return v * 10 + s[i] - '0';
-        }
-
-        throw 0; // n > 20
-
+    if (*s != '-') {
+        max_value = MAX_UINT64;
+        max_digit = 20;
     } else {
+        max_value = (uint64)MIN_INT64;
+        max_digit = 19;
         ++s;
-        --n;
-        if (unlikely(n == 0)) throw 0;
-
-        for (; i < n - 1; ++i) {
-            if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-            v = v * 10 + s[i] - '0';
-        }
-
-        if (unlikely(s[i] < '0' || s[i] > '9')) throw 0;
-
-        if (n < 19) return -static_cast<int64>(v * 10 + s[i] - '0');
-
-        if (n == 19) {
-            if (v > (static_cast<uint64>(MIN_INT64) - (s[i] - '0')) / 10) throw 0;
-            return -static_cast<int64>(v * 10 + s[i] - '0');
-        }
-
-        throw 0; // n > 19
+        if (--n == 0) throw "invalid integer value";
     }
+
+    if (*s == '0') {
+        if (n == 1) return 0;
+        throw "invalid integer value";
+    }
+
+    if (n > max_digit) throw "out of range for integer";
+
+    for (size_t i = 0; i < n - 1; ++i) {
+        if (s[i] < '0' || s[i] > '9') throw "invalid integer value";
+        v = v * 10 + s[i] - '0';
+    }
+
+    char c = s[n - 1];
+    if (c < '0' || c > '9') throw "invalid integer value";
+    if (n == max_digit) {
+        if (v > (max_value - (c - '0')) / 10) throw "out of range for integer";
+    }
+
+    v = v * 10 + c - '0';
+    return max_digit == 20 ? v : -(int64)v;
 }
 
 const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
-    for (const char* p = b; p < e; ++p) {
-        char c = *p;
-        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) {
-            if (p == b) return 0;
-            try {
-                if (!is_double) {
-                    new (r) Value(fastatoi(b, p - b));
-                } else {
-                    new (r) Value(str::to_double(fastring(b, p - b)));
-                }
-            } catch (...) {
-                return 0; // invalid number
-            }
-            return p - 1; // return pointer to the end of the number
+    const char* p = b;
 
-        } else if (c == '.' || c == 'e' || c == 'E') {
-            is_double = true;
-        }
+    for (; p < e; ++p) {
+        char c = *p;
+        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) break;
+        if (c == '.' || c == 'e' || c == 'E') is_double = true;
     }
-    return 0;
+
+    if (p == b) return 0;
+    try {
+        if (!is_double) {
+            new (r) Value(fastatoi(b, p - b));
+        } else {
+            new (r) Value(str::to_double(fastring(b, p - b)));
+        }
+    } catch (...) {
+        return 0; // invalid number
+    }
+    
+    return p - 1; // return pointer to the end of the number
 }
 
 bool Value::parse_from(const char* s, size_t n) {

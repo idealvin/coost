@@ -123,7 +123,7 @@ DEF_test(json) {
         Json v;
         v["name"] = "vin";
         v["age"] = 29;
-        v["phone"] = "1234567";
+        v.add_member("phone", "1234567");
 
         EXPECT(v.is_object());
         EXPECT_EQ(v.size(), 3);
@@ -143,6 +143,21 @@ DEF_test(json) {
 
         Json v;
         v.parse_from("");
+        EXPECT(v.is_null());
+
+        v = json::parse("false");
+        EXPECT(v.is_bool());
+        EXPECT_EQ(v.get_bool(), false);
+
+        v = json::parse("true");
+        EXPECT(v.is_bool());
+        EXPECT_EQ(v.get_bool(), true);
+
+        v = json::parse("32");
+        EXPECT(v.is_int());
+        EXPECT_EQ(v.get_int(), 32);
+
+        v = json::parse("03");
         EXPECT(v.is_null());
 
         v = json::parse("{}");
