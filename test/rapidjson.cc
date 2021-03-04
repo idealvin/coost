@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     int64 end = now::us();
 
     std::cout << "parse average time used: "
-              << (end - beg) * 1.0/ n << "us" << std::endl;
+              << (end - beg) * 1.0 / n << "us" << std::endl;
 
     std::string xs;
     beg = now::us();

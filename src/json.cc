@@ -422,11 +422,11 @@ const char* parse_string(const char* b, const char* e, fastream& s, Value* r) {
         char c = tb[(uint8)*p];
         if (c == 0) return 0; // invalid escape
 
-        if (*p == 'u') {
+        if (*p != 'u') {
+            s.append(c);
+        } else {
             p = parse_unicode(p + 1, e, s);
             if (p == 0) return 0;
-        } else {
-            s.append(c);
         }
 
         b = p + 1;
