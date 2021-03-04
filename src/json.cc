@@ -74,6 +74,7 @@ bool Value::has_member(Key key) const {
 }
 
 void Value::_UnRef() {
+    static_assert(offsetof(struct _Mem, a) == 8, "");
     if (atomic_dec(&_mem->refn) == 0) {
         if (_mem->type & kObject) {
             Array& a = _mem->a;
@@ -316,7 +317,7 @@ static inline bool parse(const char* b, const char* e, Value* r) {
     return b == e;
 }
 
-const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
     char* key;
     void* val;
 
@@ -351,8 +352,9 @@ const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
             return 0;
         }
 
-        r->_mem->a.push_back(key);
-        r->_mem->a.push_back(val);
+        Array& a = *(Array*)((*(char**)r) + 8);
+        a.push_back(key);
+        a.push_back(val);
 
         // check value end
         while (++b < e && is_white_char(*b));
@@ -362,7 +364,7 @@ const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
     }
 }
 
-const char* parse_array(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_array(const char* b, const char* e, fastream& s, Value* r) {
     while (true) {
         while (++b < e && is_white_char(*b));
         if (*b == ']') return b; // array end
@@ -374,7 +376,8 @@ const char* parse_array(const char* b, const char* e, fastream& s, Value* r) {
             return 0;
         }
 
-        r->_mem->a.push_back(v);
+        Array& a = *(Array*)((*(char**)r) + 8);
+        a.push_back(v);
 
         while (++b < e && is_white_char(*b));
         if (b == e) return 0;
@@ -405,7 +408,7 @@ static inline const char* init_s2e_table() {
     return tb;
 }
 
-const char* parse_string(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_string(const char* b, const char* e, fastream& s, Value* r) {
     const char* p = find_quote_or_escape(++b, e); // find the first '"' or '\\'
     if (p == 0) return 0;
     if (*p == '"') {
@@ -469,7 +472,7 @@ inline const char* parse_hex(const char* b, const char* e, uint32& u) {
 // \uXXXX\uYYYY
 //   D800 <= XXXX <= DBFF
 //   DC00 <= XXXX <= DFFF
-const char* parse_unicode(const char* b, const char* e, fastream& s) {
+static const char* parse_unicode(const char* b, const char* e, fastream& s) {
     uint32 u = 0;
     b = parse_hex(b, e, u);
     if (b == 0) return 0;
@@ -544,7 +547,7 @@ static int64 fastatoi(const char* s, size_t n) {
     return max_digit == 20 ? v : -(int64)v;
 }
 
-const char* parse_number(const char* b, const char* e, Value* r) {
+static const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
     const char* p = b;
 
