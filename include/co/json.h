@@ -242,7 +242,7 @@ class Value {
         if (_mem) assert(_mem->type & kArray);
         else new (&_mem) Value(Value::JArray());
         _mem->a.push_back(v._mem);
-        if (v._mem) v._Ref();
+        if (&v != this && v._mem) v._Ref();
     }
 
     Value& operator[](uint32 i) const {
@@ -287,7 +287,7 @@ class Value {
         else new (&_mem) Value(Value::JObject());
         _mem->a.push_back(_Alloc_key(key));
         _mem->a.push_back(val._mem);
-        if (val._mem) val._Ref();
+        if (&val != this && val._mem) val._Ref();
     }
 
     Value& operator[](Key key) const;
