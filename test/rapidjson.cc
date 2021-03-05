@@ -1,22 +1,20 @@
 #include "__/rapidjson.h"
 #include "co/time.h"
+#include "co/flag.h"
 #include <string>
 #include <iostream>
 
+DEF_uint32(n, 20, "string length for this test");
+
 int main(int argc, char** argv) {
+    flag::init(argc, argv);
+
     rapidjson::Document v;
     v.SetObject();
     auto& alloc = v.GetAllocator();
 
     v.AddMember("name", "vin", alloc);
     v.AddMember("age", 23, alloc);
-#if 0
-    v.AddMember("hello11111", "hello world", alloc);
-    v.AddMember("hello22222", "hello world", alloc);
-    v.AddMember("hello33333", "hello world", alloc);
-    v.AddMember("hello44444", "hello world", alloc);
-    v.AddMember("hello55555", "hello world", alloc);
-#endif
 
     rapidjson::Value a;
     a.SetArray();
@@ -32,10 +30,11 @@ int main(int argc, char** argv) {
     b.PushBack(2, alloc);
     b.PushBack(3, alloc);
 
+    std::string os(FLG_n, 'o');
     rapidjson::Value o;
     o.SetObject();
     o.AddMember("o1", 3.14, alloc);
-    o.AddMember("o2", "good", alloc);
+    o.AddMember("o2", rapidjson::Value(os.data(), os.size(), alloc), alloc);
     o.AddMember("o3", b, alloc);
 
     v.AddMember("o", o, alloc);

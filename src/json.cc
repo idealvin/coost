@@ -352,7 +352,7 @@ static const char* parse_object(const char* b, const char* e, fastream& s, Value
             return 0;
         }
 
-        Array& a = *(Array*)((*(char**)r) + 8);
+        Array& a = *(Array*)((*(char**)r) + 8); // r->_mem->a
         a.push_back(key);
         a.push_back(val);
 
@@ -376,7 +376,7 @@ static const char* parse_array(const char* b, const char* e, fastream& s, Value*
             return 0;
         }
 
-        Array& a = *(Array*)((*(char**)r) + 8);
+        Array& a = *(Array*)((*(char**)r) + 8); // r->_mem->a
         a.push_back(v);
 
         while (++b < e && is_white_char(*b));
@@ -388,10 +388,10 @@ static const char* parse_array(const char* b, const char* e, fastream& s, Value*
 
 // find '"' or '\\'
 inline const char* find_quote_or_escape(const char* b, const char* e) {
-    for (; b < e; ++b) {
-        if (*b == '"' || *b == '\\') return b;
-    }
-    return 0;
+    const char* p = (const char*) memchr(b, '"', e - b);
+    if (p == 0) return 0;
+    const char* q = (const char*) memchr(b, '\\', p - b);
+    return q ? q : p;
 }
 
 static inline const char* init_s2e_table() {

@@ -2,19 +2,15 @@
 #include "co/time.h"
 #include "co/log.h"
 
+DEF_uint32(n, 20, "string length for this test");
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+
     json::Value v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
-#if 0
-    v.add_member("hello11111", "hello world");
-    v.add_member("hello22222", "hello world");
-    v.add_member("hello33333", "hello world");
-    v.add_member("hello44444", "hello world");
-    v.add_member("hello55555", "hello world");
-#endif
 
     json::Value a;
     a.push_back(1);
@@ -27,7 +23,7 @@ int main(int argc, char** argv) {
 
     json::Value o;
     o["o1"] = 3.14;
-    o["o2"] = "good";
+    o["o2"] = fastring(FLG_n, 'o');
     o["o3"] = b;
 
     v.add_member("o", o);
@@ -46,10 +42,6 @@ int main(int argc, char** argv) {
 
     if (u.has_member("name")) {
         COUT << "name: " << u["name"].get_string();
-    }
-
-    for (auto it = u.begin(); it != u.end(); ++it) {
-        COUT << it->key << ": " << it->value.str();
     }
 
     json::Value ar = u["num"];
