@@ -1,6 +1,7 @@
 #include "co/tasked.h"
 #include "co/thread.h"
 #include "co/time.h"
+#include <vector>
 
 class TaskedImpl {
   public:
