@@ -26,7 +26,6 @@ DEF_test(thread) {
         EXPECT_EQ(em.wait(0), false);
         em.signal();
         EXPECT_EQ(em.wait(0), true);
-        EXPECT_EQ(em.wait(0), true);
         em.reset();
         EXPECT_EQ(em.wait(1), false);
     }
@@ -37,14 +36,6 @@ DEF_test(thread) {
         Thread(std::bind(thread_run, &v, &ev)).detach();
         ev.wait();
         EXPECT_EQ(v, 1);
-    }
-
-    DEF_case(task_sched) {
-        int v = 0;
-        TaskSched s;
-        s.run_every(std::bind(thread_run, &v, (SyncEvent*)NULL), 1);
-        s.stop();
-        EXPECT_EQ(v, 0);
     }
 
     DEF_case(mutex) {
