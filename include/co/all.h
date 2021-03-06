@@ -12,6 +12,7 @@
 
 #include "time.h"
 #include "thread.h"
+#include "tasked.h"
 #include "flag.h"
 #include "log.h"
 #include "unitest.h"
