@@ -1,6 +1,6 @@
 #include "co/log.h"
 #include "co/time.h"
-#include "co/thread.h"
+#include "co/tasked.h"
 
 void f() {
     COUT << "f(): " << now::str();
@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 
     COUT << "now: " << now::str();
 
-    TaskSched s;
+    Tasked s;
     s.run_in(f, 0);
     s.run_in(f, 1);
     s.run_in(f, 2);
