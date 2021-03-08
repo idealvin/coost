@@ -239,11 +239,11 @@ void Value::_Json2pretty(fastream& fs, int indent, int n) const {
 //   @s: stack for parsing string type
 //   @r: result
 // return the current position, or NULL on any error
-const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
-const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
-const char* parse_string(const char* b, const char* e, fastream& s, Value* r);
-const char* parse_unicode(const char* b, const char* e, fastream& s);
-const char* parse_number(const char* b, const char* e, Value* r);
+static const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
+static const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
+static const char* parse_string(const char* b, const char* e, fastream& s, Value* r);
+static const char* parse_unicode(const char* b, const char* e, fastream& s);
+static const char* parse_number(const char* b, const char* e, Value* r);
 
 inline bool is_white_char(char c) {
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');

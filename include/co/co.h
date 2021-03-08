@@ -38,25 +38,25 @@ namespace co {
 void go(Closure* cb);
 
 inline void go(void (*f)()) {
-    go(new_callback(f));
+    go(new_closure(f));
 }
 
 inline void go(void (*f)(void*), void* p) {
-    go(new_callback(f, p));
+    go(new_closure(f, p));
 }
 
 template<typename T>
 inline void go(void (T::*f)(), T* p) {
-    go(new_callback(f, p));
+    go(new_closure(f, p));
 }
 
 // !! Performance of std::function is poor. Try to avoid it.
 inline void go(const std::function<void()>& f) {
-    go(new_callback(f));
+    go(new_closure(f));
 }
 
 inline void go(std::function<void()>&& f) {
-    go(new_callback(std::move(f)));
+    go(new_closure(std::move(f)));
 }
 
 void sleep(unsigned int ms);
