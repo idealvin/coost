@@ -1,17 +1,18 @@
 #pragma once
 
-#include "def.h"
 #include <functional>
-#include <unordered_map>
 
 class Closure {
   public:
     Closure() = default;
+    
+    Closure(const Closure&) = delete;
+    void operator=(const Closure&) = delete;
 
     virtual void run() = 0;
 
   protected:
-    virtual ~Closure() {}
+    virtual ~Closure() = default;
 };
 
 namespace xx {
@@ -24,14 +25,15 @@ class Function0 : public Closure {
         : _f(f) {
     }
 
-    virtual ~Function0() {}
-
     virtual void run() {
         _f();
+        delete this;
     }
 
   private:
     F _f;
+
+    virtual ~Function0() {}
 };
 
 class Function1 : public Closure {
@@ -93,36 +95,30 @@ class Function : public Closure {
     }
 
   private:
-    F _f;    
+    F _f;
 
     virtual ~Function() {}
 };
 
 } // xx
 
-inline Closure* new_callback(void (*f)()) {
-    typedef std::unordered_map<void(*)(), xx::Function0> Map;
-    static __thread Map* kF0 = 0;
-    if (unlikely(!kF0)) kF0 = new Map();
-
-    auto it = kF0->find(f);
-    if (it != kF0->end()) return &it->second;
-    return &kF0->insert(std::make_pair(f, xx::Function0(f))).first->second;
+inline Closure* new_closure(void (*f)()) {
+    return new xx::Function0(f);
 }
 
-inline Closure* new_callback(void (*f)(void*), void* p) {
+inline Closure* new_closure(void (*f)(void*), void* p) {
     return new xx::Function1(f, p);
 }
 
 template<typename T>
-inline Closure* new_callback(void (T::*f)(), T* p) {
+inline Closure* new_closure(void (T::*f)(), T* p) {
     return new xx::Method0<T>(f, p);
 }
 
-inline Closure* new_callback(std::function<void()>&& f) {
+inline Closure* new_closure(std::function<void()>&& f) {
     return new xx::Function(std::move(f));
 }
 
-inline Closure* new_callback(const std::function<void()>& f) {
+inline Closure* new_closure(const std::function<void()>& f) {
     return new xx::Function(f);
 }

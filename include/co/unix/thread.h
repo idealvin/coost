@@ -1,13 +1,14 @@
 #pragma once
 
 #ifndef _WIN32
-
+#include "../def.h"
 #include "../atomic.h"
 #include "../closure.h"
 
 #include <pthread.h>
 #include <assert.h>
 #include <memory>
+#include <unordered_map>
 
 class Mutex {
   public:
@@ -119,24 +120,24 @@ class Thread {
     }
 
     explicit Thread(void (*f)())
-        : Thread(new_callback(f)) {
+        : Thread(new_closure(f)) {
     }
 
     Thread(void (*f)(void*), void* p)
-        : Thread(new_callback(f, p)) {
+        : Thread(new_closure(f, p)) {
     }
 
     template<typename T>
     Thread(void (T::*f)(), T* p)
-        : Thread(new_callback(f, p)) {
+        : Thread(new_closure(f, p)) {
     }
 
     explicit Thread(std::function<void()>&& f)
-        : Thread(new_callback(std::move(f))) {
+        : Thread(new_closure(std::move(f))) {
     }
 
     explicit Thread(const std::function<void()>& f)
-        : Thread(new_callback(f)) {
+        : Thread(new_closure(f)) {
     }
 
     ~Thread() {
