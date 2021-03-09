@@ -44,12 +44,6 @@ int main(int argc, char** argv) {
         COUT << "name: " << u["name"].get_string();
     }
 
-    json::Value ar = u["num"];
-    COUT << "num:";
-    for (uint32 i = 0; i < ar.size(); ++i) {
-        COUT << ar[i].get_int() << ' ';
-    }
-
     int n = 100000;
 
     int64 beg = now::us();

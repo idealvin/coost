@@ -27,7 +27,7 @@ class Value {
 
     class Jalloc {
       public:
-        Jalloc() = default;
+        Jalloc() : _fs(256) {}
         ~Jalloc();
 
         static Jalloc* instance() {
@@ -46,9 +46,15 @@ class Value {
         void* alloc(uint32 n);
         void dealloc(void* p);
 
+        fastream& alloc_stream() {
+            _fs.clear();
+            return _fs;
+        }
+
       private:
         Array _mp;    // for header (_Mem)
         Array _ks[3]; // for key and string
+        fastream _fs; // for parsing string
     };
 
     struct MemberItem;
