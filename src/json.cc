@@ -1,5 +1,6 @@
 #include "co/json.h"
-#include "co/str.h"
+#include <errno.h>
+#include <math.h>
 
 namespace json {
 
@@ -509,65 +510,78 @@ static const char* parse_unicode(const char* b, const char* e, fastream& s) {
     return b;
 }
 
-static int64 fastatoi(const char* s, size_t n) {
+inline int64 str2int(const char* b, const char* e) {
     uint64 v = 0;
-    uint64 max_value;
-    size_t max_digit;
+    const char* p = b;
+    if (*p == '-') ++p;
+    for (; p < e; ++p) v = v * 10 + *p - '0';
+    return *b != '-' ? v : -(int64)v;
+}
 
-    if (*s != '-') {
-        max_value = MAX_UINT64;
-        max_digit = 20;
-    } else {
-        max_value = (uint64)MIN_INT64;
-        max_digit = 19;
-        ++s;
-        if (--n == 0) throw "invalid integer value";
-    }
+inline bool str2double(const char* b, double& d) {
+    errno = 0;
+    d = strtod(b, 0);
+    return !(errno == ERANGE && (d == HUGE_VAL || d == -HUGE_VAL));
+}
 
-    if (*s == '0') {
-        if (n == 1) return 0;
-        throw "invalid integer value";
-    }
-
-    if (n > max_digit) throw "out of range for integer";
-
-    for (size_t i = 0; i < n - 1; ++i) {
-        if (s[i] < '0' || s[i] > '9') throw "invalid integer value";
-        v = v * 10 + s[i] - '0';
-    }
-
-    char c = s[n - 1];
-    if (c < '0' || c > '9') throw "invalid integer value";
-    if (n == max_digit) {
-        if (v > (max_value - (c - '0')) / 10) throw "out of range for integer";
-    }
-
-    v = v * 10 + c - '0';
-    return max_digit == 20 ? v : -(int64)v;
+inline bool is_digit(char c) {
+    return '0' <= c && c <= '9';
 }
 
 static const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
     const char* p = b;
 
-    for (; p < e; ++p) {
-        char c = *p;
-        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) break;
-        if (c == '.' || c == 'e' || c == 'E') is_double = true;
+    if (*p == '-' && ++p == e) return 0;
+    if (*p == '0') {
+        ++p;
+    } else {
+        if (*p < '1' || *p > '9') return 0; // must be 1 to 9
+        while (++p < e && is_digit(*p));
     }
 
-    if (p == b) return 0;
-    try {
-        if (!is_double) {
-            new (r) Value(fastatoi(b, p - b));
-        } else {
-            new (r) Value(str::to_double(fastring(b, p - b)));
-        }
-    } catch (...) {
-        return 0; // invalid number
+    if (*p == '.') {
+        ++p;
+        if (p == e || !is_digit(*p)) return 0; // must be a digit after the point
+        while (++p < e && is_digit(*p));
+        is_double = true;
     }
-    
-    return p - 1; // return pointer to the end of the number
+
+    if (*p == 'e' || *p == 'E') {
+        ++p;
+        if (*p == '-' || *p == '+') ++p;
+        if (p == e || !is_digit(*p)) return 0; // must be a digit
+        while (++p < e && is_digit(*p));
+        is_double = true;
+    }
+
+    size_t n = p - b;
+    if (n == 0) return 0;
+
+    if (is_double || n > 20) goto to_dbl;
+    if (n < 20) goto to_int;
+    {
+        // compare with MAX_UINT64, MIN_INT64
+        // if value > MAX_UINT64 or value < MIN_INT64, we parse it as a double
+        int m = memcmp(b, (*b != '-' ? "18446744073709551615" : "-9223372036854775808"), 20);
+        if (m < 0) goto to_int;
+        if (m > 0) goto to_dbl;
+        new (r) Value(*b != '-' ? MAX_UINT64 : MIN_INT64);
+        return p - 1;
+    }
+
+  to_int:
+    new (r) Value(str2int(b, p));
+    return p - 1;
+
+  to_dbl:
+    double d;
+    if (str2double(b, d)) {
+        new (r) Value(d);
+        return p - 1;
+    } else {
+        return 0;
+    }
 }
 
 bool Value::parse_from(const char* s, size_t n) {
