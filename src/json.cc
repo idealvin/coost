@@ -509,59 +509,67 @@ static const char* parse_unicode(const char* b, const char* e, fastream& s) {
     return b;
 }
 
-static int64 fastatoi(const char* s, size_t n) {
+static inline int64 fastatoi(const char* b, const char* e) {
     uint64 v = 0;
-    uint64 max_value;
-    size_t max_digit;
+    const char* p = b;
+    if (*p == '-') ++p;
+    for (; p < e; ++p) v = v * 10 + *p - '0';
+    return *b != '-' ? v : -(int64)v;
+}
 
-    if (*s != '-') {
-        max_value = MAX_UINT64;
-        max_digit = 20;
-    } else {
-        max_value = (uint64)MIN_INT64;
-        max_digit = 19;
-        ++s;
-        if (--n == 0) throw "invalid integer value";
-    }
-
-    if (*s == '0') {
-        if (n == 1) return 0;
-        throw "invalid integer value";
-    }
-
-    if (n > max_digit) throw "out of range for integer";
-
-    for (size_t i = 0; i < n - 1; ++i) {
-        if (s[i] < '0' || s[i] > '9') throw "invalid integer value";
-        v = v * 10 + s[i] - '0';
-    }
-
-    char c = s[n - 1];
-    if (c < '0' || c > '9') throw "invalid integer value";
-    if (n == max_digit) {
-        if (v > (max_value - (c - '0')) / 10) throw "out of range for integer";
-    }
-
-    v = v * 10 + c - '0';
-    return max_digit == 20 ? v : -(int64)v;
+inline bool is_digit(char c) {
+    return '0' <= c && c <= '9';
 }
 
 static const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
     const char* p = b;
 
-    for (; p < e; ++p) {
-        char c = *p;
-        if (c == ',' || c == '}' || c == ']' || is_white_char(c)) break;
-        if (c == '.' || c == 'e' || c == 'E') is_double = true;
+    if (*p == '-' && ++p == e) return 0;
+    if (*p == '0') {
+        ++p;
+    } else {
+        if (*p < '1' || *p > '9') return 0; // must be 1 to 9
+        while (++p < e && is_digit(*p));
+    }
+
+    if (*p == '.') {
+        ++p;
+        if (p == e || !is_digit(*p)) return 0; // must be a digit after the point
+        while (++p < e && is_digit(*p));
+        is_double = true;
+    }
+
+    if (*p == 'e' || *p == 'E') {
+        ++p;
+        if (*p == '-' || *p == '+') ++p;
+        if (p == e || !is_digit(*p)) return 0;
+        while (++p < e && is_digit(*p));
+        is_double = true;
     }
 
     if (p == b) return 0;
+    size_t n = p - b;
+
     try {
         if (!is_double) {
-            new (r) Value(fastatoi(b, p - b));
+            if (n < 20) {
+                new (r) Value(fastatoi(b, p));
+            } else if (n > 20) {
+                new (r) Value(str::to_double(fastring(b, n)));
+            } else {
+                const char* s = (*b != '-' ? "18446744073709551615" : "-9223372036854775808");
+                int m = memcmp(b, s, 20);
+                if (m < 0) {
+                    new (r) Value(fastatoi(b, p));
+                } else if (m > 0) {
+                    new (r) Value(str::to_double(fastring(b, n)));
+                } else {
+                    new (r) Value(*b != '-' ? MAX_UINT64 : MIN_INT64);
+                }
+            }
         } else {
-            new (r) Value(str::to_double(fastring(b, p - b)));
+            new (r) Value(str::to_double(fastring(b, n)));
         }
     } catch (...) {
         return 0; // invalid number
