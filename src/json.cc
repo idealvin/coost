@@ -239,9 +239,9 @@ void Value::_Json2pretty(fastream& fs, int indent, int n) const {
 //   @s: stack for parsing string type
 //   @r: result
 // return the current position, or NULL on any error
-static const char* parse_object(const char* b, const char* e, fastream& s, Value* r);
-static const char* parse_array(const char* b, const char* e, fastream& s, Value* r);
-static const char* parse_string(const char* b, const char* e, fastream& s, Value* r);
+static const char* parse_object(const char* b, const char* e, Value* r);
+static const char* parse_array(const char* b, const char* e, Value* r);
+static const char* parse_string(const char* b, const char* e, Value* r);
 static const char* parse_unicode(const char* b, const char* e, fastream& s);
 static const char* parse_number(const char* b, const char* e, Value* r);
 
@@ -281,13 +281,13 @@ inline const char* parse_null(const char* b, const char* e, Value* r) {
     return b + 3;
 }
 
-inline const char* parse_value(const char* b, const char* e, fastream& s, Value* r) {
+inline const char* parse_value(const char* b, const char* e, Value* r) {
     if (*b == '"') {
-        return parse_string(b, e, s, r);
+        return parse_string(b, e, r);
     } else if (*b == '{') {
-        return parse_object(b, e, s, new (r) Value(Value::JObject()));
+        return parse_object(b, e, new (r) Value(Value::JObject()));
     } else if (*b == '[') {
-        return parse_array(b, e, s, new (r) Value(Value::JArray()));
+        return parse_array(b, e, new (r) Value(Value::JArray()));
     } else if (*b == 'f') {
         return parse_false(b, e, r);
     } else if (*b == 't') {
@@ -303,13 +303,12 @@ static inline bool parse(const char* b, const char* e, Value* r) {
     while (b < e && is_white_char(*b)) ++b;
     if (b == e) return false;
 
-    fastream s;
     if (*b == '{') {
-        b = parse_object(b, e, s, new (r) Value(Value::JObject()));
+        b = parse_object(b, e, new (r) Value(Value::JObject()));
     } else if (*b == '[') {
-        b = parse_array(b, e, s, new (r) Value(Value::JArray()));
+        b = parse_array(b, e, new (r) Value(Value::JArray()));
     } else {
-        b = parse_value(b, e, s, r);
+        b = parse_value(b, e, r);
     }
 
     if (b == 0) return false;
@@ -317,7 +316,7 @@ static inline bool parse(const char* b, const char* e, Value* r) {
     return b == e;
 }
 
-static const char* parse_object(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_object(const char* b, const char* e, Value* r) {
     char* key;
     void* val;
 
@@ -345,7 +344,7 @@ static const char* parse_object(const char* b, const char* e, fastream& s, Value
 
         // value
         val = 0;
-        b = parse_value(b, e, s, (Value*)&val);
+        b = parse_value(b, e, (Value*)&val);
         if (b == 0) {
             if (val != 0) ((Value*)&val)->~Value();
             Value::Jalloc::instance()->dealloc(key);
@@ -364,13 +363,13 @@ static const char* parse_object(const char* b, const char* e, fastream& s, Value
     }
 }
 
-static const char* parse_array(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_array(const char* b, const char* e, Value* r) {
     while (true) {
         while (++b < e && is_white_char(*b));
         if (*b == ']') return b; // array end
 
         void* v = 0;
-        b = parse_value(b, e, s, (Value*)&v);
+        b = parse_value(b, e, (Value*)&v);
         if (b == 0) {
             if (v) ((Value*)&v)->~Value();
             return 0;
@@ -408,7 +407,7 @@ static inline const char* init_s2e_table() {
     return tb;
 }
 
-static const char* parse_string(const char* b, const char* e, fastream& s, Value* r) {
+static const char* parse_string(const char* b, const char* e, Value* r) {
     const char* p = find_quote_or_escape(++b, e); // find the first '"' or '\\'
     if (p == 0) return 0;
     if (*p == '"') {
@@ -416,7 +415,7 @@ static const char* parse_string(const char* b, const char* e, fastream& s, Value
         return p;
     }
 
-    s.clear();
+    fastream& s = Value::Jalloc::instance()->alloc_stream();
     do {
         s.append(b, p - b);
         if (++p == e) return 0;
