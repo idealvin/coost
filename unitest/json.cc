@@ -179,6 +179,10 @@ DEF_test(json) {
         EXPECT(v.is_int());
         EXPECT_EQ(v.get_int64(), MIN_INT64);
 
+        EXPECT_EQ(json::parse("18446744073709551614").get_uint64(), MAX_UINT64 - 1);
+        EXPECT_EQ(json::parse("1844674407370955161").get_uint64(), 1844674407370955161ULL);
+        EXPECT_EQ(json::parse("-9223372036854775807").get_uint64(), MIN_INT64 + 1);
+
         EXPECT(json::parse("--3").is_null());
         EXPECT(json::parse("+3").is_null());
         EXPECT(json::parse("03").is_null());
@@ -201,6 +205,8 @@ DEF_test(json) {
         EXPECT_EQ(json::parse("1.0000000000000002").get_double(), 1.0000000000000002);
         EXPECT_EQ(json::parse("4.9406564584124654e-324").get_double(), 4.9406564584124654e-324);
         EXPECT_EQ(json::parse("1.7976931348623157e+308").get_double(), 1.7976931348623157e+308);
+        EXPECT(json::parse("18446744073709551616").is_double()); // MAX_UINT64 + 1
+        EXPECT(json::parse("-9223372036854775809").is_double()); // MIN_INT64 - 1
 
         EXPECT(json::parse(".123").is_null());
         EXPECT(json::parse("123.").is_null());
