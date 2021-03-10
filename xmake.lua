@@ -1,3 +1,10 @@
+-- check sse/avx
+includes("check_cincludes.lua")
+check_cincludes("AVX", "immintrin.h")
+check_cincludes("SSE2", "emmintrin.h")
+check_cincludes("SSE42", "nmmintrin.h")
+add_vectorexts("sse2","avx")
+
 -- plat
 set_config("plat", os.host())
 
@@ -22,7 +29,6 @@ if is_plat("macosx", "linux") then
 end
 
 if is_plat("windows") then
-    --add_cxflags("-Ox", "-fp:fast", "-EHsc")
     add_cxflags("-MD", "-EHsc")
 end
 
@@ -36,4 +42,3 @@ add_installfiles("*.md", {prefixdir = "include/co"})
 
 -- include sub-projects
 includes("src", "gen", "test", "unitest")
-

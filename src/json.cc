@@ -1,6 +1,10 @@
 #include "co/json.h"
 #include <errno.h>
 #include <math.h>
+#ifdef SSE42
+#pragma message("using SSE42..")
+#include <nmmintrin.h>
+#endif
 
 namespace json {
 
@@ -109,24 +113,57 @@ static inline const char* init_e2s_table() {
     return tb;
 }
 
+#ifdef SSE42 
+const char* find_escapse(const char* b, const char* e, char& c) {
+    static const char* tb = init_e2s_table();
+    static const char* esc = "\r\n\t\b\f\"\\\r\n\t\b\f\"\\\r\n";
+    const __m128i w = _mm_load_si128((const __m128i*)esc);
+
+    const char* p = (const char*)(((size_t)b + 15) & ~(size_t)15);
+    for (; b != p; ++b) {
+        if ((c = tb[(uint8)*b])) return b;
+    }
+
+    for (; p + 16 < e; p += 16) {
+        const __m128i s = _mm_load_si128((const __m128i*)p);
+        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
+        if (r < 16) {
+            c = tb[(uint8)*(p + r)];
+            return p + r;
+        }
+    }
+
+    for (; p < e; ++p) {
+        if ((c = tb[(uint8)*b])) return p;
+    }
+
+    return e;
+}
+#else
+inline const char* find_escapse(const char* b, const char* e, char& c) {
+    static const char* tb = init_e2s_table();
+    for (const char* p = b; p < e; ++p) {
+        if ((c = tb[(uint8)*p])) return p;
+    }
+    return e;
+}
+#endif
+
 void Value::_Json2str(fastream& fs, bool debug) const {
     if (_mem == 0) {
         fs << "null";
 
     } else if (_mem->type & kString) {
         fs << '"';
-        static const char* tb = init_e2s_table();
         uint32 len = _mem->l[-1];
         bool trunc = debug && len > 256;
         const char* s = _mem->s;
         const char* e = trunc ? s + 256 : s + len;
 
-        for (const char* p = s; p != e; ++p) {
-            char c = tb[(uint8)*p];
-            if (c) {
-                fs.append(s, p - s).append('\\').append(c);
-                s = p + 1;
-            }
+        char c;
+        for (const char* p; (p = find_escapse(s, e, c)) < e;) {
+            if (c) fs.append(s, p - s).append('\\').append(c);
+            s = p + 1;
         }
 
         if (s != e) fs.append(s, e - s);
@@ -387,12 +424,36 @@ static const char* parse_array(const char* b, const char* e, Value* r) {
 }
 
 // find '"' or '\\'
+#ifdef SSE42
+const char* find_quote_or_escape(const char* b, const char* e) {
+    static const char* esc = "\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\";
+    const __m128i w = _mm_load_si128((const __m128i*)esc);
+
+    const char* p = (const char*)(((size_t)b + 15) & ~(size_t)15);
+    for (; b != p; ++b) {
+        if (*b == '\"' || *b == '\\') return b;
+    }
+
+    for (; p + 16 < e; p += 16) {
+        const __m128i s = _mm_load_si128((const __m128i*)p);
+        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
+        if (r < 16) return p + r;
+    }
+
+    for (; p < e; ++p) {
+        if (*p == '\"' || *p == '\\') return p;
+    }
+
+    return 0;
+}
+#else
 inline const char* find_quote_or_escape(const char* b, const char* e) {
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p == 0) return 0;
     const char* q = (const char*) memchr(b, '\\', p - b);
     return q ? q : p;
 }
+#endif
 
 static inline const char* init_s2e_table() {
     static char tb[256] = { 0 };

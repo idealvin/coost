@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     }
 
     int n = 100000;
+    COUT << "s.size(): " << s.size();
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
