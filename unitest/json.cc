@@ -183,10 +183,16 @@ DEF_test(json) {
         EXPECT_EQ(json::parse("1844674407370955161").get_uint64(), 1844674407370955161ULL);
         EXPECT_EQ(json::parse("-9223372036854775807").get_uint64(), MIN_INT64 + 1);
 
+        fastring s("1234567");
+        s.resize(3);
+        EXPECT_EQ(json::parse(s).get_int32(), 123);
+
         EXPECT(json::parse("--3").is_null());
         EXPECT(json::parse("+3").is_null());
         EXPECT(json::parse("03").is_null());
         EXPECT(json::parse("2a").is_null());
+        EXPECT(json::parse("2 3").is_null());
+        EXPECT(json::parse("1234567890 123456789").is_null());
     }
 
     DEF_case(parse_double) {
@@ -208,12 +214,18 @@ DEF_test(json) {
         EXPECT(json::parse("18446744073709551616").is_double()); // MAX_UINT64 + 1
         EXPECT(json::parse("-9223372036854775809").is_double()); // MIN_INT64 - 1
 
+        fastring s("1234.5678");
+        s.resize(6);
+        EXPECT_EQ(json::parse(s).get_double(), 1234.5);
+
         EXPECT(json::parse(".123").is_null());
         EXPECT(json::parse("123.").is_null());
         EXPECT(json::parse("inf").is_null());
         EXPECT(json::parse("nan").is_null());
         EXPECT(json::parse("0.2.2").is_null());
         EXPECT(json::parse("0.2a").is_null());
+        EXPECT(json::parse("0.2e").is_null());
+        EXPECT(json::parse("0.2e+").is_null());
     }
 
     DEF_case(parse_array) {

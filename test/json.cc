@@ -2,7 +2,7 @@
 #include "co/time.h"
 #include "co/log.h"
 
-DEF_uint32(n, 20, "string length for this test");
+DEF_uint32(n, 64, "string length for this test");
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);

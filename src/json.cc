@@ -2,7 +2,6 @@
 #include <errno.h>
 #include <math.h>
 #ifdef SSE42
-#pragma message("using SSE42..")
 #include <nmmintrin.h>
 #endif
 
@@ -117,14 +116,17 @@ static inline const char* init_e2s_table() {
 const char* find_escapse(const char* b, const char* e, char& c) {
     static const char* tb = init_e2s_table();
     static const char* esc = "\r\n\t\b\f\"\\\r\n\t\b\f\"\\\r\n";
-    const __m128i w = _mm_load_si128((const __m128i*)esc);
+    static const __m128i w = _mm_load_si128((const __m128i*)esc);
 
-    const char* p = (const char*)(((size_t)b + 15) & ~(size_t)15);
-    for (; b != p; ++b) {
-        if ((c = tb[(uint8)*b])) return b;
+    const char* p = b;
+    const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
+    if (b16 >= e) goto tail;
+
+    for (; p != b16; ++p) {
+        if ((c = tb[(uint8)*p])) return p;
     }
 
-    for (; p + 16 < e; p += 16) {
+    for (; p + 16 <= e; p += 16) {
         const __m128i s = _mm_load_si128((const __m128i*)p);
         int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
         if (r < 16) {
@@ -133,10 +135,10 @@ const char* find_escapse(const char* b, const char* e, char& c) {
         }
     }
 
+  tail:
     for (; p < e; ++p) {
-        if ((c = tb[(uint8)*b])) return p;
+        if ((c = tb[(uint8)*p])) return p;
     }
-
     return e;
 }
 #else
@@ -162,7 +164,7 @@ void Value::_Json2str(fastream& fs, bool debug) const {
 
         char c;
         for (const char* p; (p = find_escapse(s, e, c)) < e;) {
-            if (c) fs.append(s, p - s).append('\\').append(c);
+            fs.append(s, p - s).append('\\').append(c);
             s = p + 1;
         }
 
@@ -424,36 +426,12 @@ static const char* parse_array(const char* b, const char* e, Value* r) {
 }
 
 // find '"' or '\\'
-#ifdef SSE42
-const char* find_quote_or_escape(const char* b, const char* e) {
-    static const char* esc = "\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\";
-    const __m128i w = _mm_load_si128((const __m128i*)esc);
-
-    const char* p = (const char*)(((size_t)b + 15) & ~(size_t)15);
-    for (; b != p; ++b) {
-        if (*b == '\"' || *b == '\\') return b;
-    }
-
-    for (; p + 16 < e; p += 16) {
-        const __m128i s = _mm_load_si128((const __m128i*)p);
-        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
-        if (r < 16) return p + r;
-    }
-
-    for (; p < e; ++p) {
-        if (*p == '\"' || *p == '\\') return p;
-    }
-
-    return 0;
-}
-#else
 inline const char* find_quote_or_escape(const char* b, const char* e) {
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p == 0) return 0;
     const char* q = (const char*) memchr(b, '\\', p - b);
     return q ? q : p;
 }
-#endif
 
 static inline const char* init_s2e_table() {
     static char tb[256] = { 0 };
@@ -589,38 +567,76 @@ inline bool is_digit(char c) {
     return '0' <= c && c <= '9';
 }
 
+#ifdef SSE42
+const char* find_non_digit(const char* b, const char* e) {
+    static const char* esc = "1234567890123456";
+    static const __m128i w = _mm_load_si128((const __m128i*)esc);
+
+    const char* p = b;
+    const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
+    if (b16 >= e) goto tail;
+
+    for (; p != b16; ++p) {
+        if (!is_digit(*p)) return p;
+    }
+
+    for (; p + 16 <= e; p += 16) {
+        const __m128i s = _mm_load_si128((const __m128i*)p);
+        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY);
+        if (r < 16) return p + r;
+    }
+
+  tail:
+    for (; p < e; ++p) {
+        if (!is_digit(*p)) return p;
+    }
+    return e;
+}
+#else
+inline const char* find_non_digit(const char* b, const char* e) {
+    for (const char* p = b; p < e; ++p) {
+        if (!is_digit(*p)) return p;
+    }
+    return e;
+}
+#endif
+
 static const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
     const char* p = b;
 
     if (*p == '-' && ++p == e) return 0;
+
     if (*p == '0') {
-        ++p;
+        if (++p == e) goto digit_end;
     } else {
         if (*p < '1' || *p > '9') return 0; // must be 1 to 9
-        while (++p < e && is_digit(*p));
+        if ((p = find_non_digit(p + 1, e)) == e) goto digit_end;
     }
 
     if (*p == '.') {
         ++p;
         if (p == e || !is_digit(*p)) return 0; // must be a digit after the point
-        while (++p < e && is_digit(*p));
         is_double = true;
+        if ((p = find_non_digit(p + 1, e)) == e) goto digit_end;
     }
 
     if (*p == 'e' || *p == 'E') {
-        ++p;
+        if (++p == e) return 0;
         if (*p == '-' || *p == '+') ++p;
         if (p == e || !is_digit(*p)) return 0; // must be a digit
-        while (++p < e && is_digit(*p));
         is_double = true;
+        p = find_non_digit(p + 1, e);
     }
 
-    size_t n = p - b;
-    if (n == 0) return 0;
+  digit_end:
+    {
+        size_t n = p - b;
+        if (n == 0) return 0;
 
-    if (is_double || n > 20) goto to_dbl;
-    if (n < 20) goto to_int;
+        if (is_double || n > 20) goto to_dbl;
+        if (n < 20) goto to_int;
+    }
     {
         // compare with MAX_UINT64, MIN_INT64
         // if value > MAX_UINT64 or value < MIN_INT64, we parse it as a double
@@ -637,6 +653,11 @@ static const char* parse_number(const char* b, const char* e, Value* r) {
 
   to_dbl:
     double d;
+    if (p == e && *p != '\0') {
+        fastream& fs = Value::Jalloc::instance()->alloc_stream();
+        fs.append(b, p - b);
+        b = fs.c_str();
+    }
     if (str2double(b, d)) {
         new (r) Value(d);
         return p - 1;
