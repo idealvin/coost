@@ -1,4 +1,4 @@
-#ifdef SSE42
+#ifdef CO_SSE42
 #define RAPIDJSON_SSE42
 #endif
 #include "__/rapidjson.h"
