@@ -183,16 +183,14 @@ DEF_test(json) {
         EXPECT_EQ(json::parse("1844674407370955161").get_uint64(), 1844674407370955161ULL);
         EXPECT_EQ(json::parse("-9223372036854775807").get_uint64(), MIN_INT64 + 1);
 
-        fastring s("1234567");
+        fastring s("12345678901234567890888");
         s.resize(3);
-        EXPECT_EQ(json::parse(s).get_int32(), 123);
+        EXPECT_EQ(json::parse(s).get_int(), 123);
 
         EXPECT(json::parse("--3").is_null());
         EXPECT(json::parse("+3").is_null());
         EXPECT(json::parse("03").is_null());
         EXPECT(json::parse("2a").is_null());
-        EXPECT(json::parse("2 3").is_null());
-        EXPECT(json::parse("1234567890 123456789").is_null());
     }
 
     DEF_case(parse_double) {
@@ -214,18 +212,23 @@ DEF_test(json) {
         EXPECT(json::parse("18446744073709551616").is_double()); // MAX_UINT64 + 1
         EXPECT(json::parse("-9223372036854775809").is_double()); // MIN_INT64 - 1
 
-        fastring s("1234.5678");
+        fastring s("1234.567");
+        s.resize(6);
+        EXPECT_EQ(json::parse(s).get_double(), 1234.5);
+
+        s = "1234.5 889";
         s.resize(6);
         EXPECT_EQ(json::parse(s).get_double(), 1234.5);
 
         EXPECT(json::parse(".123").is_null());
         EXPECT(json::parse("123.").is_null());
+        EXPECT(json::parse("1.2e").is_null());
         EXPECT(json::parse("inf").is_null());
         EXPECT(json::parse("nan").is_null());
         EXPECT(json::parse("0.2.2").is_null());
         EXPECT(json::parse("0.2a").is_null());
-        EXPECT(json::parse("0.2e").is_null());
-        EXPECT(json::parse("0.2e+").is_null());
+        EXPECT(json::parse("0.2f").is_null());
+        EXPECT(json::parse("123.4 56").is_null());
     }
 
     DEF_case(parse_array) {
@@ -241,6 +244,10 @@ DEF_test(json) {
         EXPECT_EQ(v[2].get_string(), fastring("hello"));
         EXPECT(v[3].is_array());
         EXPECT_EQ(v[3][0].get_int(), 3);
+
+        fastring s("[]");
+        s.resize(1);
+        EXPECT(json::parse(s).is_null());
     }
 
     DEF_case(parse_object) {
@@ -270,6 +277,10 @@ DEF_test(json) {
         Json u = v["world"];
         v = Json();
         EXPECT_EQ(u["xxx"].str(), "99");
+
+        fastring s("{}");
+        s.resize(1);
+        EXPECT(json::parse(s).is_null());
     }
 
     DEF_case(parse_escape) {

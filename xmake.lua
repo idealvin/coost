@@ -15,10 +15,10 @@ set_symbols("debug")    -- dbg symbols
 
 -- check sse/avx
 includes("check_cincludes.lua")
-check_cincludes("AVX", "immintrin.h")
-check_cincludes("SSE2", "emmintrin.h")
-check_cincludes("SSE42", "nmmintrin.h")
-add_vectorexts("sse2","avx")
+check_cincludes("CO_AVX", "immintrin.h")
+check_cincludes("CO_SSE2", "emmintrin.h")
+check_cincludes("CO_SSE42", "nmmintrin.h")
+add_vectorexts("sse2", "avx")
 
 
 if is_plat("macosx", "linux") then

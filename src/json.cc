@@ -1,7 +1,7 @@
 #include "co/json.h"
 #include <errno.h>
 #include <math.h>
-#ifdef SSE42
+#ifdef CO_SSE42
 #include <nmmintrin.h>
 #endif
 
@@ -115,8 +115,8 @@ static inline const char* init_e2s_table() {
 #ifdef SSE42 
 const char* find_escapse(const char* b, const char* e, char& c) {
     static const char* tb = init_e2s_table();
-    static const char* esc = "\r\n\t\b\f\"\\\r\n\t\b\f\"\\\r\n";
-    static const __m128i w = _mm_load_si128((const __m128i*)esc);
+    static const char esc[16] = "\r\n\t\b\f\"\\";
+    static const __m128i w = _mm_loadu_si128((const __m128i*)esc);
 
     const char* p = b;
     const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
@@ -406,6 +406,7 @@ static const char* parse_object(const char* b, const char* e, Value* r) {
 static const char* parse_array(const char* b, const char* e, Value* r) {
     while (true) {
         while (++b < e && is_white_char(*b));
+        if (b == e) return 0;
         if (*b == ']') return b; // array end
 
         void* v = 0;
@@ -567,39 +568,12 @@ inline bool is_digit(char c) {
     return '0' <= c && c <= '9';
 }
 
-#ifdef SSE42
-const char* find_non_digit(const char* b, const char* e) {
-    static const char* esc = "1234567890123456";
-    static const __m128i w = _mm_load_si128((const __m128i*)esc);
-
-    const char* p = b;
-    const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
-    if (b16 >= e) goto tail;
-
-    for (; p != b16; ++p) {
-        if (!is_digit(*p)) return p;
-    }
-
-    for (; p + 16 <= e; p += 16) {
-        const __m128i s = _mm_load_si128((const __m128i*)p);
-        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY);
-        if (r < 16) return p + r;
-    }
-
-  tail:
-    for (; p < e; ++p) {
-        if (!is_digit(*p)) return p;
-    }
-    return e;
-}
-#else
 inline const char* find_non_digit(const char* b, const char* e) {
     for (const char* p = b; p < e; ++p) {
         if (!is_digit(*p)) return p;
     }
     return e;
 }
-#endif
 
 static const char* parse_number(const char* b, const char* e, Value* r) {
     bool is_double = false;
