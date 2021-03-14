@@ -231,6 +231,20 @@ DEF_test(json) {
         EXPECT(json::parse("123.4 56").is_null());
     }
 
+    DEF_case(parse_string) {
+        Json v = json::parse("\"\"");
+        EXPECT(v.is_string());
+        EXPECT_EQ(v.str(), "\"\"");
+
+        v = json::parse("\"hello world\"");
+        EXPECT(v.is_string());
+        EXPECT_EQ(v.str(), "\"hello world\"");
+
+        v = json::parse(fastring().append('"').append(300, 'x').append('"'));
+        EXPECT(v.is_string());
+        EXPECT_EQ(v.str(), fastring().append('"').append(300, 'x').append('"'));
+    }
+
     DEF_case(parse_array) {
         Json v = json::parse("[]");
         EXPECT(v.is_array());

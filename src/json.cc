@@ -1,4 +1,5 @@
 #include "co/json.h"
+#include "co/log.h"
 #include <errno.h>
 #include <math.h>
 #ifdef CO_SSE42
@@ -7,65 +8,24 @@
 
 namespace json {
 
-Value::Jalloc::~Jalloc() {
-    for (uint32 i = 0; i < _mp.size(); ++i) free((void*)_mp[i]);
-    for (uint32 i = 0; i < _ks[0].size(); ++i) free((char*)_ks[0][i] - 8);
-    for (uint32 i = 0; i < _ks[1].size(); ++i) free((char*)_ks[1][i] - 8);
-    for (uint32 i = 0; i < _ks[2].size(); ++i) free((char*)_ks[2][i] - 8);
-}
-
-void* Value::Jalloc::alloc(uint32 n) {
-    char* p;
-    if (n <= 24) {
-        if (!_ks[0].empty()) return (void*) _ks[0].pop_back();
-        p = (char*) malloc(32);
-        *p = 0;
-    } else if (n <= 56) {
-        if (!_ks[1].empty()) return (void*) _ks[1].pop_back();
-        p = (char*) malloc(64);
-        *p = 1;
-    } else if (n <= 120) {
-        if (!_ks[2].empty()) return (void*) _ks[2].pop_back();
-        p = (char*) malloc(128);
-        *p = 2;
-    } else {
-        p = (char*) malloc(n + 8);
-        *p = 3;
-    }
-
-    return p + 8;
-}
-
-void Value::Jalloc::dealloc(void* p) {
-    char* s = (char*)p - 8;
-    int c = *s; // 0, 1, 2, 3
-    if (c < 3 && _ks[c].size() < 4095) {
-        _ks[c].push_back(p);
-    } else {
-        free(s);
-    }
-}
-
-Value& Value::operator[](Key key) const {
-    if (_mem) assert(_mem->type & kObject);
-    else new ((void*)&_mem) Value(Value::JObject());
-
+Value& Value::operator[](Key key) {
+    if (this->is_null()) new (this) Value(JObject());
     for (auto it = this->begin(); it != this->end(); ++it) {
         if (strcmp(it->key, key) == 0) return it->value;
     }
 
-    _mem->a.push_back(_Alloc_key(key));
-    _mem->a.push_back(0); // null value 
-    return *(Value*) &_mem->a.back();
+    _p->o.push_back(_Alloc_key(key));
+    _p->o.push_back(0); // null value 
+    return *(Value*) &_p->o.back();
 }
 
-Value Value::find(Key key) const {
-    if (this->is_object()) {
+const Value& Value::operator[](Key key) const {
+    if (!this->is_null()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
             if (strcmp(it->key, key) == 0) return it->value;
         }
     }
-    return Value();
+    return Jalloc::instance()->alloc_null();
 }
 
 bool Value::has_member(Key key) const {
@@ -79,24 +39,24 @@ bool Value::has_member(Key key) const {
 
 void Value::_UnRef() {
     static_assert(offsetof(struct _Mem, a) == 8, "");
-    if (atomic_dec(&_mem->refn) == 0) {
-        if (_mem->type & kObject) {
-            Array& a = _mem->a;
-            for (uint32 i = 0; i < a.size(); i += 2) {
-                Jalloc::instance()->dealloc((void*)a[i]);
-                ((Value*)&a[i + 1])->~Value();
+    if (atomic_dec(&_p->refn) == 0) {
+        if (_p->type == kObject) {
+            Array& o = _p->o;
+            for (uint32 i = 0; i < o.size(); i += 2) {
+                Jalloc::instance()->dealloc_string(o[i]);
+                ((Value*)&o[i + 1])->~Value();
             }
-            a.~Array();
-        } else if (_mem->type & kArray) {
-            Array& a = _mem->a;
+            o.~Array();
+        } else if (_p->type == kArray) {
+            Array& a = _p->a;
             for (uint32 i = 0; i < a.size(); ++i) {
                 ((Value*)&a[i])->~Value();
             }
             a.~Array();
-        } else if (_mem->type & kString) {
-            Jalloc::instance()->dealloc(_mem->s);
+        } else if (_p->type == kString) {
+            Jalloc::instance()->dealloc_string(_p->s);
         }
-        Jalloc::instance()->dealloc_mem(_mem);
+        Jalloc::instance()->dealloc_mem(_p);
     }
 }
 
@@ -152,14 +112,16 @@ inline const char* find_escapse(const char* b, const char* e, char& c) {
 #endif
 
 void Value::_Json2str(fastream& fs, bool debug) const {
-    if (_mem == 0) {
+    if (this->is_null()) {
         fs << "null";
+        return;
+    }
 
-    } else if (_mem->type & kString) {
+    if (_p->type == kString) {
         fs << '"';
-        uint32 len = _mem->l[-1];
-        bool trunc = debug && len > 256;
-        const char* s = _mem->s;
+        const uint32 len = _p->l[-1];
+        const bool trunc = debug && len > 256;
+        const char* s = _p->s;
         const char* e = trunc ? s + 256 : s + len;
 
         char c;
@@ -172,7 +134,7 @@ void Value::_Json2str(fastream& fs, bool debug) const {
         if (trunc) fs.append(3, '.');
         fs << '"';
 
-    } else if (_mem->type & kObject) {
+    } else if (_p->type == kObject) {
         fs << '{';
         auto it = this->begin();
         if (it != this->end()) {
@@ -185,9 +147,9 @@ void Value::_Json2str(fastream& fs, bool debug) const {
         }
         fs << '}';
 
-    } else if (_mem->type & kArray) {
+    } else if (_p->type == kArray) {
         fs << '[';
-        auto& a = _mem->a;
+        Array& a = _p->a;
         if (!a.empty()) {
             ((Value*)&a[0])->_Json2str(fs, debug);
             for (uint32 i = 1; i < a.size(); ++i) {
@@ -198,13 +160,13 @@ void Value::_Json2str(fastream& fs, bool debug) const {
         fs << ']';
 
     } else {
-        if (_mem->type & kInt) {
-            fs << _mem->i;
-        } else if (_mem->type & kBool) {
-            fs << _mem->b;
+        if (_p->type == kInt) {
+            fs << _p->i;
+        } else if (_p->type == kBool) {
+            fs << _p->b;
         } else {
-            assert(_mem->type & kDouble);
-            fs << _mem->d;
+            assert(_p->type == kDouble);
+            fs << _p->d;
         }
     }
 }
@@ -212,10 +174,12 @@ void Value::_Json2str(fastream& fs, bool debug) const {
 // @indent:  4 spaces by default
 // @n:       number of spaces to insert at the beginning for the current line
 void Value::_Json2pretty(fastream& fs, int indent, int n) const {
-    if (_mem == 0) {
+    if (this->is_null()) {
         fs << "null";
+        return;
+    }
 
-    } else if (_mem->type & kObject) {
+    if (_p->type == kObject) {
         fs << '{';
         auto it = this->begin();
         if (it != this->end()) {
@@ -242,9 +206,9 @@ void Value::_Json2pretty(fastream& fs, int indent, int n) const {
         if (n > indent) fs.append(n - indent, ' ');
         fs << '}';
 
-    } else if (_mem->type & kArray) {
+    } else if (_p->type == kArray) {
         fs << '[';
-        auto& a = _mem->a;
+        Array& a = _p->a;
         if (!a.empty()) {
             for (uint32 i = 0;;) {
                 fs.append('\n').append(n, ' ');
@@ -293,9 +257,10 @@ inline const char* parse_key(const char* b, const char* e, char** key) {
     if (*b++ != '"') return 0;
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p) {
-        char* s = (char*) Json::Jalloc::instance()->alloc((uint32)(p - b + 1));
-        memcpy(s, b, p - b);
-        s[p - b] = '\0';
+        const uint32 len = (uint32)(p - b);
+        char* s = Value::Jalloc::instance()->alloc_string(len + 1);
+        memcpy(s, b, len);
+        s[len] = '\0';
         *key = s;
     }
     return p;
@@ -359,6 +324,7 @@ static inline bool parse(const char* b, const char* e, Value* r) {
 static const char* parse_object(const char* b, const char* e, Value* r) {
     char* key;
     void* val;
+    static int obn = 0;
 
     while (true) {
         while (++b < e && is_white_char(*b));
@@ -372,13 +338,13 @@ static const char* parse_object(const char* b, const char* e, Value* r) {
         // ':'
         while (++b < e && is_white_char(*b));
         if (b == e || *b != ':') {
-            Value::Jalloc::instance()->dealloc(key);
+            Value::Jalloc::instance()->dealloc_string(key);
             return 0;
         }
 
         while (++b < e && is_white_char(*b));
         if (b == e) {
-            Value::Jalloc::instance()->dealloc(key);
+            Value::Jalloc::instance()->dealloc_string(key);
             return 0;
         }
 
@@ -387,23 +353,25 @@ static const char* parse_object(const char* b, const char* e, Value* r) {
         b = parse_value(b, e, (Value*)&val);
         if (b == 0) {
             if (val != 0) ((Value*)&val)->~Value();
-            Value::Jalloc::instance()->dealloc(key);
+            Value::Jalloc::instance()->dealloc_string(key);
             return 0;
         }
 
-        Array& a = *(Array*)((*(char**)r) + 8); // r->_mem->a
-        a.push_back(key);
-        a.push_back(val);
+        auto o = (Value::Array*)(*(char**)r + 8);
+        o->push_back(key);
+        o->push_back(val);
+        ;
 
         // check value end
         while (++b < e && is_white_char(*b));
         if (b == e) return 0;
-        if (*b == '}') return b;
+        if (*b == '}') return b; // object end
         if (*b != ',') return 0;
     }
 }
 
 static const char* parse_array(const char* b, const char* e, Value* r) {
+    static int arn = 0;
     while (true) {
         while (++b < e && is_white_char(*b));
         if (b == e) return 0;
@@ -416,8 +384,8 @@ static const char* parse_array(const char* b, const char* e, Value* r) {
             return 0;
         }
 
-        Array& a = *(Array*)((*(char**)r) + 8); // r->_mem->a
-        a.push_back(v);
+        auto a = (Value::Array*)(*(char**)r + 8);
+        a->push_back(v);
 
         while (++b < e && is_white_char(*b));
         if (b == e) return 0;
@@ -641,10 +609,7 @@ static const char* parse_number(const char* b, const char* e, Value* r) {
 }
 
 bool Value::parse_from(const char* s, size_t n) {
-    if (_mem) {
-        this->_UnRef();
-        _mem = 0;
-    }
+    this->reset();
     return parse(s, s + n, this);
 }
 

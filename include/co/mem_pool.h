@@ -2,54 +2,60 @@
 
 #include "def.h"
 #include <assert.h>
-#include <string.h>
+#include <stdlib.h>
 #include <vector>
 
+// B: block size
+// P: page size, default is 4096
+template <int B, int P=4096>
 class MemPool {
   public:
-    MemPool(uint32 block_size, uint32 cap=32)
-        : _block_size(block_size), _cap(cap), _idx(0) {
-        _p = (char*) malloc(_block_size * cap);
-        _avail.reserve(cap);
+    MemPool() {
+        static_assert(!(B & (B - 1)) && P > 0 && P % B == 0, "...");
+        _current_page = (char*) malloc(P);
+        _current_index = 0;
+        _pages.reserve(256);
+        _pages.push_back(_current_page);
+        _blocks.reserve(P / B);
     }
 
     ~MemPool() {
-        free(_p);
-    }
-
-    uint32 alloc() {
-        if (_idx < _cap) return _idx++;
-
-        if (!_avail.empty()) {
-            uint32 idx = _avail.back();
-            _avail.pop_back();
-            return idx;
-        }
-
-        _cap += ((_cap >> 1) + 1);
-        _p = (char*) realloc(_p, _block_size * _cap);
-        assert(_p);
-        return _idx++;
-    }
-
-    void dealloc(uint32 idx) {
-        _avail.push_back(idx);
-        if (_avail.size() == (size_t)_idx) {
-            _avail.clear();
-            _idx = 0;
+        for (size_t i = 0; i < _pages.size(); ++i) {
+            free(_pages[i]);
         }
     }
 
-    void* at(uint32 idx) {
-        return _p + _block_size * idx;
+    MemPool(MemPool&& p)
+        : _pages(std::move(p._pages)), _blocks(std::move(p._blocks)),
+          _current_page(p._current_page), _current_index(p._current_index) {
+    }
+
+    void* alloc() {
+        if (_current_index < (P / B)) {
+            return _current_page + (_current_index++) * B;
+        }
+
+        if (!_blocks.empty()) {
+            void* block = _blocks.back();
+            _blocks.pop_back();
+            return block;
+        }
+
+        _current_index = 1;
+        _current_page = (char*) malloc(P);
+        _pages.push_back(_current_page);
+        return _current_page;
+    }
+
+    void dealloc(void* p) {
+        _blocks.push_back(p);
     }
 
   private:
-    uint32 _block_size;
-    uint32 _cap;
-    uint32 _idx;
-    char* _p;
-    std::vector<uint32> _avail;
+    std::vector<char*> _pages;
+    std::vector<void*> _blocks;
+    char* _current_page;
+    size_t _current_index;
 
     DISALLOW_COPY_AND_ASSIGN(MemPool);
 };

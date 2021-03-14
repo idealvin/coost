@@ -4,46 +4,34 @@
 namespace test {
 
 DEF_test(mem_pool) {
-    DEF_case(cap32) {
-        MemPool p(8, 32);
-        uint32 i0 = p.alloc();
-        uint32 i1 = p.alloc();
-        uint32 i2 = p.alloc();
-        EXPECT_EQ(i0, 0);
-        EXPECT_EQ(i1, 1);
-        EXPECT_EQ(i2, 2);
+    DEF_case(b8p32) {
+        MemPool<8, 32> p;
+        char* p0 = (char*) p.alloc();
+        char* p1 = (char*) p.alloc();
+        char* p2 = (char*) p.alloc();
+        EXPECT_EQ(p1, p0 + 8);
+        EXPECT_EQ(p2, p1 + 8);
 
-        uint64* p0 = (uint64*) p.at(i0);
-        uint64* p1 = (uint64*) p.at(i1);
-        uint64* p2 = (uint64*) p.at(i2);
-        EXPECT_EQ(p1, p0 + 1);
-        EXPECT_EQ(p2, p0 + 2);
-        
-        p.dealloc(i0);
-        p.dealloc(i1);
-        p.dealloc(i2);
-        EXPECT_EQ(p.alloc(), 0);
-    }
+        p.dealloc(p0);
+        p.dealloc(p1);
+        p.dealloc(p2);
 
-    DEF_case(cap0) {
-        MemPool p(16, 0);
-        uint32 i0 = p.alloc();
-        uint32 i1 = p.alloc();
-        uint32 i2 = p.alloc();
-        EXPECT_EQ(i0, 0);
-        EXPECT_EQ(i1, 1);
-        EXPECT_EQ(i2, 2);
+        char* p3 = (char*) p.alloc();
+        EXPECT_EQ(p3, p2 + 8);
 
-        char* p0 = (char*) p.at(i0);
-        char* p1 = (char*) p.at(i1);
-        char* p2 = (char*) p.at(i2);
-        EXPECT_EQ(p1, p0 + 16);
-        EXPECT_EQ(p2, p0 + 32);
-        
-        p.dealloc(i0);
-        p.dealloc(i1);
-        p.dealloc(i2);
-        EXPECT_EQ(p.alloc(), 0);
+        p.dealloc(p3);
+        EXPECT_EQ(p.alloc(), p3);
+        EXPECT_EQ(p.alloc(), p2);
+        EXPECT_EQ(p.alloc(), p1);
+        EXPECT_EQ(p.alloc(), p0);
+
+        char* p4 = (char*) p.alloc();
+        char* p5 = (char*) p.alloc();
+        EXPECT_NE(p5, p0);
+        EXPECT_NE(p5, p1);
+        EXPECT_NE(p5, p2);
+        EXPECT_NE(p5, p3);
+        EXPECT_EQ(p5, p4 + 8);
     }
 }
 
