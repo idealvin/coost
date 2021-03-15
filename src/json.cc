@@ -25,7 +25,8 @@ const Value& Value::operator[](Key key) const {
             if (strcmp(it->key, key) == 0) return it->value;
         }
     }
-    return Jalloc::instance()->alloc_null();
+    static const void* kNull = 0;
+    return *(const Value*) &kNull;
 }
 
 bool Value::has_member(Key key) const {
@@ -41,22 +42,22 @@ void Value::_UnRef() {
     static_assert(offsetof(struct _Mem, a) == 8, "");
     if (atomic_dec(&_p->refn) == 0) {
         if (_p->type == kObject) {
-            Array& o = _p->o;
+            xx::Array& o = _p->o;
             for (uint32 i = 0; i < o.size(); i += 2) {
-                Jalloc::instance()->dealloc_string(o[i]);
+                xx::jalloc()->dealloc_string(o[i]);
                 ((Value*)&o[i + 1])->~Value();
             }
             o.~Array();
         } else if (_p->type == kArray) {
-            Array& a = _p->a;
+            xx::Array& a = _p->a;
             for (uint32 i = 0; i < a.size(); ++i) {
                 ((Value*)&a[i])->~Value();
             }
             a.~Array();
         } else if (_p->type == kString) {
-            Jalloc::instance()->dealloc_string(_p->s);
+            xx::jalloc()->dealloc_string(_p->s);
         }
-        Jalloc::instance()->dealloc_mem(_p);
+        xx::jalloc()->dealloc_mem(_p);
     }
 }
 
@@ -149,7 +150,7 @@ void Value::_Json2str(fastream& fs, bool debug) const {
 
     } else if (_p->type == kArray) {
         fs << '[';
-        Array& a = _p->a;
+        xx::Array& a = _p->a;
         if (!a.empty()) {
             ((Value*)&a[0])->_Json2str(fs, debug);
             for (uint32 i = 1; i < a.size(); ++i) {
@@ -208,7 +209,7 @@ void Value::_Json2pretty(fastream& fs, int indent, int n) const {
 
     } else if (_p->type == kArray) {
         fs << '[';
-        Array& a = _p->a;
+        xx::Array& a = _p->a;
         if (!a.empty()) {
             for (uint32 i = 0;;) {
                 fs.append('\n').append(n, ' ');
@@ -258,7 +259,7 @@ inline const char* parse_key(const char* b, const char* e, char** key) {
     const char* p = (const char*) memchr(b, '"', e - b);
     if (p) {
         const uint32 len = (uint32)(p - b);
-        char* s = Value::Jalloc::instance()->alloc_string(len + 1);
+        char* s = xx::jalloc()->alloc_string(len + 1);
         memcpy(s, b, len);
         s[len] = '\0';
         *key = s;
@@ -338,13 +339,13 @@ static const char* parse_object(const char* b, const char* e, Value* r) {
         // ':'
         while (++b < e && is_white_char(*b));
         if (b == e || *b != ':') {
-            Value::Jalloc::instance()->dealloc_string(key);
+            xx::jalloc()->dealloc_string(key);
             return 0;
         }
 
         while (++b < e && is_white_char(*b));
         if (b == e) {
-            Value::Jalloc::instance()->dealloc_string(key);
+            xx::jalloc()->dealloc_string(key);
             return 0;
         }
 
@@ -353,11 +354,11 @@ static const char* parse_object(const char* b, const char* e, Value* r) {
         b = parse_value(b, e, (Value*)&val);
         if (b == 0) {
             if (val != 0) ((Value*)&val)->~Value();
-            Value::Jalloc::instance()->dealloc_string(key);
+            xx::jalloc()->dealloc_string(key);
             return 0;
         }
 
-        auto o = (Value::Array*)(*(char**)r + 8);
+        auto o = (xx::Array*)(*(char**)r + 8);
         o->push_back(key);
         o->push_back(val);
         ;
@@ -384,7 +385,7 @@ static const char* parse_array(const char* b, const char* e, Value* r) {
             return 0;
         }
 
-        auto a = (Value::Array*)(*(char**)r + 8);
+        auto a = (xx::Array*)(*(char**)r + 8);
         a->push_back(v);
 
         while (++b < e && is_white_char(*b));
@@ -424,7 +425,7 @@ static const char* parse_string(const char* b, const char* e, Value* r) {
         return p;
     }
 
-    fastream& s = Value::Jalloc::instance()->alloc_stream();
+    fastream& s = xx::jalloc()->alloc_stream();
     do {
         s.append(b, p - b);
         if (++p == e) return 0;
@@ -596,7 +597,7 @@ static const char* parse_number(const char* b, const char* e, Value* r) {
   to_dbl:
     double d;
     if (p == e && *p != '\0') {
-        fastream& fs = Value::Jalloc::instance()->alloc_stream();
+        fastream& fs = xx::jalloc()->alloc_stream();
         fs.append(b, p - b);
         b = fs.c_str();
     }
