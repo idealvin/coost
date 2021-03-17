@@ -1,1 +1,5 @@
-#include "jsonv2.h"
+#include "co/jsonv2.h"
+
+namespace jsonv2 {
+
+} //
