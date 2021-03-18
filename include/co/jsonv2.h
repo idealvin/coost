@@ -1,28 +1,28 @@
 #pragma once
 
+#include "log.h"
 #include "fastream.h"
 #include <vector>
 
 namespace jsonv2 {
 namespace xx {
 
-class Mem {
+// JBlock is an array of uint64.
+// json::Root will be parsed or constructed as a JBlock.
+class JBlock {
   public:
-    Mem() : Mem(256) {}
-
-    // @n: initial bytes to be allocated, will be made 8-byte aligned
-    explicit Mem(size_t n) {
-        const uint32 cap = (uint32)((n >> 3) + !!(n & 7));
+    explicit JBlock(size_t cap) {
         _h = (_Header*) malloc(sizeof(_Header) + 8 * cap);
-        _h->cap = cap;
+        _h->cap = (uint32)cap;
         _h->size = 0;
+        CLOG << "jblock cap: " << cap;
     }
 
-    ~Mem() {
+    ~JBlock() {
         free(_h);
     }
 
-    // @n: number of 8-bytes to be allocated
+    // alloc 8n bytes, return the index
     uint32 alloc(uint32 n) {
         uint32 index = _h->size;
         if ((_h->size += n) > _h->cap) {
@@ -33,12 +33,28 @@ class Mem {
         return index;
     }
 
-    void* at(uint32 index) {
+    void* at(uint32 index) const {
         return _h->p + index;
+    }
+
+    void reserve(uint32 n) {
+        if (n > _h->cap) {
+            _h = (_Header*) realloc(_h, sizeof(_Header) + 8 * n);
+            _h->cap = n;
+        }
+    }
+
+    uint32 size() const {
+        return _h->size;
     }
 
     void clear() {
         _h->size = 0;
+    }
+
+    void copy_from(const JBlock& m) {
+        this->reserve(m._h->cap);
+        memcpy(_h, m._h, 8 + 8 * m._h->size);
     }
 
   private:
@@ -46,37 +62,48 @@ class Mem {
         uint32 cap;
         uint32 size;
         uint64 p[];
-    }; // 8 bytes
-
+    };
     _Header* _h;
 };
 
-class Jalloc {
+class JAlloc {
   public:
-    Jalloc() = default;
-    ~Jalloc() = default;
+    JAlloc() = default;
 
-    Mem* alloc_mem() {
-        if (!_m.empty()) {
-            Mem* m = _m.back();
-            _m.pop_back();
-            return m;
-        }
-        return new Mem();
+    ~JAlloc() {
+        for (size_t i = 0; i < _jb.size(); ++i) free(_jb[i]);
     }
 
-    void dealloc_mem(Mem* m) {
-        m->clear();
-        _m.push_back(m);
+    void* alloc_jblock(size_t cap=32) {
+        void* p;
+        if (!_jb.empty()) {
+            p = _jb.back();
+            _jb.pop_back();
+            ((JBlock*)&p)->reserve(cap);
+        } else {
+            new (&p) JBlock(cap);
+        }
+        return p;
+    }
+
+    void dealloc_jblock(void* p) {
+        ((JBlock*)&p)->clear();
+        _jb.push_back(p);
+    }
+
+    fastream& alloc_stream() {
+        _fs.clear();
+        return _fs;
     }
 
   private:
-    std::vector<Mem*> _m;
+    std::vector<void*> _jb;
+    fastream _fs; // for parsing string
 };
 
-inline Jalloc* jalloc() {
-    static __thread Jalloc* alloc = 0;
-    return alloc ? alloc : (alloc = new Jalloc);
+inline JAlloc* jalloc() {
+    static __thread JAlloc* alloc = 0;
+    return alloc ? alloc : (alloc = new JAlloc);
 }
 
 struct Piece {
@@ -97,30 +124,32 @@ class Array {
     typedef uint32 T;
 
     void push(T x) {
-        Mem* m = mem();
         Piece* p;
         if (++_size <= _cap) {
-            p = (Piece*) m->at(_tail);
+            p = piece(_tail);
         } else {
-            uint32 index = m->alloc((8 + N * sizeof(T)) >> 3);
-            p = new (m->at(index)) Piece();
+            void* b = jblock();
+            JBlock& jb = *(JBlock*)&b;
+            uint32 index = jb.alloc((8 + N * sizeof(T)) >> 3);
+            p = new (jb.at(index)) Piece();
             _cap += N;
-            if (_tail) ((Piece*)m->at(_tail))->next = index;
+            if (_tail) ((Piece*)jb.at(_tail))->next = index;
             _tail = index;
         }
         p->e[p->size++] = x;
     }
 
     void push(T x, T y) {
-        Mem* m = mem();
         Piece* p;
         if ((_size += 2) <= _cap) {
-            p = (Piece*) m->at(_tail);
+            p = piece(_tail);
         } else {
-            uint32 index = m->alloc((8 + N * sizeof(T)) >> 3);
-            p = new (m->at(index)) Piece();
+            void* b = jblock();
+            JBlock& jb = *(JBlock*)&b;
+            uint32 index = jb.alloc((8 + N * sizeof(T)) >> 3);
+            p = new (jb.at(index)) Piece();
             _cap += N;
-            if (_tail) ((Piece*)m->at(_tail))->next = index;
+            if (_tail) ((Piece*)jb.at(_tail))->next = index;
             _tail = index;
         }
         p->e[p->size++] = x;
@@ -128,16 +157,17 @@ class Array {
     }
 
     T& operator[](uint32 n) {
-        Mem* m = mem();
-        if (n < N) return ((Piece*)m->at(_next))->e[n];
+        void* b = jblock();
+        JBlock& jb = *(JBlock*)&b;
+        if (n < N) return ((Piece*)jb.at(_next))->e[n];
 
         uint32 r = n & (N - 1); // i % N
         uint32 q = n / N;
         uint32 index = _next;
         for (uint32 i = 0; i < q; ++i) {
-            index = ((Piece*)m->at(index))->next;
+            index = ((Piece*)jb.at(index))->next;
         }
-        return ((Piece*)m->at(index))->e[r];
+        return ((Piece*)jb.at(index))->e[r];
     }
 
     uint32 size() const {
@@ -150,18 +180,25 @@ class Array {
     uint32 _tail;
     uint32 _next;
 
-    Mem* mem() {
-        return (Mem*) ((uint64*)this - ((uint32*)this)[-1] - 2);
+    Piece* piece(uint32 index) {
+        return (Piece*) ((uint64*)this - ((uint32*)this)[-1] - 1 + index);
+    }
+
+    uint64* jblock() {
+        return (uint64*)this - ((uint32*)this)[-1] - 2;
     }
 };
 
 } // xx
 
+// root node of the json
 class Root;
 
-class Value {
+// sub node of Root.
+// A Node must be created from a Root.
+class Node {
   public:
-    ~Value() = default;
+    ~Node() = default; 
 
     typedef const char* Key;
 
@@ -193,8 +230,8 @@ class Value {
     void add_member(Key key, const std::string& x);
     void add_member(Key key, const fastring& x);
     void add_null(Key key);
-    Value add_array(Key key);
-    Value add_object(Key key);
+    Node add_array(Key key);
+    Node add_object(Key key);
 
     void push_back(bool x);
     void push_back(int64 x);
@@ -207,15 +244,15 @@ class Value {
     void push_back(const std::string& x);
     void push_back(const fastring& x);
     void push_null();
-    Value push_array();
-    Value push_object();
+    Node push_array();
+    Node push_object();
 
   private:
     Root* _root;
     uint32 _index;
 
     friend class Root;
-    Value(Root* root, uint32 index)
+    Node(Root* root, uint32 index)
         : _root(root), _index(index) {
     }
 };
@@ -232,22 +269,23 @@ class Root {
         kObject = 32,
     };
 
-    friend class Value;
-    struct JArray {};
-    struct JObject {};
+    friend class Node;
+    friend class Parser;
+    struct TypeArray {};
+    struct TypeObject {};
     typedef const char* Key;
 
     Root() : _mem(0) {}
 
     ~Root() {
-        if (_mem) xx::jalloc()->dealloc_mem(_mem);
+        if (_mem) xx::jalloc()->dealloc_jblock(_mem);
     }
 
-    Root(JArray) : _mem(xx::jalloc()->alloc_mem()) {
+    Root(TypeArray) : _mem(xx::jalloc()->alloc_jblock()) {
         _make_array();
     }
 
-    Root(JObject) : _mem(xx::jalloc()->alloc_mem()) {
+    Root(TypeObject) : _mem(xx::jalloc()->alloc_jblock()) {
         _make_object();
     }
 
@@ -295,11 +333,11 @@ class Root {
         return this->_add_null(key, 0);
     }
 
-    Value add_array(Key key) {
+    Node add_array(Key key) {
         return this->_add_array(key, 0);
     }
 
-    Value add_object(Key key) {
+    Node add_object(Key key) {
         return this->_add_object(key, 0);
     }
 
@@ -347,11 +385,11 @@ class Root {
         return this->_push_null(0);
     }
 
-    Value push_array() {
+    Node push_array() {
         return this->_push_array(0);
     }
 
-    Value push_object() {
+    Node push_object() {
         return this->_push_object(0);
     }
 
@@ -421,8 +459,8 @@ class Root {
 
     // | type: 4 | index: 4 | reserved: 8 |
     uint32 _make_null() {
-        uint32 index = _mem->alloc(2);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(2);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kNull;
         h->index = index;
         return index;
@@ -430,8 +468,8 @@ class Root {
 
     // | type: 4 | index: 4 | val: 8 |
     uint32 _make_bool(bool x) {
-        uint32 index = _mem->alloc(2);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(2);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kBool;
         h->index = index;
         h->b = x;
@@ -440,8 +478,8 @@ class Root {
 
     // | type: 4 | index: 4 | val: 8 |
     uint32 _make_int(int64 x) {
-        uint32 index = _mem->alloc(2);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(2);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kInt;
         h->index = index;
         h->i = x;
@@ -450,18 +488,18 @@ class Root {
 
     // | type: 4 | index: 4 | val: 8 |
     uint32 _make_double(double x) {
-        uint32 index = _mem->alloc(2);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(2);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kDouble;
         h->index = index;
         h->d = x;
         return index;
     }
 
-    // | type: 4 | index: 4 | 8 | body |
+    // | type: 4 | index: 4 | header: 8 | body |
     uint32 _make_string(const char* s, size_t n) {
-        uint32 index = _mem->alloc(_b8(n + 1 + 8 + 8));
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(_b8(n + 1 + 8 + 8));
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kString;
         h->index = index;
         h->slen = n;
@@ -472,10 +510,19 @@ class Root {
     }
 
     // | 4 | length: 4 |
+    uint32 _make_key(const char* x, size_t n) {
+        uint32 index = _jb.alloc(_b8(n + 1 + 8));
+        uint32* s = (uint32*)_jb.at(index) + 2;
+        s[-1] = n;
+        memcpy(s, x, n);
+        s[n] = '\0';
+        return index;
+    }
+
     uint32 _make_key(Key key) {
         const uint32 len = strlen(key);
-        uint32 index = _mem->alloc(_b8(len + 1 + 8));
-        uint32* s = (uint32*)_mem->at(index) + 2;
+        uint32 index = _jb.alloc(_b8(len + 1 + 8));
+        uint32* s = (uint32*)_jb.at(index) + 2;
         s[-1] = len;
         memcpy(s, key, len + 1);
         return index;
@@ -483,8 +530,8 @@ class Root {
 
     // |type: 4|index: 4|Array<8>: 16| + Piece:|size:4|next:4|body|...
     uint32 _make_array() {
-        uint32 index = _mem->alloc(3);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(3);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kArray;
         h->index = index;
         new (&h->a) xx::Array<8>();
@@ -493,8 +540,8 @@ class Root {
 
     // |type: 4|index: 4|Array<16>: 16| + Piece:|size:4|next:4|body|...
     uint32 _make_object() {
-        uint32 index = _mem->alloc(3);
-        _Header* h = (_Header*)_mem->at(index);
+        uint32 index = _jb.alloc(3);
+        _Header* h = (_Header*)_jb.at(index);
         h->type = kObject;
         h->index = index;
         new (&h->o) xx::Array<16>();
@@ -502,161 +549,133 @@ class Root {
     }
 
     bool _is_null(uint32 index) const {
-        return _mem == 0 || ((_Header*)_mem->at(index))->type == kNull;
+        return _mem == 0 || ((_Header*)_jb.at(index))->type == kNull;
     }
 
     bool _is_bool(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kBool;
+        return _mem && ((_Header*)_jb.at(index))->type == kBool;
     }
 
     bool _is_int(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kInt;
+        return _mem && ((_Header*)_jb.at(index))->type == kInt;
     }
 
     bool _is_double(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kDouble;
+        return _mem && ((_Header*)_jb.at(index))->type == kDouble;
     }
 
     bool _is_string(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kString;
+        return _mem && ((_Header*)_jb.at(index))->type == kString;
     }
 
     bool _is_array(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kArray;
+        return _mem && ((_Header*)_jb.at(index))->type == kArray;
     }
 
     bool _is_object(uint32 index) const {
-        return _mem && ((_Header*)_mem->at(index))->type == kObject;
+        return _mem && ((_Header*)_jb.at(index))->type == kObject;
     }
 
     bool _get_bool(uint32 index) const {
-        _Header* h = (_Header*)_mem->at(index);
+        _Header* h = (_Header*)_jb.at(index);
         assert(h->type == kBool);
         return h->b;
     }
 
     int64 _get_int64(uint32 index) const {
-        _Header* h = (_Header*)_mem->at(index);
+        _Header* h = (_Header*)_jb.at(index);
         assert(h->type == kInt);
         return h->i;
     }
 
     double _get_double(uint32 index) const {
-        _Header* h = (_Header*)_mem->at(index);
+        _Header* h = (_Header*)_jb.at(index);
         assert(h->type == kDouble);
         return h->d;
     }
 
     const char* _get_string(uint32 index) const {
-        _Header* h = (_Header*)_mem->at(index);
+        _Header* h = (_Header*)_jb.at(index);
         assert(h->type == kString);
         return (char*)h + 16;
     }
 
-    void _add_member(Key key, bool x, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
+    void _add_member(uint32 key, uint32 val, uint32 index) {
+        if (_mem == 0) new (this) Root(TypeObject());
+        _Header* h = (_Header*)_jb.at(index);
         assert(h->type == kObject);
-        h->o.push(_make_key(key), _make_bool(x));
+        h->o.push(key, val);
+    }
+
+    void _add_member(Key key, bool x, uint32 index) {
+        return this->_add_member(_make_key(key), _make_bool(x), index);
     }
 
     void _add_member(Key key, int64 x, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        h->o.push(_make_key(key), _make_int(x));
+        return this->_add_member(_make_key(key), _make_int(x), index);
     }
 
     void _add_member(Key key, double x, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        h->o.push(_make_key(key), _make_double(x));
+        return this->_add_member(_make_key(key), _make_double(x), index);
     }
 
     void _add_member(Key key, const char* x, size_t n, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        h->o.push(_make_key(key), _make_string(x, n));
+        return this->_add_member(_make_key(key), _make_string(x, n), index);
     }
 
     void _add_null(Key key, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        h->o.push(_make_key(key), _make_null());
+        return this->_add_member(_make_key(key), _make_null(), index);
     }
 
-    Value _add_array(Key key, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        uint32 index = _make_array();
-        h->o.push(_make_key(key), index);
-        return Value(this, index);
+    Node _add_array(Key key, uint32 index) {
+        uint32 i = _make_array();
+        this->_add_member(_make_key(key), i, index);
+        return Node(this, i);
     }
 
-    Value _add_object(Key key, uint32 index) {
-        if (_mem == 0) new (this) Root(JObject());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kObject);
-        uint32 index = _make_object();
-        h->o.push(_make_key(key), index);
-        return Value(this, index);
+    Node _add_object(Key key, uint32 index) {
+        uint32 i = _make_object();
+        this->_add_member(_make_key(key), i, index);
+        return Node(this, i);
+    }
+
+    void _push_back(uint32 val, uint32 index) {
+        if (_mem == 0) new (this) Root(TypeArray());
+        _Header* h = (_Header*)_jb.at(index);
+        assert(h->type == kArray);
+        h->a.push(val);
     }
 
     void _push_back(bool x, uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        h->a.push(_make_bool(x));
+        return this->_push_back(_make_bool(x), index);
     }
 
     void _push_back(int64 x, uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        h->a.push(_make_int(x));
+        return this->_push_back(_make_int(x), index);
     }
 
     void _push_back(double x, uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        h->a.push(_make_double(x));
+        return this->_push_back(_make_double(x), index);
     }
 
     void _push_back(const char* x, size_t n, uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        h->a.push(_make_string(x, n));
+        return this->_push_back(_make_string(x, n), index);
     }
 
     void _push_null(uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        h->a.push(_make_null());
+        return this->_push_back(_make_null(), index);
     }
 
-    Value _push_array(uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        uint32 index = _make_array();
-        h->a.push(index);
-        return Value(this, index);
+    Node _push_array(uint32 index) {
+        uint32 i = _make_array();
+        this->_push_back(i, index);
+        return Node(this, i);
     }
 
-    Value _push_object(uint32 index) {
-        if (_mem == 0) new (this) Root(JArray());
-        _Header* h = (_Header*)_mem->at(index);
-        assert(h->type == kArray);
-        uint32 index = _make_object();
-        h->a.push(index);
-        return Value(this, index);
+    Node _push_object(uint32 index) {
+        uint32 i = _make_object();
+        this->_push_back(i, index);
+        return Node(this, i);
     }
 
     uint32 _find(Key key, uint32 index) const;
@@ -677,173 +696,176 @@ class Root {
     }; // 16 bytes
 
     _Header* _header() const {
-        return (_Header*)_mem->at(0);
+        return (_Header*)_jb.at(0);
     }
 
-    xx::Mem* _mem;
+    union {
+        xx::JBlock _jb;
+        void* _mem;
+    };
 };
 
-inline bool Value::is_null() const {
+inline bool Node::is_null() const {
     return _root->_is_null(_index);
 }
 
-inline bool Value::is_bool() const {
+inline bool Node::is_bool() const {
     return _root->_is_bool(_index);
 }
 
-inline bool Value::is_int() const {
+inline bool Node::is_int() const {
     return _root->_is_int(_index);
 }
 
-inline bool Value::is_double() const {
+inline bool Node::is_double() const {
     return _root->_is_double(_index);
 }
 
-inline bool Value::is_string() const {
+inline bool Node::is_string() const {
     return _root->_is_string(_index);
 }
 
-inline bool Value::is_array() const {
+inline bool Node::is_array() const {
     return _root->_is_array(_index);
 }
 
-inline bool Value::is_object() const {
+inline bool Node::is_object() const {
     return _root->_is_object(_index);
 }
 
-inline bool Value::get_bool() const {
+inline bool Node::get_bool() const {
     return _root->_get_bool(_index);
 }
 
-inline int64 Value::get_int64() const {
+inline int64 Node::get_int64() const {
     return _root->_get_int64(_index);
 }
 
-inline int Value::get_int() const {
+inline int Node::get_int() const {
     return (int) this->get_int64();
 }
 
-inline int32 Value::get_int32() const {
+inline int32 Node::get_int32() const {
     return (int32) this->get_int64();
 }
 
-inline uint32 Value::get_uint32() const {
+inline uint32 Node::get_uint32() const {
     return (uint32) this->get_int64();
 }
 
-inline uint64 Value::get_uint64() const {
+inline uint64 Node::get_uint64() const {
     return (uint64) this->get_int64();
 }
 
-inline double Value::get_double() const {
+inline double Node::get_double() const {
     return _root->_get_double(_index);
 }
 
-inline const char* Value::get_string() const {
+inline const char* Node::get_string() const {
     return _root->_get_string(_index);
 }
 
-inline void Value::add_member(Key key, bool x) {
+inline void Node::add_member(Key key, bool x) {
     return _root->_add_member(key, x, _index);
 }
 
-inline void Value::add_member(Key key, int64 x) {
+inline void Node::add_member(Key key, int64 x) {
     return _root->_add_member(key, x, _index);
 }
 
-inline void Value::add_member(Key key, int x) {
+inline void Node::add_member(Key key, int x) {
     return this->add_member(key, (int64)x);
 }
 
-inline void Value::add_member(Key key, uint32 x) {
+inline void Node::add_member(Key key, uint32 x) {
     return this->add_member(key, (int64)x);
 }
 
-inline void Value::add_member(Key key, uint64 x) {
+inline void Node::add_member(Key key, uint64 x) {
     return this->add_member(key, (int64)x);
 }
 
-inline void Value::add_member(Key key, double x) {
+inline void Node::add_member(Key key, double x) {
     return _root->_add_member(key, x, _index);
 }
 
-inline void Value::add_member(Key key, const char* x, size_t n) {
+inline void Node::add_member(Key key, const char* x, size_t n) {
     return _root->_add_member(key, x, n, _index);
 }
 
-inline void Value::add_member(Key key, const char* x) {
+inline void Node::add_member(Key key, const char* x) {
     return this->add_member(key, x, strlen(x));
 }
 
-inline void Value::add_member(Key key, const std::string& x) {
+inline void Node::add_member(Key key, const std::string& x) {
     return this->add_member(key, x.data(), x.size());
 }
 
-inline void Value::add_member(Key key, const fastring& x) {
+inline void Node::add_member(Key key, const fastring& x) {
     return this->add_member(key, x.data(), x.size());
 }
 
-inline void Value::add_null(Key key) {
+inline void Node::add_null(Key key) {
     return _root->_add_null(key, _index);
 }
 
-inline Value Value::add_array(Key key) {
+inline Node Node::add_array(Key key) {
     return _root->_add_array(key, _index);
 }
 
-inline Value Value::add_object(Key key) {
+inline Node Node::add_object(Key key) {
     return _root->_add_object(key, _index);
 }
 
-inline void Value::push_back(bool x) {
+inline void Node::push_back(bool x) {
     return _root->_push_back(x, _index);
 }
 
-inline void Value::push_back(int64 x) {
+inline void Node::push_back(int64 x) {
     return _root->_push_back(x, _index);
 }
 
-inline void Value::push_back(int x) {
+inline void Node::push_back(int x) {
     return this->push_back((int64)x);
 }
 
-inline void Value::push_back(uint32 x) {
+inline void Node::push_back(uint32 x) {
     return this->push_back((int64)x);
 }
 
-inline void Value::push_back(uint64 x) {
+inline void Node::push_back(uint64 x) {
     return this->push_back((int64)x);
 }
 
-inline void Value::push_back(double x) {
+inline void Node::push_back(double x) {
     return _root->_push_back(x, _index);
 }
 
-inline void Value::push_back(const char* x, size_t n) {
+inline void Node::push_back(const char* x, size_t n) {
     return _root->_push_back(x, n, _index);
 }
 
-inline void Value::push_back(const char* x) {
+inline void Node::push_back(const char* x) {
     return this->push_back(x, strlen(x));
 }
 
-inline void Value::push_back(const std::string& x) {
+inline void Node::push_back(const std::string& x) {
     return this->push_back(x.data(), x.size());
 }
 
-inline void Value::push_back(const fastring& x) {
+inline void Node::push_back(const fastring& x) {
     return this->push_back(x.data(), x.size());
 }
 
-inline void Value::push_null() {
+inline void Node::push_null() {
     return _root->_push_null(_index);
 }
 
-inline Value Value::push_array() {
+inline Node Node::push_array() {
     return _root->_push_array(_index);
 }
 
-inline Value Value::push_object() {
+inline Node Node::push_object() {
     return _root->_push_object(_index);
 }
 } // jsonv2
