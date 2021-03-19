@@ -5,8 +5,6 @@ namespace jsonv2 {
 // json parser
 //   @b: beginning of the string
 //   @e: end of the string
-//   @s: stack for parsing string type
-//   @r: result
 // return the current position, or NULL on any error
 class Parser {
   public:
@@ -107,59 +105,88 @@ inline bool Parser::parse(const char* b, const char* e) {
 }
 
 const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
+    uint32 key, val;
+    fastream& s = xx::jalloc()->alloc_stack();
+    const size_t size = s.size();
     index = _root->_make_object();
-    uint32 key;
-    uint32 val;
 
     while (true) {
         while (++b < e && is_white_char(*b));
-        if (b == e) return 0;
-        if (*b == '}') return b; // object end
+        if (b == e) goto err;
+        if (*b == '}') goto end; // object end
 
         // key
         b = parse_key(b, e, key);
-        if (b == 0) return 0;
+        if (b == 0) goto err;
 
         // ':'
         while (++b < e && is_white_char(*b));
-        if (b == e || *b != ':') return 0;
+        if (b == e || *b != ':') goto err;
 
         while (++b < e && is_white_char(*b));
-        if (b == e) return 0;
+        if (b == e) goto err;
 
         // value
         val = 0;
         b = parse_value(b, e, val);
-        if (b == 0) return 0;
+        if (b == 0) goto err;
 
-        _root->_add_member(key, val, index);
+        s.append(key);
+        s.append(val);
+        //_root->_add_member(key, val, index);
 
         // check value end
         while (++b < e && is_white_char(*b));
-        if (b == e) return 0;
-        if (*b == '}') return b; // object end
-        if (*b != ',') return 0;
+        if (b == e) goto err;
+        if (*b == '}') goto end; // object end
+        if (*b != ',') goto err;
     }
+
+  end:
+    if (s.size() > size) {
+        val = _root->_alloc_array(s.data() + size, s.size() - size);
+        ((uint32*)_root->_jb.at(index))[1] = val;
+        s.resize(size);
+    }
+    return b;
+  err:
+    s.clear();
+    return 0;
 }
 
 const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
+    uint32 val;
+    fastream& s = xx::jalloc()->alloc_stack();
+    const size_t size = s.size();
     index = _root->_make_array();
+
     while (true) {
         while (++b < e && is_white_char(*b));
-        if (b == e) return 0;
-        if (*b == ']') return b; // array end
+        if (b == e) goto err;
+        if (*b == ']') goto end; // array end
 
-        uint32 v;
-        b = parse_value(b, e, v);
-        if (b == 0) return 0;
+        b = parse_value(b, e, val);
+        if (b == 0) goto err;
 
-        _root->_push_back(v, index);
+        s.append(val);
+        //_root->_push_back(v, index);
 
         while (++b < e && is_white_char(*b));
-        if (b == e) return 0;
-        if (*b == ']') return b; // array end
-        if (*b != ',') return 0;
+        if (b == e) goto err;
+        if (*b == ']') goto end; // array end
+        if (*b != ',') goto err;
     }
+
+  end:
+    if (s.size() > size) {
+        val = _root->_alloc_array(s.data() + size, s.size() - size);
+        ((uint32*)_root->_jb.at(index))[1] = val;
+        s.resize(size);
+    }
+    return b;
+  err:
+    s.clear();
+    return 0;
 }
 
 // find '"' or '\\'
@@ -386,4 +413,110 @@ bool Root::parse_from(const char* s, size_t n) {
     return parser.parse(s, s + n);
 }
 
+void Root::_add_member(uint32 key, uint32 val, uint32 index) {
+    if (this->is_null()) {
+        _Header* h = (_Header*)_jb.at(0);
+        h->type = kObject;
+        h->index = 0;
+    }
+
+    _Header* h = (_Header*)_jb.at(index);
+    assert(h->type == kObject);
+
+    if (h->index != 0) {
+        for (uint32 i = h->index;;) {
+            xx::Array* a = (xx::Array*) _jb.at(i);
+            if (!a->next) {
+                if (!a->full()) {
+                    a->push(key, val);
+                } else {
+                    uint32 k = this->_alloc_array(16);
+                    ((xx::Array*)_jb.at(i))->next = k;
+                    ((xx::Array*)_jb.at(k))->push(key, val);
+                }
+                break;
+            }
+            i = a->next;
+        }
+
+    } else {
+        uint32 i = this->_alloc_array(16);
+        ((_Header*)_jb.at(index))->index = i;
+        ((xx::Array*)_jb.at(i))->push(key, val);
+    }
+}
+
+void Root::_push_back(uint32 val, uint32 index) {
+    if (this->is_null()) {
+        _Header* h = (_Header*)_jb.at(0);
+        h->type = kArray;
+        h->index = 0;
+    }
+
+    _Header* h = (_Header*)_jb.at(index);
+    assert(h->type == kArray);
+
+    if (h->index != 0) {
+        for (uint32 i = h->index;;) {
+            xx::Array* a = (xx::Array*) _jb.at(i);
+            if (!a->next) {
+                if (!a->full()) {
+                    a->push(val);
+                } else {
+                    uint32 k = this->_alloc_array(8);
+                    ((xx::Array*)_jb.at(i))->next = k;
+                    ((xx::Array*)_jb.at(k))->push(val);
+                }
+                break;
+            }
+            i = a->next;
+        }
+
+    } else {
+        uint32 i = this->_alloc_array(8);
+        ((_Header*)_jb.at(index))->index = i;
+        ((xx::Array*)_jb.at(i))->push(val);
+    }
+}
+
+Node Root::_at(uint32 i, uint32 index) const {
+    assert(_mem);
+    _Header* h = (_Header*) _jb.at(index);
+    assert(h->type == kArray);
+
+    for (uint32 k = h->index;;) {
+        assert(k != 0);
+        xx::Array* a = (xx::Array*) _jb.at(k);
+        if (i < a->size) return Node((Root*)this, a->p[i]);
+        i -= a->size;
+        k = a->next;
+    }
+}
+
+Node Root::_at(Key key, uint32 index) const {
+    if (_mem == 0) new ((Root*)this) Root(TypeObject());
+    _Header* h = (_Header*) _jb.at(index);
+    assert(h->type == kObject);
+
+    for (auto it = this->_begin(index); it != this->end(); ++it) {
+        if (strcmp(it.key(), key) == 0) return it.value();
+    }
+
+    const uint32 k = ((Root*)this)->_make_key(key);
+    const uint32 v = ((Root*)this)->_make_null();
+    ((Root*)this)->_add_member(k, v, index);
+    return Node((Root*)this, v);
+}
+
+bool Root::_has_member(Key key, uint32 index) const {
+    if (_mem == 0) return false;
+    _Header* h = (_Header*) _jb.at(index);
+    if (h->type == kNull) return false;
+    assert(h->type == kObject);
+
+    for (auto it = this->_begin(index); it != this->end(); ++it) {
+        if (strcmp(it.key(), key) == 0) return true;
+    }
+    return false;
+}
 } // json
