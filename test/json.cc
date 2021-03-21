@@ -8,30 +8,27 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    json::Value v;
+    json::Root v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
 
-    json::Value a;
+    json::Value a = v.add_array("num");
     a.push_back(1);
     a.push_back(2);
     a.push_back(3);
 
-    json::Value b(a);
-
-    v.add_member("num", a);
-
-    json::Value o;
-    o["o1"] = 3.14;
-    o["o2"] = fastring(FLG_n, 'o');
-    o["o3"] = b;
-
-    v.add_member("o", o);
+    json::Value o = v.add_object("o");
+    o.add_member("o1", 3.14);
+    o.add_member("o2", fastring(FLG_n, 'o'));
+    json::Value o3 = o.add_array("o3");
+    o3.push_back(1);
+    o3.push_back(2);
+    o3.push_back(3);
 
     fastring s = v.str();
     COUT << s;
 
-    json::Value u = json::parse(s.data(), s.size());
+    json::Root u = json::parse(s.data(), s.size());
     if (!u.is_object()) {
         COUT << "parse error..";
         return -1;
@@ -49,14 +46,13 @@ int main(int argc, char** argv) {
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
-        json::Value xx;
-        xx.parse_from(s.data(), s.size());
+        json::Root xx = json::parse(s.data(), s.size());
     }
     int64 end = now::us();
 
     COUT << "parse average time used: " << (end - beg) * 1.0 / n << "us";
 
-    json::Value xx = json::parse(s.data(), s.size());
+    json::Root xx = json::parse(s.data(), s.size());
     fastring xs;
     beg = now::us();
     for (int i = 0; i < n; ++i) {

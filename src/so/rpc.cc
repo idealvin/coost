@@ -180,7 +180,8 @@ bool ServerImpl::auth(Connection* conn) {
     int r = 0, len = 0;
     Header header;
     fastream fs;
-    Json req, res, x;
+    Json req, res;
+    json::Value x;
 
     // wait for the first req from client, timeout in 7 seconds
     do {
@@ -412,7 +413,8 @@ bool ClientImpl::auth() {
     int r = 0, len = 0;
     Header header;
     fastream fs;
-    Json req, res, x;
+    Json req, res;
+    json::Value x;
 
     // send the first auth req
     do {
