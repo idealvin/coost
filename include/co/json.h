@@ -1,6 +1,5 @@
 #pragma once
 
-#include "log.h"
 #include "fastream.h"
 #include <vector>
 
