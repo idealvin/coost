@@ -96,7 +96,8 @@ inline bool Parser::parse(const char* b, const char* e) {
     } else if (*b == '[') {
         b = parse_array(b, e, index);
     } else {
-        b = parse_value(b, e, index);
+        //b = parse_value(b, e, index);
+        return false; // Root must be an array or object
     }
 
     if (b == 0) return false;
@@ -133,7 +134,6 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
 
         s.append(key);
         s.append(val);
-        //_root->_add_member(key, val, index);
 
         // check value end
         while (++b < e && is_white_char(*b));
@@ -144,8 +144,8 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
 
   end:
     if (s.size() > size) {
-        val = _root->_alloc_array(s.data() + size, s.size() - size);
-        ((uint32*)_root->_jb.at(index))[1] = val;
+        val = _root->_alloc_queue(s.data() + size, s.size() - size);
+        ((Root::_Header*)_root->_jb.at(index))->index = val;
         s.resize(size);
     }
     return b;
@@ -169,7 +169,6 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
         if (b == 0) goto err;
 
         s.append(val);
-        //_root->_push_back(v, index);
 
         while (++b < e && is_white_char(*b));
         if (b == e) goto err;
@@ -179,8 +178,8 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
 
   end:
     if (s.size() > size) {
-        val = _root->_alloc_array(s.data() + size, s.size() - size);
-        ((uint32*)_root->_jb.at(index))[1] = val;
+        val = _root->_alloc_queue(s.data() + size, s.size() - size);
+        ((Root::_Header*)_root->_jb.at(index))->index = val;
         s.resize(size);
     }
     return b;
@@ -407,116 +406,307 @@ bool Root::parse_from(const char* s, size_t n) {
     if (_mem == 0) {
         _mem = xx::jalloc()->alloc_jblock(_b8(n));
     } else {
+        _jb.clear();
         _jb.reserve(_b8(n));
     }
     Parser parser(this);
     return parser.parse(s, s + n);
 }
 
-void Root::_add_member(uint32 key, uint32 val, uint32 index) {
-    if (this->is_null()) {
-        _Header* h = (_Header*)_jb.at(0);
-        h->type = kObject;
-        h->index = 0;
+static inline const char* init_e2s_table() {
+    static char tb[256] = { 0 };
+    tb['\r'] = 'r';
+    tb['\n'] = 'n';
+    tb['\t'] = 't';
+    tb['\b'] = 'b';
+    tb['\f'] = 'f';
+    tb['\"'] = '"';
+    tb['\\'] = '\\';
+    return tb;
+}
+
+#ifdef SSE42 
+const char* find_escapse(const char* b, const char* e, char& c) {
+    static const char* tb = init_e2s_table();
+    static const char esc[16] = "\r\n\t\b\f\"\\";
+    static const __m128i w = _mm_loadu_si128((const __m128i*)esc);
+
+    const char* p = b;
+    const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
+    if (b16 >= e) goto tail;
+
+    for (; p != b16; ++p) {
+        if ((c = tb[(uint8)*p])) return p;
     }
 
-    _Header* h = (_Header*)_jb.at(index);
-    assert(h->type == kObject);
+    for (; p + 16 <= e; p += 16) {
+        const __m128i s = _mm_load_si128((const __m128i*)p);
+        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
+        if (r < 16) {
+            c = tb[(uint8)*(p + r)];
+            return p + r;
+        }
+    }
 
-    if (h->index != 0) {
-        for (uint32 i = h->index;;) {
-            xx::Array* a = (xx::Array*) _jb.at(i);
+  tail:
+    for (; p < e; ++p) {
+        if ((c = tb[(uint8)*p])) return p;
+    }
+    return e;
+}
+#else
+inline const char* find_escapse(const char* b, const char* e, char& c) {
+    static const char* tb = init_e2s_table();
+    for (const char* p = b; p < e; ++p) {
+        if ((c = tb[(uint8)*p])) return p;
+    }
+    return e;
+}
+#endif
+
+void Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
+    _Header* h = (_Header*) _jb.at(index);
+    if (h->type == kNull) {
+        fs << "null";
+        return;
+    }
+
+    if (h->type == kString) {
+        fs << '"';
+        const uint32 len = h->size;
+        const bool trunc = debug && len > 256;
+        const char* s = (const char*) _jb.at(h->index);
+        const char* e = trunc ? s + 256 : s + len;
+
+        char c;
+        for (const char* p; (p = find_escapse(s, e, c)) < e;) {
+            fs.append(s, p - s).append('\\').append(c);
+            s = p + 1;
+        }
+
+        if (s != e) fs.append(s, e - s);
+        if (trunc) fs.append(3, '.');
+        fs << '"';
+
+    } else if (h->type == kObject) {
+        fs << '{';
+        auto it = this->_begin(index);
+        if (it != this->end()) {
+            fs << '"' << it.key() << '"' << ':';
+            it.value()._Json2str(fs, debug);
+            for (; ++it != this->end();) {
+                fs << ',' << '"' << it.key() << '"' << ':';
+                it.value()._Json2str(fs, debug);
+            }
+        }
+        fs << '}';
+
+    } else if (h->type == kArray) {
+        fs << '[';
+        auto it = this->_begin(index);
+        if (it != this->end()) {
+            (*it)._Json2str(fs, debug);
+            for (; ++it != this->end();) {
+                fs << ',';
+                (*it)._Json2str(fs, debug);
+            }
+        }
+        fs << ']';
+
+    } else {
+        if (h->type == kInt) {
+            fs << h->i;
+        } else if (h->type == kBool) {
+            fs << h->b;
+        } else {
+            assert(h->type == kDouble);
+            fs << h->d;
+        }
+    }
+}
+
+// @indent:  4 spaces by default
+// @n:       number of spaces to insert at the beginning for the current line
+void Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
+    _Header* h = (_Header*) _jb.at(index);
+    if (h->type == kNull) {
+        fs << "null";
+        return;
+    }
+
+    if (h->type == kObject) {
+        fs << '{';
+        auto it = this->_begin(index);
+        if (it != this->end()) {
+            for (;;) {
+                fs.append('\n').append(n, ' ');
+                fs << '"' << it.key() << '"' << ": ";
+
+                Value v = it.value();
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs, false);
+                }
+
+                if (++it != this->end()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
+            }
+        }
+
+        if (n > indent) fs.append(n - indent, ' ');
+        fs << '}';
+
+    } else if (h->type == kArray) {
+        fs << '[';
+        auto it = this->_begin(index);
+        if (it != this->end()) {
+            for (;;) {
+                fs.append('\n').append(n, ' ');
+
+                Value v = *it;
+                if (v.is_object() || v.is_array()) {
+                    v._Json2pretty(fs, indent, n + indent);
+                } else {
+                    v._Json2str(fs, false);
+                }
+
+                if (++it != this->end()) {
+                    fs << ',';
+                } else {
+                    fs << '\n';
+                    break;
+                }
+            }
+        }
+
+        if (n > indent) fs.append(n - indent, ' ');
+        fs << ']';
+
+    } else {
+        _Json2str(fs, false, index);
+    }
+}
+
+void Root::_add_member(uint32 key, uint32 val, uint32 index) {
+    _Header* h = (_Header*)_jb.at(index);
+    if (h->type != kNull) {
+        assert(h->type == kObject);
+        if (h->index == 0) goto empty;
+
+        for (uint32 q = h->index;;) {
+            xx::Queue* a = (xx::Queue*) _jb.at(q);
             if (!a->next) {
                 if (!a->full()) {
                     a->push(key, val);
                 } else {
-                    uint32 k = this->_alloc_array(16);
-                    ((xx::Array*)_jb.at(i))->next = k;
-                    ((xx::Array*)_jb.at(k))->push(key, val);
+                    uint32 k = this->_alloc_queue(16);
+                    ((xx::Queue*)_jb.at(q))->next = k;
+                    ((xx::Queue*)_jb.at(k))->push(key, val);
                 }
-                break;
+                return;
             }
-            i = a->next;
+            q = a->next;
         }
-
     } else {
-        uint32 i = this->_alloc_array(16);
-        ((_Header*)_jb.at(index))->index = i;
-        ((xx::Array*)_jb.at(i))->push(key, val);
+        h->type = kObject;
+    }
+    
+  empty:
+    {
+        uint32 q = this->_alloc_queue(16);
+        ((_Header*)_jb.at(index))->index = q;
+        ((xx::Queue*)_jb.at(q))->push(key, val);
     }
 }
 
 void Root::_push_back(uint32 val, uint32 index) {
-    if (this->is_null()) {
-        _Header* h = (_Header*)_jb.at(0);
-        h->type = kArray;
-        h->index = 0;
-    }
-
     _Header* h = (_Header*)_jb.at(index);
-    assert(h->type == kArray);
+    if (h->type != kNull) {
+        assert(h->type == kArray);
+        if (h->index == 0) goto empty;
 
-    if (h->index != 0) {
-        for (uint32 i = h->index;;) {
-            xx::Array* a = (xx::Array*) _jb.at(i);
+        for (uint32 q = h->index;;) {
+            xx::Queue* a = (xx::Queue*) _jb.at(q);
             if (!a->next) {
                 if (!a->full()) {
                     a->push(val);
                 } else {
-                    uint32 k = this->_alloc_array(8);
-                    ((xx::Array*)_jb.at(i))->next = k;
-                    ((xx::Array*)_jb.at(k))->push(val);
+                    uint32 k = this->_alloc_queue(8);
+                    ((xx::Queue*)_jb.at(q))->next = k;
+                    ((xx::Queue*)_jb.at(k))->push(val);
                 }
-                break;
+                return;
             }
-            i = a->next;
+            q = a->next;
         }
-
     } else {
-        uint32 i = this->_alloc_array(8);
-        ((_Header*)_jb.at(index))->index = i;
-        ((xx::Array*)_jb.at(i))->push(val);
+        h->type = kArray;
+    }
+
+  empty:
+    {
+        uint32 q = this->_alloc_queue(8);
+        ((_Header*)_jb.at(index))->index = q;
+        ((xx::Queue*)_jb.at(q))->push(val);
     }
 }
 
-Node Root::_at(uint32 i, uint32 index) const {
+Value Root::_at(uint32 i, uint32 index) const {
     assert(_mem);
     _Header* h = (_Header*) _jb.at(index);
     assert(h->type == kArray);
 
     for (uint32 k = h->index;;) {
         assert(k != 0);
-        xx::Array* a = (xx::Array*) _jb.at(k);
-        if (i < a->size) return Node((Root*)this, a->p[i]);
+        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        if (i < a->size) return Value((Root*)this, a->p[i]);
         i -= a->size;
         k = a->next;
     }
 }
 
-Node Root::_at(Key key, uint32 index) const {
-    if (_mem == 0) new ((Root*)this) Root(TypeObject());
+Value Root::_at(Key key, uint32 index) const {
+    assert(_mem);
     _Header* h = (_Header*) _jb.at(index);
     assert(h->type == kObject);
 
-    for (auto it = this->_begin(index); it != this->end(); ++it) {
-        if (strcmp(it.key(), key) == 0) return it.value();
+    for (uint32 k = h->index; k != 0;) {
+        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        for (uint32 i = 0; i < a->size; i += 2) {
+            if (strcmp((const char*)_jb.at(a->p[i]), key) == 0) {
+                return Value((Root*)this, a->p[i + 1]);
+            }
+        }
+        k = a->next;
     }
 
     const uint32 k = ((Root*)this)->_make_key(key);
     const uint32 v = ((Root*)this)->_make_null();
     ((Root*)this)->_add_member(k, v, index);
-    return Node((Root*)this, v);
+    return Value((Root*)this, v);
 }
 
 bool Root::_has_member(Key key, uint32 index) const {
-    if (_mem == 0) return false;
+    assert(_mem);
     _Header* h = (_Header*) _jb.at(index);
     if (h->type == kNull) return false;
     assert(h->type == kObject);
 
-    for (auto it = this->_begin(index); it != this->end(); ++it) {
-        if (strcmp(it.key(), key) == 0) return true;
+    for (uint32 k = h->index; k != 0;) {
+        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        for (uint32 i = 0; i < a->size; ++i) {
+            if (strcmp((const char*)_jb.at(a->p[i]), key) == 0) {
+                return true;
+            }
+        }
+        k = a->next;
     }
     return false;
 }
+
 } // json
