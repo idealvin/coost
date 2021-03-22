@@ -148,7 +148,7 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
   end:
     if (s.size() > size) {
         val = _root->_alloc_queue(s.data() + size, s.size() - size);
-        ((Root::_Header*)_root->_jb.at(index))->index = val;
+        ((Root::_Header*)_root->_p8(index))->index = val;
         s.resize(size);
     }
     return b;
@@ -182,7 +182,7 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
   end:
     if (s.size() > size) {
         val = _root->_alloc_queue(s.data() + size, s.size() - size);
-        ((Root::_Header*)_root->_jb.at(index))->index = val;
+        ((Root::_Header*)_root->_p8(index))->index = val;
         s.resize(size);
     }
     return b;
@@ -467,13 +467,13 @@ inline const char* find_escapse(const char* b, const char* e, char& c) {
 }
 #endif
 
-void Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
+fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
+    _Header* h = (_Header*) _p8(index);
     if (h->type == kString) {
         fs << '"';
         const uint32 len = h->size;
         const bool trunc = debug && len > 256;
-        const char* s = (const char*) _jb.at(h->index);
+        const char* s = (const char*) _p8(h->index);
         const char* e = trunc ? s + 256 : s + len;
 
         char c;
@@ -489,11 +489,10 @@ void Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
     } else if (h->type == kObject) {
         fs << '{';
         for (uint32 k = h->index; k != 0;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(k);
+            xx::Queue* a = (xx::Queue*) _p8(k);
             for (uint32 i = 0; i < a->size; i += 2) {
-                fs << '"' << (const char*)_jb.at(a->p[i]) << '"' << ':'; // key
-                _Json2str(fs, debug, a->p[i + 1]); // value
-                fs << ',';
+                fs << '"' << (const char*)_p8(a->p[i]) << '"' << ':'; // key
+                _Json2str(fs, debug, a->p[i + 1]) << ',';             // value
             }
             k = a->next;
         }
@@ -503,10 +502,9 @@ void Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
     } else if (h->type == kArray) {
         fs << '[';
         for (uint32 k = h->index; k != 0;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(k);
+            xx::Queue* a = (xx::Queue*) _p8(k);
             for (uint32 i = 0; i < a->size; ++i) {
-                _Json2str(fs, debug, a->p[i]);
-                fs << ',';
+                _Json2str(fs, debug, a->p[i]) << ',';
             }
             k = a->next;
         }
@@ -525,26 +523,21 @@ void Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
             fs << "null";
         }
     }
+    return fs;
 }
 
 // @indent:  4 spaces by default
 // @n:       number of spaces to insert at the beginning for the current line
-void Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
-    if (h->type == kNull) {
-        fs << "null";
-        return;
-    }
-
+fastream& Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
+    _Header* h = (_Header*) _p8(index);
     if (h->type == kObject) {
         fs << '{';
         for (uint32 k = h->index; k != 0;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(k);
+            xx::Queue* a = (xx::Queue*) _p8(k);
             for (uint32 i = 0; i < a->size; i += 2) {
                 fs.append('\n').append(n, ' ');
-                fs << '"' << (const char*)_jb.at(a->p[i]) << '"' << ": "; // key
-                _Json2pretty(fs, indent, n + indent, a->p[i + 1]); // value
-                fs << ',';
+                fs << '"' << (const char*)_p8(a->p[i]) << '"' << ": ";    // key
+                _Json2pretty(fs, indent, n + indent, a->p[i + 1]) << ','; // value
             }
             k = a->next;
         }
@@ -555,11 +548,10 @@ void Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
     } else if (h->type == kArray) {
         fs << '[';
         for (uint32 k = h->index; k != 0;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(k);
+            xx::Queue* a = (xx::Queue*) _p8(k);
             for (uint32 i = 0; i < a->size; ++i) {
                 fs.append('\n').append(n, ' ');
-                _Json2pretty(fs, indent, n + indent, a->p[i]);
-                fs << ',';
+                _Json2pretty(fs, indent, n + indent, a->p[i]) << ',';
             }
             k = a->next;
         }
@@ -570,23 +562,24 @@ void Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
     } else {
         _Json2str(fs, false, index);
     }
+    return fs;
 }
 
 void Root::_add_member(uint32 key, uint32 val, uint32 index) {
-    _Header* h = (_Header*)_jb.at(index);
+    _Header* h = (_Header*)_p8(index);
     if (h->type != kNull) {
         assert(h->type == kObject);
         if (h->index == 0) goto empty;
 
         for (uint32 q = h->index;;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(q);
+            xx::Queue* a = (xx::Queue*) _p8(q);
             if (!a->next) {
                 if (!a->full()) {
                     a->push(key, val);
                 } else {
                     uint32 k = this->_alloc_queue(16);
-                    ((xx::Queue*)_jb.at(q))->next = k;
-                    ((xx::Queue*)_jb.at(k))->push(key, val);
+                    ((xx::Queue*)_p8(q))->next = k;
+                    ((xx::Queue*)_p8(k))->push(key, val);
                 }
                 return;
             }
@@ -599,26 +592,26 @@ void Root::_add_member(uint32 key, uint32 val, uint32 index) {
   empty:
     {
         uint32 q = this->_alloc_queue(16);
-        ((_Header*)_jb.at(index))->index = q;
-        ((xx::Queue*)_jb.at(q))->push(key, val);
+        ((_Header*)_p8(index))->index = q;
+        ((xx::Queue*)_p8(q))->push(key, val);
     }
 }
 
 void Root::_push_back(uint32 val, uint32 index) {
-    _Header* h = (_Header*)_jb.at(index);
+    _Header* h = (_Header*)_p8(index);
     if (h->type != kNull) {
         assert(h->type == kArray);
         if (h->index == 0) goto empty;
 
         for (uint32 q = h->index;;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(q);
+            xx::Queue* a = (xx::Queue*) _p8(q);
             if (!a->next) {
                 if (!a->full()) {
                     a->push(val);
                 } else {
                     uint32 k = this->_alloc_queue(8);
-                    ((xx::Queue*)_jb.at(q))->next = k;
-                    ((xx::Queue*)_jb.at(k))->push(val);
+                    ((xx::Queue*)_p8(q))->next = k;
+                    ((xx::Queue*)_p8(k))->push(val);
                 }
                 return;
             }
@@ -631,18 +624,18 @@ void Root::_push_back(uint32 val, uint32 index) {
   empty:
     {
         uint32 q = this->_alloc_queue(8);
-        ((_Header*)_jb.at(index))->index = q;
-        ((xx::Queue*)_jb.at(q))->push(val);
+        ((_Header*)_p8(index))->index = q;
+        ((xx::Queue*)_p8(q))->push(val);
     }
 }
 
 Value Root::_at(uint32 i, uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
+    _Header* h = (_Header*) _p8(index);
     assert(h->type == kArray);
 
     for (uint32 k = h->index;;) {
         assert(k != 0);
-        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        xx::Queue* a = (xx::Queue*) _p8(k);
         if (i < a->size) return Value((Root*)this, a->p[i]);
         i -= a->size;
         k = a->next;
@@ -650,13 +643,13 @@ Value Root::_at(uint32 i, uint32 index) const {
 }
 
 Value Root::_at(Key key, uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
+    _Header* h = (_Header*) _p8(index);
     assert(h->type == kObject);
 
     for (uint32 k = h->index; k != 0;) {
-        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        xx::Queue* a = (xx::Queue*) _p8(k);
         for (uint32 i = 0; i < a->size; i += 2) {
-            if (strcmp((const char*)_jb.at(a->p[i]), key) == 0) {
+            if (strcmp((const char*)_p8(a->p[i]), key) == 0) {
                 return Value((Root*)this, a->p[i + 1]);
             }
         }
@@ -670,14 +663,14 @@ Value Root::_at(Key key, uint32 index) const {
 }
 
 bool Root::_has_member(Key key, uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
+    _Header* h = (_Header*) _p8(index);
     if (h->type == kNull) return false;
     assert(h->type == kObject);
 
     for (uint32 k = h->index; k != 0;) {
-        xx::Queue* a = (xx::Queue*) _jb.at(k);
+        xx::Queue* a = (xx::Queue*) _p8(k);
         for (uint32 i = 0; i < a->size; i += 2) {
-            if (strcmp((const char*)_jb.at(a->p[i]), key) == 0) {
+            if (strcmp((const char*)_p8(a->p[i]), key) == 0) {
                 return true;
             }
         }
@@ -687,12 +680,12 @@ bool Root::_has_member(Key key, uint32 index) const {
 }
 
 uint32 Root::_size(uint32 index) const {
-    _Header* h = (_Header*) _jb.at(index);
+    _Header* h = (_Header*) _p8(index);
     if (h->type == kString) return h->size;
     if (h->type & (kObject | kArray)) {
         uint32 n = 0;
         for (uint32 k = h->index; k != 0;) {
-            xx::Queue* a = (xx::Queue*) _jb.at(k);
+            xx::Queue* a = (xx::Queue*) _p8(k);
             n += a->size;
             k = a->next;
         }

@@ -127,7 +127,7 @@ void ServerImpl::on_connection(Connection* conn) {
 
         // call rpc and send response to the client
         do {
-            res.reset();
+            res = Json();
             _service->process(req, res);
 
             buf->resize(sizeof(Header));
@@ -181,7 +181,8 @@ bool ServerImpl::auth(Connection* conn) {
     Header header;
     fastream fs;
     Json req, res;
-    json::Value x;
+    char buf[sizeof(json::Value)];
+    json::Value& x = *(json::Value*)buf;
 
     // wait for the first req from client, timeout in 7 seconds
     do {
@@ -256,7 +257,7 @@ bool ServerImpl::auth(Connection* conn) {
     do {
         x = req["md5"];
         if (!x.is_string() || x.get_string() != md5sum(_passwd + res["nonce"].get_string())) {
-            res.reset();
+            res = Json();
             res.add_member("method", "auth");
             res.add_member("err", 401);
             res.add_member("errmsg", "401 auth failed");
@@ -271,7 +272,7 @@ bool ServerImpl::auth(Connection* conn) {
             DLOG << "send auth result to client: " << (fs.c_str() + sizeof(Header));
             return false;
         } else {
-            res.reset();
+            res = Json();
             res.add_member("method", "auth");
             res.add_member("err", 200);
             res.add_member("errmsg", "200 auth ok");
@@ -414,7 +415,8 @@ bool ClientImpl::auth() {
     Header header;
     fastream fs;
     Json req, res;
-    json::Value x;
+    char buf[sizeof(json::Value)];
+    json::Value& x = *(json::Value*)buf;
 
     // send the first auth req
     do {

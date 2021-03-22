@@ -35,6 +35,14 @@ int main(int argc, char** argv) {
         CLOG << it.key() << ":" << it.value();
     }
 
+    auto x = v.push_object();
+    x.add_member("x", 3.14);
+    
+    auto y = x.add_array("yy");
+    y.push_back("ddd");
+    y.push_back("....");
+
+
     CLOG << "size: " << r.size();
     CLOG << "array size: " << n.size();
     CLOG << "string size: " << r["name"].size();

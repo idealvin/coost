@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     fastring xs;
     beg = now::us();
     for (int i = 0; i < n; ++i) {
-        xs = xx.str();
+        xs = xx.str(256 + FLG_n);
     }
     end = now::us();
 
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 
     beg = now::us();
     for (int i = 0; i < n; ++i) {
-        xs = xx.pretty();
+        xs = xx.pretty(256 + FLG_n);
     }
     end = now::us();
 
