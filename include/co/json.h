@@ -215,21 +215,14 @@ class Root {
                 _step = (type == Root::kObject ? 2 : 1);
             }
 
-            struct End {};
-            static const End& end() {
-                static End kEnd;
-                return kEnd;
-            }
-
+            struct End {}; // fake end
+            static const End& end() { static End kEnd; return kEnd; }
             bool operator!=(const End&) const { return _q != 0; }
             bool operator==(const End&) const { return _q == 0; }
 
             iterator& operator++() {
                 xx::Queue* a = (xx::Queue*) _root->_p8(_q);
-                if ((_i += _step) >= a->size) {
-                    _q = a->next;
-                    _i = 0;
-                }
+                if ((_i += _step) >= a->size) { _q = a->next; _i = 0; }
                 return *this;
             }
 
@@ -244,7 +237,7 @@ class Root {
             uint32 _step;
         };
 
-        iterator begin() const { return _root->_begin(_index); }
+        iterator begin()           const { return _root->_begin(_index); }
         const iterator::End& end() const { return iterator::end(); }
 
       private:
@@ -367,13 +360,15 @@ class Root {
     iterator _begin(uint32 index) const {
         _Header* h = (_Header*) _p8(index);
         assert(h->type & (kObject | kArray));
-        return iterator((Root*)this, h->index, h->type);
+        uint32 q = h->index;
+        if (q && ((xx::Queue*)_p8(q))->size == 0) q = 0;
+        return iterator((Root*)this, q, h->type);
     }
 
     // _b8() calculate blocks num from bytes, _b8(15) = 2, etc.
     // _p8() return pointer at the index, 8-byte aligned.
     // _a8() allocate blocks according to the length.
-    uint32 _b8(uint32 n) const { return (uint32)((n >> 3) + !!(n & 7)); }
+    uint32 _b8(size_t n) const { return (uint32)((n >> 3) + !!(n & 7)); }
     void*  _p8(uint32 i) const { return _jb.at(i); }
     uint32 _a8(size_t n)       { return _jb.alloc(_b8(n)); }
     uint32 _alloc_header()     { return _jb.alloc(2); }
@@ -443,22 +438,11 @@ class Root {
     //   @i:     index of the object
     void _add_member(uint32 key, uint32 val, uint32 i);
 
-    void _add_member(Key key, bool x, uint32 i) {
-        return this->_add_member(_make_key(key), _make_bool(x), i);
-    }
-    void _add_member(Key key, int64 x, uint32 i) {
-        return this->_add_member(_make_key(key), _make_int(x), i);
-    }
-    void _add_member(Key key, double x, uint32 i) {
-        return this->_add_member(_make_key(key), _make_double(x), i);
-    }
-    void _add_member(Key key, const char* x, size_t n, uint32 i) {
-        return this->_add_member(_make_key(key), _make_string(x, n), i);
-    }
-
-    void _add_null(Key key, uint32 i) {
-        return this->_add_member(_make_key(key), _make_null(), i);
-    }
+    void _add_member(Key key, bool x, uint32 i)        { return this->_add_member(_make_key(key), _make_bool(x), i); }
+    void _add_member(Key key, int64 x, uint32 i)       { return this->_add_member(_make_key(key), _make_int(x), i); }
+    void _add_member(Key key, double x, uint32 i)      { return this->_add_member(_make_key(key), _make_double(x), i); }
+    void _add_member(Key key, S x, size_t n, uint32 i) { return this->_add_member(_make_key(key), _make_string(x, n), i); }
+    void _add_null(Key key, uint32 i)                  { return this->_add_member(_make_key(key), _make_null(), i); }
 
     Value _add_array(Key key, uint32 cap, uint32 i) {
         uint32 a = _make_array(cap);
@@ -476,6 +460,7 @@ class Root {
     //   @val:   index of value
     //   @i:     index of the array
     void _push_back(uint32 val, uint32 i);
+
     void _push_back(bool x, uint32 i)        { return this->_push_back(_make_bool(x), i); }
     void _push_back(int64 x, uint32 i)       { return this->_push_back(_make_int(x), i); }
     void _push_back(double x, uint32 i)      { return this->_push_back(_make_double(x), i); }
