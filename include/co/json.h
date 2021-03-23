@@ -2,6 +2,9 @@
 
 #include "fastream.h"
 #include <vector>
+#ifdef _MSC_VER
+#pragma warning (disable:4200)
+#endif
 
 namespace json {
 namespace xx {
@@ -11,7 +14,7 @@ namespace xx {
 class JBlock {
   public:
     enum { N = 8 }; // block size
-    explicit JBlock(size_t cap) {
+    explicit JBlock(uint32 cap) {
         if (cap < 31) cap = 31;
         _h = (_Header*) malloc(sizeof(_Header) + cap * N);
         _h->cap = (uint32)cap;
@@ -69,7 +72,7 @@ class JAlloc {
         for (size_t i = 0; i < _jb.size(); ++i) free(_jb[i]);
     }
 
-    void* alloc_jblock(size_t cap=31) {
+    void* alloc_jblock(uint32 cap=31) {
         void* p;
         if (!_jb.empty()) {
             p = _jb.back();
@@ -165,11 +168,13 @@ class Root {
 
         void operator=(bool x)   { return _root->_set_bool(x, _index); }
         void operator=(int64 x)  { return _root->_set_int(x, _index); }
-        void operator=(int x)    { return this->operator=((int64)x); }
+        void operator=(int32 x)  { return this->operator=((int64)x); }
         void operator=(uint32 x) { return this->operator=((int64)x); }
         void operator=(uint64 x) { return this->operator=((int64)x); }
         void operator=(double x) { return _root->_set_double(x, _index); }
         void operator=(S x)      { return _root->_set_string(x, strlen(x), _index); }
+        void operator=(const fastring& x)    { return _root->_set_string(x.data(), x.size(), _index); }
+        void operator=(const std::string& x) { return _root->_set_string(x.data(), x.size(), _index); }
 
         void set_null()   { return _root->_set_null(_index); }
         void set_array()  { return _root->_set_array(_index); }
@@ -271,14 +276,16 @@ class Root {
     Root(Root&& r) noexcept : _mem(r._mem) { r._mem = 0; }
     ~Root() { if (_mem) xx::jalloc()->dealloc_jblock(_mem); }
 
-    Root(const Root& r) = delete;
-    Root& operator=(const Root& r) = delete;
+    Root(const Root& r) : _mem(xx::jalloc()->alloc_jblock()) { _jb.copy_from(r._jb); }
+    Root& operator=(const Root& r) {
+        if (&r != this) { _jb.clear(); _jb.copy_from(r._jb); }
+        return *this;
+    }
 
     Root& operator=(Root&& r) noexcept {
         if (&r != this) {
             if (_mem) xx::jalloc()->dealloc_jblock(_mem);
-            _mem = r._mem;
-            r._mem = 0;
+            _mem = r._mem; r._mem = 0;
         }
         return *this;
     }
@@ -335,9 +342,9 @@ class Root {
     double get_double() const { return this->_get_double(0); }
     S get_string()      const { return this->_get_string(0); }
 
-    void set_null()   { return this->_set_null(0); }
-    void set_array()  { return this->_set_array(0); }
-    void set_object() { return this->_set_object(0); }
+    void set_null()   { _jb.clear(); _make_null(); }
+    void set_array()  { _jb.clear(); _make_array(); }
+    void set_object() { _jb.clear(); _make_object(); }
 
     typedef Value::iterator iterator;
     iterator begin()           const { return this->_begin(0); }
@@ -462,7 +469,7 @@ class Root {
         const uint32 index = _make_raw_string(x, n);
         _Header* h = new (_p8(i)) _Header(kString);
         h->index = index;
-        h->size = n;
+        h->size = (uint32)n;
     }
 
     void _set_null  (uint32 i) { new (_p8(i)) _Header(kNull); };
@@ -513,7 +520,7 @@ class Root {
     }
 
     uint32 _alloc_queue(const char* p, size_t n) {
-        const uint32 cap = (n >> 2); // n/4
+        const uint32 cap = (uint32)(n >> 2); // n/4
         uint32 index = _a8(16 + n);
         char* s = (char*) new (_p8(index)) xx::Queue(cap, cap);
         memcpy(s + 16, p, n);

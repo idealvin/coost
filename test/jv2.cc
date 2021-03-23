@@ -50,7 +50,17 @@ int main(int argc, char** argv) {
     CLOG << k;
 
     k.set_object();
+    k.set_array();
+    k.set_null();
     CLOG << k;
+
+    Json m(r);
+    k = r;
+    k["name"] = "kkkk";
+    m["name"] = "mmmm";
+    CLOG << "r>> " << r;
+    CLOG << "k>> " << k;
+    CLOG << "m>> " << m;
 
     return 0;
 }
