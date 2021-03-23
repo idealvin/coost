@@ -21,9 +21,7 @@ int main(int argc, char** argv) {
     CLOG << "height: " << r["height"].get_double();
 
     json::Value v = r.add_array("num", 3);
-    v.push_back(1);
-    v.push_back(2);
-    v.push_back(3);
+    v.push_back(1, 2, 3);
 
     CLOG << "num: ";
     json::Value n = r["num"];
@@ -36,12 +34,10 @@ int main(int argc, char** argv) {
     }
 
     auto x = v.push_object();
-    x.add_member("x", 3.14);
+    x.add_member("xxx", 3.14);
     
-    auto y = x.add_array("yy");
-    y.push_back("ddd");
-    y.push_back("....");
-
+    auto y = x.add_array("arr");
+    y.push_back(1, 2.3, "hello");
 
     CLOG << "size: " << r.size();
     CLOG << "array size: " << n.size();

@@ -11,15 +11,6 @@ DEF_test(json) {
         EXPECT_EQ(n.str(), "null");
         EXPECT_EQ(n.pretty(), "null");
     }
-
-    DEF_case(has_member) {
-        Json v;
-        v.add_member("apple", "666");
-        EXPECT(v.has_member("apple"));
-        EXPECT(!v.has_member("666"));
-        EXPECT_EQ(v["apple"].get_string(), fastring("666"));
-
-    }
 #if 0
     DEF_case(bool) {
         Json b = true;
@@ -151,6 +142,33 @@ DEF_test(json) {
         EXPECT_EQ(o.size(), 10);
         EXPECT_EQ(o["9"].get_int(), 9);
     }
+
+    DEF_case(has_member) {
+        Json v;
+        v.add_member("apple", "666");
+        EXPECT(v.has_member("apple"));
+        EXPECT(!v.has_member("666"));
+        EXPECT_EQ(v["apple"].get_string(), fastring("666"));
+    }
+
+    DEF_case(iterator) {
+        Json v;
+        json::Value a = v.add_array("num", 3);
+        EXPECT(a.begin() == a.end());
+        a.push_back(1);
+        a.push_back(2);
+        a.push_back(3);
+        a.push_back(4);
+        EXPECT_EQ(a.size(), 4);
+
+        auto it = a.begin();
+        EXPECT_EQ((*it).get_int(), 1);
+        ++it; ++it; ++it;
+        EXPECT_EQ((*it).get_int(), 4);
+        ++it;
+        EXPECT(it == a.end());
+    }
+
 #if 1
     DEF_case(parse_null) {
         Json v;

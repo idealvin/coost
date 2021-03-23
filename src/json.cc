@@ -407,10 +407,10 @@ const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
 
 bool Root::parse_from(const char* s, size_t n) {
     if (_mem == 0) {
-        _mem = xx::jalloc()->alloc_jblock(_b8(n));
+        _mem = xx::jalloc()->alloc_jblock(_b8(n + (n >> 1)));
     } else {
         _jb.clear();
-        _jb.reserve(_b8(n));
+        _jb.reserve(_b8(n + (n >> 1)));
     }
     Parser parser(this);
     return parser.parse(s, s + n);

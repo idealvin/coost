@@ -191,6 +191,9 @@ class Root {
         void push_back(const std::string& x) { return this->push_back(x.data(), x.size()); }
         void push_back(const fastring& x)    { return this->push_back(x.data(), x.size()); }
 
+        template <typename X, typename ...V>
+        void push_back(X x, V... v) { this->push_back(x); this->push_back(v...); }
+
         void push_null()                { return _root->_push_null(_index); }
         Value push_array (uint32 cap=0) { return _root->_push_array (cap, _index); }
         Value push_object(uint32 cap=0) { return _root->_push_object(cap, _index); }
@@ -250,8 +253,6 @@ class Root {
         }
     };
 
-    typedef Value::iterator iterator;
-
     Root()           : _mem(xx::jalloc()->alloc_jblock()) { _make_null(); }
     Root(TypeArray)  : _mem(xx::jalloc()->alloc_jblock()) { _make_array(); }
     Root(TypeObject) : _mem(xx::jalloc()->alloc_jblock()) { _make_object(); }
@@ -298,6 +299,9 @@ class Root {
     void push_back(const std::string& x) { return this->push_back(x.data(), x.size()); }
     void push_back(const fastring& x)    { return this->push_back(x.data(), x.size()); }
 
+    template <typename X, typename ...V>
+    void push_back(X x, V... v) { this->push_back(x); this->push_back(v...); }
+
     void push_null()                { return this->_push_null(0); }
     Value push_array (uint32 cap=0) { return this->_push_array (cap, 0); }
     Value push_object(uint32 cap=0) { return this->_push_object(cap, 0); }
@@ -319,6 +323,7 @@ class Root {
     double get_double() const { return this->_get_double(0); }
     S get_string()      const { return this->_get_string(0); }
 
+    typedef Value::iterator iterator;
     iterator begin()           const { return this->_begin(0); }
     const iterator::End& end() const { return iterator::end(); }
     Value operator[](uint32 i) const { return this->_at(i, 0); }
