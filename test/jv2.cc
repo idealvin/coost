@@ -45,5 +45,12 @@ int main(int argc, char** argv) {
     CLOG << "str:" << r.str();
     CLOG << "pretty: " << r.pretty();
 
+    Json k = json::parse(r.str());
+    k["name"] = "good";
+    CLOG << k;
+
+    k.set_object();
+    CLOG << k;
+
     return 0;
 }

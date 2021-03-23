@@ -328,13 +328,6 @@ inline bool is_digit(char c) {
     return '0' <= c && c <= '9';
 }
 
-inline const char* find_non_digit(const char* b, const char* e) {
-    for (const char* p = b; p < e; ++p) {
-        if (!is_digit(*p)) return p;
-    }
-    return e;
-}
-
 const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
     bool is_double = false;
     const char* p = b;
@@ -345,14 +338,15 @@ const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
         if (++p == e) goto digit_end;
     } else {
         if (*p < '1' || *p > '9') return 0; // must be 1 to 9
-        if ((p = find_non_digit(p + 1, e)) == e) goto digit_end;
+        while (++p < e && is_digit(*p));
+        if (p == e) goto digit_end;
     }
 
     if (*p == '.') {
-        ++p;
-        if (p == e || !is_digit(*p)) return 0; // must be a digit after the point
+        if (++p == e || !is_digit(*p)) return 0; // must be a digit after the point
         is_double = true;
-        if ((p = find_non_digit(p + 1, e)) == e) goto digit_end;
+        while (++p < e && is_digit(*p));
+        if (p == e) goto digit_end;
     }
 
     if (*p == 'e' || *p == 'E') {
@@ -360,14 +354,13 @@ const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
         if (*p == '-' || *p == '+') ++p;
         if (p == e || !is_digit(*p)) return 0; // must be a digit
         is_double = true;
-        p = find_non_digit(p + 1, e);
+        while (++p < e && is_digit(*p));
     }
 
   digit_end:
     {
         size_t n = p - b;
         if (n == 0) return 0;
-
         if (is_double || n > 20) goto to_dbl;
         if (n < 20) goto to_int;
     }
@@ -395,9 +388,8 @@ const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
     if (str2double(b, d)) {
         index = _root->_make_double(d);
         return p - 1;
-    } else {
-        return 0;
     }
+    return 0;
 }
 
 bool Root::parse_from(const char* s, size_t n) {

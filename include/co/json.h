@@ -163,6 +163,18 @@ class Root {
         double get_double() const { return _root->_get_double(_index); }
         S get_string()      const { return _root->_get_string(_index); }
 
+        void operator=(bool x)   { return _root->_set_bool(x, _index); }
+        void operator=(int64 x)  { return _root->_set_int(x, _index); }
+        void operator=(int x)    { return this->operator=((int64)x); }
+        void operator=(uint32 x) { return this->operator=((int64)x); }
+        void operator=(uint64 x) { return this->operator=((int64)x); }
+        void operator=(double x) { return _root->_set_double(x, _index); }
+        void operator=(S x)      { return _root->_set_string(x, strlen(x), _index); }
+
+        void set_null()   { return _root->_set_null(_index); }
+        void set_array()  { return _root->_set_array(_index); }
+        void set_object() { return _root->_set_object(_index); }
+
         void add_member(Key key, bool x)   { return _root->_add_member(key, x, _index); }
         void add_member(Key key, int64 x)  { return _root->_add_member(key, x, _index); }
         void add_member(Key key, int x)    { return this->add_member(key, (int64)x); }
@@ -323,6 +335,10 @@ class Root {
     double get_double() const { return this->_get_double(0); }
     S get_string()      const { return this->_get_string(0); }
 
+    void set_null()   { return this->_set_null(0); }
+    void set_array()  { return this->_set_array(0); }
+    void set_object() { return this->_set_object(0); }
+
     typedef Value::iterator iterator;
     iterator begin()           const { return this->_begin(0); }
     const iterator::End& end() const { return iterator::end(); }
@@ -383,24 +399,25 @@ class Root {
     uint32 _make_int(int64 x)     { uint32 i = _alloc_header(); (new (_p8(i)) _Header(kInt))->i = x; return i; }
     uint32 _make_double(double x) { uint32 i = _alloc_header(); (new (_p8(i)) _Header(kDouble))->d = x; return i; }
 
-    uint32 _make_string(const char* s, size_t n) {
-        const uint32 head = _alloc_header();
-        const uint32 body = _a8(n + 1);
-        _Header* h = new (_p8(head)) _Header(kString);
-        h->size = (uint32)n; // length of the string
-        h->index = body;     // points to the body of the string
-        char* p = (char*)_p8(body);
-        memcpy(p, s, n);
-        p[n] = '\0';
-        return head;
-    }
-
-    uint32 _make_key(const char* x, size_t n) {
+    uint32 _make_raw_string(const char* x, size_t n) {
         const uint32 index = _a8(n + 1);
         char* p = (char*)_p8(index);
         memcpy(p, x, n);
         p[n] = '\0';
         return index;
+    }
+
+    uint32 _make_string(const char* s, size_t n) {
+        const uint32 head = _alloc_header();
+        const uint32 body = _make_raw_string(s, n);
+        _Header* h = new (_p8(head)) _Header(kString);
+        h->size = (uint32)n; // length of the string
+        h->index = body;     // points to the body of the string
+        return head;
+    }
+
+    uint32 _make_key(const char* x, size_t n) {
+        return _make_raw_string(x, n);
     }
 
     uint32 _make_key(Key key) {
@@ -436,6 +453,21 @@ class Root {
     int64 _get_int64(uint32 i)   const { _Header* h = (_Header*)_p8(i); assert(h->type == kInt); return h->i; }
     double _get_double(uint32 i) const { _Header* h = (_Header*)_p8(i); assert(h->type == kDouble); return h->d; }
     S _get_string(uint32 i)      const { _Header* h = (_Header*)_p8(i); assert(h->type == kString); return (S)_p8(h->index); }
+
+    void _set_bool(bool x, uint32 i)     { (new (_p8(i)) _Header(kBool))->b = x; }
+    void _set_int(int64 x, uint32 i)     { (new (_p8(i)) _Header(kInt))->i = x; }
+    void _set_double(double x, uint32 i) { (new (_p8(i)) _Header(kDouble))->d = x; }
+
+    void _set_string(S x, size_t n, uint32 i) {
+        const uint32 index = _make_raw_string(x, n);
+        _Header* h = new (_p8(i)) _Header(kString);
+        h->index = index;
+        h->size = n;
+    }
+
+    void _set_null  (uint32 i) { new (_p8(i)) _Header(kNull); };
+    void _set_array (uint32 i) { _Header* h = new (_p8(i)) _Header(kArray);  h->index = 0; }
+    void _set_object(uint32 i) { _Header* h = new (_p8(i)) _Header(kObject); h->index = 0; }
 
     // add member to an object
     //   @key:   index of key
