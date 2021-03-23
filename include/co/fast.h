@@ -105,6 +105,10 @@ class stream {
         }
     }
 
+    void ensure(size_t n) {
+        if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
+    }
+
     const char* c_str() const {
         ((stream*)this)->reserve(_size + 1);
         if (_p[_size] != '\0') _p[_size] = '\0';
@@ -138,14 +142,14 @@ class stream {
     }
 
     stream& append(size_t n, char c) {
-        this->_Ensure(n);
+        this->ensure(n);
         memset(_p + _size, c, n);
         _size += n;
         return *this;
     }
 
     stream& append(char c) {
-        this->_Ensure(1);
+        this->ensure(1);
         _p[_size++] = c;
         return *this;
     }
@@ -188,55 +192,55 @@ class stream {
     }
 
     stream& operator<<(unsigned char v) {
-        this->_Ensure(4);
+        this->ensure(4);
         _size += fast::u32toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(short v) {
-        this->_Ensure(8);
+        this->ensure(8);
         _size += fast::i32toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned short v) {
-        this->_Ensure(8);
+        this->ensure(8);
         _size += fast::u32toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(int v) {
-        this->_Ensure(12);
+        this->ensure(12);
         _size += fast::i32toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned int v) {
-        this->_Ensure(12);
+        this->ensure(12);
         _size += fast::u32toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(long v) {
-        this->_Ensure(sizeof(v) * 3);
+        this->ensure(sizeof(v) * 3);
         _size += fast::i64toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned long v) {
-        this->_Ensure(sizeof(v) * 3);
+        this->ensure(sizeof(v) * 3);
         _size += fast::u64toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(long long v) {
-        this->_Ensure(24);
+        this->ensure(24);
         _size += fast::i64toa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned long long v) {
-        this->_Ensure(24);
+        this->ensure(24);
         _size += fast::u64toa(v, _p + _size);
         return *this;
     }
@@ -250,30 +254,26 @@ class stream {
     }
 
     stream& operator<<(const void* v) {
-        this->_Ensure(20);
+        this->ensure(20);
         _size += fast::u64toh((uint64)v, _p + _size);
         return *this;
     }
 
     stream& operator<<(float v) {
-        this->_Ensure(24);
+        this->ensure(24);
         _size += fast::dtoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(double v) {
-        this->_Ensure(24);
+        this->ensure(24);
         _size += fast::dtoa(v, _p + _size);
         return *this;
     }
 
   protected:
-    void _Ensure(size_t n) {
-        if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
-    }
-
     stream& _Append(const void* p, size_t n) {
-        this->_Ensure(n);
+        this->ensure(n);
         memcpy(_p + _size, p, n);
         _size += n;
         return *this;
