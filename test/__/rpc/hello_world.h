@@ -21,7 +21,7 @@ class HelloWorld : public rpc::Service {
     virtual ~HelloWorld() {}
 
     virtual void process(const Json& req, Json& res) {
-        Json& method = req["method"];
+        json::Value method = req["method"];
         if (!method.is_string()) {
             res.add_member("err", 400);
             res.add_member("errmsg", "400 req has no method");

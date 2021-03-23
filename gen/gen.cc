@@ -41,7 +41,7 @@ void generate(const fastring& gen_file, const fastring& pkg, const fastring& ser
     // virtual void process(const Json& req, Json& res)
     do {
         fs << fastring(' ', 4) << "virtual void process(const Json& req, Json& res) {\n";
-        fs << fastring(' ', 8) << "Json& method = req[\"method\"];\n";
+        fs << fastring(' ', 8) << "json::Value method = req[\"method\"];\n";
         fs << fastring(' ', 8) << "if (!method.is_string()) {\n";
         fs << fastring(' ', 12) << "res.add_member(\"err\", 400);\n";
         fs << fastring(' ', 12) << "res.add_member(\"errmsg\", \"400 req has no method\");\n";

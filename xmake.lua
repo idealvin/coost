@@ -13,6 +13,14 @@ set_optimize("faster")  -- -O2
 set_warnings("all")     -- -Wall
 set_symbols("debug")    -- dbg symbols
 
+-- check sse/avx
+--includes("check_cincludes.lua")
+--check_cincludes("CO_AVX", "immintrin.h")
+--check_cincludes("CO_SSE2", "emmintrin.h")
+--check_cincludes("CO_SSE42", "nmmintrin.h")
+--add_vectorexts("avx")
+
+
 if is_plat("macosx", "linux") then
     add_cxflags("-g3", "-Wno-narrowing")
     if is_plat("macosx") then
@@ -22,7 +30,6 @@ if is_plat("macosx", "linux") then
 end
 
 if is_plat("windows") then
-    --add_cxflags("-Ox", "-fp:fast", "-EHsc")
     add_cxflags("-MD", "-EHsc")
 end
 
@@ -36,4 +43,3 @@ add_installfiles("*.md", {prefixdir = "include/co"})
 
 -- include sub-projects
 includes("src", "gen", "test", "unitest")
-

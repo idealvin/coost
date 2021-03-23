@@ -1,10 +1,13 @@
+#ifdef CO_SSE42
+#define RAPIDJSON_SSE42
+#endif
 #include "__/rapidjson.h"
 #include "co/time.h"
 #include "co/flag.h"
 #include <string>
 #include <iostream>
 
-DEF_uint32(n, 20, "string length for this test");
+DEF_uint32(n, 64, "string length for this test");
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
@@ -57,6 +60,7 @@ int main(int argc, char** argv) {
     }
 
     int n = 100000;
+    std::cout << "s.size(): " << s.size() << std::endl;
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
