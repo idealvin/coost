@@ -14,7 +14,7 @@ set_warnings("all")     -- -Wall
 set_symbols("debug")    -- dbg symbols
 
 -- check sse/avx
-includes("check_cincludes.lua")
+--includes("check_cincludes.lua")
 --check_cincludes("CO_AVX", "immintrin.h")
 --check_cincludes("CO_SSE2", "emmintrin.h")
 --check_cincludes("CO_SSE42", "nmmintrin.h")

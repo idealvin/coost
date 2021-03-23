@@ -91,7 +91,7 @@ inline  const char* Parser::parse_value(const char* b, const char* e, uint32& in
 
 inline bool Parser::parse(const char* b, const char* e) {
     while (b < e && is_white_char(*b)) ++b;
-    if (b == e) return false;
+    if (b >= e) return false;
 
     uint32 index;
     if (*b == '{') {
@@ -119,26 +119,21 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
 
-        // key
         b = parse_key(b, e, key);
         if (b == 0) goto err;
 
-        // ':'
         while (++b < e && is_white_char(*b));
         if (b == e || *b != ':') goto err;
 
         while (++b < e && is_white_char(*b));
         if (b == e) goto err;
 
-        // value
-        val = 0;
         b = parse_value(b, e, val);
         if (b == 0) goto err;
 
         s.append(key);
         s.append(val);
 
-        // check value end
         while (++b < e && is_white_char(*b));
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
