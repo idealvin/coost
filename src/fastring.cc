@@ -43,7 +43,7 @@ fastring& fastring::append(const void* x, size_t n) {
     } else {
         assert(p + n <= _p + _size);
         size_t pos = p - _p;
-        this->_Ensure(n);
+        this->ensure(n);
         memcpy(_p + _size, _p + pos, n);
         _size += n;
         return *this;
