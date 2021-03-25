@@ -26,10 +26,6 @@ class Parser {
     const char* parse_null(const char* b, const char* e, uint32& index);
     const char* parse_value(const char* b, const char* e, uint32& index);
 
-    inline bool is_white_char(char c) {
-        return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
-    }
-
   private:
     Root* _root;
 };
@@ -89,8 +85,12 @@ inline  const char* Parser::parse_value(const char* b, const char* e, uint32& in
     }
 }
 
+inline bool is_white_space(char c) {
+    return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
+}
+
 inline bool Parser::parse(const char* b, const char* e) {
-    while (b < e && is_white_char(*b)) ++b;
+    while (b < e && is_white_space(*b)) ++b;
     if (b >= e) return false;
 
     uint32 index;
@@ -104,7 +104,7 @@ inline bool Parser::parse(const char* b, const char* e) {
     }
 
     if (b == 0) return false;
-    while (++b < e && is_white_char(*b));
+    while (++b < e && is_white_space(*b));
     return b == e;
 }
 
@@ -115,17 +115,17 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
     index = _root->_make_object();
 
     while (true) {
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
 
         b = parse_key(b, e, key);
         if (b == 0) goto err;
 
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e || *b != ':') goto err;
 
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e) goto err;
 
         b = parse_value(b, e, val);
@@ -134,7 +134,7 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
         s.append(key);
         s.append(val);
 
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
         if (*b != ',') goto err;
@@ -159,7 +159,7 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
     index = _root->_make_array();
 
     while (true) {
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e) goto err;
         if (*b == ']') goto end; // array end
 
@@ -168,7 +168,7 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
 
         s.append(val);
 
-        while (++b < e && is_white_char(*b));
+        while (++b < e && is_white_space(*b));
         if (b == e) goto err;
         if (*b == ']') goto end; // array end
         if (*b != ',') goto err;
@@ -186,14 +186,6 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
     return 0;
 }
 
-// find '"' or '\\'
-inline const char* find_quote_or_escape(const char* b, const char* e) {
-    const char* p = (const char*) memchr(b, '"', e - b);
-    if (p == 0) return 0;
-    const char* q = (const char*) memchr(b, '\\', p - b);
-    return q ? q : p;
-}
-
 static inline const char* init_s2e_table() {
     static char tb[256] = { 0 };
     tb['r'] = '\r';
@@ -208,35 +200,42 @@ static inline const char* init_s2e_table() {
     return tb;
 }
 
+inline const char* find_quote    (const char* b, const char* e) { return (const char*) memchr(b, '"', e - b); }
+inline const char* find_backslash(const char* b, const char* e) { return (const char*) memchr(b, '\\', e - b); }
+
 const char* Parser::parse_string(const char* b, const char* e, uint32& index) {
-    const char* p = find_quote_or_escape(++b, e); // find the first '"' or '\\'
-    if (p == 0) return 0;
-    if (*p == '"') {
+    const char *p, *q;
+    if ((p = find_quote(++b, e)) == 0) return 0;
+    q = find_backslash(b, p);
+    if (q == 0) {
         index = _root->_make_string(b, p - b);
         return p;
     }
 
     fastream& s = xx::jalloc()->alloc_stream();
     do {
-        s.append(b, p - b);
-        if (++p == e) return 0;
+        s.append(b, q - b);
+        if (++q == e) return 0;
 
         static const char* tb = init_s2e_table();
-        char c = tb[(uint8)*p];
+        char c = tb[(uint8)*q];
         if (c == 0) return 0; // invalid escape
 
-        if (*p != 'u') {
+        if (*q != 'u') {
             s.append(c);
         } else {
-            p = parse_unicode(p + 1, e, s);
-            if (p == 0) return 0;
+            q = parse_unicode(q + 1, e, s);
+            if (q == 0) return 0;
         }
 
-        b = p + 1;
-        p = find_quote_or_escape(b, e);
-        if (p == 0) return 0;
-
-        if (*p == '"') {
+        b = q + 1;
+        if (b > p) {
+            p = find_quote(b, e);
+            if (p == 0) return 0;
+        }
+        
+        q = find_backslash(b, p);
+        if (q == 0) {
             s.append(b, p - b);
             index = _root->_make_string(s.data(), s.size());
             return p;

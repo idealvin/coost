@@ -91,7 +91,6 @@ class stream {
         _size = 0;
     }
 
-    // !! newly allocated memory is not initialized
     void resize(size_t n) {
         this->reserve(n);
         _size = n;
@@ -99,14 +98,16 @@ class stream {
 
     void reserve(size_t n) {
         if (_cap < n) {
-            _p = (char*) realloc(_p, n);
-            assert(_p);
+            _p = (char*) realloc(_p, n); assert(_p);
             _cap = n;
         }
     }
 
     void ensure(size_t n) {
-        if (_cap < _size + n) this->reserve((_cap * 3 >> 1) + n);
+        if (_cap < _size + n) {
+            _cap += ((_cap >> 1) + n);
+            _p = (char*) realloc(_p, _cap);
+        }
     }
 
     const char* c_str() const {
@@ -155,7 +156,6 @@ class stream {
     }
 
     stream& append(uint8 v) {
-        static_assert(sizeof(uint8) == sizeof(char), "");
         return this->append((char)v);
     }
 

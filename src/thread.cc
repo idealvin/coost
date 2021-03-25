@@ -6,6 +6,7 @@
 #include <sys/syscall.h>  // for SYS_xxx definitions
 #include <time.h>         // for clock_gettime
 #else
+#include <errno.h>        // ETIMEDOUT for mac
 #include <sys/time.h>     // for gettimeofday
 #endif
 

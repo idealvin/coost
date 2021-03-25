@@ -9,7 +9,7 @@ set_xmakever("2.2.5")
 
 -- set common flags
 set_languages("c++11")
-set_optimize("faster")  -- -O2
+set_optimize("faster")  -- faster: -O2  fastest: -O3  none: -O0
 set_warnings("all")     -- -Wall
 set_symbols("debug")    -- dbg symbols
 
