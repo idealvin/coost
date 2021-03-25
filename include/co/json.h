@@ -25,9 +25,9 @@ class JBlock {
 
     // alloc n block, return the index
     uint32 alloc(uint32 n) {
-        uint32 index = _h->size;
-        if ((_h->size += n) > _h->cap) {
-            _h->cap += (_h->cap >> 1) + n;
+        const uint32 index = _h->size;
+        if (_h->cap < (_h->size += n)) {
+            _h->cap += ((_h->cap >> 1) + n);
             _h = (_Header*) realloc(_h, sizeof(_Header) + _h->cap * N);
             assert(_h);
         }
@@ -41,9 +41,17 @@ class JBlock {
     void clear() { _h->size = 0; }
 
     void reserve(uint32 n) {
-        if (n > _h->cap) {
+        if (_h->cap < n) {
             _h->cap = n;
             _h = (_Header*) realloc(_h, sizeof(_Header) + n * N);
+            assert(_h);
+        }
+    }
+
+    void ensure(size_t n) {
+        if (_h->cap < _h->size + n) {
+            _h->cap += ((_h->cap >> 1) + n);
+            _h = (_Header*) realloc(_h, sizeof(_Header) + _h->cap * N);
             assert(_h);
         }
     }
@@ -54,6 +62,7 @@ class JBlock {
     }
 
   private:
+    friend class Root;
     struct _Header {
         uint32 cap;
         uint32 size;
