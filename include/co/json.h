@@ -71,6 +71,30 @@ class JBlock {
     _Header* _h;
 };
 
+struct Stack {
+    typedef uint32 T;
+    Stack(uint32 n=256) : cap(n), size(0) {
+        p = (T*) malloc(sizeof(T) * cap);
+    }
+    ~Stack() { free(p); }
+
+    void push(T v) {
+        if (cap < size + 1) {
+            cap += ((cap >> 1) + 1);
+            p = (T*) realloc(p, sizeof(T) * cap);
+        }
+        p[size++] = v;
+    }
+
+    uint32 pop() {
+        return p[--size];
+    }
+
+    uint32 cap;
+    uint32 size;
+    T* p;
+};
+
 class JAlloc {
   public:
     JAlloc() : _fs(256), _stack(512) {
@@ -99,12 +123,12 @@ class JAlloc {
     }
 
     fastream& alloc_stream() { _fs.clear(); return _fs; }
-    fastream& alloc_stack()  { return _stack; } 
+    Stack& alloc_stack()  { return _stack; } 
 
   private:
     std::vector<void*> _jb;
     fastream _fs;    // for parsing string
-    fastream _stack; // for parsing array, object
+    Stack _stack;
 };
 
 inline JAlloc* jalloc() {
