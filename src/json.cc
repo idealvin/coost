@@ -39,31 +39,25 @@ inline const char* Parser::parse_key(const char* b, const char* e, uint32& index
 }
 
 inline const char* Parser::parse_false(const char* b, const char* e, uint32& index) {
-    if (e - b >= 5) {
-        if (b[1] == 'a' && b[2] == 'l' && b[3] == 's' && b[4] == 'e') {
-            index = _root->_make_bool(false);
-            return b + 4;
-        }
+    if (e - b >= 5 && b[1] == 'a' && b[2] == 'l' && b[3] == 's' && b[4] == 'e') {
+        index = _root->_make_bool(false);
+        return b + 4;
     }
     return 0;
 }
 
 inline const char* Parser::parse_true(const char* b, const char* e, uint32& index) {
-    if (e - b >= 4) {
-        if (b[1] == 'r' && b[2] == 'u' && b[3] == 'e') {
-            index = _root->_make_bool(true);
-            return b + 3;
-        }
+    if (e - b >= 4 && b[1] == 'r' && b[2] == 'u' && b[3] == 'e') {
+        index = _root->_make_bool(true);
+        return b + 3;
     }
     return 0;
 }
 
 inline const char* Parser::parse_null(const char* b, const char* e, uint32& index) {
-    if (e - b >= 4) {
-        if (b[1] == 'u' && b[2] == 'l' && b[3] == 'l') {
-            index = _root->_make_null();
-            return b + 3;
-        }
+    if (e - b >= 4 && b[1] == 'u' && b[2] == 'l' && b[3] == 'l') {
+        index = _root->_make_null();
+        return b + 3;
     }
     return 0;
 }
@@ -109,6 +103,40 @@ inline bool Parser::parse(const char* b, const char* e) {
     return b == e;
 }
 
+#if 1
+#define skip_white_space(b, e) \
+    if (++b < e && is_white_space(*b)) { \
+        for (++b;;) { \
+            if (b + 8 <= e) { \
+                if (!is_white_space(b[0])) break; \
+                if (!is_white_space(b[1])) { b += 1; break; } \
+                if (!is_white_space(b[2])) { b += 2; break; } \
+                if (!is_white_space(b[3])) { b += 3; break; } \
+                if (!is_white_space(b[4])) { b += 4; break; } \
+                if (!is_white_space(b[5])) { b += 5; break; } \
+                if (!is_white_space(b[6])) { b += 6; break; } \
+                if (!is_white_space(b[7])) { b += 7; break; } \
+                b += 8; \
+            } else { \
+                if (b + 4 <= e) {\
+                    if (!is_white_space(b[0])) break; \
+                    if (!is_white_space(b[1])) { b += 1; break; } \
+                    if (!is_white_space(b[2])) { b += 2; break; } \
+                    if (!is_white_space(b[3])) { b += 3; break; } \
+                    b += 4; \
+                } \
+                if (b == e || !is_white_space(b[0])) break; \
+                if (b + 1 == e || !is_white_space(b[1])) { b += 1; break; } \
+                if (b + 2 == e || !is_white_space(b[2])) { b += 2; break; } \
+                b = e; break; \
+            } \
+        } \
+    }
+#else
+#define skip_white_space(b, e) \
+    while (++b < e && is_white_space(*b));
+#endif
+
 // stack: |state|obj(arr) index|key, val...|size|state|...
 bool Parser::parse_v2(const char* b, const char* e) {
     char state = 'v';
@@ -130,7 +158,7 @@ bool Parser::parse_v2(const char* b, const char* e) {
     }
   obj_val_beg:
     {
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == '}') goto obj_end;
 
@@ -152,7 +180,7 @@ bool Parser::parse_v2(const char* b, const char* e) {
   obj_val_end:
     {
         s.push(val);
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == ',') goto obj_val_beg;
         if (*b == '}') goto obj_end;
@@ -168,7 +196,7 @@ bool Parser::parse_v2(const char* b, const char* e) {
     }
   arr_val_beg:
     {
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == ']') goto arr_end;
         
@@ -180,7 +208,7 @@ bool Parser::parse_v2(const char* b, const char* e) {
   arr_val_end:
     {
         s.push(val);
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == ',') goto arr_val_beg;
         if (*b == ']') goto arr_end;
@@ -241,7 +269,7 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
     index = _root->_make_object();
 
     while (true) {
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
 
@@ -260,7 +288,7 @@ const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
         s.push(key);
         s.push(val);
 
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == '}') goto end; // object end
         if (*b != ',') goto err;
@@ -285,7 +313,7 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
     index = _root->_make_array();
 
     while (true) {
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == ']') goto end; // array end
 
@@ -294,7 +322,7 @@ const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
 
         s.push(val);
 
-        while (++b < e && is_white_space(*b));
+        skip_white_space(b, e);
         if (b == e) goto err;
         if (*b == ']') goto end; // array end
         if (*b != ',') goto err;
@@ -525,7 +553,7 @@ bool Root::parse_from(const char* s, size_t n) {
         _jb.reserve(_b8(n + (n >> 1)));
     }
     Parser parser(this);
-    return parser.parse(s, s + n);
+    return parser.parse_v2(s, s + n);
 }
 
 static inline const char* init_e2s_table() {
@@ -540,44 +568,42 @@ static inline const char* init_e2s_table() {
     return tb;
 }
 
-#ifdef CO_SSE42 
-static const char* find_escapse(const char* b, const char* e, char& c) {
-    static const char* tb = init_e2s_table();
-    static const char esc[16] = "\r\n\t\b\f\"\\";
-    static const __m128i w = _mm_loadu_si128((const __m128i*)esc);
-
-    const char* p = b;
-    const char* b16 = (const char*)(((size_t)b + 15) & ~(size_t)15);
-    if (b16 >= e) goto tail;
-
-    for (; p != b16; ++p) {
-        if ((c = tb[(uint8)*p])) return p;
-    }
-
-    for (; p + 16 <= e; p += 16) {
-        const __m128i s = _mm_load_si128((const __m128i*)p);
-        int r = _mm_cmpistri(w, s, _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY);
-        if (r < 16) {
-            c = tb[(uint8)*(p + r)];
-            return p + r;
-        }
-    }
-
-  tail:
-    for (; p < e; ++p) {
-        if ((c = tb[(uint8)*p])) return p;
-    }
-    return e;
-}
-#else
 inline const char* find_escapse(const char* b, const char* e, char& c) {
     static const char* tb = init_e2s_table();
+#if 1
+    char c0, c1, c2, c3, c4, c5, c6, c7;
+    for (;;) {
+        if (b + 8 <= e) {
+            if ((c0 = tb[(uint8)b[0]])) { c = c0; return b; }
+            if ((c1 = tb[(uint8)b[1]])) { c = c1; return b + 1; }
+            if ((c2 = tb[(uint8)b[2]])) { c = c2; return b + 2; }
+            if ((c3 = tb[(uint8)b[3]])) { c = c3; return b + 3; }
+            if ((c4 = tb[(uint8)b[4]])) { c = c4; return b + 4; }
+            if ((c5 = tb[(uint8)b[5]])) { c = c5; return b + 5; }
+            if ((c6 = tb[(uint8)b[6]])) { c = c6; return b + 6; }
+            if ((c7 = tb[(uint8)b[7]])) { c = c7; return b + 7; }
+            b += 8;
+        } else {
+            if (b + 4 <= e) {
+                if ((c0 = tb[(uint8)b[0]])) { c = c0; return b; }
+                if ((c1 = tb[(uint8)b[1]])) { c = c1; return b + 1; }
+                if ((c2 = tb[(uint8)b[2]])) { c = c2; return b + 2; }
+                if ((c3 = tb[(uint8)b[3]])) { c = c3; return b + 3; }
+                b += 4;
+            }
+            for (; b < e; ++b) {
+                if ((c = tb[(uint8)*b])) return b;
+            }
+            return e;
+        }
+    }
+#else
     for (const char* p = b; p < e; ++p) {
         if ((c = tb[(uint8)*p])) return p;
     }
     return e;
-}
 #endif
+}
 
 fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
@@ -587,6 +613,7 @@ fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
         const bool trunc = debug && len > 256;
         const char* s = (const char*) _p8(h->index);
         const char* e = trunc ? s + 256 : s + len;
+        static const char* tb = init_e2s_table();
 
         char c;
         for (const char* p; (p = find_escapse(s, e, c)) < e;) {
