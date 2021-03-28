@@ -137,10 +137,9 @@ inline bool Parser::parse(const char* b, const char* e) {
     while (++b < e && is_white_space(*b));
 #endif
 
-// stack: |state|obj(arr) index|key, val...|size|state|...
+// stack: |prev size|prev state|index|....
 bool Parser::parse_v2(const char* b, const char* e) {
-    char state = 'v';
-    uint32 key, val, index, size = 0;
+    uint32 state = 0, key, val, index, size = 0;
     xx::Stack& s = xx::jalloc()->alloc_stack();
 
     while (b < e && is_white_space(*b)) ++b;
@@ -150,111 +149,121 @@ bool Parser::parse_v2(const char* b, const char* e) {
     goto val_beg;
 
   obj_beg:
-    {
-        s.push(size);                  // prev size
-        s.push(state);                 // prev state
-        s.push(_root->_make_object()); // index of this object
-        size = s.size;                 // current size
-    }
+    s.push(size);                  // prev size
+    s.push(state);                 // prev state
+    s.push(_root->_make_object()); // index of this object
+    size = s.size;                 // current size
+    state = '{';
+
   obj_val_beg:
-    {
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == '}') goto obj_end;
+    skip_white_space(b, e);
+    if (b == e) goto err;
+    if (*b == '}') goto obj_end;
 
-        b = parse_key(b, e, key);
-        if (b == 0) goto err;
-        s.push(key);
+    b = parse_key(b, e, key);
+    if (b == 0) goto err;
+    s.push(key);
 
-        while (++b < e && is_white_space(*b));
-        if (b == e || *b != ':') goto err;
+    while (++b < e && is_white_space(*b));
+    if (b == e || *b != ':') goto err;
 
-        while (++b < e && is_white_space(*b));
-        if (b == e) goto err;
+    while (++b < e && is_white_space(*b));
+    if (b == e) goto err;
 
-        state = '{';
-        if (*b == '{') goto obj_beg;
-        if (*b == '[') goto arr_beg;
-        goto val_beg;
+    if (*b == '"') {
+        b = parse_string(b, e, val);
+    } else if (*b == '{') {
+        goto obj_beg;
+    } else if (*b == '[') {
+        goto arr_beg;
+    } else if (*b == 'f') {
+        b = parse_false(b, e, val);
+    } else if (*b == 't') {
+        b = parse_true(b, e, val);
+    } else if (*b == 'n') {
+        b = parse_null(b, e, val);
+    } else {
+        b = parse_number(b, e, val);
     }
+    if (b == 0) goto err;
+
   obj_val_end:
-    {
-        s.push(val);
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == ',') goto obj_val_beg;
-        if (*b == '}') goto obj_end;
-        goto err;
-    }
+    s.push(val);
+    skip_white_space(b, e);
+    if (b == e) goto err;
+    if (*b == ',') goto obj_val_beg;
+    if (*b == '}') goto obj_end;
+    goto err;
 
   arr_beg:
-    {
-        s.push(size);                 // prev size
-        s.push(state);                // prev state
-        s.push(_root->_make_array()); // index of this array
-        size = s.size;                // current size
-    }
+    s.push(size);                 // prev size
+    s.push(state);                // prev state
+    s.push(_root->_make_array()); // index of this array
+    size = s.size;                // current size
+    state = '[';
+
   arr_val_beg:
-    {
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == ']') goto arr_end;
-        
-        state = '[';
-        if (*b == '{') goto obj_beg;
-        if (*b == '[') goto arr_beg;
-        goto val_beg;
+    skip_white_space(b, e);
+    if (b == e) goto err;
+    if (*b == ']') goto arr_end;
+    
+    if (*b == '"') {
+        b = parse_string(b, e, val);
+    } else if (*b == '{') {
+        goto obj_beg;
+    } else if (*b == '[') {
+        goto arr_beg;
+    } else if (*b == 'f') {
+        b = parse_false(b, e, val);
+    } else if (*b == 't') {
+        b = parse_true(b, e, val);
+    } else if (*b == 'n') {
+        b = parse_null(b, e, val);
+    } else {
+        b = parse_number(b, e, val);
     }
+    if (b == 0) goto err;
+
   arr_val_end:
-    {
-        s.push(val);
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == ',') goto arr_val_beg;
-        if (*b == ']') goto arr_end;
-        goto err;
-    }
+    s.push(val);
+    skip_white_space(b, e);
+    if (b == e) goto err;
+    if (*b == ',') goto arr_val_beg;
+    if (*b == ']') goto arr_end;
+    goto err;
 
   arr_end:
   obj_end:
-    {
-        if (s.size > size) {
-            index = _root->_alloc_queue((char*)(s.p + size), (s.size - size) << 2);
-            s.size = size;
-            val = s.pop();
-            ((Root::_Header*)_root->_p8(val))->index = index;
-        } else {
-            val = s.pop();
-        }
-
-        state = s.pop();
-        if (state == '{') { size = s.pop(); goto obj_val_end; }
-        if (state == '[') { size = s.pop(); goto arr_val_end; }
-        goto end;
+    if (s.size > size) {
+        index = _root->_alloc_queue((char*)(s.p + size), (s.size - size) << 2);
+        s.size = size;
+        val = s.pop();
+        ((Root::_Header*)_root->_p8(val))->index = index;
+    } else {
+        val = s.pop();
     }
+
+    state = s.pop(); // prev state
+    if (state == '{') { size = s.pop(); goto obj_val_end; }
+    if (state == '[') { size = s.pop(); goto arr_val_end; }
+    goto end;
 
   val_beg:
-    {
-        if (*b == '"') {
-            b = parse_string(b, e, val);
-        } else if (*b == 'f') {
-            b = parse_false(b, e, val);
-        } else if (*b == 't') {
-            b = parse_true(b, e, val);
-        } else if (*b == 'n') {
-            b = parse_null(b, e, val);
-        } else {
-            b = parse_number(b, e, val);
-        }
-        if (b != 0) {
-            if (state == '{') goto obj_val_end;
-            if (state == '[') goto arr_val_end;
-            goto end;
-        }
-        goto err;
+    if (*b == '"') {
+        b = parse_string(b, e, val);
+    } else if (*b == 'f') {
+        b = parse_false(b, e, val);
+    } else if (*b == 't') {
+        b = parse_true(b, e, val);
+    } else if (*b == 'n') {
+        b = parse_null(b, e, val);
+    } else {
+        b = parse_number(b, e, val);
     }
+    if (b == 0) goto err;
 
   end:
+    s.size = 0;
     while (++b < e && is_white_space(*b));
     return b == e;
   err:

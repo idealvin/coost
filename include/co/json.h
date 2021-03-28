@@ -6,6 +6,17 @@
 #pragma warning (disable:4200)
 #endif
 
+#if 0
+inline uint32& nobj() { static uint32 k = 0; return k; }
+inline uint32& narr() { static uint32 k = 0; return k; }
+inline uint32& nstr() { static uint32 k = 0; return k; }
+inline uint32& nnul() { static uint32 k = 0; return k; }
+inline uint32& nboo() { static uint32 k = 0; return k; }
+inline uint32& nint() { static uint32 k = 0; return k; }
+inline uint32& ndbl() { static uint32 k = 0; return k; }
+inline uint32& nnum() { static uint32 k = 0; return k; }
+#endif
+
 namespace json {
 namespace xx {
 
