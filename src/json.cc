@@ -93,6 +93,7 @@ inline bool is_white_space(char c) {
     while (++b < e && is_white_space(*b));
 #endif
 
+// This is a non-recursive implement of json parser.
 // stack: |prev size|prev state|index|....
 bool Parser::parse(const char* b, const char* e) {
     uint32 state = 0, key, val, index, size = 0;
@@ -724,6 +725,30 @@ uint32 Root::_size(uint32 index) const {
         return h->type == kObject ? (n >> 1) : n;
     }
     return 0;
+}
+
+uint32 Root::_array_size(uint32 index) const {
+    _Header* h = (_Header*) _p8(index);
+    assert(h->type == kArray);
+    uint32 n = 0;
+    for (uint32 k = h->index; k != 0;) {
+        xx::Queue* a = (xx::Queue*) _p8(k);
+        n += a->size;
+        k = a->next;
+    }
+    return n;
+}
+
+uint32 Root::_object_size(uint32 index) const {
+    _Header* h = (_Header*) _p8(index);
+    assert(h->type == kObject);
+    uint32 n = 0;
+    for (uint32 k = h->index; k != 0;) {
+        xx::Queue* a = (xx::Queue*) _p8(k);
+        n += a->size;
+        k = a->next;
+    }
+    return n >> 1;
 }
 
 } // json

@@ -104,6 +104,7 @@ DEF_test(json) {
         v.push_back(1.23);
         EXPECT(v.is_array());
         EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v.array_size(), 3);
         EXPECT_EQ(v.str(), "[1,\"hello\",1.23]");
     }
 
@@ -140,7 +141,17 @@ DEF_test(json) {
         o.add_member("8", 8);
         o.add_member("9", 9);
         EXPECT_EQ(o.size(), 10);
+        EXPECT_EQ(o.object_size(), 10);
         EXPECT_EQ(o["9"].get_int(), 9);
+
+        json::Value z = o.add_array("x", 3);
+        z.push_back(1, 2.3, "good");
+        EXPECT(z.is_array());
+        EXPECT_EQ(z.size(), 3);
+        EXPECT_EQ(z.array_size(), 3);
+        EXPECT(z[2].is_string());
+        EXPECT_EQ(z[2].size(), 4);
+        EXPECT_EQ(z[2].string_size(), 4);
     }
 
     DEF_case(has_member) {
