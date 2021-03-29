@@ -129,25 +129,25 @@
 
 - **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  `json` 是一个简单易用、性能堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库。最新版本将 Json 对象存到一块连续的内存上，构建 Json 时几乎不需要分配内存，大大提高了 json parser 的速度，可以达到 GB 每秒。
+  `json` 是一个简单易用、性能堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库。最新版本将 Json 对象存到一块连续的内存上，构建 Json 时几乎不需要分配内存，大大提高了 json pasing 的速度，可以达到 GB 每秒。
 
   ```cpp
   #include "co/json.h"
 
-  // 构建一个 Json 对象: { "hello":"json", "array":[123, 3.14, true, "nice"] }
+  // Json: { "hello":"json", "array":[123, 3.14, true, "nice"] }
   json::Root r;
-  r.add_member("hello", "json");        // 添加 key:value 对
+  r.add_member("hello", "json");        // add key:value pair
 
-  json::Value a = r.add_array("array"); // 添加 key:array
-  a.push_back(123, 3.14, true, "nice"); // 添加 value 到 array 中, push_back 可以接受任意数量的参数
+  json::Value a = r.add_array("array"); // add key:array
+  a.push_back(123, 3.14, true, "nice"); // push value to array, accepts any number of parameters
 
-  std::cout << a[0].get_int() << std::endl;
-  std::cout << r["array"][0].get_int() << std::endl;
-  std::cout << r["hello"].get_string() << std::endl;
+  COUT << a[0].get_int();               // 123
+  COUT << r["array"][0].get_int();      // 123
+  COUT << r["hello"].get_string();      // "json"
 
-  fastring s = r.str();          // Json 转换成字符串
-  fastring p = r.pretty();       // Json 转换成 human-readable 字符串
-  json::Root x = json::parse(s); // 从字符串解析 Json 对象
+  fastring s = r.str();                 // convert Json to string
+  fastring p = r.pretty();              // convert Json to human-readable string
+  json::Root x = json::parse(s);        // parse Json from a string
   ```
 
 
