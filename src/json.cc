@@ -1,7 +1,4 @@
 #include "co/json.h"
-#ifdef CO_SSE42
-#include <nmmintrin.h>
-#endif
 
 namespace json {
 
@@ -15,9 +12,6 @@ class Parser {
     ~Parser() = default;
 
     bool parse(const char* b, const char* e);
-    bool parse_v2(const char* b, const char* e);
-    const char* parse_object(const char* b, const char* e, uint32& index);
-    const char* parse_array(const char* b, const char* e, uint32& index);
     const char* parse_string(const char* b, const char* e, uint32& index);
     const char* parse_unicode(const char* b, const char* e, fastream& s);
     const char* parse_number(const char* b, const char* e, uint32& index);
@@ -25,7 +19,6 @@ class Parser {
     const char* parse_false(const char* b, const char* e, uint32& index);
     const char* parse_true(const char* b, const char* e, uint32& index);
     const char* parse_null(const char* b, const char* e, uint32& index);
-    const char* parse_value(const char* b, const char* e, uint32& index);
 
   private:
     Root* _root;
@@ -62,45 +55,8 @@ inline const char* Parser::parse_null(const char* b, const char* e, uint32& inde
     return 0;
 }
 
-inline  const char* Parser::parse_value(const char* b, const char* e, uint32& index) {
-    if (*b == '"') {
-        return parse_string(b, e, index);
-    } else if (*b == '{') {
-        return parse_object(b, e, index);
-    } else if (*b == '[') {
-        return parse_array(b, e, index);
-    } else if (*b == 'f') {
-        return parse_false(b, e, index);
-    } else if (*b == 't') {
-        return parse_true(b, e, index);
-    } else if (*b == 'n') {
-        return parse_null(b, e, index);
-    } else {
-        return parse_number(b, e, index);
-    }
-}
-
 inline bool is_white_space(char c) {
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
-}
-
-inline bool Parser::parse(const char* b, const char* e) {
-    while (b < e && is_white_space(*b)) ++b;
-    if (b >= e) return false;
-
-    uint32 index;
-    if (*b == '{') {
-        b = parse_object(b, e, index);
-    } else if (*b == '[') {
-        b = parse_array(b, e, index);
-    } else {
-        b = parse_value(b, e, index);
-        //return false; // Root must be an array or object
-    }
-
-    if (b == 0) return false;
-    while (++b < e && is_white_space(*b));
-    return b == e;
 }
 
 #if 1
@@ -138,7 +94,7 @@ inline bool Parser::parse(const char* b, const char* e) {
 #endif
 
 // stack: |prev size|prev state|index|....
-bool Parser::parse_v2(const char* b, const char* e) {
+bool Parser::parse(const char* b, const char* e) {
     uint32 state = 0, key, val, index, size = 0;
     xx::Stack& s = xx::jalloc()->alloc_stack();
 
@@ -269,84 +225,6 @@ bool Parser::parse_v2(const char* b, const char* e) {
   err:
     s.size = 0;
     return false;
-}
-
-const char* Parser::parse_object(const char* b, const char* e, uint32& index) {
-    uint32 key, val;
-    xx::Stack& s = xx::jalloc()->alloc_stack();
-    const size_t size = s.size;
-    index = _root->_make_object();
-
-    while (true) {
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == '}') goto end; // object end
-
-        b = parse_key(b, e, key);
-        if (b == 0) goto err;
-
-        while (++b < e && is_white_space(*b));
-        if (b == e || *b != ':') goto err;
-
-        while (++b < e && is_white_space(*b));
-        if (b == e) goto err;
-
-        b = parse_value(b, e, val);
-        if (b == 0) goto err;
-
-        s.push(key);
-        s.push(val);
-
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == '}') goto end; // object end
-        if (*b != ',') goto err;
-    }
-
-  end:
-    if (s.size > size) {
-        val = _root->_alloc_queue((const char*)(s.p + size), (s.size - size) * 4);
-        ((Root::_Header*)_root->_p8(index))->index = val;
-        s.size = size;
-    }
-    return b;
-  err:
-    s.size = 0;
-    return 0;
-}
-
-const char* Parser::parse_array(const char* b, const char* e, uint32& index) {
-    uint32 val;
-    xx::Stack& s = xx::jalloc()->alloc_stack();
-    const size_t size = s.size;
-    index = _root->_make_array();
-
-    while (true) {
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == ']') goto end; // array end
-
-        b = parse_value(b, e, val);
-        if (b == 0) goto err;
-
-        s.push(val);
-
-        skip_white_space(b, e);
-        if (b == e) goto err;
-        if (*b == ']') goto end; // array end
-        if (*b != ',') goto err;
-    }
-
-  end:
-    if (s.size > size) {
-        val = _root->_alloc_queue((const char*)(s.p + size), (s.size - size) * 4);
-        ((Root::_Header*)_root->_p8(index))->index = val;
-        s.size = size;
-    }
-    return b;
-  err:
-    s.size = 0;
-    return 0;
 }
 
 static inline const char* init_s2e_table() {
@@ -562,7 +440,7 @@ bool Root::parse_from(const char* s, size_t n) {
         _jb.reserve(_b8(n + (n >> 1)));
     }
     Parser parser(this);
-    return parser.parse_v2(s, s + n);
+    return parser.parse(s, s + n);
 }
 
 static inline const char* init_e2s_table() {
