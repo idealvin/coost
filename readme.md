@@ -131,25 +131,25 @@
 
 - **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  `json` is a simple, easy-to-use json library. Its performance is comparable to [rapidjson](https://github.com/Tencent/rapidjson). The latest version stores Json in a contiguous memory block, nearly no memory allocation is needed during pasing Json from a string, which greatly improves the speed of the json parser (GB per second).
+  `json` is a simple, easy-to-use json library. Its performance is comparable to [rapidjson](https://github.com/Tencent/rapidjson). The latest version stores Json in a contiguous memory block, nearly no memory allocation is needed during pasing Json from a string, which greatly improves the parsing speed(GB per second).
 
   ```cpp
   #include "co/json.h"
 
-  // Construct a Json object: { "hello":"json", "array":[123, 3.14, true, "nice"] }
+  // Json: { "hello":"json", "array":[123, 3.14, true, "nice"] }
   json::Root r;
-  r.add_member("hello", "json"); // add key:value pair
+  r.add_member("hello", "json");        // add key:value pair
 
   json::Value a = r.add_array("array"); // add key:array
-  a.push_back(123, 3.14, true, "nice"); // push value to array, push_back accepts any number of parameters
+  a.push_back(123, 3.14, true, "nice"); // push value to array, accepts any number of parameters
 
-  std::cout << a[0].get_int() << std::endl;
-  std::cout << r["array"][0].get_int() << std::endl;
-  std::cout << r["hello"].get_string() << std::endl;
+  COUT << a[0].get_int();               // 123
+  COUT << r["array"][0].get_int();      // 123
+  COUT << r["hello"].get_string();      // "json"
 
-  fastring s = r.str();          // convert Json to string
-  fastring p = r.pretty();       // convert Json to human-readable string
-  json::Root x = json::parse(s); // parse Json from a string
+  fastring s = r.str();                 // convert Json to string
+  fastring p = r.pretty();              // convert Json to human-readable string
+  json::Root x = json::parse(s);        // parse Json from a string
   ``` 
 
 ## Components
