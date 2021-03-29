@@ -284,22 +284,28 @@ const char* Parser::parse_string(const char* b, const char* e, uint32& index) {
     } while (true);
 }
 
+inline const char* init_hex_table() {
+    static char tb[256];
+    memset(tb, 16, 256);
+    for (char c = '0'; c <= '9'; ++c) tb[c] = c - '0';
+    for (char c = 'A'; c <= 'F'; ++c) tb[c] = c - 'A' + 10;
+    for (char c = 'a'; c <= 'f'; ++c) tb[c] = c - 'a' + 10;
+    return tb;
+}
+
 inline const char* parse_hex(const char* b, const char* e, uint32& u) {
-    if (e - b < 4) return 0;
-    for (int i = 0; i < 4; ++i) {
-        u <<= 4;
-        char c = b[i];
-        if ('0' <= c && c <= '9') {
-            u += c - '0';
-        } else if ('A' <= c && c <= 'F') {
-            u += c - 'A' + 10;
-        } else if ('a' <= c && c <= 'f') {
-            u += c - 'a' + 10;
-        } else {
-            return 0;
-        }
+    static const char* const tb = init_hex_table();
+    uint32 u0, u1, u2, u3;
+    if (b + 4 <= e) {
+        u0 = tb[(uint8)b[0]];
+        u1 = tb[(uint8)b[1]];
+        u2 = tb[(uint8)b[2]];
+        u3 = tb[(uint8)b[3]];
+        if (u0 == 16 || u1 == 16 || u2 == 16 || u3 == 16) return 0;
+        u = (u0 << 12) | (u1 << 8) | (u2 << 4) | u3;
+        return b + 3;
     }
-    return b + 3;
+    return 0;
 }
 
 // utf8:
