@@ -48,14 +48,6 @@ class JBlock {
         }
     }
 
-    void ensure(size_t n) {
-        if (_h->cap < _h->size + n) {
-            _h->cap += ((_h->cap >> 1) + n);
-            _h = (_Header*) realloc(_h, sizeof(_Header) + _h->cap * N);
-            assert(_h);
-        }
-    }
-
     void copy_from(const JBlock& m) {
         this->reserve(m._h->size);
         memcpy(_h, m._h, sizeof(_Header) + m._h->size * N);
@@ -69,6 +61,30 @@ class JBlock {
         uint64 p[];
     };
     _Header* _h;
+};
+
+struct Stack {
+    typedef uint32 T;
+    Stack(uint32 n=256) : cap(n), size(0) {
+        p = (T*) malloc(sizeof(T) * cap);
+    }
+    ~Stack() { free(p); }
+
+    void push(T v) {
+        if (cap <= size) {
+            cap += ((cap >> 1) + 1);
+            p = (T*) realloc(p, sizeof(T) * cap);
+        }
+        p[size++] = v;
+    }
+
+    uint32 pop() {
+        return p[--size];
+    }
+
+    uint32 cap;
+    uint32 size;
+    T* p;
 };
 
 class JAlloc {
@@ -99,12 +115,12 @@ class JAlloc {
     }
 
     fastream& alloc_stream() { _fs.clear(); return _fs; }
-    fastream& alloc_stack()  { return _stack; } 
+    Stack& alloc_stack()  { return _stack; } 
 
   private:
     std::vector<void*> _jb;
     fastream _fs;    // for parsing string
-    fastream _stack; // for parsing array, object
+    Stack _stack;
 };
 
 inline JAlloc* jalloc() {
@@ -122,7 +138,7 @@ struct Queue {
 
     void push(uint32 x)           { p[size++] = x; }
     void push(uint32 x, uint32 y) { p[size++] = x; p[size++] = y; }
-    bool full() const { return size >= cap; }
+    bool full() const { return cap <= size; }
 
     uint32 cap;
     uint32 size;
@@ -229,6 +245,9 @@ class Root {
         Value operator[](Key key)  const { return _root->_at(key, _index); }
         bool has_member(Key key)   const { return _root->_has_member(key, _index); }
         uint32 size()              const { return _root->_size(_index); }
+        uint32 string_size()       const { return _root->_string_size(_index); }
+        uint32 array_size()        const { return _root->_array_size(_index); }
+        uint32 object_size()       const { return _root->_object_size(_index); }
 
         fastream& str(fastream& fs)     const { return _root->_Json2str(fs, false, _index); }
         fastream& dbg(fastream& fs)     const { return _root->_Json2str(fs, true, _index); }
@@ -363,6 +382,9 @@ class Root {
     Value operator[](Key key)  const { return this->_at(key, 0); }
     bool has_member(Key key)   const { return this->_has_member(key, 0); }
     uint32 size()              const { return this->_size(0); }
+    uint32 string_size()       const { return this->_string_size(0); }
+    uint32 array_size()        const { return this->_array_size(0); }
+    uint32 object_size()       const { return this->_object_size(0); }
 
     // Stringify.
     //   - str() converts Json to string without any white spaces.
@@ -393,6 +415,14 @@ class Root {
     Value _at(Key key, uint32 index) const;
     bool _has_member(Key key, uint32 index) const;
     uint32 _size(uint32 index) const;
+    uint32 _array_size(uint32 index) const;
+    uint32 _object_size(uint32 index) const;
+
+    uint32 _string_size(uint32 index) const {
+        _Header* h = (_Header*) _p8(index);
+        assert(h->type == kString);
+        return h->size;
+    }
 
     iterator _begin(uint32 index) const {
         _Header* h = (_Header*) _p8(index);

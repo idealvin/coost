@@ -129,7 +129,26 @@
 
 - **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  `json` 是一个速度堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库，如果使用 [jemalloc](https://github.com/jemalloc/jemalloc)，`parse` 与 `stringify` 的性能会进一步提升。此库对 json 标准的支持不如 rapidjson 全面，但能满足程序员的基本需求，且更容易使用。
+  `json` 是一个简单易用、性能堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库。最新版本将 Json 对象存到一块连续的内存上，构建 Json 时几乎不需要分配内存，大大提高了 json parser 的速度，可以达到 GB 每秒。
+
+  ```cpp
+  #include "co/json.h"
+
+  // 构建一个 Json 对象: { "hello":"json", "array":[123, 3.14, true, "nice"] }
+  json::Root r;
+  r.add_member("hello", "json");        // 添加 key:value 对
+
+  json::Value a = r.add_array("array"); // 添加 key:array
+  a.push_back(123, 3.14, true, "nice"); // 添加 value 到 array 中, push_back 可以接受任意数量的参数
+
+  std::cout << a[0].get_int() << std::endl;
+  std::cout << r["array"][0].get_int() << std::endl;
+  std::cout << r["hello"].get_string() << std::endl;
+
+  fastring s = r.str();          // Json 转换成字符串
+  fastring p = r.pretty();       // Json 转换成 human-readable 字符串
+  json::Root x = json::parse(s); // 从字符串解析 Json 对象
+  ```
 
 
 ## 代码构成
