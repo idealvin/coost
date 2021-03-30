@@ -504,9 +504,9 @@ fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
     if (h->type == kString) {
         fs << '"';
         const uint32 len = h->size;
-        const bool trunc = debug && len > 256;
+        const bool trunc = debug && len > 512;
         const char* s = (const char*) _p8(h->index);
-        const char* e = trunc ? s + 256 : s + len;
+        const char* e = trunc ? s + 512 : s + len;
         static const char* tb = init_e2s_table();
 
         char c;
@@ -677,7 +677,12 @@ Value Root::_at(uint32 i, uint32 index) const {
 
 Value Root::_at(Key key, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
-    assert(h->type == kObject);
+    if (h->type != kNull) {
+        assert(h->type == kObject);
+    } else {
+        h->type = kObject;
+        h->index = 0;
+    }
 
     for (uint32 k = h->index; k != 0;) {
         xx::Queue* a = (xx::Queue*) _p8(k);
