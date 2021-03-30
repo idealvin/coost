@@ -1,6 +1,7 @@
 #include "co/tasked.h"
 #include "co/thread.h"
 #include "co/time.h"
+#include <assert.h>
 #include <vector>
 
 class TaskedImpl {
@@ -36,7 +37,7 @@ class TaskedImpl {
         _tmp.push_back(new Task(std::move(f), sec, sec));
     }
 
-    void run_daily(F&& f, int hour, int min, int sec);
+    void run_at(F&& f, int hour, int minute, int second, bool daily);
 
     void stop();
 
@@ -58,19 +59,24 @@ class TaskedImpl {
     std::vector<Task*> _tmp;
 };
 
-void TaskedImpl::run_daily(F&& f, int hour, int min, int sec) {
+// if @daily is false, run f() only once, otherwise run f() every day at hour:minute:second
+void TaskedImpl::run_at(F&& f, int hour, int minute, int second, bool daily) {
+    assert(0 <= hour && hour <= 23);
+    assert(0 <= minute && minute <= 59);
+    assert(0 <= second && second <= 59);
+
     fastring t = now::str("%H%M%S");
     int now_hour = (t[0] - '0') * 10 + (t[1] - '0');
-    int now_min = (t[2] - '0') * 10 + (t[3] - '0');
-    int now_sec = (t[4] - '0') * 10 + (t[5] - '0');
+    int now_min  = (t[2] - '0') * 10 + (t[3] - '0');
+    int now_sec  = (t[4] - '0') * 10 + (t[5] - '0');
 
     int now_seconds = now_hour * 3600 + now_min * 60 + now_sec;
-    int seconds = hour * 3600 + min * 60 + sec;
+    int seconds = hour * 3600 + minute * 60 + second;
     if (seconds < now_seconds) seconds += 86400;
     int diff = seconds - now_seconds;
 
     MutexGuard g(_mtx);
-    _tmp.push_back(new Task(std::move(f), 86400, diff));
+    _tmp.push_back(new Task(std::move(f), (daily ? 86400 : 0), diff));
 }
 
 void TaskedImpl::loop() {
@@ -148,8 +154,12 @@ void Tasked::run_every(F&& f, int sec) {
     ((TaskedImpl*)_p)->run_every(std::move(f), sec);
 }
 
-void Tasked::run_daily(F&& f, int hour, int min, int sec) {
-    ((TaskedImpl*)_p)->run_daily(std::move(f), hour, min, sec);
+void Tasked::run_at(F&& f, int hour, int minute, int second) {
+    ((TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, false);
+}
+
+void Tasked::run_daily(F&& f, int hour, int minute, int second) {
+    ((TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, true);
 }
 
 void Tasked::stop() {

@@ -389,7 +389,7 @@ class Root {
     // Stringify.
     //   - str() converts Json to string without any white spaces.
     //   - dbg() behaves the same as str() except that it will truncate the 
-    //     string type if its length is greater than 256 bytes.
+    //     string type if its length is greater than 512 bytes.
     //   - pretty() converts Json to human readable string.
     //
     //   - @cap  memory allocated when fastream is initialized, which can be 
