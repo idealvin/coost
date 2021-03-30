@@ -31,11 +31,18 @@ class Tasked {
         this->run_every(F(f), sec);
     }
 
-    // run_daily(f, 23, 0, 0);  ->  run f() at 23:00:00 every day
-    void run_daily(F&& f, int hour=0, int min=0, int sec=0);
+    // run_at(f, 23, 0, 0);  -> run f() once at 23:00:00
+    void run_at(F&& f, int hour=0, int minute=0, int second=0);
 
-    void run_daily(const F& f, int hour=0, int min=0, int sec=0) {
-        this->run_daily(F(f), hour, min, sec);
+    void run_at(const F& f, int hour=0, int minute=0, int second=0) {
+        this->run_at(F(f), hour, minute, second);
+    }
+
+    // run_daily(f, 23, 0, 0);  ->  run f() at 23:00:00 every day
+    void run_daily(F&& f, int hour=0, int minute=0, int second=0);
+
+    void run_daily(const F& f, int hour=0, int minute=0, int second=0) {
+        this->run_daily(F(f), hour, minute, second);
     }
 
     // stop the task schedule
