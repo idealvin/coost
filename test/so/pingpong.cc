@@ -29,11 +29,11 @@ class PingPongServer : public tcp::Server {
 
     virtual ~PingPongServer() = default;
 
-    virtual void on_connection(so::Connection* conn);
+    virtual void on_connection(tcp::Connection* conn);
 };
 
-void PingPongServer::on_connection(so::Connection* conn) {
-    std::unique_ptr<so::Connection> c(conn);
+void PingPongServer::on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> c(conn);
     sock_t fd = c->fd;
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);

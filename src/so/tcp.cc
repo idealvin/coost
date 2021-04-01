@@ -61,11 +61,11 @@ void Server::loop() {
         conn->fd = connfd;
         conn->p = this;
         if (addrlen == sizeof(sockaddr_in)) {
-            conn->ip = co::ip_str(&addr.v4);
-            conn->port = ntoh16(addr.v4.sin_port);
+            conn->peer.reserve(24);
+            conn->peer << co::ip_str(&addr.v4) << ':' << ntoh16(addr.v4.sin_port);
         } else {
-            conn->ip = co::ip_str(&addr.v6);
-            conn->port = ntoh16(addr.v6.sin6_port);
+            conn->peer.reserve(72);
+            conn->peer << co::ip_str(&addr.v6) << ':' << ntoh16(addr.v6.sin6_port);
         }
 
         go(on_new_connection, conn);

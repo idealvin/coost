@@ -58,9 +58,9 @@ class ServerImpl : public rpc::Server, public tcp::Server {
         _service.reset(service);
     }
 
-    virtual void on_connection(Connection* conn);
+    virtual void on_connection(tcp::Connection* conn);
 
-    bool auth(Connection* conn);
+    bool auth(tcp::Connection* conn);
 
   private:
     int _conn_num;
@@ -69,8 +69,8 @@ class ServerImpl : public rpc::Server, public tcp::Server {
     co::Pool _buffer;
 };
 
-void ServerImpl::on_connection(Connection* conn) {
-    std::unique_ptr<Connection> x(conn);
+void ServerImpl::on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> x(conn);
     sock_t fd = conn->fd;
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
@@ -174,7 +174,7 @@ void ServerImpl::on_connection(Connection* conn) {
     }
 }
 
-bool ServerImpl::auth(Connection* conn) {
+bool ServerImpl::auth(tcp::Connection* conn) {
     static const fastring kAuth("auth");
 
     int r = 0, len = 0;

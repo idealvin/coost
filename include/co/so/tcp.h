@@ -7,10 +7,9 @@ namespace so {
 namespace tcp {
 
 struct Connection {
-    sock_t fd;   // conn fd
-    fastring ip; // peer ip
-    int port;    // peer port
-    void* p;     // pointer to Server where this connection was accepted
+    sock_t fd;     // connection fd
+    fastring peer; // ip:port of peer
+    void* p;       // point to Server where this connection was accepted
 };
 
 // Tcp server based on coroutine.
@@ -32,7 +31,7 @@ class Server {
     // The derived class must implement this method.
     // The @conn was created by operator new. Remember to delete it 
     // when the connection was closed.
-    virtual void on_connection(Connection* conn) = 0;
+    virtual void on_connection(tcp::Connection* conn) = 0;
 
   protected:
     fastring _ip;
@@ -71,7 +70,9 @@ class Client {
         return co::send(_fd, buf, n, ms);
     }
 
-    bool connected() const { return _fd != (sock_t)-1; }
+    bool connected() const {
+        return _fd != (sock_t)-1; 
+    }
 
     // @ms: timeout in milliseconds
     bool connect(int ms);
@@ -96,12 +97,10 @@ class Client {
 };
 
 } // tcp
-
-using tcp::Connection;
 } // so
 
 namespace tcp = so::tcp;
 
-inline fastream& operator<<(fastream& fs, const so::Connection& c) {
-    return fs << c.ip << ':' << c.port;
+inline fastream& operator<<(fastream& fs, const tcp::Connection& c) {
+    return fs << c.peer;
 }

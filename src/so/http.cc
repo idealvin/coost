@@ -42,8 +42,8 @@ void Server::start() {
 int parse_req(fastring& s, size_t end, Req* req, int* body_len);
 int parse_res(fastring& s, size_t end, Res* res, int* body_len);
 
-void Server::on_connection(Connection* conn) {
-    std::unique_ptr<Connection> x(conn);
+void Server::on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> x(conn);
     sock_t fd = conn->fd;
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);

@@ -142,7 +142,7 @@ class TaskManager {
  
   private:
     ::Mutex _mtx;
-    std::vector<Closure*> _new_tasks;   
+    std::vector<Closure*> _new_tasks;
     std::vector<Coroutine*> _ready_tasks;
     std::unordered_map<Coroutine*, timer_id_t> _ready_timer_tasks;
 };

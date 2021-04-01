@@ -27,19 +27,19 @@ class HookInfo {
     }
 
     int send_timeout() const {
-        return _p.send_timeout;
+        return _t.send_timeout;
     }
 
     int recv_timeout() const {
-        return _p.recv_timeout;
+        return _t.recv_timeout;
     }
 
     void set_send_timeout(int ms) {
-        _p.send_timeout = ms;
+        _t.send_timeout = ms;
     }
 
     void set_recv_timeout(int ms) {
-        _p.recv_timeout = ms;
+        _t.recv_timeout = ms;
     }
 
   private:
@@ -47,7 +47,7 @@ class HookInfo {
         struct {
             int32 send_timeout;
             int32 recv_timeout;
-        } _p;
+        } _t;
 
         int64 _v;
     };
@@ -236,8 +236,7 @@ int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return fp_connect(fd, addr, addrlen);
 
-    int r;
-    r = co::connect(fd, addr, addrlen, hi.send_timeout());
+    int r = co::connect(fd, addr, addrlen, hi.send_timeout());
     if (r == -1 && errno == ETIMEDOUT) errno = EINPROGRESS; // set errno to EINPROGRESS
 
     gHook().erase(fd);

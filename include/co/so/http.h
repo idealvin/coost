@@ -186,7 +186,7 @@ class Server : public tcp::Server {
     virtual void start();
 
   private:
-    virtual void on_connection(Connection* conn);
+    virtual void on_connection(tcp::Connection* conn);
 
   private:
     int32 _conn_num;
