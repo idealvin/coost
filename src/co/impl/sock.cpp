@@ -407,6 +407,7 @@ const char* strerror(int err) {
 
     assert(s);
     e = _strdup(s);
+    LocalFree(s);
     char* p = (char*) strchr(e, '\r');
     if (p) *p = '\0';
     return e;
