@@ -396,7 +396,7 @@ const char* strerror(int err) {
     if (e) return e;
 
     char* s = 0;
-    FormatMessage(
+    FormatMessageA(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
