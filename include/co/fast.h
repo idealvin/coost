@@ -15,7 +15,7 @@ namespace fast {
 
 // double to ascii string
 inline int dtoa(double v, char* buf) {
-    return dtoa_milo(v, buf);
+    return milo::dtoa(v, buf);
 }
 
 // integer to hex string  (255 -> "0xff". eg.)
