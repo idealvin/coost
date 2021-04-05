@@ -81,19 +81,6 @@ class Epoll {
         if (it != _ev_map.end() && it->second & ev) it->second &= ~ev;
     }
 
-    void on_timeout(sock_t fd, PerIoInfo* p) {
-        CancelIo((HANDLE)fd);
-        p->co = 0;
-        _timeout.push_back(p);
-    }
-
-    void clear_timeout() {
-        if (!_timeout.empty()) {
-            for (size_t i = 0; i < _timeout.size(); ++i) delete _timeout[i];
-            _timeout.clear();
-        }
-    }
-
     void close();
 
     int wait(int ms) {
@@ -112,9 +99,7 @@ class Epoll {
     }
 
     static void* ud(const epoll_event& ev) {
-        PerIoInfo* info = (PerIoInfo*) ev.lpOverlapped;
-        info->n = ev.dwNumberOfBytesTransferred;
-        return info->co;
+        return ev.lpOverlapped;
     }
 
     void signal() {
@@ -132,7 +117,6 @@ class Epoll {
     HANDLE _iocp;
     epoll_event _ev[1024];
     std::unordered_map<sock_t, int> _ev_map;
-    std::vector<PerIoInfo*> _timeout;
     int _signaled;
 };
 

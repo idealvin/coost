@@ -141,6 +141,13 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     return -1;
 }
 
+#define return_on_io_timeout(ev, ms, info) \
+    if (!ev.wait(ms)) {\
+        info->co = 0; \
+        WLOG << "io timeout: " << (void*)info.release(); \
+        return -1; \
+    } \
+
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info(
@@ -178,7 +185,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; } // timeout
+        return_on_io_timeout(ev, ms, info);
     }
 
     r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
@@ -212,7 +219,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; }
+        return_on_io_timeout(ev, ms, info);
     } else {
         return -1;
     }
@@ -233,7 +240,7 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; }
+            return_on_io_timeout(ev, ms, info);
         } else {
             return -1;
         }
@@ -243,9 +250,7 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
                 if (info->s) memcpy(buf, info->s, n);
                 return n;
             }
-
             if (info->n == 0) return 0;
-
             info->move(info->n);
             info->resetol();
         } while (0);
@@ -295,7 +300,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; }
+        return_on_io_timeout(ev, ms, info);
     } else {
         return -1;
     }
@@ -327,7 +332,7 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; }
+            return_on_io_timeout(ev, ms, info);
         } else {
             return -1;
         }
@@ -378,7 +383,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) { gSched->on_timeout(fd, info.release()); return -1; }
+            return_on_io_timeout(ev, ms, info);
         } else {
             return -1;
         }

@@ -411,14 +411,11 @@ int poll(struct pollfd* fds, nfds_t nfds, int ms) {
                 break;
             }
 
-            co::timer_id_t id = co::null_timer_id;
-            if (ms > 0) id = gSched->add_timer(ms);
-
+            if (ms > 0) gSched->add_timer(ms);
             gSched->yield();
             gSched->del_event(fd);
             if (ms > 0 && gSched->timeout()) return 0;
 
-            if (id != co::null_timer_id) gSched->del_timer(id);
             fds[0].revents = fds[0].events;
             return 1;
         }

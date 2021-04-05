@@ -77,7 +77,6 @@ void Scheduler::loop() {
     gSched = this;
     std::vector<Closure*> new_tasks;
     std::vector<Coroutine*> ready_tasks;
-    std::unordered_map<Coroutine*, timer_id_t> ready_timer_tasks;
 
     while (!_stop) {
         int n = _epoll.wait(_wait_ms);
@@ -97,8 +96,14 @@ void Scheduler::loop() {
             }
 
           #if defined(_WIN32)
-            Coroutine* co = (Coroutine*) _epoll.ud(ev);
-            if (co) this->resume(co);
+            PerIoInfo* info = (PerIoInfo*) _epoll.ud(ev);
+            if (info->co) {
+                info->n = ev.dwNumberOfBytesTransferred;
+                this->resume((Coroutine*)info->co);
+            } else {
+                WLOG << "io timeout, delete PerIoInfo: " << (void*)info;
+                delete info;
+            }
           #elif defined(__linux__)
             uint64 ud = _epoll.ud(ev);
             if (ud >> 32) this->resume(_co_pool[ud >> 32]);
@@ -108,13 +113,9 @@ void Scheduler::loop() {
           #endif
         }
 
-      #ifdef _WIN32
-        _epoll.clear_timeout();
-      #endif
-
         SOLOG << "> check tasks ready to resume..";
         do {
-            _task_mgr.get_all_tasks(new_tasks, ready_tasks, ready_timer_tasks);
+            _task_mgr.get_all_tasks(new_tasks, ready_tasks);
 
             if (!new_tasks.empty()) {
                 SOLOG << ">> resume new tasks, num: " << new_tasks.size();
@@ -127,18 +128,14 @@ void Scheduler::loop() {
             if (!ready_tasks.empty()) {
                 SOLOG << ">> resume ready tasks, num: " << ready_tasks.size();
                 for (size_t i = 0; i < ready_tasks.size(); ++i) {
-                    this->resume(ready_tasks[i]);
+                    Coroutine* co = ready_tasks[i];
+                    if (co->it != null_timer_id) {
+                        this->del_timer(co->it);
+                        co->it = null_timer_id;
+                    }
+                    this->resume(co);
                 }
                 ready_tasks.clear();
-            }
-
-            if (!ready_timer_tasks.empty()) {
-                SOLOG << ">> resume ready timer tasks, num: " << ready_timer_tasks.size();
-                for (auto it = ready_timer_tasks.begin(); it != ready_timer_tasks.end(); ++it) {
-                    if (it->first->state == S_ready) this->del_timer(it->second);
-                    this->resume(it->first);
-                }
-                ready_timer_tasks.clear();
             }
         } while (0);
 
@@ -157,7 +154,7 @@ void Scheduler::loop() {
             }
         } while (0);
 
-        if (_running) _running = NULL;
+        if (_running) _running = 0;
     }
 
     this->cleanup();
@@ -173,6 +170,7 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
         if (co->state == S_init || atomic_swap(&co->state, S_init) == S_wait) {
+            co->it = null_timer_id;
             res.push_back(co);
         }
     }

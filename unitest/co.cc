@@ -62,17 +62,13 @@ DEF_test(co) {
         mgr.add_new_task((Closure*)16);
         mgr.add_ready_task((co::Coroutine*)24);
         mgr.add_ready_task((co::Coroutine*)32);
-        mgr.add_ready_timer_task((co::Coroutine*)40, co::null_timer_id);
-        mgr.add_ready_timer_task((co::Coroutine*)48, co::null_timer_id);
 
         std::vector<Closure*> cbs;
         std::vector<co::Coroutine*> cos;
-        std::unordered_map<co::Coroutine*, co::timer_id_t> cts;
-        mgr.get_all_tasks(cbs, cos, cts);
+        mgr.get_all_tasks(cbs, cos);
 
         EXPECT_EQ(cbs.size(), 2);
         EXPECT_EQ(cos.size(), 2);
-        EXPECT_EQ(cts.size(), 2);
         EXPECT_EQ(cbs[0], (Closure*)8);
         EXPECT_EQ(cbs[1], (Closure*)16);
         EXPECT_EQ(cos[0], (co::Coroutine*)24);
