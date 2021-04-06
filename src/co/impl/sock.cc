@@ -30,7 +30,7 @@ int close(sock_t fd, int ms) {
     gSched->del_event(fd);
     if (ms > 0) gSched->sleep(ms);
     int r;
-    while ((r = fp_close(fd)) != 0 && errno == EINTR);
+    while ((r = raw_close(fd)) != 0 && errno == EINTR);
     return r;
 }
 
@@ -38,13 +38,13 @@ int shutdown(sock_t fd, char c) {
     CHECK(gSched) << "must be called in coroutine..";
     if (c == 'r') {
         gSched->del_event(fd, EV_read);
-        return fp_shutdown(fd, SHUT_RD);
+        return raw_shutdown(fd, SHUT_RD);
     } else if (c == 'w') {
         gSched->del_event(fd, EV_write);
-        return fp_shutdown(fd, SHUT_WR);
+        return raw_shutdown(fd, SHUT_WR);
     } else {
         gSched->del_event(fd);
-        return fp_shutdown(fd, SHUT_RDWR);
+        return raw_shutdown(fd, SHUT_RDWR);
     }
 }
 
@@ -62,10 +62,10 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 
     do {
       #ifdef SOCK_NONBLOCK
-        sock_t connfd = fp_accept4(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+        sock_t connfd = raw_accept4(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (connfd != -1) return connfd;
       #else
-        sock_t connfd = fp_accept(fd, (sockaddr*)addr, (socklen_t*)addrlen);
+        sock_t connfd = raw_accept(fd, (sockaddr*)addr, (socklen_t*)addrlen);
         if (connfd != -1) {
             co::set_nonblock(connfd);
             co::set_cloexec(connfd);
@@ -84,7 +84,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     do {
-        int r = fp_connect(fd, (const sockaddr*)addr, (socklen_t)addrlen);
+        int r = raw_connect(fd, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r == 0) return 0;
 
         if (errno == EINPROGRESS) {
@@ -109,7 +109,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     IoEvent ev(fd, EV_read);
 
     do {
-        int r = (int) fp_recv(fd, buf, n, 0);
+        int r = (int) raw_recv(fd, buf, n, 0);
         if (r != -1) return r;
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -126,7 +126,7 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
     IoEvent ev(fd, EV_read);
 
     do {
-        int r = (int) fp_recv(fd, s, remain, 0);
+        int r = (int) raw_recv(fd, s, remain, 0);
         if (r == remain) return n;
         if (r == 0) return 0;
 
@@ -163,7 +163,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
     do {
-        int r = (int) fp_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
+        int r = (int) raw_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
         if (r != -1) return r;
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -180,7 +180,7 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
     IoEvent ev(fd, EV_write);
 
     do {
-        int r = (int) fp_send(fd, s, remain, 0);
+        int r = (int) raw_send(fd, s, remain, 0);
         if (r == remain) return n;
 
         if (r == -1) {
@@ -217,7 +217,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     IoEvent ev(fd, EV_write);
 
     do {
-        int r = (int) fp_sendto(fd, buf, n, 0, (const sockaddr*)addr, (socklen_t)addrlen);
+        int r = (int) raw_sendto(fd, buf, n, 0, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r != -1) return r;
 
         if (errno == EWOULDBLOCK || errno == EAGAIN) {

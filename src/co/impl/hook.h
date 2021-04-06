@@ -59,9 +59,8 @@ typedef int (*kevent_fp_t)(int, const struct kevent*, int, struct kevent*, int, 
 #endif
 
 #define raw_api(x) raw_##x
-#define raw_fpt(x) ##x##_fp_t
-#define dec_raw_api(x) extern raw_fpt(x) raw_api(x)
-#define def_raw_api(x) raw_fpt(x) raw_api(x) = 0
+#define dec_raw_api(x) extern x##_fp_t raw_api(x)
+#define def_raw_api(x) x##_fp_t raw_api(x) = 0
 
 // Declare raw api function pointers.
 // We can use these function pointers to call the native api directly.
@@ -98,8 +97,6 @@ dec_raw_api(gethostbyaddr_r);
 #else
 dec_raw_api(kevent);
 #endif
-
-#undef raw_fpt
 
 } // "C"
 
