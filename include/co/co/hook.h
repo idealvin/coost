@@ -18,6 +18,10 @@
 
 extern "C" {
 
+// - We need to hook the native APIs which may block, so that we can use third 
+//   network libraries directly in a coroutine.
+// - close(), shutdown() are also hooked to clear the hook info.
+
 typedef int (*connect_fp_t)(int, const struct sockaddr*, socklen_t);
 typedef int (*accept_fp_t)(int, struct sockaddr*, socklen_t*);
 typedef int (*close_fp_t)(int);

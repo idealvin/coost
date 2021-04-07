@@ -97,7 +97,7 @@ bool Client::connect(int ms) {
         return false;
     }
 
-    _sched_id = co::sched_id();
+    _sched_id = co::scheduler_id();
     co::set_tcp_nodelay(_fd);
     freeaddrinfo(info);
     return true;

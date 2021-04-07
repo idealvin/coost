@@ -80,7 +80,7 @@ class Client {
     // MUST be called in the thread where it is connected.
     void disconnect() {
         if (this->connected()) {
-            assert(_sched_id == co::sched_id());
+            assert(_sched_id == co::scheduler_id());
             co::close(_fd);
             _fd = (sock_t)-1;
             _sched_id = -1;

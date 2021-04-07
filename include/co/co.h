@@ -1,5 +1,6 @@
 #pragma once
 
+#include "os.h"
 #include "co/sock.h"
 #include "co/hook.h"
 #include "co/epoll.h"
@@ -20,7 +21,9 @@ namespace co {
 //   void f(void*);          // func with a param
 //   void T::f();            // method in a class
 //   std::function<void()>;
-void go(Closure* cb);
+inline void go(Closure* cb) {
+    xx::scheduler_manager()->next()->add_new_task(cb);
+}
 
 inline void go(void (*f)()) {
     go(new_closure(f));
@@ -44,20 +47,75 @@ inline void go(std::function<void()>&& f) {
     go(new_closure(std::move(f)));
 }
 
-void sleep(unsigned int ms);
+/**
+ * get the current scheduler 
+ *   
+ * @return  a pointer to the current scheduler, or NULL if the current thread 
+ *          is not a scheduler thread.
+ */
+inline xx::Scheduler* scheduler() {
+    return xx::gSched;
+}
 
-// stop coroutine schedulers
-void stop();
+/**
+ * get all schedulers 
+ *   
+ * @return  an reference of an array, which stores pointers to all the Schedulers
+ */
+inline const std::vector<xx::Scheduler*>& all_schedulers() {
+    return xx::scheduler_manager()->all_schedulers();
+}
 
-// max number of schedulers. It is os::cpunum() right now.
-// scheduler id is from 0 to max_sched_num-1.
-int max_sched_num();
+/**
+ * get max number of schedulers 
+ *   - scheduler id is from 0 to max_sched_num - 1. 
+ * 
+ * @return  a positive value, equal to number of CPU cores
+ */
+inline int max_sched_num() {
+    static int kMaxSchedNum = os::cpunum();
+    return kMaxSchedNum;
+}
 
-// id of the current scheduler, -1 for non-scheduler
-int sched_id();
+/**
+ * get id of the current scheduler 
+ *   - It is EXPECTED to be called in a coroutine. 
+ * 
+ * @return  non-negative id of the current scheduler, or -1 if the current thread 
+ *          is not a scheduler thread.
+ */
+inline int scheduler_id() {
+    scheduler() ? scheduler()->id() : -1;
+}
 
-// id of the current coroutine, -1 for non-coroutine
-int coroutine_id();
+/**
+ * get id of the current coroutine 
+ *   - Coroutines in different Schedulers may have the same id.
+ * 
+ * @return  non-negative id of the current coroutine, 
+ *          or -1 if it is called not in a coroutine.
+ */
+inline int coroutine_id() {
+    return (scheduler() && scheduler()->running()) ? scheduler()->running()->id : -1;
+}
+
+/**
+ * sleep for milliseconds 
+ *   - It is EXPECTED to be called in a coroutine. 
+ * 
+ * @param ms  time in milliseconds
+ */
+inline void sleep(unsigned int ms) {
+    scheduler() ? scheduler()->sleep(ms) : sleep::ms(ms);
+}
+
+/**
+ * stop all coroutine schedulers 
+ *   - It is safe to call stop() from anywhere. 
+ */
+inline void stop() {
+    xx::scheduler_manager()->stop();
+}
 
 // co::Event is for communications between coroutines.
 // It's similar to SyncEvent for threads.
@@ -254,18 +312,18 @@ class IoEvent {
     // We don't care what kind of event it is on Windows.
     IoEvent(sock_t fd)
         : _fd(fd), _has_timer(false) {
-        gSched->add_event(fd);
+        scheduler()->add_event(fd);
     }
 
     // We needn't delete the event on windows.
     ~IoEvent() = default;
 
     bool wait(int ms=-1) {
-        if (ms < 0) { gSched->yield(); return true; }
+        if (ms < 0) { scheduler()->yield(); return true; }
         
-        if (!_has_timer) { _has_timer = true; gSched->add_io_timer(ms); }
-        gSched->yield();
-        if (!gSched->timeout()) return true;
+        if (!_has_timer) { _has_timer = true; scheduler()->add_io_timer(ms); }
+        scheduler()->yield();
+        if (!scheduler()->timeout()) return true;
 
         CancelIo((HANDLE)_fd);
         WSASetLastError(ETIMEDOUT);
@@ -285,16 +343,16 @@ class IoEvent {
     }
 
     ~IoEvent() {
-        if (_has_ev) gSched->del_event(_fd, _ev);
+        if (_has_ev) scheduler()->del_event(_fd, _ev);
     }
 
     bool wait(int ms=-1) {
-        if (!_has_ev) _has_ev = gSched->add_event(_fd, _ev);
-        if (ms < 0) { gSched->yield(); return true; }
+        if (!_has_ev) _has_ev = scheduler()->add_event(_fd, _ev);
+        if (ms < 0) { scheduler()->yield(); return true; }
 
-        if (!_has_timer) { _has_timer = true; gSched->add_io_timer(ms); }
-        gSched->yield();
-        if (!gSched->timeout()) return true;
+        if (!_has_timer) { _has_timer = true; scheduler()->add_io_timer(ms); }
+        scheduler()->yield();
+        if (!scheduler()->timeout()) return true;
 
         errno = ETIMEDOUT;
         return false;

@@ -1,34 +1,9 @@
 #include "co/co.h"
-#include "co/os.h"
 #include <deque>
 #include <unordered_set>
 
 namespace co {
-
-void go(Closure* cb) {
-    sched_mgr()->next()->add_new_task(cb);
-}
-
-void sleep(uint32 ms) {
-    gSched ? gSched->sleep(ms) : sleep::ms(ms);
-}
-
-void stop() {
-    sched_mgr()->stop();
-}
-
-int max_sched_num() {
-    static int kMaxSchedNum = os::cpunum();
-    return kMaxSchedNum;
-}
-
-int sched_id() {
-    return gSched ? gSched->id() : -1;
-}
-
-int coroutine_id() {
-    return (gSched && gSched->running()) ? gSched->running()->id : -1;
-}
+using namespace co::xx;
 
 class EventImpl {
   public:

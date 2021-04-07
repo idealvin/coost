@@ -5,6 +5,7 @@ DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, defau
 DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
 
 namespace co {
+namespace xx {
 
 const timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
@@ -192,7 +193,7 @@ static inline void wsa_startup() {}
 static inline void wsa_cleanup() {}
 #endif
 
-SchedManager::SchedManager() {
+SchedulerManager::SchedulerManager() {
     wsa_startup();
     if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
     if (FLG_co_sched_num > (uint32)co::max_sched_num()) FLG_co_sched_num = co::max_sched_num();
@@ -212,13 +213,14 @@ SchedManager::SchedManager() {
     }
 }
 
-SchedManager::~SchedManager() {
+SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete _scheds[i];
     wsa_cleanup();
 }
 
-void SchedManager::stop() {
+void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 
+} // xx
 } // co

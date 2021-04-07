@@ -7,6 +7,7 @@ DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
 DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
 
 namespace co {
+using namespace co::xx;
 
 LPFN_CONNECTEX connect_ex = 0;
 LPFN_ACCEPTEX accept_ex = 0;

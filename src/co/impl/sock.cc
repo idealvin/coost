@@ -6,6 +6,7 @@ DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
 DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
 
 namespace co {
+using namespace co::xx;
 
 #ifdef SOCK_NONBLOCK
 sock_t socket(int domain, int type, int protocol) {

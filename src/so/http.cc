@@ -578,7 +578,7 @@ void easy(const char* root_dir, const char* ip, int port) {
             fastring path = path::join(root, url);
             if (fs::isdir(path)) path = path::join(path, "index.html");
 
-            auto& map = contents[co::sched_id()];
+            auto& map = contents[co::scheduler_id()];
             auto it = map.find(path);
             if (it != map.end()) {
                 if (now::ms() < it->second.second + 300 * 1000) {

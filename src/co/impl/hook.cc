@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 namespace co {
+using namespace co::xx;
 
 class HookInfo {
   public:
