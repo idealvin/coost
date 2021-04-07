@@ -79,7 +79,7 @@ class FatalLogSaver {
 
 class CLogSaver {
   public:
-    CLogSaver() = default;
+    CLogSaver() : _fs(128) {}
 
     CLogSaver(const char* file, unsigned int line) {
         _fs << file << ':' << line << ']' << ' ';
