@@ -218,7 +218,7 @@ SchedulerManager::~SchedulerManager() {
     wsa_cleanup();
 }
 
-void SchedulerManager::stop() {
+void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 

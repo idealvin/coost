@@ -15,34 +15,82 @@
 
 namespace co {
 
-// Add a task, which will run as a coroutine.
 // Supported function types:
 //   void f();
 //   void f(void*);          // func with a param
 //   void T::f();            // method in a class
+//   void T::f(void*);       // method with a param in a class
 //   std::function<void()>;
+
+/**
+ * add a task, which will run as a coroutine 
+ * 
+ * @param cb  a pointer to a Closure created by new_closure()
+ */
 inline void go(Closure* cb) {
-    xx::scheduler_manager()->next()->add_new_task(cb);
+    xx::scheduler_manager()->next_scheduler()->add_new_task(cb);
 }
 
+/**
+ * add a task, which will run as a coroutine 
+ * 
+ * @param f  a pointer to a function: void xxx()
+ */
 inline void go(void (*f)()) {
     go(new_closure(f));
 }
 
+/**
+ * add a task, which will run as a coroutine 
+ * 
+ * @param f  a pointer to a function with a parameter: void xxx(void*)
+ * @param p  a pointer as the parameter of f
+ */
 inline void go(void (*f)(void*), void* p) {
     go(new_closure(f, p));
 }
 
+/**
+ * add a task, which will run as a coroutine 
+ * 
+ * @tparam T  type of a class
+ * @param f   a pointer to a method of class T: void T::xxx()
+ * @param o   a pointer to an object of class T
+ */
 template<typename T>
-inline void go(void (T::*f)(), T* p) {
-    go(new_closure(f, p));
+inline void go(void (T::*f)(), T* o) {
+    go(new_closure(f, o));
 }
 
-// !! Performance of std::function is poor. Try to avoid it.
+/**
+ * add a task, which will run as a coroutine 
+ * 
+ * @tparam T  type of a class
+ * @param f   a pointer to a method of class T: void T::xxx(void*)
+ * @param o   a pointer to an object of class T
+ * @param p   a pointer as the parameter of f
+ */
+template<typename T>
+inline void go(void (T::*f)(void*), T* o, void* p) {
+    go(new_closure(f, o, p));
+}
+
+/**
+ * add a task, which will run as a coroutine 
+ *   - Performance of std::function is poor. Try to avoid it. 
+ * 
+ * @param f  a reference of an object of std::function<void()>
+ */
 inline void go(const std::function<void()>& f) {
     go(new_closure(f));
 }
 
+/**
+ * add a task, which will run as a coroutine 
+ *   - Performance of std::function is poor. Try to avoid it. 
+ * 
+ * @param f  a rvalue reference of an object of std::function<void()>
+ */
 inline void go(std::function<void()>&& f) {
     go(new_closure(std::move(f)));
 }
@@ -114,7 +162,7 @@ inline void sleep(unsigned int ms) {
  *   - It is safe to call stop() from anywhere. 
  */
 inline void stop() {
-    xx::scheduler_manager()->stop();
+    xx::scheduler_manager()->stop_all_schedulers();
 }
 
 // co::Event is for communications between coroutines.

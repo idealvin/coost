@@ -324,7 +324,7 @@ class SchedulerManager {
     SchedulerManager();
     ~SchedulerManager();
 
-    Scheduler* next() {
+    Scheduler* next_scheduler() {
         if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
         uint32 n = atomic_inc(&_n);
         if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
@@ -335,8 +335,7 @@ class SchedulerManager {
         return _scheds;
     }
 
-    // stop all schedulers
-    void stop();
+    void stop_all_schedulers();
 
   private:
     std::vector<Scheduler*> _scheds;
