@@ -10,12 +10,17 @@ DEF_test(co) {
         int n = (int) FLG_co_sched_num;
         co::xx::Scheduler* s;
         for (int i = 0; i < n; ++i) {
-            s = co::xx::scheduler_manager()->next();
+            s = co::xx::scheduler_manager()->next_scheduler();
             EXPECT_EQ(s->id(), i);
         }
 
-        s = co::xx::scheduler_manager()->next();
+        s = co::xx::scheduler_manager()->next_scheduler();
         EXPECT_EQ(s->id(), 0);
+
+        auto& v = co::all_schedulers();
+        for (size_t i = 0; i < v.size(); ++i) {
+            EXPECT_EQ(v[i]->id(), (int)i);
+        }
     }
 
     DEF_case(sched.Copool) {

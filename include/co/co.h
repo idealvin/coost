@@ -8,24 +8,20 @@
 
 #include <string.h>
 #include <memory>
-#include <functional>
 #include <vector>
 #include <map>
 #include <unordered_map>
 
 namespace co {
 
-// Supported function types:
-//   void f();
-//   void f(void*);          // func with a param
-//   void T::f();            // method in a class
-//   void T::f(void*);       // method with a param in a class
-//   std::function<void()>;
-
 /**
  * add a task, which will run as a coroutine 
+ *   - new_closure() can be used to create a Closure, and the user needn't delete the 
+ *     Closure manually, as it will delete itself after Closure::run() is called.
+ *   - As the Closure is an abstract base class, the user is free to implement his or 
+ *     hers own subtype of Closure. See details in co/closure.h.
  * 
- * @param cb  a pointer to a Closure created by new_closure()
+ * @param cb  a pointer to a Closure by new_closure(), or an user-defined Closure
  */
 inline void go(Closure* cb) {
     xx::scheduler_manager()->next_scheduler()->add_new_task(cb);
@@ -54,7 +50,7 @@ inline void go(void (*f)(void*), void* p) {
  * add a task, which will run as a coroutine 
  * 
  * @tparam T  type of a class
- * @param f   a pointer to a method of class T: void T::xxx()
+ * @param f   a pointer to a method of class T:  void T::xxx()
  * @param o   a pointer to an object of class T
  */
 template<typename T>
@@ -66,7 +62,7 @@ inline void go(void (T::*f)(), T* o) {
  * add a task, which will run as a coroutine 
  * 
  * @tparam T  type of a class
- * @param f   a pointer to a method of class T: void T::xxx(void*)
+ * @param f   a pointer to a method of class T:  void T::xxx(void*)
  * @param o   a pointer to an object of class T
  * @param p   a pointer as the parameter of f
  */
@@ -77,7 +73,8 @@ inline void go(void (T::*f)(void*), T* o, void* p) {
 
 /**
  * add a task, which will run as a coroutine 
- *   - Performance of std::function is poor. Try to avoid it. 
+ *   - It is a little expensive to create an object of std::function, try to 
+ *     avoid it if the user cares about the performance. 
  * 
  * @param f  a reference of an object of std::function<void()>
  */
@@ -87,7 +84,8 @@ inline void go(const std::function<void()>& f) {
 
 /**
  * add a task, which will run as a coroutine 
- *   - Performance of std::function is poor. Try to avoid it. 
+ *   - It is a little expensive to create an object of std::function, try to 
+ *     avoid it if the user cares about the performance. 
  * 
  * @param f  a rvalue reference of an object of std::function<void()>
  */
@@ -108,7 +106,7 @@ inline xx::Scheduler* scheduler() {
 /**
  * get all schedulers 
  *   
- * @return  an reference of an array, which stores pointers to all the Schedulers
+ * @return  a reference of an array, which stores pointers to all the Schedulers
  */
 inline const std::vector<xx::Scheduler*>& all_schedulers() {
     return xx::scheduler_manager()->all_schedulers();
@@ -118,12 +116,9 @@ inline const std::vector<xx::Scheduler*>& all_schedulers() {
  * get max number of schedulers 
  *   - scheduler id is from 0 to max_sched_num - 1. 
  * 
- * @return  a positive value, equal to number of CPU cores
+ * @return  a positive value, it is equal to the number of CPU cores.
  */
-inline int max_sched_num() {
-    static int kMaxSchedNum = os::cpunum();
-    return kMaxSchedNum;
-}
+int max_sched_num();
 
 /**
  * get id of the current scheduler 

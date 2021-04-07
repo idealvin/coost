@@ -5,6 +5,11 @@
 namespace co {
 using namespace co::xx;
 
+int max_sched_num() {
+    static int kMaxSchedNum = os::cpunum();
+    return kMaxSchedNum;
+}
+
 class EventImpl {
   public:
     EventImpl() = default;
