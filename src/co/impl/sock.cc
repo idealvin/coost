@@ -1,8 +1,6 @@
 #ifndef _WIN32
 
-#include "scheduler.h"
-#include "io_event.h"
-#include "hook.h"
+#include "co/co.h"
 
 DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
 DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");

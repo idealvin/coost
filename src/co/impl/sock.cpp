@@ -1,7 +1,6 @@
 #ifdef _WIN32
 
-#include "scheduler.h"
-#include "io_event.h"
+#include "co/co.h"
 #include <ws2spi.h>
 
 DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");

@@ -1,9 +1,10 @@
 #pragma once
 
+#include "sock.h"
 #include "hook.h"
-#include "co/co.h"
-#include "co/atomic.h"
-#include "co/log.h"
+#include "../atomic.h"
+#include "../log.h"
+
 #include <vector>
 #include <unordered_map>
 
@@ -25,35 +26,6 @@ enum {
 
 #ifdef _WIN32
 typedef OVERLAPPED_ENTRY epoll_event;
-
-struct PerIoInfo {
-    PerIoInfo(const void* data, int size, void* c)
-        : n(0), flags(0), co(c), s(data ? 0 : (char*)malloc(size)) {
-        memset(&ol, 0, sizeof(ol));
-        buf.buf = data ? (char*)data : s;
-        buf.len = size;
-    }
-
-    ~PerIoInfo() {
-        if (s) free(s);
-    }
-
-    void move(DWORD n) {
-        buf.buf += n;
-        buf.len -= (ULONG) n;
-    }
-
-    void resetol() {
-        memset(&ol, 0, sizeof(ol));
-    }
-
-    WSAOVERLAPPED ol;
-    DWORD n;            // bytes transfered
-    DWORD flags;        // flags for WSARecv
-    void* co;           // user data, pointer to a coroutine
-    char* s;            // dynamic allocated buffer
-    WSABUF buf;
-};
 
 // Epoll based on iocp for windows.
 class Epoll {

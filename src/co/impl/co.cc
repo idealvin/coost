@@ -1,6 +1,5 @@
 #include "co/co.h"
 #include "co/os.h"
-#include "scheduler.h"
 #include <deque>
 #include <unordered_set>
 

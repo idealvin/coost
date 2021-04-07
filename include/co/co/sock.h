@@ -358,10 +358,10 @@ inline int error() { return WSAGetLastError(); }
 inline int error() { return errno; }
 #endif
 
-// get string for a error number, it is thread-safe.
+// get message of a error number, it is thread-safe.
 const char* strerror(int err);
 
-// get string for the current error number, it is thread-safe.
+// get message of the current error number, it is thread-safe.
 inline const char* strerror() {
     return co::strerror(co::error());
 }

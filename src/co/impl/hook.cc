@@ -1,11 +1,6 @@
 #ifndef _WIN32
 
-#include "hook.h"
-#include "scheduler.h"
-#include "io_event.h"
 #include "co/co.h"
-#include "co/atomic.h"
-
 #include <dlfcn.h>
 #include <vector>
 #include <unordered_map>

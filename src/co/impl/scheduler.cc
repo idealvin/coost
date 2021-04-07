@@ -1,4 +1,4 @@
-#include "scheduler.h"
+#include "co/co.h"
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: cpu num");

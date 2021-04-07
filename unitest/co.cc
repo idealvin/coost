@@ -1,6 +1,5 @@
 #include "co/unitest.h"
 #include "co/co.h"
-#include "../src/co/impl/scheduler.h"
 
 namespace test {
 
