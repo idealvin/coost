@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: .
+      run: |
+        mkdir build && cd build
+        cmake ..
+        cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+        make -j8
+        make install
