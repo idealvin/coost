@@ -5,14 +5,9 @@
 class Closure {
   public:
     Closure() = default;
-    
-    Closure(const Closure&) = delete;
-    void operator=(const Closure&) = delete;
-
-    virtual void run() = 0;
-
-  protected:
     virtual ~Closure() = default;
+    
+    virtual void run() = 0;
 };
 
 namespace xx {
@@ -21,9 +16,7 @@ class Function0 : public Closure {
   public:
     typedef void (*F)();
 
-    Function0(F f)
-        : _f(f) {
-    }
+    Function0(F f) : _f(f) {}
 
     virtual void run() {
         _f();
@@ -40,9 +33,7 @@ class Function1 : public Closure {
   public:
     typedef void (*F)(void*);
 
-    Function1(F f, void* p)
-        : _f(f), _p(p) {
-    }
+    Function1(F f, void* p) : _f(f), _p(p) {}
 
     virtual void run() {
         _f(_p);
@@ -61,9 +52,7 @@ class Method0 : public Closure {
   public:
     typedef void (T::*F)();
 
-    Method0(F f, T* o)
-        : _f(f), _o(o) {
-    }
+    Method0(F f, T* o) : _f(f), _o(o) {}
 
     virtual void run() {
         (_o->*_f)();
@@ -82,9 +71,7 @@ class Method1 : public Closure {
   public:
     typedef void (T::*F)(void*);
 
-    Method1(F f, T* o, void* p)
-        : _f(f), _o(o), _p(p) {
-    }
+    Method1(F f, T* o, void* p) : _f(f), _o(o), _p(p) {}
 
     virtual void run() {
         (_o->*_f)(_p);
@@ -103,13 +90,9 @@ class Function : public Closure {
   public:
     typedef std::function<void()> F;
 
-    Function(F&& f)
-        : _f(std::move(f)) {
-    }
+    Function(F&& f) : _f(std::move(f)) {}
 
-    Function(const F& f)
-        : _f(f) {
-    }
+    Function(const F& f) : _f(f) {}
 
     virtual void run() {
         _f();
