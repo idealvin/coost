@@ -50,7 +50,8 @@ class JBlock {
 
     void copy_from(const JBlock& m) {
         this->reserve(m._h->size);
-        memcpy(_h, m._h, sizeof(_Header) + m._h->size * N);
+        memcpy(_h + 1, m._h + 1, m._h->size * N);
+        _h->size = m._h->size;
     }
 
   private:
