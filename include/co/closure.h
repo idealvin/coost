@@ -61,20 +61,42 @@ class Method0 : public Closure {
   public:
     typedef void (T::*F)();
 
-    Method0(F f, T* p)
-        : _f(f), _p(p) {
+    Method0(F f, T* o)
+        : _f(f), _o(o) {
     }
 
     virtual void run() {
-        (_p->*_f)();
+        (_o->*_f)();
         delete this;
     }
 
   private:
     F _f;
-    T* _p;
+    T* _o;
 
     virtual ~Method0() {}
+};
+
+template<typename T>
+class Method1 : public Closure {
+  public:
+    typedef void (T::*F)(void*);
+
+    Method1(F f, T* o, void* p)
+        : _f(f), _o(o), _p(p) {
+    }
+
+    virtual void run() {
+        (_o->*_f)(_p);
+        delete this;
+    }
+
+  private:
+    F _f;
+    T* _o;
+    void* _p;
+
+    virtual ~Method1() {}
 };
 
 class Function : public Closure {
@@ -111,8 +133,13 @@ inline Closure* new_closure(void (*f)(void*), void* p) {
 }
 
 template<typename T>
-inline Closure* new_closure(void (T::*f)(), T* p) {
-    return new xx::Method0<T>(f, p);
+inline Closure* new_closure(void (T::*f)(), T* o) {
+    return new xx::Method0<T>(f, o);
+}
+
+template<typename T>
+inline Closure* new_closure(void (T::*f)(void*), T* o, void* p) {
+    return new xx::Method1<T>(f, o, p);
 }
 
 inline Closure* new_closure(std::function<void()>&& f) {
