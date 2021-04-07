@@ -20,7 +20,7 @@
   - Support multi-thread scheduling, the default number of threads is the number of system CPU cores.
   - Coroutines share the thread stack (the default size is 1MB), and the memory footprint is extremely low, a single machine can easily create millions of coroutines.
   - Support system api hook (Linux & Mac).
-  - Support coroutine lock [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - Support coroutine lock & deadlock alarm [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - Support coroutine synchronization event [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - Support coroutine pool [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
 

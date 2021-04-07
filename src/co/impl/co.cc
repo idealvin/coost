@@ -124,7 +124,22 @@ void Event::signal() {
 
 class MutexImpl {
   public:
-    MutexImpl() : _lock(false) {}
+    MutexImpl() : _lock(false)
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+    ,lockedTimeMs(-1), deadLockTester(), lockHolderID(-1)
+    {
+      this->deadLockTester.run_every([this]() {
+        // ELOG << "deadlock detector is started.....";
+        if (this->getLockedTimeMs() > 0 && now::ms() - this->getLockedTimeMs() > 60 * 1000 /*one minute*/)
+        {
+          ELOG << "[DEADLOCK] deadlock occured, co#" << this->getLockHolderID() << " w/ co::Mutex " << this << " has been locked " << now::ms() - this->getLockedTimeMs() << " ms";
+        }
+      },5);
+    }
+#else
+    {}
+#endif
+
     ~MutexImpl() = default;
 
     void lock();
@@ -133,15 +148,40 @@ class MutexImpl {
 
     bool try_lock();
 
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+    int64 getLockedTimeMs() { return this->lockedTimeMs; };
+    int64 getLockHolderID() { return this->lockHolderID; };
+#endif
+
   private:
     ::Mutex _mtx;
     std::deque<Coroutine*> _co_wait;
     bool _lock;
+
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+    // Deadlock detectors
+    int64 lockedTimeMs;
+    Tasked deadLockTester;
+    int lockHolderID;
+#endif
 };
 
 inline bool MutexImpl::try_lock() {
     ::MutexGuard g(_mtx);
-    return _lock ? false : (_lock = true);
+    // return _lock ? false : (_lock = true);
+    if (_lock)
+    {
+      return false;
+    }
+    else
+    {
+      _lock = true;
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+      this->lockedTimeMs = now::ms();
+      this->lockHolderID = coroutine_id();
+#endif
+      return true;
+    }
 }
 
 inline void MutexImpl::lock() {
@@ -149,6 +189,11 @@ inline void MutexImpl::lock() {
     _mtx.lock();
     if (!_lock) {
         _lock = true;
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+      // mark which coroutine hold this mutex
+      this->lockedTimeMs = now::ms();
+      this->lockHolderID = coroutine_id();
+#endif
         _mtx.unlock();
     } else {
         Coroutine* co = gSched->running();
@@ -163,10 +208,20 @@ inline void MutexImpl::unlock() {
     _mtx.lock();
     if (_co_wait.empty()) {
         _lock = false;
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+      // reset to unlocked mode
+      this->lockedTimeMs = -1;
+      this->lockHolderID = -1;
+#endif
         _mtx.unlock();
     } else {
         Coroutine* co = _co_wait.front();
         _co_wait.pop_front();
+#ifdef CO_MUTEX_DEADLOCK_CHECK
+      // deadlock detector - New coroutine switched
+      this->lockedTimeMs = now::ms();
+      this->lockHolderID = co->id;
+#endif
         _mtx.unlock();
         co->s->add_ready_task(co);
     }

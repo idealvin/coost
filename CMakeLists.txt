@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.1)
 project(co)
 
+if(CO_MUTEX_DEADLOCK_CHECK)
+    add_compile_options(-DCO_MUTEX_DEADLOCK_CHECK)
+endif()
+
 if(WIN32)
     if (NOT MSVC)
         message(FATAL_ERROR, "msvc required on windows")

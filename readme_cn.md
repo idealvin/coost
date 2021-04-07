@@ -19,7 +19,7 @@
   - 支持多线程调度，默认线程数为系统 CPU 核数.
   - 协程共享线程栈(默认大小为 1MB)，内存占用极低，单机可轻松创建数百万协程.
   - 支持系统 api hook (Linux & Mac).
-  - 支持协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+  - 支持协程锁与死锁警告 [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - 支持协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
   - 支持协程池 [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
 
