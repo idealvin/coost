@@ -242,50 +242,71 @@ int send(sock_t fd, const void* buf, int n, int ms=-1);
 int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int addrlen, int ms=-1);
 
 #ifdef _WIN32
-// get options on a socket, see man getsockopt for details.
+/**
+ * get options on a socket, man getsockopt for details.
+ */
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
     return ::getsockopt(fd, lv, opt, (char*)optval, optlen);
 }
 
-// set options on a socket, see man setsockopt for details.
+/**
+ * set options on a socket, man setsockopt for details. 
+ */
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
     return ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
 }
+
 #else
-// get options on a socket, see man getsockopt for details.
+/**
+ * get options on a socket, man getsockopt for details.
+ */
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
     return ::getsockopt(fd, lv, opt, optval, (socklen_t*)optlen);
 }
 
-// set options on a socket, see man setsockopt for details.
+/**
+ * set options on a socket, man setsockopt for details. 
+ */
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
     return ::setsockopt(fd, lv, opt, optval, (socklen_t)optlen);
 }
 #endif
 
-// set option SO_REUSEADDR on a socket
+/**
+ * set option SO_REUSEADDR on a socket
+ */
 inline void set_reuseaddr(sock_t fd) {
     int v = 1;
     co::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
 }
 
-// set send buffer size for a socket, it must be set before the socket is connected.
+/**
+ * set send buffer size for a socket 
+ *   - It MUST be called before the socket is connected. 
+ */
 inline void set_send_buffer_size(sock_t fd, int n) {
     co::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &n, sizeof(n));
 }
 
-// set recv buffer size for a socket, it must be set before the socket is connected.
+/**
+ * set recv buffer size for a socket 
+ *   - It MUST be called before the socket is connected. 
+ */
 inline void set_recv_buffer_size(sock_t fd, int n) {
     co::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n));
 }
 
-// set option TCP_NODELAY on a TCP socket
+/**
+ * set option TCP_NODELAY on a TCP socket  
+ */
 inline void set_tcp_nodelay(sock_t fd) {
     int v = 1;
     co::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 }
 
-// set option SO_KEEPALIVE on a TCP socket
+/**
+ * set option SO_KEEPALIVE on a TCP socket 
+ */
 inline void set_tcp_keepalive(sock_t fd) {
     int v = 1;
     co::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v));
@@ -309,26 +330,42 @@ inline int reset_tcp_socket(sock_t fd, int ms=0) {
 }
 
 #ifndef _WIN32
-// set O_NONBLOCK on a socket
+/**
+ * set option O_NONBLOCK on a socket 
+ */
 inline void set_nonblock(sock_t fd) {
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 }
 
-// set FD_CLOEXEC on a socket
+/**
+ * set option FD_CLOEXEC on a socket 
+ */
 inline void set_cloexec(sock_t fd) {
     fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 }
 #endif
 
-// fill in ipv4 addr with ip & port
+/**
+ * fill in an ipv4 address with ip & port
+ * 
+ * @param addr  a pointer to an ipv4 address
+ * @param ip    string like: "127.0.0.1"
+ * @param port  a value from 1 to 65535 
+ */
 inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
-    addr->sin_port = hton16((uint16) port);
+    addr->sin_port = hton16((uint16)port);
     return inet_pton(AF_INET, ip, &addr->sin_addr) == 1;
 }
 
-// fill in ipv6 addr with ip & port
+/**
+ * fill in an ipv6 address with ip & port
+ * 
+ * @param addr  a pointer to an ipv6 address
+ * @param ip    string like: "::1"
+ * @param port  a value from 1 to 65535 
+ */
 inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin6_family = AF_INET6;
@@ -336,14 +373,18 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
 }
 
-// get ip string from ipv4 address
+/**
+ * get ip string of an ipv4 address 
+ */
 inline fastring ip_str(struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
-// get ip string from ipv6 address
+/**
+ * get ip string of an ipv6 address
+ */
 inline fastring ip_str(struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
@@ -351,17 +392,27 @@ inline fastring ip_str(struct sockaddr_in6* addr) {
 }
 
 #ifdef _WIN32
-// get last error number
+/**
+ * get the last error number
+ */
 inline int error() { return WSAGetLastError(); }
 #else
-// get last error number
+/**
+ * get the last error number
+ */
 inline int error() { return errno; }
 #endif
 
-// get message of a error number, it is thread-safe.
+/**
+ * get string of a error number 
+ *   - It is thread-safe. 
+ */
 const char* strerror(int err);
 
-// get message of the current error number, it is thread-safe.
+/**
+ * get string of the current error number 
+ *   - It is thread-safe. 
+ */
 inline const char* strerror() {
     return co::strerror(co::error());
 }

@@ -273,6 +273,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
     return r != x ? r : n;
 }
 
+// TODO: free s on error
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     std::unique_ptr<PerIoInfo> info(

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "os.h"
 #include "co/sock.h"
 #include "co/hook.h"
 #include "co/epoll.h"
@@ -17,11 +16,11 @@ namespace co {
 /**
  * add a task, which will run as a coroutine 
  *   - new_closure() can be used to create a Closure, and the user needn't delete the 
- *     Closure manually, as it will delete itself after Closure::run() is called.
+ *     Closure manually, as it will delete itself after Closure::run() is done.
  *   - As the Closure is an abstract base class, the user is free to implement his or 
  *     hers own subtype of Closure. See details in co/closure.h.
  * 
- * @param cb  a pointer to a Closure by new_closure(), or an user-defined Closure
+ * @param cb  a pointer to a Closure created by new_closure(), or an user-defined Closure.
  */
 inline void go(Closure* cb) {
     xx::scheduler_manager()->next_scheduler()->add_new_task(cb);
@@ -30,7 +29,7 @@ inline void go(Closure* cb) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @param f  a pointer to a function: void xxx()
+ * @param f  a pointer to a function:  void xxx()
  */
 inline void go(void (*f)()) {
     go(new_closure(f));
@@ -39,7 +38,7 @@ inline void go(void (*f)()) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @param f  a pointer to a function with a parameter: void xxx(void*)
+ * @param f  a pointer to a function with a parameter:  void xxx(void*)
  * @param p  a pointer as the parameter of f
  */
 inline void go(void (*f)(void*), void* p) {
@@ -136,7 +135,7 @@ inline int scheduler_id() {
  *   - Coroutines in different Schedulers may have the same id.
  * 
  * @return  non-negative id of the current coroutine, 
- *          or -1 if it is called not in a coroutine.
+ *          or -1 if it is not called in a coroutine.
  */
 inline int coroutine_id() {
     return (scheduler() && scheduler()->running()) ? scheduler()->running()->id : -1;
@@ -160,8 +159,11 @@ inline void stop() {
     xx::scheduler_manager()->stop_all_schedulers();
 }
 
-// co::Event is for communications between coroutines.
-// It's similar to SyncEvent for threads.
+/**
+ * co::Event is for communications between coroutines 
+ *   - It is similar to SyncEvent for threads. 
+ *   - The user SHOULD use co::Event in coroutine environments only. 
+ */
 class Event {
   public:
     Event();
@@ -172,23 +174,40 @@ class Event {
     Event(const Event&) = delete;
     void operator=(const Event&) = delete;
 
-    // MUST be called in coroutine
+    /**
+     * wait for a signal 
+     *   - It MUST be called in a coroutine. 
+     *   - wait() blocks until a signal was present. 
+     */
     void wait();
 
-    // return false if timeout
-    // MUST be called in coroutine
+    /**
+     * wait for a signal with a timeout 
+     *   - It MUST be called in a coroutine. 
+     *   - It blocks until a signal was present or timeout. 
+     * 
+     * @param ms  timeout in milliseconds
+     * 
+     * @return    true if a signal was present before timeout, otherwise false
+     */
     bool wait(unsigned int ms);
 
-    // wakeup all waiting coroutines
-    // can be called from anywhere
+    /**
+     * generate a signal on this event 
+     *   - It is not necessary to call signal() in a coroutine, though usually it is. 
+     *   - When a signal was present, all the waiting coroutines will be waken up. 
+     */
     void signal();
 
   private:
     void* _p;
 };
 
-// co::Mutex is a mutex lock for coroutines.
-// It's similar to Mutex for threads.
+/**
+ * co::Mutex is a mutex lock for coroutines 
+ *   - It is similar to Mutex for threads. 
+ *   - The user SHOULD use co::Mutex in coroutine environments only. 
+ */
 class Mutex {
   public:
     Mutex();
@@ -199,19 +218,38 @@ class Mutex {
     Mutex(const Mutex&) = delete;
     void operator=(const Mutex&) = delete;
 
-    // MUST be called in coroutine
+    /**
+     * acquire the lock
+     *   - It MUST be called in a coroutine. 
+     *   - It will block until the lock was acquired by the calling coroutine. 
+     */
     void lock();
 
-    // can be called from anywhere
+    /**
+     * release the lock 
+     *   - It SHOULD be called in the coroutine that holds the lock. 
+     */
     void unlock();
 
-    // can be called from anywhere
+    /**
+     * try to acquire the lock 
+     *   - It SHOULD be called in a coroutine. 
+     *   - If no coroutine holds the lock, the calling coroutine will obtain the lock. 
+     *   - Different from lock(), it will not block.
+     * 
+     * @return  true if the lock was acquired by the calling coroutine, otherwise false
+     */
     bool try_lock();
 
   private:
     void* _p;
 };
 
+/**
+ * guard to release the mutex lock 
+ *   - lock() is called in the constructor. 
+ *   - unlock() is called in the destructor.
+ */
 class MutexGuard {
   public:
     explicit MutexGuard(co::Mutex& lock) : _lock(lock) {
@@ -233,22 +271,33 @@ class MutexGuard {
     co::Mutex& _lock;
 };
 
-// co::Pool is a general pool for coroutines.
-// It stores void* pointers internally.
-// It is coroutine-safe. Each thread has its own pool.
+/**
+ * a general pool for coroutine programming 
+ *   - Pool is designed to be coroutine-safe, the user does not need to lock it. 
+ *   - It stores void* pointers internally and it does not care about the actual 
+ *     type of the pointer. 
+ *   - It is usually used as a connection pool in network programming. 
+ */
 class Pool {
   public:
+    /**
+     * the default constructor 
+     *   - In this case, ccb and dcb will be NULL. 
+     */
     Pool();
     ~Pool();
 
-    // @ccb:  a create callback       []() { return (void*) new T; }
-    //   when pop from an empty pool, this callback is used to create an element
-    //
-    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
-    //   this callback is used to destroy an element when needed
-    //
-    // @cap:  max capacity of the pool for each thread
-    //   this argument is ignored if the destory callback is not set
+    /**
+     * a constructor with parameters 
+     * 
+     * @param ccb  a create callback like:   []() { return (void*) new T; }  
+     *             it is used to create an element when pop from an empty pool.
+     * @param dcb  a destroy callback like:  [](void* p) { delete (T*)p; }  
+     *             it is used to destroy an element.
+     * @param cap  max capacity of the pool for each thread, -1 for unlimited. 
+     *             this argument is ignored if dcb is NULL. 
+     *             default: -1.
+     */
     Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap=(size_t)-1);
 
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
@@ -256,23 +305,46 @@ class Pool {
     Pool(const Pool&) = delete;
     void operator=(const Pool&) = delete;
 
-    // pop an element from the pool
-    // return NULL if the pool is empty and the create callback is not set
-    // MUST be called in coroutine
+    /**
+     * pop an element from the pool 
+     *   - It MUST be called in a coroutine. 
+     *   - If the pool is not empty, the element at the back will be popped, otherwise 
+     *     ccb is used to create a new element if ccb is not NULL. 
+     * 
+     * @return  a pointer to an element, or NULL if the pool is empty and the ccb is NULL.
+     */
     void* pop();
 
-    // push an element to the pool
-    // nothing is done if p is NULL
-    // MUST be called in coroutine
-    void push(void* p);
+    /**
+     * push an element to the pool 
+     *   - It MUST be called in a coroutine. 
+     * 
+     * @param e  a pointer to an element, it will be ignored if it is NULL.
+     */
+    void push(void* e);
 
   private:
     void* _p;
 };
 
-// pop an element from co::Pool in constructor, and push it back in destructor.
-// The element is stored internally as a pointer of type T*.
-// As owner of the pointer, its behavior is similar to std::unique_ptr.
+/**
+ * guard to push an element back to co::Pool 
+ *   - Pool::pop() is called in the constructor. 
+ *   - Pool::push() is called in the destructor. 
+ *   - operator->() is overloaded, so it has a behavior similar to std::unique_ptr. 
+ * 
+ *   - usage:
+ *     ```cpp
+ *     struct T { void hello(); };  
+ *     co::Pool pool(
+ *         []() { return (void*) new T; },  // ccb 
+ *         [](void* p) { delete (T*)p; }    // dcb 
+ *     ); 
+ * 
+ *     co::PoolGuard<T> g(pool);
+ *     g->hello();
+ *     ```
+ */
 template<typename T>
 class PoolGuard {
   public:
@@ -291,29 +363,39 @@ class PoolGuard {
         _pool.push(_p);
     }
 
-    T* get() const {
-        return _p;
-    }
+    /**
+     * overload operator-> for PoolGuard 
+     * 
+     * @return  a pointer to an object of class T.
+     */
+    T* operator->() const { assert(_p); return _p; }
 
+    bool operator==(T* p) const { return _p == p; }
+    bool operator!=(T* p) const { return _p != p; }
+
+    /**
+     * get the pointer owns by PoolGuard 
+     * 
+     * @return  a pointer to an object of class T
+     */
+    T* get() const { return _p; }
+
+    /**
+     * reset the pointer owns by PoolGuard 
+     * 
+     * @param p  a pointer to an object of class T, it MUST be created with operator new. 
+     *           default: NULL. 
+     */
     void reset(T* p = 0) {
         if (_p != p) { delete _p; _p = p; }
     }
 
-    void operator=(T* p) {
-        this->reset(p);
-    }
-
-    T* operator->() const {
-        return _p;
-    }
-
-    bool operator==(T* p) const {
-        return _p == p;
-    }
-
-    bool operator!=(T* p) const {
-        return _p != p;
-    }
+    /**
+     * assign a new pointer to PoolGuard 
+     * 
+     * @param p  a pointer to an object of class T, it MUST be created with operator new. 
+     */
+    void operator=(T* p) { this->reset(p); }
 
   private:
     Pool& _pool;

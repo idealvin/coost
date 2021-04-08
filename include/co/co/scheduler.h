@@ -178,86 +178,99 @@ class TimerManager {
     std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
+/**
+ * coroutine scheduler 
+ *   - A scheduler will run in a single thread.
+ */
 class Scheduler {
   public:
     Scheduler(uint32 id, uint32 stack_size);
     ~Scheduler();
 
+    // id of this scheduler
     uint32 id() const { return _id; }
 
+    // the current running coroutine
     Coroutine* running() const { return _running; }
 
-    void resume(Coroutine* co);
-
-    void yield() {
-        tb_context_jump(_main_co->ctx, _running);
-    }
-
-    void recycle(Coroutine* co) {
-        _co_pool.push(co);
-    }
-
-    void loop();
-
-    void loop_in_thread() {
-        Thread(&Scheduler::loop, this).detach();
-    }
-
-    void stop();
-
+    // check whether the current coroutine has timed out
     bool timeout() const { return _timeout; }
 
+    // check whether a pointer is on the stack of the coroutine
     bool on_stack(void* p) const {
-        return (_stack <= (char*)p) && ((char*)p < _stack + _stack_size);
+        //return (_stack <= (char*)p) && ((char*)p < _stack + _stack_size);
+        return (_stack <= (char*)p) && ((char*)p < _stack_top);
     }
 
-    // these callbacks are called at the end of loop()
-    void add_cleanup_cb(std::function<void()>&& cb) {
-        _cbs.push_back(std::move(cb));
-    }
+    // resume a coroutine
+    void resume(Coroutine* co);
 
-    // =========================================================================
-    // add task ready to resume
-    // =========================================================================
-    // for go(...)
+    // suspend the current coroutine
+    void yield() { tb_context_jump(_main_co->ctx, _running); }
+
+    // push a coroutine back to the pool, so it can be reused later.
+    void recycle(Coroutine* co) { _co_pool.push(co); }
+
+    // start the scheduler thread
+    void start() { Thread(&Scheduler::loop, this).detach(); }
+
+    // stop the scheduler thread
+    void stop();
+
+    /**
+     * add a new task 
+     *   - The scheduler will create a coroutine for this task later. 
+     *   - It can be called from anywhere. 
+     */
     void add_new_task(Closure* cb) {
         _task_mgr.add_new_task(cb);
         _epoll.signal();
     }
 
-    // Mutex::unlock()
-    // Event::signal() to Event::wait()
+    /**
+     * add a coroutine ready to be resumed 
+     *   - The scheduler will resume the coroutine later. 
+     *   - It can be called from anywhere. 
+     */
     void add_ready_task(Coroutine* co) {
         _task_mgr.add_ready_task(co);
         _epoll.signal();
     }
 
-    // =========================================================================
-    // add or delete a timer
-    // =========================================================================
+    /**
+     * sleep for milliseconds in the current coroutine 
+     * 
+     * @param ms  time in milliseconds the coroutine will suspend for.
+     */
     void sleep(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         _timer_mgr.add_timer(ms, _running);
         this->yield();
     }
 
-    // for Event::wait(ms)
+    /**
+     * add a timer for the current coroutine 
+     *   - The user MUST call yield() to suspend the coroutine after a timer was added. 
+     *   - When the timer is timeout, the scheduler will resume the coroutine. 
+     * 
+     * @param ms  timeout in milliseconds.
+     */
     void add_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         _running->it = _timer_mgr.add_timer(ms, _running);
         COLOG << "add timer: " << _running->it << " (" << ms << " ms)";
     }
 
-    // for IoEvent
+    /**
+     * add an IO timer for the current coroutine 
+     *   - It is the same as add_timer(), but may be faster. 
+     * 
+     * @param ms  timeout in milliseconds.
+     */
     void add_io_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         _running->it = _timer_mgr.add_io_timer(ms, _running);
         COLOG << "add io timer: " << _running->it << " (" << ms << " ms)";
-    }
-
-    void del_timer(const timer_id_t& it) {
-        COLOG << "del timer: " << it;
-        _timer_mgr.del_timer(it);
     }
 
   #if defined(_WIN32)
@@ -282,7 +295,21 @@ class Scheduler {
         _epoll.del_event(fd);
     }
 
+    // these callbacks are called at the end of loop()
+    void add_cleanup_cb(std::function<void()>&& cb) {
+        _cbs.push_back(std::move(cb));
+    }
+
   private:
+    // the thread function
+    void loop();
+
+    // delete a timer
+    void del_timer(const timer_id_t& it) {
+        COLOG << "del timer: " << it;
+        _timer_mgr.del_timer(it);
+    }
+
     void save_stack(Coroutine* co) {
         co->stack.clear();
         co->stack.append(co->ctx, _stack_top - (char*)co->ctx);

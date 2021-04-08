@@ -227,13 +227,12 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
-// a thread-safe wrapper for strerror()
 const char* strerror(int err) {
-    static __thread std::unordered_map<int, const char*>* kErrStr = 0;
-    if (!kErrStr) kErrStr = new std::unordered_map<int, const char*>();
-
     if (err == ETIMEDOUT) return "timedout";
-    auto& e = (*kErrStr)[err];
+
+    static __thread std::unordered_map<int, const char*>* kMap = 0;
+    if (!kMap) kMap = new std::unordered_map<int, const char*>();
+    auto& e = (*kMap)[err];
     if (e) return e;
 
     static ::Mutex mtx;

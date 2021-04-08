@@ -208,7 +208,7 @@ SchedulerManager::SchedulerManager() {
 
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
         Scheduler* s = new Scheduler(i, FLG_co_stack_size);
-        s->loop_in_thread();
+        s->start();
         _scheds.push_back(s);
     }
 }
