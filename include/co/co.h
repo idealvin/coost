@@ -434,10 +434,10 @@ struct PerIoInfo {
 
 class IoEvent {
   public:
-    // We don't care what kind of event it is on Windows.
     IoEvent(sock_t fd)
         : _fd(fd), _has_timer(false) {
-        scheduler()->add_event(fd);
+        // We don't care what kind of event it is on Windows.
+        scheduler()->add_io_event(fd, EV_read);
     }
 
     // We needn't delete the event on windows.
@@ -463,16 +463,16 @@ class IoEvent {
 #else
 class IoEvent {
   public:
-    IoEvent(sock_t fd, int ev)
+    IoEvent(sock_t fd, io_event_t ev)
         : _fd(fd), _ev(ev), _has_timer(false), _has_ev(false) {
     }
 
     ~IoEvent() {
-        if (_has_ev) scheduler()->del_event(_fd, _ev);
+        if (_has_ev) scheduler()->del_io_event(_fd, _ev);
     }
 
     bool wait(int ms=-1) {
-        if (!_has_ev) _has_ev = scheduler()->add_event(_fd, _ev);
+        if (!_has_ev) _has_ev = scheduler()->add_io_event(_fd, _ev);
         if (ms < 0) { scheduler()->yield(); return true; }
 
         if (!_has_timer) { _has_timer = true; scheduler()->add_io_timer(ms); }
@@ -485,7 +485,7 @@ class IoEvent {
 
   private:
     sock_t _fd;
-    int _ev;
+    io_event_t _ev;
     bool _has_timer;
     bool _has_ev;
 };

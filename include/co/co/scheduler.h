@@ -180,46 +180,28 @@ class TimerManager {
 
 /**
  * coroutine scheduler 
- *   - A scheduler will run in a single thread.
+ *   - A scheduler will loop in a single thread.
  */
 class Scheduler {
   public:
-    Scheduler(uint32 id, uint32 stack_size);
-    ~Scheduler();
-
     // id of this scheduler
     uint32 id() const { return _id; }
 
     // the current running coroutine
     Coroutine* running() const { return _running; }
 
-    // check whether the current coroutine has timed out
-    bool timeout() const { return _timeout; }
-
     // check whether a pointer is on the stack of the coroutine
     bool on_stack(void* p) const {
-        //return (_stack <= (char*)p) && ((char*)p < _stack + _stack_size);
+        assert(_stack_top == _stack + _stack_size);
         return (_stack <= (char*)p) && ((char*)p < _stack_top);
     }
-
-    // resume a coroutine
-    void resume(Coroutine* co);
 
     // suspend the current coroutine
     void yield() { tb_context_jump(_main_co->ctx, _running); }
 
-    // push a coroutine back to the pool, so it can be reused later.
-    void recycle(Coroutine* co) { _co_pool.push(co); }
-
-    // start the scheduler thread
-    void start() { Thread(&Scheduler::loop, this).detach(); }
-
-    // stop the scheduler thread
-    void stop();
-
     /**
      * add a new task 
-     *   - The scheduler will create a coroutine for this task later. 
+     *   - The scheduler will run this task in a coroutine later. 
      *   - It can be called from anywhere. 
      */
     void add_new_task(Closure* cb) {
@@ -263,6 +245,7 @@ class Scheduler {
 
     /**
      * add an IO timer for the current coroutine 
+     *   - The user MUST call yield() to suspend the coroutine after a timer was added. 
      *   - It is the same as add_timer(), but may be faster. 
      * 
      * @param ms  timeout in milliseconds.
@@ -273,25 +256,54 @@ class Scheduler {
         COLOG << "add io timer: " << _running->it << " (" << ms << " ms)";
     }
 
-  #if defined(_WIN32)
-    bool add_event(sock_t fd) {
-        return _epoll.add_event(fd);
-    }
-  #elif defined(__linux__)
-    bool add_event(sock_t fd, int ev) {
-        return _epoll.add_event(fd, ev, _running->id);
-    }
-  #else
-    bool add_event(sock_t fd, int ev) {
-        return _epoll.add_event(fd, ev, _running);
-    }
-  #endif
+    // check whether the current coroutine has timed out
+    bool timeout() const { return _timeout; }
 
-    void del_event(sock_t fd, int ev) {
+    /**
+     * add an IO event on a socket to the epoll 
+     *   - It MUST be called in a coroutine. 
+     *   - Usually, a coroutine calls add_io_event() at first, and then calls 
+     *     yield() to wait for the IO event. When the IO event is present, the 
+     *     scheduler will resume the coroutine. 
+     * 
+     * @param fd  the socket.
+     * @param ev  an IO event, either EV_read or EV_write.
+     *
+     * @return    true on success, false on error.
+     */
+    bool add_io_event(sock_t fd, io_event_t ev) {
+      #if defined(_WIN32)
+        (void) ev; // we do not care about ev on windows
+        return _epoll.add_event(fd);
+      #elif defined(__linux__)
+        return _epoll.add_event(fd, ev, _running->id);
+      #else
+        return _epoll.add_event(fd, ev, _running);
+      #endif
+
+    }
+
+    /**
+     * delete an IO event on a socket from the epoll 
+     *   - It MUST be called in a coroutine. 
+     *   - When a coroutine is resumed, it MUST delete the previously added IO event. 
+     * 
+     * @param fd  the socket.
+     * @param ev  an IO event, either EV_read or EV_write. 
+     */
+    void del_io_event(sock_t fd, io_event_t ev) {
         _epoll.del_event(fd, ev);
     }
 
-    void del_event(sock_t fd) {
+    /**
+     * delete all IO events on a socket from the epoll 
+     *   - It MUST be called in a coroutine. 
+     *   - The socket will be removed from the epoll. 
+     *   - Usually, it is called right before a socket is closed. 
+     * 
+     * @param fd  the socket.
+     */
+    void del_io_event(sock_t fd) {
         _epoll.del_event(fd);
     }
 
@@ -301,6 +313,26 @@ class Scheduler {
     }
 
   private:
+    friend class SchedulerManager;
+    Scheduler(uint32 id, uint32 stack_size);
+    ~Scheduler();
+
+    // Entry function for coroutines
+    static void main_func(tb_context_from_t from);
+
+    // resume a coroutine
+    void resume(Coroutine* co);
+
+    // push a coroutine back to the pool, so it can be reused later.
+    void recycle(Coroutine* co) { _co_pool.push(co); }
+
+    // start the scheduler thread
+    void start() { Thread(&Scheduler::loop, this).detach(); }
+
+    // stop the scheduler thread
+    void stop();
+
+
     // the thread function
     void loop();
 
@@ -334,7 +366,7 @@ class Scheduler {
     Coroutine* _main_co; // save the main context
     Coroutine* _running; // the current running coroutine
     Epoll _epoll;
-    uint32 _wait_ms;     // time epoll to wait
+    uint32 _wait_ms;     // time in milliseconds the epoller to wait for
 
     Copool _co_pool;
     TaskManager _task_mgr;
