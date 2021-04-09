@@ -42,13 +42,26 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
     return fs << *(void**)(&id);
 }
 
-// coroutine status
-//   co::Event::wait()    ->  S_wait  ->  S_init (end of wait)
-//   co::Event::signal()  ->  S_ready
-//   check_timeout()      ->  S_init
+/**
+ * coroutine state 
+ *   - The state is used to implement co::Event.
+ * 
+ *                   co::Event::wait()
+ *           S_init ===================>> S_wait
+ *             /\                           ||
+ *             ||                           ||
+ *    resume() ||                           ||
+ *             ||          timeout          ||
+ *             /\ <<======================= \/
+ *             ||                           ||
+ *             ||                           || co::Event::signal()
+ *             ||                           ||
+ *             /\                           \/
+ *              <<======================= S_ready
+ */
 enum {
     S_init = 0,  // initial state
-    S_wait = 1,  // wait for a event
+    S_wait = 1,  // wait for a signal from co::Event
     S_ready = 2, // ready to resume
 };
 
@@ -263,7 +276,7 @@ class Scheduler {
      * add an IO event on a socket to the epoll 
      *   - It MUST be called in a coroutine. 
      *   - Usually, a coroutine calls add_io_event() at first, and then calls 
-     *     yield() to wait for the IO event. When the IO event is present, the 
+     *     yield() to wait for an IO event. When the IO event is present, the 
      *     scheduler will resume the coroutine. 
      * 
      * @param fd  the socket.
@@ -280,7 +293,6 @@ class Scheduler {
       #else
         return _epoll.add_event(fd, ev, _running);
       #endif
-
     }
 
     /**
@@ -336,10 +348,13 @@ class Scheduler {
     // the thread function
     void loop();
 
-    // delete a timer
-    void del_timer(const timer_id_t& it) {
-        COLOG << "del timer: " << it;
-        _timer_mgr.del_timer(it);
+    // delete timer from a coroutine
+    void del_timer(Coroutine* co) {
+        if (co->it != null_timer_id) {
+            SOLOG << "del timer: " << co->it;
+            _timer_mgr.del_timer(co->it);
+            co->it = null_timer_id;
+        }
     }
 
     void save_stack(Coroutine* co) {

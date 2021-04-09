@@ -55,10 +55,12 @@ void Scheduler::resume(Coroutine* co) {
     }
 
     if (co->ctx == 0) {
+        assert(co->it == null_timer_id);
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
         SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
+        this->del_timer(co);
         SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
         CHECK(_stack_top == (char*)co->ctx + co->stack.size());
         memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
@@ -129,12 +131,7 @@ void Scheduler::loop() {
             if (!ready_tasks.empty()) {
                 SOLOG << ">> resume ready tasks, num: " << ready_tasks.size();
                 for (size_t i = 0; i < ready_tasks.size(); ++i) {
-                    Coroutine* co = ready_tasks[i];
-                    if (co->it != null_timer_id) {
-                        this->del_timer(co->it);
-                        co->it = null_timer_id;
-                    }
-                    this->resume(co);
+                    this->resume(ready_tasks[i]);
                 }
                 ready_tasks.clear();
             }
