@@ -18,14 +18,18 @@
 
 extern "C" {
 
-// - We need to hook the native APIs which may block, so that we can use third 
-//   network libraries directly in a coroutine.
-// - close(), shutdown() are also hooked to clear the hook info.
+/**
+ * We have to hook some native APIs, as third-party network libraries may block our 
+ * coroutine schedulers.
+ */
 
-typedef int (*connect_fp_t)(int, const struct sockaddr*, socklen_t);
-typedef int (*accept_fp_t)(int, struct sockaddr*, socklen_t*);
+// strerror is hooked as it is not thread-safe. 
+typedef char* (*strerror_fp_t)(int);
+
 typedef int (*close_fp_t)(int);
 typedef int (*shutdown_fp_t)(int, int);
+typedef int (*connect_fp_t)(int, const struct sockaddr*, socklen_t);
+typedef int (*accept_fp_t)(int, struct sockaddr*, socklen_t*);
 
 typedef ssize_t (*read_fp_t)(int, void*, size_t);
 typedef ssize_t (*readv_fp_t)(int, const struct iovec*, int);
@@ -66,13 +70,15 @@ typedef int (*kevent_fp_t)(int, const struct kevent*, int, struct kevent*, int, 
 #define dec_raw_api(x) extern x##_fp_t raw_api(x)
 #define def_raw_api(x) x##_fp_t raw_api(x) = 0
 
-// Declare raw api function pointers.
-// We can use these function pointers to call the native api directly.
-// The new name is raw_ + original name.
-dec_raw_api(connect);
-dec_raw_api(accept);
+/**
+ * Declare raw API function pointers. We can use these pointers to call 
+ * the native API directly. The new name is raw_ + original name.
+ */
+dec_raw_api(strerror);
 dec_raw_api(close);
 dec_raw_api(shutdown);
+dec_raw_api(connect);
+dec_raw_api(accept);
 dec_raw_api(read);
 dec_raw_api(readv);
 dec_raw_api(recv);

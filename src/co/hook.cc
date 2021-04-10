@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "co/co.h"
+#include <errno.h>
 #include <dlfcn.h>
 #include <vector>
 #include <unordered_map>
@@ -128,6 +129,38 @@ class Hook {
     }
 };
 
+class Error {
+  public:
+    Error() = default;
+    ~Error() = default;
+
+    struct T {
+        T() : err(4096) {}
+        fastream err;
+        std::unordered_map<int, uint32> pos;
+    };
+
+    const char* strerror(int e) {
+        if (_p == NULL) _p.reset(new T);
+        auto it = _p->pos.find(e);
+        if (it != _p->pos.end()) {
+            return _p->err.data() + it->second;
+        } else {
+            uint32 pos = (uint32) _p->err.size();
+            static ::Mutex mtx;
+            {
+                ::MutexGuard g(mtx);
+                _p->err.append(raw_strerror(e)).append('\0');
+            }
+            _p->pos[e] = pos;
+            return _p->err.data() + pos;
+        }
+    }
+
+  private:
+    thread_ptr<T> _p;
+};
+
 } // co
 
 inline co::Hook& gHook() {
@@ -160,10 +193,11 @@ inline co::Mutex& gDnsMutex() {
 
 extern "C" {
 
-def_raw_api(connect);
-def_raw_api(accept);
+def_raw_api(strerror);
 def_raw_api(close);
 def_raw_api(shutdown);
+def_raw_api(connect);
+def_raw_api(accept);
 def_raw_api(read);
 def_raw_api(readv);
 def_raw_api(recv);
@@ -209,6 +243,35 @@ def_raw_api(kevent);
     } while (true)
 
 
+char* strerror(int err) {
+    init_hook(strerror);
+    static co::Error e;
+    return (char*) e.strerror(err);
+}
+
+int shutdown(int fd, int how) {
+    init_hook(shutdown);
+    if (!gSched) return raw_api(shutdown)(fd, how);
+
+    char c = (how == SHUT_RD ? 'r' : (how == SHUT_WR ? 'w' : 'b'));
+    auto hi = gHook().on_shutdown(fd, c);
+    if (!hi.hookable()) return raw_api(shutdown)(fd, how);
+    return co::shutdown(fd, c);
+}
+
+int close(int fd) {
+    init_hook(close);
+    if (!gSched) return raw_api(close)(fd);
+
+    auto hi = gHook().on_close(fd);
+    if (!hi.hookable()) return raw_api(close)(fd);
+    return co::close(fd);
+}
+
+int __close(int fd) {
+    return close(fd);
+}
+
 /*
  * From man-pages socket(7):  (man 7 socket)
  * SO_RCVTIMEO and SO_SNDTIMEO
@@ -252,29 +315,6 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
             return -1;
         }
     } while (true);
-}
-
-int shutdown(int fd, int how) {
-    init_hook(shutdown);
-    if (!gSched) return raw_api(shutdown)(fd, how);
-
-    char c = (how == SHUT_RD ? 'r' : (how == SHUT_WR ? 'w' : 'b'));
-    auto hi = gHook().on_shutdown(fd, c);
-    if (!hi.hookable()) return raw_api(shutdown)(fd, how);
-    return co::shutdown(fd, c);
-}
-
-int close(int fd) {
-    init_hook(close);
-    if (!gSched) return raw_api(close)(fd);
-
-    auto hi = gHook().on_close(fd);
-    if (!hi.hookable()) return raw_api(close)(fd);
-    return co::close(fd);
-}
-
-int __close(int fd) {
-    return close(fd);
 }
 
 ssize_t read(int fd, void* buf, size_t count) {
@@ -655,10 +695,11 @@ static bool _dummy = init_hooks();
 
 bool init_hooks() {
     (void) _dummy;
-    init_hook(connect);
-    init_hook(accept);
+    init_hook(strerror);
     init_hook(close);
     init_hook(shutdown);
+    init_hook(connect);
+    init_hook(accept);
     init_hook(read);
     init_hook(readv);
     init_hook(recv);
