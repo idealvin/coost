@@ -391,7 +391,6 @@ class Error {
                 _p->err << e;
                 _p->err.append('\0');
             } else {
-                assert(s);
                 _p->err.append(s).append('\0');
                 LocalFree(s);
                 char* p = (char*) strchr(_p->err.data() + pos, '\r');
