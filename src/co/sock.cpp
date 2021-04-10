@@ -3,9 +3,6 @@
 #include "co/co.h"
 #include <ws2spi.h>
 
-DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
-DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
-
 namespace co {
 using namespace co::xx;
 
@@ -228,7 +225,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     return (int) info->n;
 }
 
-int _Recvn(sock_t fd, void* buf, int n, int ms) {
+int recvn(sock_t fd, void* buf, int n, int ms) {
     std::unique_ptr<PerIoInfo> info(
         new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
     );
@@ -255,22 +252,6 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
             info->resetol();
         } while (0);
     } while (true);
-}
-
-int recvn(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    char* s = (char*) buf;
-    int x = n;
-
-    while (x > FLG_co_max_recv_size) {
-        int r = _Recvn(fd, s, FLG_co_max_recv_size, ms);
-        if (r != FLG_co_max_recv_size) return r;
-        x -= FLG_co_max_recv_size;
-        s += FLG_co_max_recv_size;
-    }
-
-    int r = _Recvn(fd, s, x, ms);
-    return r != x ? r : n;
 }
 
 // TODO: free s on error
@@ -316,7 +297,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     return (int) info->n;
 }
 
-int _Send(sock_t fd, const void* buf, int n, int ms) {
+int send(sock_t fd, const void* buf, int n, int ms) {
     std::unique_ptr<PerIoInfo> info;
     if (!gSched->on_stack((void*)buf)) {
         info.reset(new PerIoInfo(buf, n, gSched->running()));
@@ -345,22 +326,6 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
             info->resetol();
         } while (0);
     } while (true);
-}
-
-int send(sock_t fd, const void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    const char* s = (const char*) buf;
-    int x = n;
-
-    while (x > FLG_co_max_send_size) {
-        int r = _Send(fd, s, FLG_co_max_send_size, ms);
-        if (r != FLG_co_max_send_size) return r;
-        x -= FLG_co_max_send_size;
-        s += FLG_co_max_send_size;
-    }
-
-    int r = _Send(fd, s, x, ms);
-    return r != x ? r : n;
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {

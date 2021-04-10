@@ -286,7 +286,7 @@ class Scheduler {
      */
     bool add_io_event(sock_t fd, io_event_t ev) {
       #if defined(_WIN32)
-        (void) ev; // we do not care about ev on windows
+        (void) ev; // we do not care what the event is on windows
         return _epoll.add_event(fd);
       #elif defined(__linux__)
         return _epoll.add_event(fd, ev, _running->id);
@@ -344,18 +344,8 @@ class Scheduler {
     // stop the scheduler thread
     void stop();
 
-
     // the thread function
     void loop();
-
-    // delete timer from a coroutine
-    void del_timer(Coroutine* co) {
-        if (co->it != null_timer_id) {
-            SOLOG << "del timer: " << co->it;
-            _timer_mgr.del_timer(co->it);
-            co->it = null_timer_id;
-        }
-    }
 
     void save_stack(Coroutine* co) {
         co->stack.clear();

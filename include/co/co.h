@@ -127,7 +127,7 @@ int max_sched_num();
  *          is not a scheduler thread.
  */
 inline int scheduler_id() {
-    scheduler() ? scheduler()->id() : -1;
+    return scheduler() ? scheduler()->id() : -1;
 }
 
 /**
@@ -432,61 +432,114 @@ struct PerIoInfo {
     WSABUF buf;
 };
 
+/**
+ * IoEvent is for waiting an IO event on a socket 
+ *   - It MUST be used in a coroutine. 
+ *   - The socket MUST be overlapped on windows.
+ */
 class IoEvent {
   public:
-    IoEvent(sock_t fd)
-        : _fd(fd), _has_timer(false) {
-        // We don't care what kind of event it is on Windows.
-        scheduler()->add_io_event(fd, EV_read);
+    /**
+     * the constructor 
+     *   - On windows, we MUST add the socket to IOCP before we call IO APIs like 
+     *     WSARecv, and we don't care what the IO event is. 
+     * 
+     * @param fd  the socket.
+     * @param ev  the IO event, it is ignored on windows.
+     */
+    IoEvent(sock_t fd, io_event_t ev=EV_read) : _fd(fd) {
+        scheduler()->add_io_event(fd, ev);
     }
 
-    // We needn't delete the event on windows.
     ~IoEvent() = default;
 
+    /**
+     * wait for an IO event on a socket 
+     *   - The errno will be set to ETIMEDOUT on timeout. The user can call 
+     *     co::error() to get the errno later. 
+     * 
+     * @param ms  timeout in milliseconds, if ms < 0, it will never timeout. 
+     *            default: -1. 
+     * 
+     * @return    true if an IO event is present, or false on timeout.
+     */
     bool wait(int ms=-1) {
-        if (ms < 0) { scheduler()->yield(); return true; }
-        
-        if (!_has_timer) { _has_timer = true; scheduler()->add_io_timer(ms); }
-        scheduler()->yield();
-        if (!scheduler()->timeout()) return true;
-
-        CancelIo((HANDLE)_fd);
-        WSASetLastError(ETIMEDOUT);
-        return false;
+        if (ms >= 0) {
+            scheduler()->add_io_timer(ms);
+            scheduler()->yield();
+            if (!scheduler()->timeout()) {
+                return true;
+            } else {
+                CancelIo((HANDLE)_fd);
+                WSASetLastError(ETIMEDOUT);
+                return false;
+            }
+        } else {
+            scheduler()->yield();
+            return true; 
+        }
     }
 
   private:
     sock_t _fd;
-    bool _has_timer;
 };
 
 #else
+/**
+ * IoEvent is for waiting an IO event on a socket 
+ *   - It MUST be used in a coroutine. 
+ *   - The socket MUST be non-blocking on Linux & Mac. 
+ */
 class IoEvent {
   public:
+    /**
+     * the constructor 
+     * 
+     * @param fd  the socket.
+     * @param ev  the IO event, either EV_read or EV_write.
+     */
     IoEvent(sock_t fd, io_event_t ev)
-        : _fd(fd), _ev(ev), _has_timer(false), _has_ev(false) {
+        : _fd(fd), _ev(ev), _has_ev(false) {
     }
 
     ~IoEvent() {
         if (_has_ev) scheduler()->del_io_event(_fd, _ev);
     }
 
+    /**
+     * wait for an IO event on a socket 
+     *   - The errno will be set to ETIMEDOUT on timeout. The user can call 
+     *     co::error() to get the errno later. 
+     * 
+     * @param ms  timeout in milliseconds, if ms < 0, it will never timeout. 
+     *            default: -1. 
+     * 
+     * @return    true if an IO event is present, or false on timeout or error.
+     */
     bool wait(int ms=-1) {
-        if (!_has_ev) _has_ev = scheduler()->add_io_event(_fd, _ev);
-        if (ms < 0) { scheduler()->yield(); return true; }
+        if (!_has_ev) {
+            _has_ev = scheduler()->add_io_event(_fd, _ev);
+            if (!_has_ev) return false;
+        }
 
-        if (!_has_timer) { _has_timer = true; scheduler()->add_io_timer(ms); }
-        scheduler()->yield();
-        if (!scheduler()->timeout()) return true;
-
-        errno = ETIMEDOUT;
-        return false;
+        if (ms >= 0) {
+            scheduler()->add_io_timer(ms);
+            scheduler()->yield();
+            if (!scheduler()->timeout()) {
+                return true;
+            } else {
+                errno = ETIMEDOUT;
+                return false;
+            }
+        } else {
+            scheduler()->yield();
+            return true;
+        }
     }
 
   private:
     sock_t _fd;
     io_event_t _ev;
-    bool _has_timer;
     bool _has_ev;
 };
 #endif

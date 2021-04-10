@@ -60,7 +60,11 @@ void Scheduler::resume(Coroutine* co) {
         SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
-        this->del_timer(co);
+        if (co->it != null_timer_id) {
+            SOLOG << "del timer: " << co->it;
+            _timer_mgr.del_timer(co->it);
+            co->it = null_timer_id;
+        }
         SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
         CHECK(_stack_top == (char*)co->ctx + co->stack.size());
         memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data

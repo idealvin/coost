@@ -2,11 +2,17 @@
 
 #include "co/co.h"
 
-DEF_int32(co_max_recv_size, 1024 * 1024, "#1 max size for a single recv");
-DEF_int32(co_max_send_size, 1024 * 1024, "#1 max size for a single send");
-
 namespace co {
 using namespace co::xx;
+
+/**
+ * We have hooked the global strerror(), it is thread-safe now. 
+ * See more details in co/hook.cc.
+ */
+const char* strerror(int err) {
+    if (err == ETIMEDOUT) return "timedout";
+    return ::strerror(err);
+}
 
 #ifdef SOCK_NONBLOCK
 sock_t socket(int domain, int type, int protocol) {
@@ -48,7 +54,7 @@ int shutdown(sock_t fd, char c) {
 }
 
 int bind(sock_t fd, const void* addr, int addrlen) {
-    return ::bind(fd, (const struct sockaddr*) addr, (socklen_t) addrlen);
+    return ::bind(fd, (const struct sockaddr*)addr, (socklen_t)addrlen);
 }
 
 int listen(sock_t fd, int backlog) {
@@ -119,7 +125,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     } while (true);
 }
 
-int _Recvn(sock_t fd, void* buf, int n, int ms) {
+int recvn(sock_t fd, void* buf, int n, int ms) {
     char* s = (char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_read);
@@ -142,22 +148,6 @@ int _Recvn(sock_t fd, void* buf, int n, int ms) {
     } while (true);
 }
 
-int recvn(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    char* s = (char*) buf;
-    int remain = n;
-
-    while (remain > FLG_co_max_recv_size) {
-        int r = _Recvn(fd, s, FLG_co_max_recv_size, ms);
-        if (r != FLG_co_max_recv_size) return r;
-        remain -= FLG_co_max_recv_size;
-        s += FLG_co_max_recv_size;
-    }
-
-    int r = _Recvn(fd, s, remain, ms);
-    return r != remain ? r : n;
-}
-
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
@@ -173,7 +163,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     } while (true);
 }
 
-int _Send(sock_t fd, const void* buf, int n, int ms) {
+int send(sock_t fd, const void* buf, int n, int ms) {
     const char* s = (const char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_write);
@@ -195,22 +185,6 @@ int _Send(sock_t fd, const void* buf, int n, int ms) {
     } while (true);
 }
 
-int send(sock_t fd, const void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    const char* s = (const char*) buf;
-    int remain = n;
-
-    while (remain > FLG_co_max_send_size) {
-        int r = _Send(fd, s, FLG_co_max_send_size, ms);
-        if (r != FLG_co_max_send_size) return r;
-        remain -= FLG_co_max_send_size;
-        s += FLG_co_max_send_size;
-    }
-
-    int r = _Send(fd, s, remain, ms);
-    return r != remain ? r : n;
-}
-
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, EV_write);
@@ -225,19 +199,6 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
             return -1;
         }
     } while (true);
-}
-
-const char* strerror(int err) {
-    if (err == ETIMEDOUT) return "timedout";
-
-    static __thread std::unordered_map<int, const char*>* kMap = 0;
-    if (!kMap) kMap = new std::unordered_map<int, const char*>();
-    auto& e = (*kMap)[err];
-    if (e) return e;
-
-    static ::Mutex mtx;
-    ::MutexGuard g(mtx);
-    return e = strdup(::strerror(err));
 }
 
 } // co
