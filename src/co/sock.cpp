@@ -393,30 +393,58 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (0);
 }
 
+class Error {
+  public:
+    Error() = default;
+    ~Error() = default;
+
+    struct T {
+        T() : err(4096) {}
+        fastream err;
+        std::unordered_map<int, uint32> pos;
+    };
+
+    const char* strerror(int e) {
+        if (_p == NULL) _p.reset(new T);
+        auto it = _p->pos.find(e);
+        if (it != _p->pos.end()) {
+            return _p->err.data() + it->second;
+        } else {
+            uint32 pos = (uint32) _p->err.size();
+            char* s = 0;
+            FormatMessage(
+                FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                FORMAT_MESSAGE_FROM_SYSTEM |
+                FORMAT_MESSAGE_IGNORE_INSERTS,
+                0, e,
+                MAKELANGID(LANG_ENGLISH /*LANG_NEUTRAL*/, SUBLANG_DEFAULT),
+                (LPTSTR)&s, 0, 0
+            );
+
+            if (s == NULL) {
+                _p->err.append("unknown error: ");
+                _p->err << e;
+                _p->err.append('\0');
+            } else {
+                assert(s);
+                _p->err.append(s).append('\0');
+                LocalFree(s);
+                char* p = (char*) strchr(_p->err.data() + pos, '\r');
+                if (p) *p = '\0';
+            }
+            _p->pos[e] = pos;
+            return _p->err.data() + pos;
+        }
+    }
+
+  private:
+    thread_ptr<T> _p;
+};
+
 const char* strerror(int err) {
-    static __thread std::unordered_map<int, const char*>* kErrStr = 0;
-    if (!kErrStr) kErrStr = new std::unordered_map<int, const char*>();
-
     if (err == ETIMEDOUT) return "timedout";
-    auto& e = (*kErrStr)[err];
-    if (e) return e;
-
-    char* s = 0;
-    FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-        FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS,
-        0, err,
-        MAKELANGID(LANG_ENGLISH /*LANG_NEUTRAL*/, SUBLANG_DEFAULT),
-        (LPTSTR)&s, 0, 0
-    );
-
-    assert(s);
-    e = _strdup(s);
-    LocalFree(s);
-    char* p = (char*) strchr(e, '\r');
-    if (p) *p = '\0';
-    return e;
+    static co::Error e;
+    return e.strerror(err);
 }
 
 bool _Can_skip_iocp_on_success() {
@@ -458,6 +486,7 @@ bool _Can_skip_iocp_on_success() {
     return true;
 }
 
+namespace xx {
 void wsa_startup() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
@@ -503,6 +532,7 @@ void wsa_startup() {
 
 void wsa_cleanup() { WSACleanup(); }
 
+} // xx
 } // co
 
 #endif // _WIN32
