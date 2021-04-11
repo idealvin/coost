@@ -4,7 +4,6 @@
 #include <ws2spi.h>
 
 namespace co {
-using namespace co::xx;
 
 LPFN_CONNECTEX connect_ex = 0;
 LPFN_ACCEPTEX accept_ex = 0;
@@ -28,28 +27,28 @@ sock_t socket(int domain, int type, int protocol) {
 }
 
 int close(sock_t fd, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    gSched->del_io_event(fd);
-    if (ms > 0) gSched->sleep(ms);
+    CHECK(scheduler()) << "must be called in coroutine..";
+    scheduler()->del_io_event(fd);
+    if (ms > 0) scheduler()->sleep(ms);
     return ::closesocket(fd);
 }
 
 int shutdown(sock_t fd, char c) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(scheduler()) << "must be called in coroutine..";
     if (c == 'r') {
-        gSched->del_io_event(fd, EV_read);
+        scheduler()->del_io_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
     } else if (c == 'w') {
-        gSched->del_io_event(fd, EV_write);
+        scheduler()->del_io_event(fd, EV_write);
         return ::shutdown(fd, SD_SEND);
     } else {
-        gSched->del_io_event(fd);
+        scheduler()->del_io_event(fd);
         return ::shutdown(fd, SD_BOTH);
     }
 }
 
 int bind(sock_t fd, const void* addr, int addrlen) {
-    return ::bind(fd, (const struct sockaddr*) addr, (socklen_t) addrlen);
+    return ::bind(fd, (const struct sockaddr*)addr, (socklen_t)addrlen);
 }
 
 int listen(sock_t fd, int backlog) {
@@ -59,7 +58,7 @@ int listen(sock_t fd, int backlog) {
 static int find_address_family(sock_t fd) {
     static std::vector<std::unordered_map<sock_t, int>> kAf(co::max_sched_num());
 
-    auto& map = kAf[gSched->id()];
+    auto& map = kAf[scheduler()->id()];
     int& af = map[fd];
     if (af != 0) return af;
     {
@@ -73,7 +72,7 @@ static int find_address_family(sock_t fd) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(scheduler()) << "must be called in coroutine..";
 
     // We have to figure out the address family of the listening socket here.
     int af = find_address_family(fd);
@@ -82,52 +81,28 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     sock_t connfd = co::tcp_socket(af);
     if (connfd == INVALID_SOCKET) return connfd;
 
-    const int sockaddr_len = sizeof(sockaddr_in6);
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(0, (sockaddr_len + 16) * 2, gSched->running())
-    );
-
+    const int N = sizeof(sockaddr_in6);
+    IoEvent ev(fd, EV_read, (N + 16) * 2);
     sockaddr *serv = 0, *peer = 0;
-    int serv_len = sockaddr_len, peer_len = sockaddr_len;
-    IoEvent ev(fd);
+    int serv_len = N, peer_len = N;
 
-    int r = accept_ex(
-        fd, connfd, info->s, 0,
-        sockaddr_len + 16, sockaddr_len + 16,
-        0, &info->ol
-    );
-
+    int r = accept_ex(fd, connfd, ev->s, 0, N + 16, N + 16, 0, &ev->ol);
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) goto err;
         ev.wait();
     }
 
     // https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-acceptex
-    r = setsockopt(
-        connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-        (char*)&fd, sizeof(fd)
-    );
-
+    r = co::setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, &fd, sizeof(fd));
     if (r != 0) {
         ELOG << "acceptex set SO_UPDATE_ACCEPT_CONTEXT failed..";
         goto err;
     }
 
-    get_accept_ex_addrs(
-        info->s, 0,
-        sockaddr_len + 16, sockaddr_len + 16,
-        &serv, &serv_len,
-        &peer, &peer_len
-    );
-
+    get_accept_ex_addrs(ev->s, 0, N + 16, N + 16, &serv, &serv_len, &peer, &peer_len);
     if (addr && addrlen) {
-        if (*addrlen < peer_len) {
-            WSASetLastError(WSAEFAULT);
-            goto err;
-        } else {
-            memcpy(addr, peer, peer_len);
-            *addrlen = peer_len;
-        }
+        if (peer_len <= *addrlen) memcpy(addr, peer, peer_len);
+        *addrlen = peer_len;
     }
 
     set_skip_iocp_on_success(connfd);
@@ -138,18 +113,8 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     return -1;
 }
 
-#define return_on_io_timeout(ev, ms, info) \
-    if (!ev.wait(ms)) {\
-        info->co = 0; \
-        WLOG << "io timeout: " << (void*)info.release(); \
-        return -1; \
-    } \
-
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(addr, addrlen, gSched->running())
-    );
+    CHECK(scheduler()) << "must be called in coroutine..";
 
     // docs.microsoft.com/zh-cn/windows/win32/api/mswsock/nc-mswsock-lpfn_connectex
     // stackoverflow.com/questions/13598530/connectex-requires-the-socket-to-be-initially-bound-but-to-what
@@ -173,19 +138,15 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         }
     } while (0);
 
-    IoEvent ev(fd);
+    IoEvent ev(fd, EV_write);
 
-    int r = connect_ex(
-        fd, (const sockaddr*)addr, addrlen,
-        0, 0, 0, &info->ol
-    );
-
+    int r = connect_ex(fd, (const sockaddr*)addr, addrlen, 0, 0, 0, &ev->ol);
     if (r == FALSE) {
         if (co::error() != ERROR_IO_PENDING) return -1;
-        return_on_io_timeout(ev, ms, info);
+        if (!ev.wait(ms)) return -1;
     }
 
-    r = setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
+    r = co::setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
     if (r != 0) {
         ELOG << "connectex set SO_UPDATE_ACCEPT_CONTEXT failed..";
         return -1;
@@ -193,9 +154,9 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     int seconds;
     int len = sizeof(int);
-    r = getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&seconds, &len);
-    if (r == NO_ERROR) {
-        if (seconds == -1) return -1;
+    r = co::getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, &seconds, &len);
+    if (r == 0) {
+        if (seconds == -1) return -1; // not connected
         set_skip_iocp_on_success(fd);
         return 0;
     } else {
@@ -205,84 +166,62 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
-    );
+    CHECK(scheduler()) << "must be called in coroutine..";
+    IoEvent ev(fd, EV_read, buf, n);
 
-    IoEvent ev(fd);
-    int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
-
+    int r = WSARecv(fd, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        return_on_io_timeout(ev, ms, info);
+        if (!ev.wait(ms)) return -1;
     } else {
         return -1;
     }
 
-    if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
-    return (int) info->n;
+    return (int) ev->n;
 }
 
 int recvn(sock_t fd, void* buf, int n, int ms) {
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
-    );
-
-    IoEvent ev(fd);
+    IoEvent ev(fd, EV_read, buf, n);
 
     do {
-        int r = WSARecv(fd, &info->buf, 1, &info->n, &info->flags, &info->ol, 0);
+        int r = WSARecv(fd, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            return_on_io_timeout(ev, ms, info);
+            if (!ev.wait(ms)) return -1;
         } else {
             return -1;
         }
 
         do {
-            if (info->n == (DWORD) info->buf.len) {
-                if (info->s) memcpy(buf, info->s, n);
-                return n;
-            }
-            if (info->n == 0) return 0;
-            info->move(info->n);
-            info->resetol();
+            if (ev->n == (DWORD) ev->buf.len) return n;
+            if (ev->n == 0) return 0; // connection closed
+            ev->buf.buf += ev->n;
+            ev->buf.len -= ev->n;
+            memset(&ev->ol, 0, sizeof(ev->ol));
         } while (0);
     } while (true);
 }
 
-// TODO: free s on error
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    std::unique_ptr<PerIoInfo> info(
-        new PerIoInfo(!gSched->on_stack(buf) ? buf : 0, n, gSched->running())
-    );
-
+    CHECK(scheduler()) << "must be called in coroutine..";
     int r;
     char* s = 0;
-    IoEvent ev(fd);
+    IoEvent ev(fd, EV_read, buf, n, sizeof(sockaddr_in6) + 8);
 
     if (addr && addrlen) {
-        s = (char*) malloc(*addrlen + 8);
-        *(int*)s = *addrlen;
-        r = WSARecvFrom(
-            fd, &info->buf, 1, &info->n, &info->flags,
-            (sockaddr*)(s + 8), (int*)s, &info->ol, 0
-        );
+        s = ev->s;
+        *(int*)s = sizeof(sockaddr_in6);
+        r = WSARecvFrom(fd, &ev->buf, 1, &ev->n, &ev->flags, (sockaddr*)(s + 8), (int*)s, &ev->ol, 0);
     } else {
-        r = WSARecvFrom(
-            fd, &info->buf, 1, &info->n, &info->flags,
-            0, 0, &info->ol, 0
-        );
+        r = WSARecvFrom(fd, &ev->buf, 1, &ev->n, &ev->flags, 0, 0, &ev->ol, 0);
     }
 
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        return_on_io_timeout(ev, ms, info);
+        if (!ev.wait(ms)) return -1;
     } else {
         return -1;
     }
@@ -290,71 +229,54 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     if (s) {
         memcpy(addr, s + 8, *addrlen);
         *addrlen = *(int*)s;
-        free(s);
     }
-
-    if (info->s && info->n > 0) memcpy(buf, info->s, info->n);
-    return (int) info->n;
+    return (int) ev->n;
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack((void*)buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(0, n, gSched->running()));
-        memcpy(info->s, buf, n);
-    }
-
-    IoEvent ev(fd);
+    IoEvent ev(fd, EV_write, buf, n);
 
     do {
-        int r = WSASend(fd, &info->buf, 1, &info->n, 0, &info->ol, 0);
-
+        int r = WSASend(fd, &ev->buf, 1, &ev->n, 0, &ev->ol, 0);
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            return_on_io_timeout(ev, ms, info);
+            if (!ev.wait(ms)) return -1;
         } else {
             return -1;
         }
 
         do {
-            if (info->n == (DWORD) info->buf.len) return n;
-            if (info->n == 0) return -1;
-            info->move(info->n);
-            info->resetol();
+            if (ev->n == (DWORD) ev->buf.len) return n;
+            if (ev->n == 0) return -1;
+            ev->buf.buf += ev->n;
+            ev->buf.len -= ev->n;
+            memset(&ev->ol, 0, sizeof(ev->ol));
         } while (0);
     } while (true);
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    std::unique_ptr<PerIoInfo> info;
-    if (!gSched->on_stack((void*)buf)) {
-        info.reset(new PerIoInfo(buf, n, gSched->running()));
-    } else {
-        info.reset(new PerIoInfo(0, n, gSched->running()));
-        memcpy(info->s, buf, n);
-    }
-
-    IoEvent ev(fd);
+    CHECK(scheduler()) << "must be called in coroutine..";
+    IoEvent ev(fd, EV_write, buf, n);
 
     do {
-        int r = WSASendTo(
-            fd, &info->buf, 1, &info->n, 0,
-            (const sockaddr*)addr, addrlen, &info->ol, 0
-        );
-
+        int r = WSASendTo(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            return_on_io_timeout(ev, ms, info);
+            if (!ev.wait(ms)) return -1;
         } else {
             return -1;
         }
 
-        return (int) info->n;
+        do {
+            if (ev->n == (DWORD) ev->buf.len) return n;
+            if (ev->n == 0) return -1;
+            ev->buf.buf += ev->n;
+            ev->buf.len -= ev->n;
+            memset(&ev->ol, 0, sizeof(ev->ol));
+        } while (0);
     } while (0);
 }
 
@@ -377,7 +299,7 @@ class Error {
         } else {
             uint32 pos = (uint32) _p->err.size();
             char* s = 0;
-            FormatMessage(
+            FormatMessageA(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER |
                 FORMAT_MESSAGE_FROM_SYSTEM |
                 FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -386,15 +308,15 @@ class Error {
                 (LPTSTR)&s, 0, 0
             );
 
-            if (s == NULL) {
-                _p->err.append("unknown error: ");
-                _p->err << e;
-                _p->err.append('\0');
-            } else {
+            if (s) {
                 _p->err.append(s).append('\0');
                 LocalFree(s);
                 char* p = (char*) strchr(_p->err.data() + pos, '\r');
                 if (p) *p = '\0';
+            } else {
+                _p->err.append("Unknown error ");
+                _p->err << e;
+                _p->err.append('\0');
             }
             _p->pos[e] = pos;
             return _p->err.data() + pos;
@@ -406,41 +328,29 @@ class Error {
 };
 
 const char* strerror(int err) {
-    if (err == ETIMEDOUT) return "timedout";
+    if (err == ETIMEDOUT) return "Timed out.";
     static co::Error e;
     return e.strerror(err);
 }
 
-bool _Can_skip_iocp_on_success() {
-    static int protos[] = { IPPROTO_TCP, IPPROTO_UDP, 0 };
+namespace xx {
 
+bool can_skip_iocp_on_success() {
+    static int protos[] = { IPPROTO_TCP, IPPROTO_UDP, 0 };
     fastring s;
     LPWSAPROTOCOL_INFOW proto_info = 0;
     DWORD buf_len = 0;
-    int err = 0;
-
-    int r = WSCEnumProtocols(
-        (int*) &protos[0],
-        proto_info, &buf_len, &err
-    );
+    int err = 0, ntry = 0;
+    int r = WSCEnumProtocols(&protos[0], proto_info, &buf_len, &err);
     CHECK_EQ(r, SOCKET_ERROR);
 
-    int ntry = 0;
-    bool done = false;
-
     while (true) {
-        ++ntry;
         CHECK_EQ(err, WSAENOBUFS);
-        CHECK_LE(ntry, 3);
+        if (++ntry > 3) return false;
 
         s.reserve(buf_len);
         proto_info = (LPWSAPROTOCOL_INFOW) s.data();
-
-        r = WSCEnumProtocols(
-            (int*) &protos[0],
-            proto_info, &buf_len, &err
-        );
-
+        r = WSCEnumProtocols(&protos[0], proto_info, &buf_len, &err);
         if (r != SOCKET_ERROR) break;
     }
 
@@ -450,7 +360,6 @@ bool _Can_skip_iocp_on_success() {
     return true;
 }
 
-namespace xx {
 void wsa_startup() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
@@ -491,7 +400,7 @@ void wsa_startup() {
     CHECK_EQ(r, 0) << "get GetAccpetExSockAddrs failed: " << co::strerror();
     ::closesocket(fd);
     
-    can_skip_iocp_on_success = _Can_skip_iocp_on_success();
+    co::can_skip_iocp_on_success = xx::can_skip_iocp_on_success();
 }
 
 void wsa_cleanup() { WSACleanup(); }

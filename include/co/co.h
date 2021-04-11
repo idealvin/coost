@@ -403,34 +403,7 @@ class PoolGuard {
 };
 
 #ifdef _WIN32
-struct PerIoInfo {
-    PerIoInfo(const void* data, int size, void* c)
-        : n(0), flags(0), co(c), s(data ? 0 : (char*)malloc(size)) {
-        memset(&ol, 0, sizeof(ol));
-        buf.buf = data ? (char*)data : s;
-        buf.len = size;
-    }
 
-    ~PerIoInfo() {
-        if (s) free(s);
-    }
-
-    void move(DWORD n) {
-        buf.buf += n;
-        buf.len -= (ULONG) n;
-    }
-
-    void resetol() {
-        memset(&ol, 0, sizeof(ol));
-    }
-
-    WSAOVERLAPPED ol;
-    DWORD n;            // bytes transfered
-    DWORD flags;        // flags for WSARecv
-    void* co;           // user data, pointer to a coroutine
-    char* s;            // dynamic allocated buffer
-    WSABUF buf;
-};
 
 /**
  * IoEvent is for waiting an IO event on a socket 
@@ -439,19 +412,81 @@ struct PerIoInfo {
  */
 class IoEvent {
   public:
+    struct PerIoInfo {
+        PerIoInfo() {
+            memset(this, 0, sizeof(*this));
+            co = scheduler()->running();
+        }
+        ~PerIoInfo() {
+            if (to && n > 0) memcpy(to, from, from == buf.buf ? n : size);
+        }
+
+        WSAOVERLAPPED ol;
+        void* co;     // user data, pointer to a coroutine
+        DWORD n;      // bytes transfered
+        DWORD flags;  // flags for WSARecv, WSARecvFrom
+        char* from;   // data to copy from
+        char* to;     // data to copy to
+        uint32 size;  // bytes to copy
+        WSABUF buf;
+        char s[];     // extra buffer allocated
+    };
+
     /**
      * the constructor 
-     *   - On windows, we MUST add the socket to IOCP before we call IO APIs like 
-     *     WSARecv, and we don't care what the IO event is. 
+     *   - On windows, we MUST add the socket to IOCP before we call APIs like WSARecv. 
      * 
      * @param fd  the socket.
-     * @param ev  the IO event, it is ignored on windows.
+     * @param ev  the IO event, either EV_read or EV_write.
+     * @param n   extra bytes to be allocated for PerIoInfo.
      */
-    IoEvent(sock_t fd, io_event_t ev=EV_read) : _fd(fd) {
+    IoEvent(sock_t fd, io_event_t ev, int n=0)
+        : _fd(fd) {
         scheduler()->add_io_event(fd, ev);
+        _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
     }
 
-    ~IoEvent() = default;
+    /**
+     * the constructor 
+     *   - On windows, we MUST add the socket to IOCP before we call APIs like WSARecv. 
+     * 
+     * @param fd    the socket.
+     * @param ev    the IO event, either EV_read or EV_write.
+     * @param buf   a recieve buffer if ev is EV_read, or a send buffer if ev is EV_write.
+     * @param size  size of the buffer.
+     * @param n     extra bytes to be allocated for PerIoInfo.
+     */
+    IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n=0)
+        : _fd(fd) {
+        scheduler()->add_io_event(fd, ev);
+        if (!scheduler()->on_stack(buf)) {
+            _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
+            _info->buf.buf = (char*)buf;
+            _info->buf.len = size;
+        } else {
+            _info = new (malloc(sizeof(PerIoInfo) + n + size)) PerIoInfo();
+            _info->buf.buf = _info->s + n;
+            _info->buf.len = size;
+            if (ev == EV_read) {
+                _info->from = _info->buf.buf;
+                _info->to = (char*)buf;
+                _info->size = size;
+            } else {
+                memcpy(_info->buf.buf, buf, size);
+            }
+        }
+    }
+
+    ~IoEvent() {
+        if (_info->co) {
+            _info->~PerIoInfo();
+            free(_info);
+        }
+    }
+
+    PerIoInfo* operator->() const {
+        return _info;
+    }
 
     /**
      * wait for an IO event on a socket 
@@ -472,6 +507,7 @@ class IoEvent {
             } else {
                 CancelIo((HANDLE)_fd);
                 WSASetLastError(ETIMEDOUT);
+                _info->co = 0;
                 return false;
             }
         } else {
@@ -482,6 +518,7 @@ class IoEvent {
 
   private:
     sock_t _fd;
+    PerIoInfo* _info;
 };
 
 #else

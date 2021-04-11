@@ -204,7 +204,7 @@ class Scheduler {
     Coroutine* running() const { return _running; }
 
     // check whether a pointer is on the stack of the coroutine
-    bool on_stack(void* p) const {
+    bool on_stack(const void* p) const {
         assert(_stack_top == _stack + _stack_size);
         return (_stack <= (char*)p) && ((char*)p < _stack_top);
     }

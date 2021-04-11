@@ -103,13 +103,13 @@ void Scheduler::loop() {
             }
 
           #if defined(_WIN32)
-            PerIoInfo* info = (PerIoInfo*) _epoll.user_data(ev);
+            IoEvent::PerIoInfo* info = (IoEvent::PerIoInfo*) _epoll.user_data(ev);
             if (info->co) {
                 info->n = ev.dwNumberOfBytesTransferred;
                 this->resume((Coroutine*)info->co);
             } else {
-                WLOG << "io timeout, delete PerIoInfo: " << (void*)info;
-                delete info;
+                WLOG << "io timeout, free PerIoInfo: " << (void*)info;
+                free(info);
             }
           #elif defined(__linux__)
             uint64 ud = _epoll.user_data(ev);
