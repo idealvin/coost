@@ -404,11 +404,11 @@ class PoolGuard {
 
 #ifdef _WIN32
 
-
 /**
  * IoEvent is for waiting an IO event on a socket 
  *   - It MUST be used in a coroutine. 
  *   - The socket MUST be overlapped on windows.
+ *   - On windows, we MUST add a socket to IOCP before we call APIs like WSARecv. 
  */
 class IoEvent {
   public:
@@ -425,22 +425,36 @@ class IoEvent {
         void* co;     // user data, pointer to a coroutine
         DWORD n;      // bytes transfered
         DWORD flags;  // flags for WSARecv, WSARecvFrom
+        uint32 size;  // size of the buffer
+        WSABUF buf;   // buffer for WSARecv, WSARecvFrom, WSASend, WSASendTo
         char* from;   // data to copy from
         char* to;     // data to copy to
-        uint32 size;  // bytes to copy
-        WSABUF buf;
         char s[];     // extra buffer allocated
     };
 
     /**
      * the constructor 
-     *   - On windows, we MUST add the socket to IOCP before we call APIs like WSARecv. 
+     *   - In this case, PerIoInfo is NULL.
+     * 
+     * @param fd  the socket.
+     * @param ev  the IO event, either EV_read or EV_write.
+     */
+    IoEvent(sock_t fd, io_event_t ev)
+        : _fd(fd), _info(0) {
+        scheduler()->add_io_event(fd, ev);
+    }
+
+    /**
+     * the constructor 
+     *   - In this case, a PerIoInfo will be created. 
+     *   - If n > 0, an extra n-byte buffer will be allocated with the PerIoInfo, 
+     *     the user can use IoEvent->s to access the extra buffer later. 
      * 
      * @param fd  the socket.
      * @param ev  the IO event, either EV_read or EV_write.
      * @param n   extra bytes to be allocated for PerIoInfo.
      */
-    IoEvent(sock_t fd, io_event_t ev, int n=0)
+    IoEvent(sock_t fd, io_event_t ev, int n)
         : _fd(fd) {
         scheduler()->add_io_event(fd, ev);
         _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
@@ -448,7 +462,11 @@ class IoEvent {
 
     /**
      * the constructor 
-     *   - On windows, we MUST add the socket to IOCP before we call APIs like WSARecv. 
+     *   - In this case, a PerIoInfo will be created. 
+     *   - buf and size will used to initialize the WSABUF in PerIoInfo, the user 
+     *     can use IoEvent->buf to access it later. 
+     *   - If n > 0, an extra n-byte buffer will be allocated with the PerIoInfo, 
+     *     the user can use IoEvent->s to access the extra buffer later. 
      * 
      * @param fd    the socket.
      * @param ev    the IO event, either EV_read or EV_write.
@@ -478,7 +496,7 @@ class IoEvent {
     }
 
     ~IoEvent() {
-        if (_info->co) {
+        if (_info && _info->co) {
             _info->~PerIoInfo();
             free(_info);
         }
@@ -507,7 +525,7 @@ class IoEvent {
             } else {
                 CancelIo((HANDLE)_fd);
                 WSASetLastError(ETIMEDOUT);
-                _info->co = 0;
+                if (_info) _info->co = 0;
                 return false;
             }
         } else {
