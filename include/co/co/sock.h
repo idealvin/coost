@@ -342,6 +342,13 @@ inline void set_nonblock(sock_t fd) {
 inline void set_cloexec(sock_t fd) {
     fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 }
+#else
+inline void set_nonblock(sock_t fd) {
+   unsigned long mode = 1;
+   if (ioctlsocket(fd, FIONBIO, &mode) != 0) {
+       printf("set nonblock failed\n");
+   }
+}
 #endif
 
 /**
