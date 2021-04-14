@@ -89,19 +89,10 @@ class Epoll {
 #ifdef __linux__
 /**
  * Epoll for Linux 
- *   - We have to consider about that two different coroutines works on a same 
- *     socket, one for read and one for write. 
+ *   - We have to consider about that two different coroutines operates on the 
+ *     same socket, one for read and one for write. 
  * 
- *     That is not a problem on windows & mac, as in IOCP or kqueue, we set a 
- *     different user data for each IO. For example, we may set a pointer to 
- *     coroutine A as the user data for EV_read, and a pointer to coroutine B 
- *     as the user data for EV_write. When EV_read is present, coroutine A will 
- *     be resumed, and when EV_write is present, coroutine B will be resumed, 
- *     which works perfectly. 
- * 
- *     However, epoll works in a different way, in which, EV_read and EV_write 
- *     share a same user data. To solve the above problem, we use data.u64 of 
- *     epoll_event to store the user data: 
+ *     We use data.u64 of epoll_event to store the user data: 
  *       - the higher 32 bits:  id of the coroutine waiting for EV_read. 
  *       - the lower  32 bits:  id of the coroutine waiting for EV_write. 
  * 

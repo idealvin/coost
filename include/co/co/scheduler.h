@@ -21,8 +21,8 @@ DEC_uint32(co_sched_num);
 DEC_uint32(co_stack_size);
 
 #ifdef CODBG
-#define SOLOG LOG << 'S' << co::scheduler_id() << ' '
-#define COLOG LOG << 'S' << co::scheduler_id() << '.' << co::coroutine_id() << ' '
+#define SOLOG LOG << 'S' << gSched->id() << ' '
+#define COLOG LOG << 'S' << gSched->id() << '.' << gSched->running()->id << ' '
 #else
 #define SOLOG LOG_IF(false)
 #define COLOG LOG_IF(false)
@@ -285,6 +285,7 @@ class Scheduler {
      * @return    true on success, false on error.
      */
     bool add_io_event(sock_t fd, io_event_t ev) {
+        COLOG << "add io event, fd: " << fd << " ev: " << (int)ev;
       #if defined(_WIN32)
         (void) ev; // we do not care what the event is on windows
         return _epoll.add_event(fd);
@@ -304,6 +305,7 @@ class Scheduler {
      * @param ev  an IO event, either EV_read or EV_write. 
      */
     void del_io_event(sock_t fd, io_event_t ev) {
+        COLOG << "del io event, fd: " << fd << " ev: " << (int)ev;
         _epoll.del_event(fd, ev);
     }
 
@@ -316,6 +318,7 @@ class Scheduler {
      * @param fd  the socket.
      */
     void del_io_event(sock_t fd) {
+        COLOG << "del io event, fd: " << fd;
         _epoll.del_event(fd);
     }
 
@@ -412,6 +415,8 @@ inline SchedulerManager* scheduler_manager() {
     static SchedulerManager kSchedMgr;
     return &kSchedMgr;
 }
+
+int max_sched_num();
 
 } // xx
 } // co

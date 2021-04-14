@@ -1,4 +1,5 @@
-#include "co/co.h"
+#include "co/co/scheduler.h"
+#include "co/co/io_event.h"
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
@@ -105,7 +106,7 @@ void Scheduler::loop() {
           #if defined(_WIN32)
             IoEvent::PerIoInfo* info = (IoEvent::PerIoInfo*) _epoll.user_data(ev);
             if (info->co) {
-                info->n = ev.dwNumberOfBytesTransferred;
+                //info->n = ev.dwNumberOfBytesTransferred;
                 this->resume((Coroutine*)info->co);
             } else {
                 WLOG << "io timeout, free PerIoInfo: " << (void*)info;
@@ -196,8 +197,7 @@ static inline void wsa_cleanup() {}
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
-    if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
-    if (FLG_co_sched_num > (uint32)co::max_sched_num()) FLG_co_sched_num = co::max_sched_num();
+    if (FLG_co_sched_num == 0 || FLG_co_sched_num > os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
     _n = -1;
@@ -223,10 +223,10 @@ void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 
-} // xx
-
 int max_sched_num() {
     static int kMaxSchedNum = os::cpunum();
     return kMaxSchedNum;
 }
+
+} // xx
 } // co
