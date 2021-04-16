@@ -22,7 +22,7 @@ DEC_uint32(co_stack_size);
 
 #ifdef CODBG
 #define SOLOG LOG << 'S' << gSched->id() << ' '
-#define COLOG LOG << 'S' << gSched->id() << '.' << gSched->running()->id << ' '
+#define COLOG LOG << 'S' << gSched->id() << '.' << gSched->coroutine_id() << ' '
 #else
 #define SOLOG LOG_IF(false)
 #define COLOG LOG_IF(false)
@@ -191,6 +191,42 @@ class TimerManager {
     std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
+class Scheduler;
+
+class SchedulerManager {
+  public:
+    SchedulerManager();
+    ~SchedulerManager();
+
+    Scheduler* next_scheduler() {
+        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
+        uint32 n = atomic_inc(&_n);
+        if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
+        return _scheds[now::us() % _scheds.size()];
+    }
+
+    const std::vector<Scheduler*>& all_schedulers() const {
+        return _scheds;
+    }
+
+    void stop_all_schedulers();
+
+  private:
+    std::vector<Scheduler*> _scheds;
+    uint32 _n;  // index, initialized as -1
+    uint32 _r;  // 2^32 % sched_num
+    uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
+};
+
+inline SchedulerManager* scheduler_manager() {
+    static SchedulerManager kSchedMgr;
+    return &kSchedMgr;
+}
+
+inline int scheduler_num() {
+    return (int) scheduler_manager()->all_schedulers().size();
+}
+
 /**
  * coroutine scheduler 
  *   - A scheduler will loop in a single thread.
@@ -202,6 +238,11 @@ class Scheduler {
 
     // the current running coroutine
     Coroutine* running() const { return _running; }
+
+    // id of the current running coroutine
+    int coroutine_id() const {
+        return scheduler_num() * _running->id + _id;
+    }
 
     // check whether a pointer is on the stack of the coroutine
     bool on_stack(const void* p) const {
@@ -385,38 +426,6 @@ class Scheduler {
     bool _stop;
     bool _timeout;
 };
-
-class SchedulerManager {
-  public:
-    SchedulerManager();
-    ~SchedulerManager();
-
-    Scheduler* next_scheduler() {
-        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
-        uint32 n = atomic_inc(&_n);
-        if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
-        return _scheds[now::us() % _scheds.size()];
-    }
-
-    const std::vector<Scheduler*>& all_schedulers() const {
-        return _scheds;
-    }
-
-    void stop_all_schedulers();
-
-  private:
-    std::vector<Scheduler*> _scheds;
-    uint32 _n;  // index, initialized as -1
-    uint32 _r;  // 2^32 % sched_num
-    uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
-};
-
-inline SchedulerManager* scheduler_manager() {
-    static SchedulerManager kSchedMgr;
-    return &kSchedMgr;
-}
-
-int max_sched_num();
 
 } // xx
 } // co

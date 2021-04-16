@@ -16,7 +16,8 @@ namespace co {
  *   - If a Closure was created with new_closure(), the user needn't delete it 
  *     manually, as it will delete itself after Closure::run() is done.
  *   - Closure is an abstract base class, the user is free to implement his or 
- *     hers own subtype of Closure. See details in co/closure.h.
+ *     hers own subtype of Closure. This may be useful if the user do not want 
+ *     a Closure to delete itself. See details in co/closure.h.
  * 
  * @param cb  a pointer to a Closure created by new_closure(), or an user-defined Closure.
  */
@@ -110,20 +111,25 @@ inline const std::vector<xx::Scheduler*>& all_schedulers() {
 }
 
 /**
- * get max number of schedulers 
- *   - scheduler id is from 0 to max_sched_num - 1. 
+ * get number of schedulers 
+ *   - scheduler id is from 0 to scheduler_num() - 1. 
+ *   - This function may be used to implement scheduler-local storage:  
+ *                std::vector<T> xx(co::scheduler_num());  
+ *     xx[co::scheduler_id()] can be used in a coroutine to access the storage for 
+ *     the current scheduler thread.
  * 
- * @return  a positive value, it is equal to the number of CPU cores.
+ * @return  a positive value
  */
-inline int max_sched_num() {
-    return xx::max_sched_num();
+inline int scheduler_num() {
+    static int kSchedNum = xx::scheduler_num();
+    return kSchedNum;
 }
 
 /**
  * get id of the current scheduler 
  *   - It is EXPECTED to be called in a coroutine. 
  * 
- * @return  non-negative id of the current scheduler, or -1 if the current thread 
+ * @return  a non-negative id of the current scheduler, or -1 if the current thread 
  *          is not a scheduler thread.
  */
 inline int scheduler_id() {
@@ -132,13 +138,14 @@ inline int scheduler_id() {
 
 /**
  * get id of the current coroutine 
- *   - Coroutines in different Schedulers may have the same id.
+ *   - It is EXPECTED to be called in a coroutine. 
+ *   - Each cocoutine has a unique id. 
  * 
- * @return  non-negative id of the current coroutine, 
- *          or -1 if it is not called in a coroutine.
+ * @return  a non-negative id of the current coroutine, or -1 if the current thread 
+ *          is not a scheduler thread.
  */
 inline int coroutine_id() {
-    return (scheduler() && scheduler()->running()) ? scheduler()->running()->id : -1;
+    return scheduler() ? scheduler()->coroutine_id() : -1;
 }
 
 /**
@@ -149,6 +156,17 @@ inline int coroutine_id() {
  */
 inline void sleep(unsigned int ms) {
     scheduler() ? scheduler()->sleep(ms) : sleep::ms(ms);
+}
+
+/**
+ * check whether the current coroutine has timed out 
+ *   - When a coroutine returns from an API with a timeout like co::recv, it may 
+ *     call co::timeout() to check whether the previous API call has timed out. 
+ * 
+ * @return  true if timed out, otherwise false.
+ */
+inline bool timeout() {
+    return scheduler() && scheduler()->timeout();
 }
 
 /**

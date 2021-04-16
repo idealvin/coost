@@ -2,6 +2,7 @@
 
 #include "../co.h"
 #include "../fastream.h"
+#include <memory>
 
 namespace so {
 namespace tcp {
@@ -9,48 +10,79 @@ namespace tcp {
 struct Connection {
     sock_t fd;     // connection fd
     fastring peer; // ip:port of peer
-    void* p;       // point to Server where this connection was accepted
 };
 
-// Tcp server based on coroutine.
-// Support both ipv4 and ipv6. One coroutine per connection.
+/**
+ * TCP server based on coroutine 
+ *   - Support both ipv4 and ipv6. 
+ *   - One coroutine per connection. 
+ */
 class Server {
   public:
-    // @ip is either a ipv4 or ipv6 address.
+    /**
+     * @param ip    either an ipv4 or ipv6 address. 
+     *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
+     * @param port  the listening port. 
+     */
     Server(const char* ip, int port)
         : _ip((ip && *ip) ? ip : "0.0.0.0"), _port(port) {
     }
 
     virtual ~Server() = default;
 
-    // Run the server loop in coroutine.
+    /**
+     * start the server
+     *   - The server will loop in a coroutine. 
+     *   - It will not block the calling thread. 
+     */
     virtual void start() {
         go(&Server::loop, this);
     }
-
-    // The derived class must implement this method.
-    // The @conn was created by operator new. Remember to delete it 
-    // when the connection was closed.
-    virtual void on_connection(tcp::Connection* conn) = 0;
 
   protected:
     fastring _ip;
     uint32 _port;
 
   private:
-    // The server loop, listen on the port and wait for connections.
-    // Call on_connection() in a new coroutine for every connection. 
+    /**
+     * the server loop 
+     *   - It listens on a port and waits for connections.
+     *   - When a connection is accepted, it will call on_connection() to handle 
+     *     the connection in a new coroutine.
+     */
     void loop();
+
+    /**
+     * method for handling a connection 
+     *   - The derived class MUST implement this method. 
+     *   - This method will run in a coroutine. 
+     * 
+     * @param conn  a pointer to an object of tcp::Connection. 
+     *              The user MUST delete it when the connection was closed. 
+     */
+    virtual void on_connection(tcp::Connection* conn) = 0;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
-// Tcp client based on coroutine.
-// Support both ipv4 and ipv6. One client corresponds to one connection.
-// The Client MUST be used in coroutine, and it is not coroutine-safe.
+/**
+ * TCP client based on coroutine 
+ *   - Support both ipv4 and ipv6. 
+ *   - One client corresponds to one connection. 
+ * 
+ *   - It MUST be used in a coroutine. 
+ *   - NEVER use a same Client in different coroutines at the same time. 
+ * 
+ *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
+ *     may be established. 
+ */
 class Client {
   public:
-    // @ip is a domain name, or either a ipv4 or ipv6 address.
+    /**
+     * @param ip    a domain name, or either an ipv4 or ipv6 address of the server. 
+     *              if ip is NULL or empty, "127.0.0.1" will be used by default. 
+     * @param port  the server port. 
+     */
     Client(const char* ip, int port)
         : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
           _fd((sock_t)-1), _sched_id(-1) {
@@ -74,18 +106,19 @@ class Client {
         return _fd != (sock_t)-1; 
     }
 
-    // @ms: timeout in milliseconds
+    /**
+     * connect to the server 
+     *   - It MUST be called in the thread that performed the IO operation. 
+     *
+     * @param ms  timeout in milliseconds
+     */
     bool connect(int ms);
 
-    // MUST be called in the thread where it is connected.
-    void disconnect() {
-        if (this->connected()) {
-            assert(_sched_id == co::scheduler_id());
-            co::close(_fd);
-            _fd = (sock_t)-1;
-            _sched_id = -1;
-        }
-    }
+    /**
+     * close the connection 
+     *   - It MUST be called in the thread that performed the IO operation. 
+     */
+    void disconnect();
 
   protected:
     fastring _ip;

@@ -5,12 +5,6 @@
 namespace so {
 namespace tcp {
 
-static void on_new_connection(void* p) {
-    Connection* c = (Connection*) p;
-    Server* s = (Server*) c->p;
-    s->on_connection(c);
-}
-
 void Server::loop() {
     sock_t fd, connfd;
 
@@ -24,8 +18,6 @@ void Server::loop() {
     do {
         fastring port = str::from(_port);
         struct addrinfo* info = 0;
-
-        // getaddrinfo works with either a ipv4 or a ipv6 address.
         int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
         CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
         CHECK(info != NULL);
@@ -40,7 +32,7 @@ void Server::loop() {
             co::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
         }
 
-        r = co::bind(fd, info->ai_addr, (int) info->ai_addrlen);
+        r = co::bind(fd, info->ai_addr, (int)info->ai_addrlen);
         CHECK_EQ(r, 0) << "bind (" << _ip << ':' << _port << ") failed: " << co::strerror();
 
         r = co::listen(fd, 1024);
@@ -59,7 +51,6 @@ void Server::loop() {
 
         Connection* conn = new Connection;
         conn->fd = connfd;
-        conn->p = this;
         if (addrlen == sizeof(sockaddr_in)) {
             conn->peer.reserve(24);
             conn->peer << co::ip_str(&addr.v4) << ':' << ntoh16(addr.v4.sin_port);
@@ -68,7 +59,8 @@ void Server::loop() {
             conn->peer << co::ip_str(&addr.v6) << ':' << ntoh16(addr.v6.sin6_port);
         }
 
-        go(on_new_connection, conn);
+        typedef void (Server::*F)(void*);
+        go((F)&Server::on_connection, this, conn);
     }
 }
 
@@ -83,25 +75,33 @@ bool Client::connect(int ms) {
 
     _fd = co::tcp_socket(info->ai_family);
     if (_fd == (sock_t)-1) {
-        ELOG << "create socket error: " << co::strerror();
-        freeaddrinfo(info);
-        return false;
+        ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
+        goto err;
     }
 
-    r = co::connect(_fd, info->ai_addr, (int) info->ai_addrlen, ms);
+    r = co::connect(_fd, info->ai_addr, (int)info->ai_addrlen, ms);
     if (r == -1) {
-        co::close(_fd);
-        _fd = (sock_t)-1;
         ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
-        freeaddrinfo(info);
-        return false;
+        goto err;
     }
 
     _sched_id = co::scheduler_id();
     co::set_tcp_nodelay(_fd);
     freeaddrinfo(info);
     return true;
+
+  err:
+    if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
+    if (_sched_id != -1) { _sched_id = -1; }
+    freeaddrinfo(info);
+    return false;
 }
 
+void Client::disconnect() {
+    if (this->connected()) {
+        if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
+        if (_sched_id != -1) { CHECK_EQ(_sched_id, co::scheduler_id()); _sched_id = -1; }
+    }
+}
 } // tcp
 } // so

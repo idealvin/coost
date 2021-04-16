@@ -52,7 +52,7 @@ class HookInfo {
 
 class Hook {
   public:
-    Hook() : _hk(co::max_sched_num()) {}
+    Hook() : _hk(co::scheduler_num()) {}
     ~Hook() = default;
 
     void erase(int fd) {
@@ -174,13 +174,13 @@ using co::EV_write;
 using co::IoEvent;
 
 inline struct hostent* gHostEnt() {
-    static std::vector<struct hostent> ents(co::max_sched_num());
+    static std::vector<struct hostent> ents(co::scheduler_num());
     return &ents[gSched->id()];
 }
 
 #ifdef __linux__
 inline co::Mutex& gDnsMutex() {
-    static std::vector<co::Mutex> mtx(co::max_sched_num());
+    static std::vector<co::Mutex> mtx(co::scheduler_num());
     return mtx[gSched->id()];
 }
 #else

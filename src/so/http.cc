@@ -558,7 +558,7 @@ const char** Res::create_status_table() {
 
 void easy(const char* root_dir, const char* ip, int port) {
     http::Server serv(ip, port);
-    std::vector<LruMap<fastring, std::pair<fastring, int64>>> contents(co::max_sched_num());
+    std::vector<LruMap<fastring, std::pair<fastring, int64>>> contents(co::scheduler_num());
     fastring root(root_dir);
     if (root.empty()) root.append('.');
 

@@ -223,10 +223,5 @@ void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 
-int max_sched_num() {
-    static int kMaxSchedNum = os::cpunum();
-    return kMaxSchedNum;
-}
-
 } // xx
 } // co

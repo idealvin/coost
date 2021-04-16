@@ -402,11 +402,21 @@ inline fastring ip_str(struct sockaddr_in6* addr) {
  * get the last error number
  */
 inline int error() { return WSAGetLastError(); }
+
+/**
+ * set the last error number
+ */
+inline void set_last_error(int err) { WSASetLastError(err); }
 #else
 /**
  * get the last error number
  */
 inline int error() { return errno; }
+
+/**
+ * set the last error number
+ */
+inline void set_last_error(int err) { errno = err; }
 #endif
 
 /**

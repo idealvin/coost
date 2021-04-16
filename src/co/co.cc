@@ -173,14 +173,14 @@ class PoolImpl {
     typedef std::vector<void*> V;
 
     PoolImpl()
-        : _pools(xx::max_sched_num()), _maxcap((size_t)-1) {
+        : _pools(xx::scheduler_num()), _maxcap((size_t)-1) {
     }
 
     // @ccb:  a create callback       []() { return (void*) new T; }
     // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
     // @cap:  max capacity for each pool
     PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(xx::max_sched_num()), _maxcap(cap) {
+        : _pools(xx::scheduler_num()), _maxcap(cap) {
         _ccb = std::move(ccb);
         _dcb = std::move(dcb);
     }
