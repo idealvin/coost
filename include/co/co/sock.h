@@ -35,7 +35,7 @@ namespace co {
  * @param type    socket type, SOCK_STREAM, SOCK_DGRAM, etc.
  * @param proto   protocol, IPPROTO_TCP, IPPROTO_UDP, etc.
  * 
- * @return        a non-blocking socket on Linux & Mac, an overlapped socket on windows, 
+ * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
  */
 sock_t socket(int domain, int type, int proto);
@@ -46,7 +46,7 @@ sock_t socket(int domain, int type, int proto);
  * @param domain  address family, AF_INET, AF_INET6, etc.
  *                default: AF_INET.
  * 
- * @return        a non-blocking socket on Linux & Mac, an overlapped socket on windows, 
+ * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
  */
 inline sock_t tcp_socket(int domain=AF_INET) {
@@ -59,7 +59,7 @@ inline sock_t tcp_socket(int domain=AF_INET) {
  * @param domain  address family, AF_INET, AF_INET6, etc.
  *                default: AF_INET.
  * 
- * @return        a non-blocking socket on Linux & Mac, an overlapped socket on windows, 
+ * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
  */
 inline sock_t udp_socket(int domain=AF_INET) {
@@ -72,8 +72,8 @@ inline sock_t udp_socket(int domain=AF_INET) {
  *     usually, in the coroutine where the user called recv(), send(), etc. 
  *   - EINTR has been handled internally. The user need not consider about it. 
  *     
- * @param fd  the socket, which is non-blocking on Linux & Mac, overlapped on windows.
- * @param ms  if ms > 0, the socket will be closed ms milliseconds later.
+ * @param fd  a non-blocking (also overlapped on windows) socket.
+ * @param ms  if ms > 0, the socket will be closed ms milliseconds later. 
  *            default: 0.
  * 
  * @return    0 on success, -1 on error.
@@ -85,7 +85,7 @@ int close(sock_t fd, int ms=0);
  *   - Like the close(), shutdown() MUST be called in the same thread that performed 
  *     the I/O operation. 
  * 
- * @param fd  the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd  a non-blocking (also overlapped on windows) socket.
  * @param c   'r' for SHUT_RD, 'w' for SHUT_WR, 'b' for SHUT_RDWR. 
  *            default: 'b'.
  * 
@@ -96,7 +96,7 @@ int shutdown(sock_t fd, char c='b');
 /**
  * bind an address to a socket
  * 
- * @param fd       the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
  * @param addrlen  size of the structure pointed to by addr.
  * 
@@ -107,7 +107,7 @@ int bind(sock_t fd, const void* addr, int addrlen);
 /**
  * listen on a socket
  * 
- * @param fd       the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param backlog  maximum length of the queue for pending connections.
  *                 default: 1024.
  * 
@@ -118,15 +118,14 @@ int listen(sock_t fd, int backlog=1024);
 /**
  * accept a connection on a socket 
  *   - It MUST be called in a coroutine. 
- *   - accept() blocks until a connection is present, it behaves like that the 
- *     socket is blocking, which though is actually non-blocking or overlapped. 
+ *   - accept() blocks until a connection was present or any error occured. 
  * 
- * @param fd       the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
  * @param addrlen  the user MUST initialize it with the size of the structure pointed to 
  *                 by addr; on return it contains the actual size of the peer address.
  * 
- * @return         a non-blocking socket on Linux & Mac, an overlapped socket on windows,
+ * @return         a non-blocking (also overlapped on windows) socket on success,  
  *                 or -1 on error.
  */
 sock_t accept(sock_t fd, void* addr, int* addrlen);
@@ -134,17 +133,17 @@ sock_t accept(sock_t fd, void* addr, int* addrlen);
 /**
  * connect to an address 
  *   - It MUST be called in a coroutine. 
- *   - It behaves like that the socket is blocking, which though is actually 
- *     non-blocking or overlapped. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno. 
+ *   - connect() blocks until the connection was done or timeout, or any error occured. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  * 
- * @param fd       the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
  * @param addrlen  size of the structure pointed to by addr.
  * @param ms       timeout in milliseconds, if ms < 0, it will never time out. 
  *                 default: -1.
  * 
- * @return         0 on success, -1 on error.
+ * @return         0 on success, -1 on timeout or error.
  */
 int connect(sock_t fd, const void* addr, int addrlen, int ms=-1);
 
@@ -152,16 +151,17 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms=-1);
  * recv data from a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until any data recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  * 
- * @param fd   the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd   a non-blocking (also overlapped on windows) socket.
  * @param buf  a pointer to the buffer to recieve the data.
  * @param n    size of the buffer.
  * @param ms   timeout in milliseconds, if ms < 0, it will never time out.
  *             default: -1.
  * 
- * @return     bytes recieved on success, or -1 on error.
- *             0 will be returned if the peer close the connection.
+ * @return     bytes recieved on success, -1 on timeout or error, 0 will be returned 
+ *             if fd is a stream socket and the peer has closed the connection.
  */
 int recv(sock_t fd, void* buf, int n, int ms=-1);
 
@@ -169,17 +169,18 @@ int recv(sock_t fd, void* buf, int n, int ms=-1);
  * recv n bytes from a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout. Call co::error() to get the errno. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  * 
- * @param fd   the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd   a non-blocking (also overlapped on windows) socket, 
  *             it MUST be a stream socket, usually a TCP socket.
  * @param buf  a pointer to the buffer to recieve the data.
  * @param n    bytes to be recieved.
  * @param ms   timeout in milliseconds, if ms < 0, it will never time out.
  *             default: -1.
  * 
- * @return     n on success, or -1 on error.
- *             0 will be returned if the peer close the connection.
+ * @return     n on success, -1 on timeout or error, 0 will be returned if the peer 
+ *             close the connection.
  */
 int recvn(sock_t fd, void* buf, int n, int ms=-1);
 
@@ -187,10 +188,11 @@ int recvn(sock_t fd, void* buf, int n, int ms=-1);
  * recv data from a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until any data recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  *   - Set src_addr and addrlen to NULL if the user is not interested in the source address. 
  * 
- * @param fd        the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd        a non-blocking (also overlapped on windows) socket.
  * @param buf       a pointer to the buffer to recieve the data.
  * @param n         size of the buffer.
  * @param src_addr  a pointer to struct sockaddr, sockaddr_in or sockaddr_in6, the source address 
@@ -200,8 +202,8 @@ int recvn(sock_t fd, void* buf, int n, int ms=-1);
  * @param ms        timeout in milliseconds, if ms < 0, it will never time out.
  *                  default: -1.
  * 
- * @return          bytes recieved on success, or -1 on error. 
- *                  0 will be returned if fd is a tcp socket and the peer close the connection.
+ * @return          bytes recieved on success, -1 on timeout or error, 0 will be returned 
+ *                  if fd is a stream socket and the peer has closed the connection.
  */
 int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, int ms=-1);
 
@@ -209,9 +211,10 @@ int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, int ms=-
  * send n bytes on a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are sent or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  * 
- * @param fd   the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd   a non-blocking (also overlapped on windows) socket.
  * @param buf  a pointer to a buffer of the data to be sent.
  * @param n    size of the data.
  * @param ms   timeout in milliseconds, if ms < 0, it will never time out. 
@@ -225,9 +228,10 @@ int send(sock_t fd, const void* buf, int n, int ms=-1);
  * send n bytes on a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are sent or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno. 
+ *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
+ *     or simply call co::timeout() to check whether it has timed out. 
  * 
- * @param fd        the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd        a non-blocking (also overlapped on windows) socket.
  * @param buf       a pointer to a buffer of the data to be sent.
  * @param n         size of the data, n MUST be no more than 65507 if fd is an udp socket.
  * @param dst_addr  a pointer to struct sockaddr, sockaddr_in or sockaddr_in6, which contains 
@@ -236,7 +240,7 @@ int send(sock_t fd, const void* buf, int n, int ms=-1);
  * @param ms        timeout in milliseconds, if ms < 0, it will never time out. 
  *                  default: -1.
  * 
- * @return          n on success, or -1 on error. 
+ * @return          n on success, -1 on timeout or error. 
  */
 int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int addrlen, int ms=-1);
 
@@ -313,10 +317,10 @@ inline void set_tcp_keepalive(sock_t fd) {
 
 /**
  * reset a TCP connection 
- *   - It SHOULD be called in the coroutine where the user send or recieve network data. 
+ *   - It MUST be called in the same thread that performed the IO operation. 
  *   - It is usually used in a server to avoid TIME_WAIT status. 
  *     
- * @param fd  the socket, which is non-blocking on Linux & Mac, overlapped on windows.
+ * @param fd  a non-blocking (also overlapped on windows) socket.
  * @param ms  if ms > 0, the socket will be closed ms milliseconds later.
  *            default: 0.
  * 
@@ -328,7 +332,17 @@ inline int reset_tcp_socket(sock_t fd, int ms=0) {
     return co::close(fd, ms);
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+/**
+ * set option O_NONBLOCK on a socket 
+ */
+inline void set_nonblock(sock_t fd) {
+   unsigned long mode = 1;
+   if (ioctlsocket(fd, FIONBIO, &mode) != 0) {
+       printf("set nonblock failed\n");
+   }
+}
+#else
 /**
  * set option O_NONBLOCK on a socket 
  */
@@ -342,21 +356,16 @@ inline void set_nonblock(sock_t fd) {
 inline void set_cloexec(sock_t fd) {
     fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 }
-#else
-inline void set_nonblock(sock_t fd) {
-   unsigned long mode = 1;
-   if (ioctlsocket(fd, FIONBIO, &mode) != 0) {
-       printf("set nonblock failed\n");
-   }
-}
 #endif
 
 /**
- * fill in an ipv4 address with ip & port
+ * fill in an ipv4 address with ip & port 
  * 
- * @param addr  a pointer to an ipv4 address
- * @param ip    string like: "127.0.0.1"
- * @param port  a value from 1 to 65535 
+ * @param addr  a pointer to an ipv4 address.
+ * @param ip    string like: "127.0.0.1".
+ * @param port  a value from 1 to 65535.
+ * 
+ * @return      true on success, otherwise false.
  */
 inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
@@ -368,9 +377,11 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
 /**
  * fill in an ipv6 address with ip & port
  * 
- * @param addr  a pointer to an ipv6 address
- * @param ip    string like: "::1"
- * @param port  a value from 1 to 65535 
+ * @param addr  a pointer to an ipv6 address.
+ * @param ip    string like: "::1".
+ * @param port  a value from 1 to 65535.
+ * 
+ * @return      true on success, otherwise false.
  */
 inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
@@ -382,7 +393,7 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
 /**
  * get ip string of an ipv4 address 
  */
-inline fastring ip_str(struct sockaddr_in* addr) {
+inline fastring ip_str(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
     return fastring(s);
@@ -391,10 +402,53 @@ inline fastring ip_str(struct sockaddr_in* addr) {
 /**
  * get ip string of an ipv6 address
  */
-inline fastring ip_str(struct sockaddr_in6* addr) {
+inline fastring ip_str(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
     return fastring(s);
+}
+
+/**
+ * convert an ipv4 address to a string 
+ *
+ * @return  a string in format "ip:port"
+ */
+inline fastring to_string(const struct sockaddr_in* addr) {
+    char s[INET_ADDRSTRLEN] = { 0 };
+    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    const size_t n = strlen(s);
+    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin_port));
+}
+
+/**
+ * convert an ipv6 address to a string 
+ *
+ * @return  a string in format: "ip:port"
+ */
+inline fastring to_string(const struct sockaddr_in6* addr) {
+    char s[INET6_ADDRSTRLEN] = { 0 };
+    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    const size_t n = strlen(s);
+    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin6_port));
+}
+
+/**
+ * get peer address of a connected socket 
+ * 
+ * @return  a string in format: "ip:port", or an empty string on error.
+ */
+inline fastring peer(sock_t fd) {
+    union {
+        struct sockaddr_in  v4;
+        struct sockaddr_in6 v6;
+    } addr;
+    int addrlen = sizeof(addr);
+    const int r = getpeername(fd, (sockaddr*)&addr, (socklen_t*)&addrlen);
+    if (r == 0) {
+        if (addrlen == sizeof(addr.v4)) return co::to_string(&addr.v4);
+        if (addrlen == sizeof(addr.v6)) return co::to_string(&addr.v6);
+    }
+    return fastring();
 }
 
 #ifdef _WIN32
