@@ -8,6 +8,7 @@ DEF_string(ca, "", "certificate file");
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_int32(t, 0, "0: server & client, 1: server, 2: client");
+DEC_bool(cout);
 
 
 class SimpleSSLServer : public ssl::Server {
@@ -34,17 +35,24 @@ void SimpleSSLServer::on_connection(SSL* s) {
     if (fd < 0) goto err;
 
     while (true) {
-        r = ssl::recvn(s, &header, sizeof(header));
-        if (r != sizeof(header)) goto err;
+        r = ssl::recvn(s, &header, sizeof(header), 3000);
+        if (r != sizeof(header)) {
+            ELOG << "ssl server recvn error: " << ssl::strerror(s);
+            goto err;
+        }
 
         body_len = ntoh32(header.body_len);
-        COUT << "server recv header, body_len: " << body_len;
+        LOG << "server recv header, body_len: " << body_len;
 
         buf.clear();
         r = ssl::recvn(s, (char*)buf.data(), body_len, 3000);
-        if (r != body_len) goto err;
+        if (r != body_len) {
+            ELOG << "ssl server recvn error: " << ssl::strerror(s);
+            goto err;
+        }
+
         buf.resize(body_len);
-        COUT << "server recv: " << buf;
+        LOG << "server recv: " << buf;
 
         header.magic = hton32(777);
         header.body_len = hton32((uint32)strlen(msg));
@@ -53,11 +61,13 @@ void SimpleSSLServer::on_connection(SSL* s) {
         buf.append(msg);
 
         r = ssl::send(s, buf.data(), (int)buf.size(), 3000);
-        if (r != (int)buf.size()) goto err;
+        if (r != (int)buf.size()) {
+            ELOG << "ssl server send error: " << ssl::strerror(s);
+            goto err;
+        }
     }
 
   err:
-    ssl::shutdown(s);
     ssl::free_ssl(s);
     if (fd >= 0) { co::close(fd, 1000); fd = -1; }
 }
@@ -66,7 +76,7 @@ void client_fun() {
     ssl::Client c(FLG_ip.c_str(), FLG_port);
 
     if (!c.connect(3000)) {
-        COUT << "ssl connect failed: " << ssl::strerror();
+        LOG << "ssl connect failed: " << ssl::strerror();
         return;
     }
 
@@ -84,22 +94,31 @@ void client_fun() {
         buf.append(msg);
 
         int r = c.send(buf.data(), (int)buf.size(), 3000);
-        if (r != (int)buf.size()) goto err;
+        if (r != (int)buf.size()) {
+            ELOG << "ssl client send error: " << ssl::strerror(c.ssl());
+            goto err;
+        }
 
-        r = c.recv(&header, sizeof(header), 3000);
-        if (r != sizeof(header)) goto err;
+        r = c.recvn(&header, sizeof(header), 3000);
+        if (r != sizeof(header)) {
+            ELOG << "ssl client recvn error: " << ssl::strerror(c.ssl());
+            goto err;
+        }
 
         body_len = ntoh32(header.body_len);
-        COUT << "client recv header, body_len: " << body_len;
+        LOG << "client recv header, body_len: " << body_len;
 
         buf.clear();
-        r = c.recv((char*)buf.data(), body_len, 3000);
-        if (r != body_len) goto err;
+        r = c.recvn((char*)buf.data(), body_len, 3000);
+        if (r != body_len) {
+            ELOG << "ssl client recvn error: " << ssl::strerror(c.ssl());
+            goto err;
+        }
 
         buf.resize(body_len);
-        COUT << "client recv: " << buf << '\n';
+        LOG << "client recv: " << buf << '\n';
 
-        co::sleep(3000);
+        co::sleep(2000);
     }
 
   err:
@@ -107,11 +126,9 @@ void client_fun() {
     return;
 }
 
-void serv_fun() {
-}
-
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    FLG_cout = true;
     log::init();
 
     SimpleSSLServer serv;

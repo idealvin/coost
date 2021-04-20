@@ -19,9 +19,13 @@ namespace ssl {
  *     openssl error queue for the current thread as a string, and the error queue 
  *     will be cleared then. 
  * 
+ * @param s  a pointer to SSL. 
+ *           if s is not NULL, result code of ssl I/O operations will also be checked. 
+ *           default: NULL. 
+ * 
  * @return  a pointer to the error message.
  */
-const char* strerror();
+const char* strerror(SSL* s=0);
 
 /**
  * wrapper for ERR_peek_error 
@@ -294,7 +298,7 @@ class Server : public tcp::Server {
     void* _config;
 };
 
-class Client : public tcp::Client {
+class Client {
   public:
     Client(const char* serv_ip, int serv_port);
     virtual ~Client();
@@ -330,7 +334,10 @@ class Client : public tcp::Client {
      */
     void disconnect();
 
+    SSL* ssl() const { return _ssl; }
+
   protected:
+    tcp::Client _tcp_cli;
     SSL_CTX* _ctx;
     SSL* _ssl;
 };

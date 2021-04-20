@@ -19,18 +19,21 @@ static int errcb(const char* p, size_t n, void* u) {
     return 0;
 }
 
-const char* strerror() {
-    static thread_ptr<fastream> s;
-    if (s == NULL) s.reset(new fastream(256));
-    s->clear();
+const char* strerror(SSL* s) {
+    static thread_ptr<fastream> fs;
+    if (fs == NULL) fs.reset(new fastream(256));
+    fs->clear();
     if (ERR_peek_error() != 0) {
-        ERR_print_errors_cb(errcb, s.get());
+        ERR_print_errors_cb(errcb, fs.get());
     } else if (co::error() != 0) {
-        s->append(co::strerror());
+        fs->append(co::strerror());
+    } else if (s) {
+        int e = ssl::get_error(s, 0);
+        (*fs) << "ssl error: " << e;
     } else {
-        s->append("success");
+        fs->append("success");
     }
-    return s->c_str();
+    return fs->c_str();
 }
 
 int shutdown(SSL* s, int ms) {
@@ -292,7 +295,7 @@ void Server::on_connection(sock_t fd) {
 }
 
 Client::Client(const char* serv_ip, int serv_port)
-    : tcp::Client(serv_ip, serv_port), _ctx(0), _ssl(0) {
+    : _tcp_cli(serv_ip, serv_port), _ctx(0), _ssl(0) {
 }
 
 Client::~Client() {
@@ -301,7 +304,7 @@ Client::~Client() {
 
 bool Client::connect(int ms) {
     if (this->connected()) return true;
-    if (!tcp::Client::connect(ms)) return false;
+    if (!_tcp_cli.connect(ms)) return false;
 
     _ctx = ssl::new_client_ctx();
     if (_ctx == NULL) {
@@ -315,8 +318,8 @@ bool Client::connect(int ms) {
         goto err;
     }
 
-    if (ssl::set_fd(_ssl, _fd) != 1) {
-        ELOG << "ssl set fd (" << _fd << ") failed: " << ssl::strerror();
+    if (ssl::set_fd(_ssl, _tcp_cli.fd()) != 1) {
+        ELOG << "ssl set fd (" << _tcp_cli.fd() << ") failed: " << ssl::strerror();
         goto err;
     }
 
@@ -330,7 +333,7 @@ bool Client::connect(int ms) {
   err:
     if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
     if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-    tcp::Client::disconnect();
+    _tcp_cli.disconnect();
     return false;
 }
 
@@ -338,7 +341,7 @@ void Client::disconnect() {
     if (this->connected()) {
         if (_ssl) { ssl::shutdown(_ssl); ssl::free_ssl(_ssl); _ssl = 0; } 
         if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-        tcp::Client::disconnect();
+        _tcp_cli.disconnect();
     }
 }
 
