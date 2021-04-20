@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <type_traits>
 
 class Closure {
   public:
@@ -12,6 +13,9 @@ class Closure {
 
 namespace xx {
 
+/**
+ * function without parameter 
+ */
 class Function0 : public Closure {
   public:
     typedef void (*F)();
@@ -29,11 +33,16 @@ class Function0 : public Closure {
     virtual ~Function0() {}
 };
 
+/**
+ * function with a single parameter 
+ *
+ * @tparam F  a function type, with only one parameter.
+ * @tparam P  parameter of F.
+ */
+template<typename F, typename P>
 class Function1 : public Closure {
   public:
-    typedef void (*F)(void*);
-
-    Function1(F f, void* p) : _f(f), _p(p) {}
+    Function1(F f, P&& p) : _f(f), _p(std::forward<P>(p)) {}
 
     virtual void run() {
         _f(_p);
@@ -41,12 +50,17 @@ class Function1 : public Closure {
     }
 
   private:
-    F _f;
-    void* _p;
+    typename std::remove_reference<F>::type _f;
+    typename std::remove_reference<P>::type _p;
 
     virtual ~Function1() {}
 };
 
+/**
+ * method (function in a class) without parameter
+ * 
+ * @tparam T  type of a class.
+ */
 template<typename T>
 class Method0 : public Closure {
   public:
@@ -66,12 +80,19 @@ class Method0 : public Closure {
     virtual ~Method0() {}
 };
 
-template<typename T>
+/**
+ * method (function in a class) with a single parameter 
+ * 
+ * @tparam F  method type, with only one parameter.
+ * @tparam T  type of the class. 
+ * @tparam P  parameter of F.
+ */
+template<typename F, typename T, typename P>
 class Method1 : public Closure {
   public:
-    typedef void (T::*F)(void*);
-
-    Method1(F f, T* o, void* p) : _f(f), _o(o), _p(p) {}
+    Method1(F f, T* o, P&& p)
+        : _f(f), _o(o), _p(std::forward<P>(p)) {
+    }
 
     virtual void run() {
         (_o->*_f)(_p);
@@ -79,9 +100,9 @@ class Method1 : public Closure {
     }
 
   private:
-    F _f;
+    typename std::remove_reference<F>::type _f;
+    typename std::remove_reference<P>::type _p;
     T* _o;
-    void* _p;
 
     virtual ~Method1() {}
 };
@@ -111,8 +132,9 @@ inline Closure* new_closure(void (*f)()) {
     return new xx::Function0(f);
 }
 
-inline Closure* new_closure(void (*f)(void*), void* p) {
-    return new xx::Function1(f, p);
+template<typename F, typename P>
+inline Closure* new_closure(F f, P&& p) {
+    return new xx::Function1<F, P>(f, std::forward<P>(p));
 }
 
 template<typename T>
@@ -120,9 +142,9 @@ inline Closure* new_closure(void (T::*f)(), T* o) {
     return new xx::Method0<T>(f, o);
 }
 
-template<typename T>
-inline Closure* new_closure(void (T::*f)(void*), T* o, void* p) {
-    return new xx::Method1<T>(f, o, p);
+template<typename F, typename T, typename P>
+inline Closure* new_closure(F f, T* o, P&& p) {
+    return new xx::Method1<F, T, P>(f, o, std::forward<P>(p));
 }
 
 inline Closure* new_closure(std::function<void()>&& f) {
