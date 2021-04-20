@@ -23,6 +23,7 @@ const char* strerror(SSL* s) {
     static thread_ptr<fastream> fs;
     if (fs == NULL) fs.reset(new fastream(256));
     fs->clear();
+
     if (ERR_peek_error() != 0) {
         ERR_print_errors_cb(errcb, fs.get());
     } else if (co::error() != 0) {
@@ -33,6 +34,7 @@ const char* strerror(SSL* s) {
     } else {
         fs->append("success");
     }
+
     return fs->c_str();
 }
 

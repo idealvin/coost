@@ -3,7 +3,6 @@
 #ifdef CO_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include "../co.h"
 #include "tcp.h"
 
 namespace so {
