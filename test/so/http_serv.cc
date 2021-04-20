@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    http::Server serv(FLG_ip.c_str(), FLG_port);
+    http::Server serv;
 
     serv.on_req(
         [](const http::Req& req, http::Res& res) {
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
         }
     );
 
-    serv.start();
+    serv.start(FLG_ip.c_str(), FLG_port);
 
     while (true) sleep::sec(1024);
     return 0;

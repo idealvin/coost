@@ -12,10 +12,7 @@ DEF_int32(t, 0, "0: server & client, 1: server, 2: client");
 
 class SimpleSSLServer : public ssl::Server {
   public:
-    SimpleSSLServer(const char* ip, int port, const char* privkey, const char* ca)
-        : ssl::Server(ip, port, privkey, ca) {
-    }
-
+    SimpleSSLServer() = default;
     virtual ~SimpleSSLServer() = default;
 
     virtual void on_connection(SSL* s);
@@ -60,7 +57,8 @@ void SimpleSSLServer::on_connection(SSL* s) {
     }
 
   err:
-    //ssl::shutdown(s);
+    ssl::shutdown(s);
+    ssl::free_ssl(s);
     if (fd >= 0) { co::close(fd, 1000); fd = -1; }
 }
 
@@ -116,14 +114,14 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    SimpleSSLServer serv(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
+    SimpleSSLServer serv;
 
     if (FLG_t == 0) {
-        serv.start();
+        serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
         sleep::ms(32);
         go(client_fun);
     } else if (FLG_t == 1) {
-        serv.start();
+        serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
     } else {
         go(client_fun);
     }

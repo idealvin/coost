@@ -23,10 +23,12 @@ const char* strerror() {
     static thread_ptr<fastream> s;
     if (s == NULL) s.reset(new fastream(256));
     s->clear();
-    if (!ssl::timeout()) {
-        ERR_print_errors_cb(errcb, &s);
+    if (ERR_peek_error() != 0) {
+        ERR_print_errors_cb(errcb, s.get());
+    } else if (co::error() != 0) {
+        s->append(co::strerror());
     } else {
-        s->append("timeout");
+        s->append("success");
     }
     return s->c_str();
 }
@@ -36,6 +38,12 @@ int shutdown(SSL* s, int ms) {
     int r, e;
     int fd = ssl::get_fd(s);
     if (fd < 0) return -1;
+
+    // openssl says SSL_shutdown must not be called on error SSL_ERROR_SYSCALL 
+    // and SSL_ERROR_SSL, see more details here:
+    //   https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
+    e = SSL_get_error(s, 0);
+    if (e == SSL_ERROR_SYSCALL || e == SSL_ERROR_SSL) return -1;
 
     do {
         ERR_clear_error();
@@ -132,7 +140,7 @@ int recv(SSL* s, void* buf, int n, int ms) {
             DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
-
+ 
         e = SSL_get_error(s, r);
         if (e == SSL_ERROR_WANT_READ) {
             co::IoEvent ev(fd, co::EV_read);
@@ -221,8 +229,22 @@ int send(SSL* s, const void* buf, int n, int ms) {
     } while (true);
 }
 
-Server::Server(const char* ip, int port, const char* key, const char* ca)
-    : tcp::Server(ip, port) {
+struct ServerConfig {
+    int32 handshake_timeout;
+};
+
+Server::Server() : _ctx(0) {
+    ServerConfig* x = new ServerConfig();
+    x->handshake_timeout = FLG_ssl_handshake_timeout;
+    _config = x;
+}
+
+Server::~Server() {
+    ssl::free_ctx(_ctx);
+    delete (ServerConfig*)_config;
+}
+
+void Server::start(const char* ip, int port, const char* key, const char* ca) {
     _ctx = ssl::new_server_ctx();
     CHECK(_ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
     CHECK_NOTNULL(key) << "private key file must be set..";
@@ -238,26 +260,18 @@ Server::Server(const char* ip, int port, const char* key, const char* ca)
     r = ssl::check_private_key(_ctx);
     CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
 
-    _config.reset(new Config());
-    _config->recv_timeout = FLG_ssl_recv_timeout;
-    _config->send_timeout = FLG_ssl_send_timeout;
-    _config->handshake_timeout = FLG_ssl_handshake_timeout;
+    tcp::Server::start(ip, port);
 }
 
-Server::~Server() {
-    ssl::free_ctx(_ctx);
-}
-
-void Server::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> x(conn);
-    co::set_tcp_keepalive(conn->fd);
-    co::set_tcp_nodelay(conn->fd);
+void Server::on_connection(sock_t fd) {
+    co::set_tcp_keepalive(fd);
+    co::set_tcp_nodelay(fd);
 
     SSL* s = ssl::new_ssl(_ctx);
     if (s == NULL) goto new_ssl_err;
 
-    if (ssl::set_fd(s, conn->fd) != 1) goto set_fd_err;
-    if (ssl::accept(s, _config->handshake_timeout) <= 0) goto accept_err;
+    if (ssl::set_fd(s, fd) != 1) goto set_fd_err;
+    if (ssl::accept(s, ((ServerConfig*)_config)->handshake_timeout) <= 0) goto accept_err;
 
     this->on_connection(s);
     return;
@@ -266,19 +280,19 @@ void Server::on_connection(tcp::Connection* conn) {
     ELOG << "new SSL failed: " << ssl::strerror();
     goto err_end;
   set_fd_err:
-    ELOG << "ssl set fd (" << conn->fd << ") failed: " << ssl::strerror();
+    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror();
     goto err_end;
   accept_err:
     ELOG << "ssl accept failed: " << ssl::strerror();
     goto err_end;
   err_end:
     if (s) ssl::free_ssl(s);
-    co::close(conn->fd, 1000);
+    co::close(fd, 1000);
     return;
 }
 
 Client::Client(const char* serv_ip, int serv_port)
-    : tcp::Client(serv_ip, serv_port) {
+    : tcp::Client(serv_ip, serv_port), _ctx(0), _ssl(0) {
 }
 
 Client::~Client() {
@@ -322,7 +336,7 @@ bool Client::connect(int ms) {
 
 void Client::disconnect() {
     if (this->connected()) {
-        if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
+        if (_ssl) { ssl::shutdown(_ssl); ssl::free_ssl(_ssl); _ssl = 0; } 
         if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
         tcp::Client::disconnect();
     }

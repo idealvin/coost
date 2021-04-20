@@ -1,16 +1,9 @@
 #pragma once
 
 #include "../co.h"
-#include "../fastream.h"
-#include <memory>
 
 namespace so {
 namespace tcp {
-
-struct Connection {
-    sock_t fd;     // connection fd
-    fastring peer; // ip:port of peer
-};
 
 /**
  * TCP server based on coroutine 
@@ -19,48 +12,36 @@ struct Connection {
  */
 class Server {
   public:
-    /**
-     * @param ip    either an ipv4 or ipv6 address. 
-     *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
-     * @param port  the listening port. 
-     */
-    Server(const char* ip, int port)
-        : _ip((ip && *ip) ? ip : "0.0.0.0"), _port(port) {
-    }
-
+    Server() = default;
     virtual ~Server() = default;
 
     /**
      * start the server
-     *   - The server will loop in a coroutine. 
-     *   - It will not block the calling thread. 
+     *   - The server will loop in a coroutine, and it will not block the calling thread. 
+     * 
+     * @param ip    either an ipv4 or ipv6 address. 
+     *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
+     * @param port  the listening port. 
      */
-    virtual void start() {
-        go(&Server::loop, this);
-    }
-
-  protected:
-    fastring _ip;
-    uint32 _port;
+    virtual void start(const char* ip, int port);
 
   private:
-    /**
-     * the server loop 
-     *   - It listens on a port and waits for connections.
-     *   - When a connection is accepted, it will call on_connection() to handle 
-     *     the connection in a new coroutine.
-     */
-    void loop();
-
     /**
      * method for handling a connection 
      *   - The derived class MUST implement this method. 
      *   - This method will run in a coroutine. 
      * 
-     * @param conn  a pointer to an object of tcp::Connection. 
-     *              The user MUST delete it when the connection was closed. 
+     * @param fd  a connection socket.
      */
-    virtual void on_connection(tcp::Connection* conn) = 0;
+    virtual void on_connection(sock_t fd) = 0;
+
+    /**
+     * the server loop 
+     *   - It listens on a port and waits for connections.
+     *   - When a connection is accepted, it will call go(on_connection...) to 
+     *     start a new coroutine to handle the connection. 
+     */
+    void loop(void* p);
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
@@ -71,7 +52,8 @@ class Server {
  *   - One client corresponds to one connection. 
  * 
  *   - It MUST be used in a coroutine. 
- *   - NEVER use a same Client in different coroutines at the same time. 
+ *   - It is NOT coroutine-safe, NEVER use a same Client in different coroutines 
+ *     at the same time. 
  * 
  *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
  *     may be established. 
@@ -102,15 +84,20 @@ class Client {
         return co::send(_fd, buf, n, ms);
     }
 
+    /**
+     * check whether the connection has been established 
+     */
     bool connected() const {
-        return _fd != (sock_t)-1; 
+        return _fd != (sock_t)-1;
     }
 
     /**
      * connect to the server 
      *   - It MUST be called in the thread that performed the IO operation. 
      *
-     * @param ms  timeout in milliseconds
+     * @param ms  timeout in milliseconds, -1 for never timeout.
+     * 
+     * @return    true on success, false on timeout or error.
      */
     bool connect(int ms);
 
@@ -119,6 +106,11 @@ class Client {
      *   - It MUST be called in the thread that performed the IO operation. 
      */
     void disconnect();
+
+    /**
+     * get the socket fd 
+     */
+    sock_t fd() const { return _fd; }
 
   protected:
     fastring _ip;
@@ -133,7 +125,3 @@ class Client {
 } // so
 
 namespace tcp = so::tcp;
-
-inline fastream& operator<<(fastream& fs, const tcp::Connection& c) {
-    return fs << c.peer;
-}

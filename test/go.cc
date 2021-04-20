@@ -52,8 +52,8 @@ class T {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
+    log::init();
 
     std::string s("s222");
     const std::string cs("cs222");

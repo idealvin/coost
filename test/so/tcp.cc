@@ -3,15 +3,16 @@
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 
-struct Connection {
-    sock_t fd;   // conn fd
-    fastring ip; // peer ip
-    int port;    // peer port
+
+class MyServer : public tcp::Server {
+  public:
+    MyServer() = default;
+    virtual ~MyServer() = default;
+
+    virtual void on_connection(sock_t fd);
 };
 
-void on_new_connection(void* p) {
-    std::unique_ptr<Connection> conn((Connection*)p);
-    sock_t fd = conn->fd;
+void MyServer::on_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
 
@@ -38,54 +39,24 @@ void on_new_connection(void* p) {
     }
 }
 
-void server_fun() {
-    sock_t fd = co::tcp_socket();
-    co::set_reuseaddr(fd);
-
-    sock_t connfd;
-    int addrlen = sizeof(sockaddr_in);
-    struct sockaddr_in addr;
-    co::init_ip_addr(&addr, FLG_ip.c_str(), FLG_port);
-
-    co::bind(fd, &addr, sizeof(addr));
-    co::listen(fd, 1024);
-
-    while (true) {
-        addrlen = sizeof(sockaddr_in);
-        connfd = co::accept(fd, &addr, &addrlen);
-        if (connfd == -1) continue;
-
-        Connection* conn = new Connection;
-        conn->fd = connfd;
-        conn->ip = co::ip_str(&addr);
-        conn->port = ntoh16(addr.sin_port);
-
-        // create a new coroutine for this connection
-        COUT << "server accept new connection: " << conn->ip << ":" << conn->port;
-        co::go(on_new_connection, conn);
-    }
-}
-
 void client_fun() {
-    sock_t fd = co::tcp_socket();
-
-    struct sockaddr_in addr;
-    co::init_ip_addr(&addr, FLG_ip.c_str(), FLG_port);
-
-    co::connect(fd, &addr, sizeof(addr), 3000);
-    co::set_tcp_nodelay(fd);
+    tcp::Client c(FLG_ip.c_str(), FLG_port);
+    if (!c.connect(3000)) {
+        COUT << "failed to connect to server " << FLG_ip << ':' << FLG_port;
+        return;
+    }
 
     char buf[8] = { 0 };
 
     while (true) {
         COUT << "client send ping";
-        int r = co::send(fd, "ping", 4);
+        int r = c.send("ping", 4);
         if (r == -1) {
             COUT << "client send error: " << co::strerror();
             break;
         }
 
-        r = co::recv(fd, buf, 8);
+        r = c.recv(buf, 8);
         if (r == -1) {
             COUT << "client recv error: " << co::strerror();
             break;
@@ -98,13 +69,15 @@ void client_fun() {
         }
     }
 
-    co::close(fd);
+    c.disconnect();
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
-    go(server_fun);
+    MyServer s;
+    s.start(FLG_ip.c_str(), FLG_port);
+
     sleep::ms(32);
     go(client_fun);
 

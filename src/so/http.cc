@@ -25,8 +25,8 @@ DEF_bool(http_log, true, "#2 enable http log if true");
 namespace so {
 namespace http {
 
-Server::Server(const char* ip, int port)
-    : tcp::Server(ip, port), _conn_num(0), _buffer(
+Server::Server()
+    : _conn_num(0), _buffer(
           []() { return (void*) new fastring(4096); },
           [](void* p) { delete (fastring*)p; }
       ) {
@@ -34,22 +34,13 @@ Server::Server(const char* ip, int port)
 
 Server::~Server() = default;
 
-void Server::start() {
-    tcp::Server::start();
-    LOG << "http server start, ip: " << _ip << ", port: " << _port;
-}
-
 int parse_req(fastring& s, size_t end, Req* req, int* body_len);
 int parse_res(fastring& s, size_t end, Res* res, int* body_len);
 
-void Server::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> x(conn);
-    sock_t fd = conn->fd;
+void Server::on_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
-    
-    LOG << "http server accept new connection: " << *conn << ", conn fd: " << fd
-        << ", conn num: " << atomic_inc(&_conn_num);
+    atomic_inc(&_conn_num);
 
     char c;
     int r = 0, body_len = 0;
@@ -164,11 +155,11 @@ void Server::on_connection(tcp::Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "http client close the connection: " << *conn << " fd: " << fd;
+    LOG << "http client close the connection, connfd: " << fd;
     co::close(fd);
     goto cleanup;
   idle_err:
-    ELOG << "http close idle connection: " << *conn;
+    ELOG << "http close idle connection, connfd: " << fd;
     co::reset_tcp_socket(fd);
     goto cleanup;
   header_too_long_err:
@@ -557,7 +548,7 @@ const char** Res::create_status_table() {
 } // http
 
 void easy(const char* root_dir, const char* ip, int port) {
-    http::Server serv(ip, port);
+    http::Server serv;
     std::vector<LruMap<fastring, std::pair<fastring, int64>>> contents(co::scheduler_num());
     fastring root(root_dir);
     if (root.empty()) root.append('.');
@@ -603,7 +594,7 @@ void easy(const char* root_dir, const char* ip, int port) {
         }
     );
 
-    serv.start();
+    serv.start(ip, port);
     while (true) sleep::sec(1024);
 }
 

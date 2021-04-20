@@ -164,7 +164,7 @@ class Server : public tcp::Server {
   public:
     typedef std::function<void(const Req&, Res&)> Fun;
 
-    Server(const char* ip, int port);
+    Server();
     virtual ~Server();
 
     void on_req(Fun&& fun) {
@@ -183,10 +183,8 @@ class Server : public tcp::Server {
         }
     }
 
-    virtual void start();
-
   private:
-    virtual void on_connection(tcp::Connection* conn);
+    virtual void on_connection(sock_t fd);
 
   private:
     int32 _conn_num;
