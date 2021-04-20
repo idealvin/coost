@@ -1,5 +1,6 @@
 #pragma once
 
+#include "closure.h"
 #include "co/sock.h"
 #include "co/hook.h"
 #include "co/epoll.h"
@@ -13,7 +14,7 @@ namespace co {
 
 /**
  * add a task, which will run as a coroutine 
- *   - If a Closure was created with new_closure(), the user needn't delete it 
+ *   - If a Closure was created with new_closure(), the user MUST NOT delete it 
  *     manually, as it will delete itself after Closure::run() is done.
  *   - Closure is an abstract base class, the user is free to implement his or 
  *     hers own subtype of Closure. This may be useful if the user do not want 
@@ -28,19 +29,21 @@ inline void go(Closure* cb) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @param f  a pointer to a function:  void xxx()
+ * @param f  a pointer to either void f() or std::function<void()>, 
+ *           or reference of std::function<void()>.
  */
-inline void go(void (*f)()) {
-    go(new_closure(f));
+template<typename F>
+inline void go(F&& f) {
+    go(new_closure(std::forward<F>(f)));
 }
 
 /**
  * add a task, which will run as a coroutine 
  * 
- * @tparam F  function type
- * @tparam P  parameter type
- * @param f   a pointer to a function with a parameter
- * @param p   parameter of f
+ * @param f  a pointer to either void f(P) or std::function<void(P)>, 
+ *           or a pointer to a method (function in a class) without parameter, 
+ *           or reference of std::function<void(P)>.
+ * @param p  parameter of f, or a pointer to an object of the class if f is a method.
  */
 template<typename F, typename P>
 inline void go(F&& f, P&& p) {
@@ -50,63 +53,13 @@ inline void go(F&& f, P&& p) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @tparam F  function type
- * @tparam P  parameter type
- * @param f   a pointer to F
- * @param p   parameter of f
- */
-template<typename F, typename P>
-inline void go(F* f, P&& p) {
-    go(new_closure(f, std::forward<P>(p)));
-}
-
-/**
- * add a task, which will run as a coroutine 
- * 
- * @tparam T  type of a class
- * @param f   a pointer to a method of class T, without parameter
- * @param o   a pointer to an object of class T
- */
-template<typename T>
-inline void go(void (T::*f)(), T* o) {
-    go(new_closure(f, o));
-}
-
-/**
- * add a task, which will run as a coroutine 
- * 
- * @tparam F  method in a class with one parameter.
- * @tparam T  type of the class.
- * @tparam P  type of the parameter.
- * @param f   reference of an object of F.
- * @param o   a pointer to an object of class T.
- * @param p   parameter of f.
+ * @param f  a pointer to a method with a parameter in class T.
+ * @param t  a pointer to an object of class T.
+ * @param p  parameter of f.
  */
 template<typename F, typename T, typename P>
-inline void go(F&& f, T* o, P&& p) {
-    go(new_closure(std::forward<F>(f), o, std::forward<P>(p)));
-}
-
-/**
- * add a task, which will run as a coroutine 
- *   - It is a little expensive to create an object of std::function, try to 
- *     avoid it if the user cares about the performance. 
- * 
- * @param f  a reference of an object of std::function<void()>
- */
-inline void go(const std::function<void()>& f) {
-    go(new_closure(f));
-}
-
-/**
- * add a task, which will run as a coroutine 
- *   - It is a little expensive to create an object of std::function, try to 
- *     avoid it if the user cares about the performance. 
- * 
- * @param f  a rvalue reference of an object of std::function<void()>
- */
-inline void go(std::function<void()>&& f) {
-    go(new_closure(std::move(f)));
+inline void go(F&& f, T&& t, P&& p) {
+    go(new_closure(std::forward<F>(f), std::forward<T>(t), std::forward<P>(p)));
 }
 
 /**

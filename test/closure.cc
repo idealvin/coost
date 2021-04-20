@@ -107,6 +107,12 @@ void test_new_closure() {
 
     Closure* o1 = new_closure(f1, 7);
     o1->run();
+
+    Closure* o2 = new_closure(std::bind(f, 9));
+    o2->run();
+
+    Closure* o3 = new_closure(std::bind(f, std::placeholders::_1), 999);
+    o3->run();
 }
 
 int main(int argc, char** argv) {

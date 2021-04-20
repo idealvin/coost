@@ -13,11 +13,10 @@ class Closure {
 
 namespace xx {
 
+template<typename F>
 class Function0 : public Closure {
   public:
-    typedef void (*F)();
-
-    Function0(F f) : _f(f) {}
+    Function0(F&& f) : _f(std::forward<F>(f)) {}
 
     virtual void run() {
         _f();
@@ -25,9 +24,25 @@ class Function0 : public Closure {
     }
 
   private:
-    F _f;
+    typename std::remove_reference<F>::type _f;
 
     virtual ~Function0() {}
+};
+
+template<typename F>
+class Function0p : public Closure {
+  public:
+    Function0p(F* f) : _f(f) {}
+
+    virtual void run() {
+        (*_f)();
+        delete this;
+    }
+
+  private:
+    typename std::remove_reference<F>::type* _f;
+
+    virtual ~Function0p() {}
 };
 
 template<typename F, typename P>
@@ -103,37 +118,30 @@ class Method1 : public Closure {
     virtual ~Method1() {}
 };
 
-class Function : public Closure {
-  public:
-    typedef std::function<void()> F;
-
-    Function(F&& f) : _f(std::move(f)) {}
-
-    Function(const F& f) : _f(f) {}
-
-    virtual void run() {
-        _f();
-        delete this;
-    }
-
-  private:
-    F _f;
-
-    virtual ~Function() {}
-};
-
 } // xx
 
-inline Closure* new_closure(void (*f)()) {
-    return new xx::Function0(f);
+/**
+ * @param f  reference of std::function<void()>
+ */
+template<typename F>
+inline Closure* new_closure(F&& f) {
+    return new xx::Function0<F>(std::forward<F>(f));
+}
+
+/**
+ * @param f  a pointer to either void f() or std::function<void()>. 
+ *           The function object f points to MUST be valid when Closure::run() is running. 
+ */
+template<typename F>
+inline Closure* new_closure(F* f) {
+    return new xx::Function0p<F>(f);
 }
 
 /**
  * function with a single parameter 
  *
- * @tparam F  function type, either void f(X) or std::function<void(X)>
- * @param f   reference of an object of F.
- * @param p   parameter of f.
+ * @param f  reference of std::function<void(P)>.
+ * @param p  parameter of f.
  */
 template<typename F, typename P>
 inline Closure* new_closure(F&& f, P&& p) {
@@ -143,9 +151,9 @@ inline Closure* new_closure(F&& f, P&& p) {
 /**
  * function with a single parameter 
  *
- * @tparam F  function type, either void f(X) or std::function<void(X)>
- * @param f   a pointer to F.
- * @param p   parameter of f.
+ * @param f  a pointer to either void f(P) or std::function<void(P)>. 
+ *           The function object f points to MUST be valid when Closure::run() is running. 
+ * @param p  parameter of f.
  */
 template<typename F, typename P>
 inline Closure* new_closure(F* f, P&& p) {
@@ -155,8 +163,8 @@ inline Closure* new_closure(F* f, P&& p) {
 /**
  * method (function in a class) without parameter
  * 
- * @tparam T  type of a class.
- * @param o   pointer to an object of T.
+ * @param f  pointer to a method without parameter in class T.
+ * @param o  pointer to an object of T.
  */
 template<typename T>
 inline Closure* new_closure(void (T::*f)(), T* o) {
@@ -166,22 +174,14 @@ inline Closure* new_closure(void (T::*f)(), T* o) {
 /**
  * method (function in a class) with a single parameter 
  * 
- * @tparam F  method in class T with one parameter.
- * @tparam T  type of a class.
+ * @tparam F  method type, void (T::*)(P).
+ * @tparam T  type of the class.
  * @tparam P  type of the parameter.
- * @param f   reference of an object of F.
- * @param o   a pointer to an object of T.
+ * @param f   pointer to a method with a parameter in class T.
+ * @param o   pointer to an object of T.
  * @param p   parameter of f.
  */
 template<typename F, typename T, typename P>
 inline Closure* new_closure(F&& f, T* o, P&& p) {
     return new xx::Method1<F, T, P>(std::forward<F>(f), o, std::forward<P>(p));
-}
-
-inline Closure* new_closure(std::function<void()>&& f) {
-    return new xx::Function(std::move(f));
-}
-
-inline Closure* new_closure(const std::function<void()>& f) {
-    return new xx::Function(f);
 }
