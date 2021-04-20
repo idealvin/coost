@@ -37,18 +37,21 @@ inline void go(void (*f)()) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @param f  a pointer to a function with a parameter:  void xxx(void*)
- * @param p  a pointer as the parameter of f
+ * @tparam F  function type
+ * @tparam P  parameter type
+ * @param f   a pointer to a function with a parameter
+ * @param p   parameter of f
  */
-inline void go(void (*f)(void*), void* p) {
-    go(new_closure(f, p));
+template<typename F, typename P>
+inline void go(F f, P&& p) {
+    go(new_closure(f, std::forward<P>(p)));
 }
 
 /**
  * add a task, which will run as a coroutine 
  * 
  * @tparam T  type of a class
- * @param f   a pointer to a method of class T:  void T::xxx()
+ * @param f   a pointer to a method of class T, without parameter
  * @param o   a pointer to an object of class T
  */
 template<typename T>
@@ -59,14 +62,16 @@ inline void go(void (T::*f)(), T* o) {
 /**
  * add a task, which will run as a coroutine 
  * 
- * @tparam T  type of a class
- * @param f   a pointer to a method of class T:  void T::xxx(void*)
+ * @tparam F  method in a class
+ * @tparam T  type of the class
+ * @tparam P  parameter of F
+ * @param f   a pointer to a method of class T, with one parameter
  * @param o   a pointer to an object of class T
- * @param p   a pointer as the parameter of f
+ * @param p   parameter of f
  */
-template<typename T>
-inline void go(void (T::*f)(void*), T* o, void* p) {
-    go(new_closure(f, o, p));
+template<typename F, typename T, typename P>
+inline void go(F f, T* o, P&& p) {
+    go(new_closure(f, o, std::forward<P>(p)));
 }
 
 /**

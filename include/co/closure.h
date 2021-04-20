@@ -91,7 +91,7 @@ template<typename F, typename T, typename P>
 class Method1 : public Closure {
   public:
     Method1(F f, T* o, P&& p)
-        : _f(f), _o(o), _p(std::forward<P>(p)) {
+        : _f(f), _p(std::forward<P>(p)), _o(o) {
     }
 
     virtual void run() {
