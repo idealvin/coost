@@ -87,6 +87,7 @@ int main(int argc, char** argv) {
 
     go(&x, 888);
     go(x, 888);
+    go([]() { LOG << "[]()"; });
 
     sleep::ms(100);
     return 0;

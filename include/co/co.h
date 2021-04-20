@@ -28,6 +28,17 @@ inline void go(Closure* cb) {
 
 /**
  * add a task, which will run as a coroutine 
+ *   - eg.
+ *     go(f);               // void f();
+ *     go([]() { ... });    // lambda
+ *     go(std::bind(...));  // std::bind
+ * 
+ *     std::function<void()> x(std::bind(...));
+ *     go(x);               // std::function<void()>
+ *     go(&x);              // std::function<void()>* 
+ *
+ *   - If f is a pointer to std::function<void()>, the user MUST ensure that the 
+ *     object f points to is valid when Closure::run() is running. 
  * 
  * @param f  a pointer to either void f() or std::function<void()>, 
  *           or reference of std::function<void()>.
@@ -39,7 +50,18 @@ inline void go(F&& f) {
 
 /**
  * add a task, which will run as a coroutine 
+ *   - eg.
+ *     go(f, 8);   // void f(int);
+ *     go(f, p);   // void f(void*);   void* p;
+ *     go(f, o);   // void (T::*f)();  T* o;
  * 
+ *     std::function<void(P)> x(std::bind(...));
+ *     go(x, p);   // P p;
+ *     go(&x, p);  // P p; 
+ *
+ *   - If f is a pointer to std::function<void(P)>, the user MUST ensure that the 
+ *     object f points to is valid when Closure::run() is running. 
+ 
  * @param f  a pointer to either void f(P) or std::function<void(P)>, 
  *           or a pointer to a method (function in a class) without parameter, 
  *           or reference of std::function<void(P)>.
@@ -52,7 +74,9 @@ inline void go(F&& f, P&& p) {
 
 /**
  * add a task, which will run as a coroutine 
- * 
+ *   - eg.
+ *     go(f, o, p);   // void (T::*f)(P);  T* o;  P p;
+ 
  * @param f  a pointer to a method with a parameter in class T.
  * @param t  a pointer to an object of class T.
  * @param p  parameter of f.
