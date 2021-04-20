@@ -433,6 +433,17 @@ inline fastring to_string(const struct sockaddr_in6* addr) {
 }
 
 /**
+ * convert an ip address to a string 
+ * 
+ * @param addr  a pointer to struct sockaddr.
+ * @param len   length of the addr, sizeof(sockaddr_in) or sizeof(sockaddr_in6).
+ */
+inline fastring to_string(const void* addr, int len) {
+    if (len == sizeof(sockaddr_in)) return to_string((const sockaddr_in*)addr);
+    return to_string((const struct sockaddr_in6*)addr);
+}
+
+/**
  * get peer address of a connected socket 
  * 
  * @return  a string in format: "ip:port", or an empty string on error.
