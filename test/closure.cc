@@ -83,11 +83,38 @@ void test() {
     delete rc;
 }
 
+void f0() {
+    COUT << "f0()";
+}
+
+void f1(int v) {
+    COUT << "f1: " << v;
+}
+
+void test_new_closure() {
+    auto f = [](int v) {
+        COUT << "xxxxx: " << v;
+    };
+
+    Closure* c = new_closure(&f, 3);
+    c->run();
+
+    Closure* e = new_closure(f, 5);
+    e->run();
+
+    Closure* o0 = new_closure(f0);
+    o0->run();
+
+    Closure* o1 = new_closure(f1, 7);
+    o1->run();
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
     test();
+    test_new_closure();
 
     return 0;
 }

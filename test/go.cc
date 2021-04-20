@@ -81,6 +81,13 @@ int main(int argc, char** argv) {
     go(&T::m3, &o, new std::string("333"));
     go(std::bind(&T::m4, &o, 500, 511));
 
+    auto x = [](int v) {
+        LOG << "[](" << v << ")";
+    };
+
+    go(&x, 888);
+    go(x, 888);
+
     sleep::ms(100);
     return 0;
 }

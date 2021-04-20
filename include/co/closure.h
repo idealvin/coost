@@ -13,9 +13,6 @@ class Closure {
 
 namespace xx {
 
-/**
- * function without parameter 
- */
 class Function0 : public Closure {
   public:
     typedef void (*F)();
@@ -33,16 +30,10 @@ class Function0 : public Closure {
     virtual ~Function0() {}
 };
 
-/**
- * function with a single parameter 
- *
- * @tparam F  a function type, with only one parameter.
- * @tparam P  parameter of F.
- */
 template<typename F, typename P>
 class Function1 : public Closure {
   public:
-    Function1(F f, P&& p) : _f(f), _p(std::forward<P>(p)) {}
+    Function1(F&& f, P&& p) : _f(std::forward<F>(f)), _p(std::forward<P>(p)) {}
 
     virtual void run() {
         _f(_p);
@@ -56,11 +47,23 @@ class Function1 : public Closure {
     virtual ~Function1() {}
 };
 
-/**
- * method (function in a class) without parameter
- * 
- * @tparam T  type of a class.
- */
+template<typename F, typename P>
+class Function1p : public Closure {
+  public:
+    Function1p(F* f, P&& p) : _f(f), _p(std::forward<P>(p)) {}
+
+    virtual void run() {
+        (*_f)(_p);
+        delete this;
+    }
+
+  private:
+    typename std::remove_reference<F>::type* _f;
+    typename std::remove_reference<P>::type _p;
+
+    virtual ~Function1p() {}
+};
+
 template<typename T>
 class Method0 : public Closure {
   public:
@@ -80,18 +83,11 @@ class Method0 : public Closure {
     virtual ~Method0() {}
 };
 
-/**
- * method (function in a class) with a single parameter 
- * 
- * @tparam F  method type, with only one parameter.
- * @tparam T  type of the class. 
- * @tparam P  parameter of F.
- */
 template<typename F, typename T, typename P>
 class Method1 : public Closure {
   public:
-    Method1(F f, T* o, P&& p)
-        : _f(f), _p(std::forward<P>(p)), _o(o) {
+    Method1(F&& f, T* o, P&& p)
+        : _f(std::forward<F>(f)), _o(o), _p(std::forward<P>(p)) {
     }
 
     virtual void run() {
@@ -101,8 +97,8 @@ class Method1 : public Closure {
 
   private:
     typename std::remove_reference<F>::type _f;
-    typename std::remove_reference<P>::type _p;
     T* _o;
+    typename std::remove_reference<P>::type _p;
 
     virtual ~Method1() {}
 };
@@ -132,19 +128,54 @@ inline Closure* new_closure(void (*f)()) {
     return new xx::Function0(f);
 }
 
+/**
+ * function with a single parameter 
+ *
+ * @tparam F  function type, either void f(X) or std::function<void(X)>
+ * @param f   reference of an object of F.
+ * @param p   parameter of f.
+ */
 template<typename F, typename P>
-inline Closure* new_closure(F f, P&& p) {
-    return new xx::Function1<F, P>(f, std::forward<P>(p));
+inline Closure* new_closure(F&& f, P&& p) {
+    return new xx::Function1<F, P>(std::forward<F>(f), std::forward<P>(p));
 }
 
+/**
+ * function with a single parameter 
+ *
+ * @tparam F  function type, either void f(X) or std::function<void(X)>
+ * @param f   a pointer to F.
+ * @param p   parameter of f.
+ */
+template<typename F, typename P>
+inline Closure* new_closure(F* f, P&& p) {
+    return new xx::Function1p<F, P>(f, std::forward<P>(p));
+}
+
+/**
+ * method (function in a class) without parameter
+ * 
+ * @tparam T  type of a class.
+ * @param o   pointer to an object of T.
+ */
 template<typename T>
 inline Closure* new_closure(void (T::*f)(), T* o) {
     return new xx::Method0<T>(f, o);
 }
 
+/**
+ * method (function in a class) with a single parameter 
+ * 
+ * @tparam F  method in class T with one parameter.
+ * @tparam T  type of a class.
+ * @tparam P  type of the parameter.
+ * @param f   reference of an object of F.
+ * @param o   a pointer to an object of T.
+ * @param p   parameter of f.
+ */
 template<typename F, typename T, typename P>
-inline Closure* new_closure(F f, T* o, P&& p) {
-    return new xx::Method1<F, T, P>(f, o, std::forward<P>(p));
+inline Closure* new_closure(F&& f, T* o, P&& p) {
+    return new xx::Method1<F, T, P>(std::forward<F>(f), o, std::forward<P>(p));
 }
 
 inline Closure* new_closure(std::function<void()>&& f) {
