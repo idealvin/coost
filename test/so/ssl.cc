@@ -10,21 +10,12 @@ DEF_int32(port, 9988, "port");
 DEF_int32(t, 0, "0: server & client, 1: server, 2: client");
 DEC_bool(cout);
 
-
-class SimpleSSLServer : public ssl::Server {
-  public:
-    SimpleSSLServer() = default;
-    virtual ~SimpleSSLServer() = default;
-
-    virtual void on_connection(SSL* s);
-};
-
 struct Header {
     int32 magic;
     int32 body_len;
 };
 
-void SimpleSSLServer::on_connection(SSL* s) {
+void on_connection(SSL* s) {
     const char* msg = "hello client";
     Header header;
     fastream buf(128);
@@ -68,13 +59,13 @@ void SimpleSSLServer::on_connection(SSL* s) {
     }
 
   err:
+    ssl::shutdown(s);
     ssl::free_ssl(s);
     if (fd >= 0) { co::close(fd, 1000); fd = -1; }
 }
 
 void client_fun() {
     ssl::Client c(FLG_ip.c_str(), FLG_port);
-
     if (!c.connect(3000)) {
         LOG << "ssl connect failed: " << ssl::strerror();
         return;
@@ -131,7 +122,8 @@ int main(int argc, char** argv) {
     FLG_cout = true;
     log::init();
 
-    SimpleSSLServer serv;
+    ssl::Server serv;
+    serv.on_connection(on_connection);
 
     if (FLG_t == 0) {
         serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());

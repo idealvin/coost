@@ -254,7 +254,7 @@ int send(SSL* s, const void* buf, int n, int ms=-1);
  */
 inline bool timeout() { return co::timeout(); }
 
-class Server : public tcp::Server {
+class Server {
   public:
     Server();
     virtual ~Server();
@@ -269,8 +269,32 @@ class Server : public tcp::Server {
     void set_handshake_timeout(int32 ms);
 
     /**
+     * set a callback for handling a ssl connection 
+     *   - The user MUST call ssl::free_ssl() to free the SSL when the connection was closed.
+     * 
+     * @param f  either a pointer to void f(SSL*), or a reference of std::function<void(SSL*)>.
+     */
+    void on_connection(std::function<void(SSL*)>&& f) {
+        _on_ssl_connection = std::move(f);
+    }
+
+    /**
+     * set a callback for handling a ssl connection 
+     *   - The user MUST call ssl::free_ssl() to free the SSL when the connection was closed.
+     * 
+     * @param f  pointer to a method with a parameter of type SSL* in class T.
+     * @param o  pointer to an object of class T.
+     */
+    template<typename T>
+    void on_connection(void (T::*f)(SSL*), T* o) {
+        _on_ssl_connection = std::bind(f, o, std::placeholders::_1);
+    }
+
+    /**
      * start the ssl server 
      *   - The server will loop in a coroutine, and it will not block the calling thread. 
+     *   - The user MUST call on_connection() to set a connection callback before start() 
+     *     was called. 
      * 
      * @param ip    server ip, either an ipv4 or ipv6 address. 
      *              if ip is NULL or empty, "0.0.0.0" will be used by default.
@@ -278,29 +302,23 @@ class Server : public tcp::Server {
      * @param key   path of private key file.
      * @param ca    path of certificate file.
      */
-    virtual void start(const char* ip, int port, const char* key, const char* ca);
+    void start(const char* ip, int port, const char* key, const char* ca);
 
   private:
-    virtual void on_connection(sock_t fd);
-
-    /**
-     * method for handling ssl connection 
-     *   - This method will run in a coroutine. 
-     * 
-     * @param s  a pointer to SSL. 
-     *           The user MUST call ssl::free_ssl() to free it when the connection was closed. 
-     */
-    virtual void on_connection(SSL* s) = 0;
-
-  protected:
+    tcp::Server _tcp_serv;
     SSL_CTX* _ctx;
     void* _config;
+    std::function<void(SSL*)> _on_ssl_connection;
+
+    void on_tcp_connection(sock_t fd);
+
+    DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
 class Client {
   public:
     Client(const char* serv_ip, int serv_port);
-    virtual ~Client();
+    virtual ~Client() { this->disconnect(); }
 
     int recv(void* buf, int n, int ms=-1) {
         return ssl::recv(_ssl, buf, n, ms);
@@ -314,9 +332,7 @@ class Client {
         return ssl::send(_ssl, buf, n, ms);
     }
 
-    bool connected() const {
-        return _ssl != NULL; 
-    }
+    bool connected() const { return _ssl != NULL; }
 
     /**
      * connect to the ssl server 
@@ -335,10 +351,12 @@ class Client {
 
     SSL* ssl() const { return _ssl; }
 
-  protected:
+  private:
     tcp::Client _tcp_cli;
     SSL_CTX* _ctx;
     SSL* _ssl;
+
+    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // ssl

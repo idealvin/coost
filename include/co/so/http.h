@@ -1,14 +1,14 @@
 #pragma once
 
 #include "tcp.h"
+#include "ssl.h"
 #include <vector>
-#include <functional>
 
 namespace so {
 namespace http {
 
 enum Version {
-    kHTTP10, kHTTP11,
+    kHTTP10, kHTTP11, kHTTP20,
 };
 
 enum Method {
@@ -160,36 +160,102 @@ class Res : public Base {
     static const char** create_status_table();
 };
 
-class Server : public tcp::Server {
+class Server {
   public:
-    typedef std::function<void(const Req&, Res&)> Fun;
-
     Server();
-    virtual ~Server();
+    ~Server();
 
-    void on_req(Fun&& fun) {
-        _on_req = std::move(fun);
+    /**
+     * set max size of http header 
+     *   - If not set, a global config FLG_http_max_header_size will be used. 
+     */
+    void set_http_max_header_size(uint32 n);
+
+    /**
+     * set max size of http body 
+     *   - If not set, a global config FLG_http_max_body_size will be used. 
+     */
+    void set_http_max_body_size(uint32 n);
+
+    /**
+     * set recv timeout (in milliseconds) 
+     *   - If not set, a global config FLG_http_recv_timeout will be used. 
+     */
+    void set_http_recv_timeout(uint32 ms);
+
+    /**
+     * set send timeout (in milliseconds) 
+     *   - If not set, a global config FLG_http_send_timeout will be used. 
+     */
+    void set_http_send_timeout(uint32 ms);
+
+    /**
+     * set connection timeout (in milliseconds) 
+     *   - If not set, a global config FLG_http_conn_timeout will be used. 
+     */
+    void set_http_conn_timeout(uint32 ms);
+
+    /**
+     * set a timeout for idle connection (in seconds) 
+     *   - If not set, a global config FLG_http_conn_idle_sec will be used. 
+     *   - Idle connections (no data was recieved for http_conn_idle_sec seconds) may 
+     *     be closed by the server. 
+     */
+    void set_http_conn_idle_sec(uint32 sec);
+
+    /**
+     * set max number of idle connections 
+     *   - If not set, a global config FLG_http_max_idle_conn will be used. 
+     *   - If the total number of connections was greater than this value, the server 
+     *     will close some idle connections. 
+     */
+    void set_http_max_idle_conn(uint32 n);
+
+    /**
+     * set ssl handshake timeout (in milliseconds) 
+     *   - If not set, a global config FLG_ssl_handshake_timeout will be used. 
+     */
+    void set_ssl_handshake_timeout(uint32 ms);
+
+    /**
+     * set a callback for handling http request 
+     * 
+     * @param f  a pointer to void xxx(const Req&, Res&), or 
+     *           a reference of std::function<void(const Req&, Res&)>
+     */
+    void on_req(std::function<void(const Req&, Res&)>&& f);
+
+    /**
+     * set a callback for handling http request 
+     * 
+     * @param f  a pointer to a method in class T.
+     * @param o  a pointer to an object of class T.
+     */
+    template<typename T>
+    void on_req(void (T::*f)(const Req&, Res&), T* o) {
+        on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
     }
 
-    void on_req(const Fun& fun) {
-        _on_req = fun;
-    }
+    /**
+     * start a http server 
+     * 
+     * @param ip    server ip, either an ipv4 or ipv6 address, default: "0.0.0.0".
+     * @param port  server port, default: 80.
+     */
+    void start(const char* ip="0.0.0.0", int port=80);
 
-    void process(const Req& req, Res& res) {
-        if (_on_req) {
-            _on_req(req, res);
-        } else {
-            res.set_status(501);
-        }
-    }
+    /**
+     * start a https server 
+     * 
+     * @param ip    server ip, either an ipv4 or ipv6 address.
+     * @param port  server port.
+     * @param key   path of the private key file for ssl.
+     * @param ca    path of the certificate file for ssl.
+     */
+    void start(const char* ip, int port, const char* key, const char* ca);
 
   private:
-    virtual void on_connection(sock_t fd);
-
-  private:
-    int32 _conn_num;
-    co::Pool _buffer; // memory buffer for co::recv()
-    Fun _on_req;
+    void* _p;
 };
 
 class Client : public tcp::Client {

@@ -20,6 +20,7 @@ struct ServerParam {
 };
 
 void Server::start(const char* ip, int port) {
+    CHECK(_on_connection != NULL) << "connection callback not set..";
     ServerParam* p = new ServerParam();
     p->ip = ((ip && *ip) ? ip : "0.0.0.0");
     p->port = str::from(port);
@@ -65,7 +66,7 @@ void Server::loop(void* arg) {
 
         DLOG << "server_" << p->fd << " accept new connection: "
              << co::to_string(&p->addr, p->addrlen) << ", connfd: " << p->connfd;
-        go(&Server::on_connection, this, p->connfd);
+        go(&_on_connection, p->connfd);
     }
 }
 

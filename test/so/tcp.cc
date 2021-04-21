@@ -3,16 +3,7 @@
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 
-
-class MyServer : public tcp::Server {
-  public:
-    MyServer() = default;
-    virtual ~MyServer() = default;
-
-    virtual void on_connection(sock_t fd);
-};
-
-void MyServer::on_connection(sock_t fd) {
+void on_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
 
@@ -75,7 +66,8 @@ void client_fun() {
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
-    MyServer s;
+    tcp::Server s;
+    s.on_connection(on_connection);
     s.start(FLG_ip.c_str(), FLG_port);
 
     sleep::ms(32);

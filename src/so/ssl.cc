@@ -6,8 +6,6 @@
 #include "co/fastream.h"
 #include "co/thread.h"
 
-DEF_int32(ssl_recv_timeout, 3000, "#2 ssl recv timeout in ms");
-DEF_int32(ssl_send_timeout, 3000, "#2 ssl send timeout in ms");
 DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
 
 namespace so {
@@ -265,10 +263,11 @@ void Server::start(const char* ip, int port, const char* key, const char* ca) {
     r = ssl::check_private_key(_ctx);
     CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
 
-    tcp::Server::start(ip, port);
+    _tcp_serv.on_connection(&Server::on_tcp_connection, this);
+    _tcp_serv.start(ip, port);
 }
 
-void Server::on_connection(sock_t fd) {
+void Server::on_tcp_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
 
@@ -278,7 +277,7 @@ void Server::on_connection(sock_t fd) {
     if (ssl::set_fd(s, fd) != 1) goto set_fd_err;
     if (ssl::accept(s, ((ServerConfig*)_config)->handshake_timeout) <= 0) goto accept_err;
 
-    this->on_connection(s);
+    _on_ssl_connection(s);
     return;
 
   new_ssl_err:
@@ -298,10 +297,6 @@ void Server::on_connection(sock_t fd) {
 
 Client::Client(const char* serv_ip, int serv_port)
     : _tcp_cli(serv_ip, serv_port), _ctx(0), _ssl(0) {
-}
-
-Client::~Client() {
-    this->disconnect();
 }
 
 bool Client::connect(int ms) {

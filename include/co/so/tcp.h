@@ -18,28 +18,44 @@ class Server {
     /**
      * start the server
      *   - The server will loop in a coroutine, and it will not block the calling thread. 
+     *   - The user MUST call on_connection() to set a connection callback before start() 
+     *     was called. 
      * 
      * @param ip    either an ipv4 or ipv6 address. 
      *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
      * @param port  the listening port. 
      */
-    virtual void start(const char* ip, int port);
+    void start(const char* ip, int port);
+
+    /**
+     * set a callback for handling a connection 
+     * 
+     * @param f  either a pointer to void f(sock_t), 
+     *           or a reference of std::function<void(sock_t)>.
+     */
+    void on_connection(std::function<void(sock_t)>&& f) {
+        _on_connection = std::move(f);
+    }
+
+    /**
+     * set a callback for handling a connection 
+     * 
+     * @param f  a pointer to a method with a parameter of type sock_t in class T.
+     * @param o  a pointer to an object of class T.
+     */
+    template<typename T>
+    void on_connection(void (T::*f)(sock_t), T* o) {
+        _on_connection = std::bind(f, o, std::placeholders::_1);
+    }
 
   private:
-    /**
-     * method for handling a connection 
-     *   - The derived class MUST implement this method. 
-     *   - This method will run in a coroutine. 
-     * 
-     * @param fd  a connection socket.
-     */
-    virtual void on_connection(sock_t fd) = 0;
+    std::function<void(sock_t)> _on_connection;
 
     /**
      * the server loop 
-     *   - It listens on a port and waits for connections.
-     *   - When a connection is accepted, it will call go(on_connection...) to 
-     *     start a new coroutine to handle the connection. 
+     *   - It listens on a port and waits for connections. 
+     *   - When a connection is accepted, it will start a new coroutine and call 
+     *     the connection callback to handle the connection. 
      */
     void loop(void* p);
 

@@ -1,5 +1,4 @@
 #include "co/so/http.h"
-#include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -25,19 +24,154 @@ DEF_bool(http_log, true, "#2 enable http log if true");
 namespace so {
 namespace http {
 
-Server::Server()
-    : _conn_num(0), _buffer(
-          []() { return (void*) new fastring(4096); },
-          [](void* p) { delete (fastring*)p; }
-      ) {
+struct ServerConfig {
+    uint32 http_max_header_size;
+    uint32 http_max_body_size;
+    int32 http_recv_timeout;
+    int32 http_send_timeout;
+    int32 http_conn_timeout;
+    uint32 http_conn_idle_sec;
+    uint32 http_max_idle_conn;
+    int32 ssl_handshake_timeout;
+};
+
+class ServerImpl {
+  public:
+    ServerImpl();
+    ~ServerImpl();
+
+    void set_http_max_header_size(uint32 n) { _conf->http_max_header_size = n; }
+    void set_http_max_body_size(uint32 n) { _conf->http_max_body_size = n; }
+    void set_http_recv_timeout(uint32 ms) { _conf->http_recv_timeout = ms; }
+    void set_http_send_timeout(uint32 ms) { _conf->http_send_timeout = ms; }
+    void set_http_conn_timeout(uint32 ms) { _conf->http_conn_timeout = ms; }
+    void set_http_conn_idle_sec(uint32 n) { _conf->http_conn_idle_sec = n; }
+    void set_http_max_idle_conn(uint32 n) { _conf->http_max_idle_conn = n; }
+    void set_ssl_handshake_timeout(uint32 ms) { _conf->ssl_handshake_timeout = ms; }
+
+    void on_req(std::function<void(const Req&, Res&)>&& f) {
+        _on_req = std::move(f);
+    }
+
+    void start(const char* ip, int port);
+
+    void start(const char* ip, int port, const char* key, const char* ca);
+
+  private:
+    void on_tcp_connection(sock_t fd);
+    void on_tcp_connection_v2(sock_t fd);
+
+    void on_ssl_connection(SSL* s);
+    void on_ssl_connection_v2(SSL* s);
+
+  private:
+    co::Pool _buffer; // buffer for recieving http data
+    uint32 _conn_num;
+    bool _enable_ssl;
+    void* _serv;
+    std::unique_ptr<ServerConfig> _conf;
+    std::function<void(const Req&, Res&)> _on_req;
+};
+
+Server::Server() {
+    _p = new ServerImpl();
 }
 
-Server::~Server() = default;
+Server::~Server() {
+    delete (ServerImpl*)_p;
+}
+
+void Server::set_http_max_header_size(uint32 n) {
+    ((ServerImpl*)_p)->set_http_max_header_size(n);
+}
+
+void Server::set_http_max_body_size(uint32 n) {
+    ((ServerImpl*)_p)->set_http_max_body_size(n);
+}
+
+void Server::set_http_recv_timeout(uint32 ms) {
+    ((ServerImpl*)_p)->set_http_recv_timeout(ms);
+}
+
+void Server::set_http_send_timeout(uint32 ms) {
+    ((ServerImpl*)_p)->set_http_send_timeout(ms);
+}
+
+void Server::set_http_conn_timeout(uint32 ms) {
+    ((ServerImpl*)_p)->set_http_conn_timeout(ms);
+}
+
+void Server::set_http_conn_idle_sec(uint32 n) {
+    ((ServerImpl*)_p)->set_http_conn_idle_sec(n);
+}
+
+void Server::set_http_max_idle_conn(uint32 n) {
+    ((ServerImpl*)_p)->set_http_max_idle_conn(n);
+}
+
+void Server::set_ssl_handshake_timeout(uint32 ms) {
+    ((ServerImpl*)_p)->set_ssl_handshake_timeout(ms);
+}
+
+void Server::on_req(std::function<void(const Req&, Res&)>&& f) {
+    ((ServerImpl*)_p)->on_req(std::move(f));
+}
+
+void Server::start(const char* ip, int port) {
+    ((ServerImpl*)_p)->start(ip, port);
+}
+
+void Server::start(const char* ip, int port, const char* key, const char* ca) {
+    ((ServerImpl*)_p)->start(ip, port, key, ca);
+}
+
+ServerImpl::ServerImpl()
+    : _buffer(
+          []() { return (void*) new fastring(4096); },
+          [](void* p) { delete (fastring*)p; }
+      ), _conn_num(0), _enable_ssl(false), _serv(0) {
+    _conf.reset(new ServerConfig);
+    _conf->http_max_header_size = FLG_http_max_header_size;
+    _conf->http_max_body_size = FLG_http_max_body_size;
+    _conf->http_recv_timeout = FLG_http_recv_timeout;
+    _conf->http_send_timeout = FLG_http_send_timeout;
+    _conf->http_conn_timeout = FLG_http_conn_timeout;
+    _conf->http_conn_idle_sec = FLG_http_conn_idle_sec;
+    _conf->http_max_idle_conn = FLG_http_max_idle_conn;
+    _conf->ssl_handshake_timeout = 0;
+}
+
+ServerImpl::~ServerImpl() {
+    if (_enable_ssl) {
+        delete (ssl::Server*)_serv;
+    } else {
+        delete (tcp::Server*)_serv;
+    }
+}
+
+void ServerImpl::start(const char* ip, int port) {
+    CHECK(_on_req != NULL) << "req callback must be set..";
+    tcp::Server* s = new tcp::Server();
+    s->on_connection(&ServerImpl::on_tcp_connection, this);
+    s->start(ip, port);
+    _serv = s;
+}
+
+void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
+    CHECK(_on_req != NULL) << "req callback must be set..";
+    _enable_ssl = true;
+    ssl::Server* s = new ssl::Server();
+    const int32 t = _conf->ssl_handshake_timeout;
+    if (t != 0) s->set_handshake_timeout(t);
+    s->on_connection(&ServerImpl::on_ssl_connection, this);
+    s->start(ip, port, key, ca);
+    _serv = s;
+}
 
 int parse_req(fastring& s, size_t end, Req* req, int* body_len);
 int parse_res(fastring& s, size_t end, Res* res, int* body_len);
 
-void Server::on_connection(sock_t fd) {
+void ServerImpl::on_tcp_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
     atomic_inc(&_conn_num);
@@ -53,62 +187,58 @@ void Server::on_connection(sock_t fd) {
         do {
           recv_beg:
             if (!buf) {
-                r = co::recv(fd, &c, 1, FLG_http_conn_idle_sec * 1000);
-                if (unlikely(r == 0)) goto recv_zero_err;
-                if (unlikely(r == -1)) {
-                    if (co::error() != ETIMEDOUT) goto recv_err;
-                    if (_conn_num > FLG_http_max_idle_conn) goto idle_err;
+                r = co::recv(fd, &c, 1, _conf->http_conn_idle_sec * 1000);
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) {
+                    if (!co::timeout()) goto recv_err;
+                    if (_conn_num > _conf->http_max_idle_conn) goto idle_err;
                     goto recv_beg;
                 }
-
                 buf = (fastring*) _buffer.pop();
                 buf->clear();
                 buf->append(c);
             }
 
+            // try to recv the http header
             while ((pos = buf->find("\r\n\r\n")) == buf->npos) {
-                if (buf->size() > FLG_http_max_header_size) goto header_too_long_err;
-
+                if (buf->size() > _conf->http_max_header_size) goto header_too_long_err;
                 buf->reserve(buf->size() + 1024);
                 r = co::recv(
                     fd, (void*)(buf->data() + buf->size()), 
-                    (int)(buf->capacity() - buf->size()), FLG_http_recv_timeout
+                    (int)(buf->capacity() - buf->size()), _conf->http_recv_timeout
                 );
-
-                if (unlikely(r == 0)) goto recv_zero_err;
-                if (unlikely(r == -1)) goto recv_err;
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) goto recv_err;
                 buf->resize(buf->size() + r);
             }
 
             // parse http req
             r = parse_req(*buf, pos, &req, &body_len);
             if (r != 0) {
-                fastring s;
+                fastring s(120);
                 s << "HTTP/1.1" << ' ' << r << ' ' << Res::status_str(r) << "\r\n";
                 s << "Content-Length: 0" << "\r\n";
                 s << "Connection: close" << "\r\n";
                 s << "\r\n";
-                co::send(fd, s.data(), (int)s.size(), FLG_http_send_timeout);
+                co::send(fd, s.data(), (int)s.size(), _conf->http_send_timeout);
                 HTTPLOG << "http parse req error, send res: " << s;
                 goto err_end;
             }
 
+            // try to recv the remain part of http body
             do {
-                size_t total_len = pos + 4 + body_len;
-
+                const size_t total_len = pos + 4 + body_len;
                 if (body_len > 0) {
                     if (buf->size() < total_len) {
                         buf->reserve(total_len);
                         r = co::recvn(
                             fd, (void*)(buf->data() + buf->size()), 
-                            (int)(total_len - buf->size()), FLG_http_recv_timeout
+                            (int)(total_len - buf->size()), _conf->http_recv_timeout
                         );
-
-                        if (unlikely(r == 0)) goto recv_zero_err;
-                        if (unlikely(r == -1)) goto recv_err;
+                        if (r == 0) goto recv_zero_err;
+                        if (r < 0) goto recv_err;
                         buf->resize(total_len);
                     }
-
                     req.set_body(buf->substr(pos + 4, body_len));
                 }
 
@@ -122,6 +252,7 @@ void Server::on_connection(sock_t fd) {
             } while (0);
         } while (0);
 
+        // handle the http request
         do {
             HTTPLOG << "http recv req: " << req.dbg();
             bool need_close = false;
@@ -135,18 +266,14 @@ void Server::on_connection(sock_t fd) {
                 if (!conn.empty() && conn == "close") need_close = true;
             }
 
-            this->process(req, res);
+            _on_req(req, res);
             fastring s = res.str();
-            r = co::send(fd, s.data(), (int) s.size(), FLG_http_send_timeout);
-            if (unlikely(r == -1)) goto send_err;
+            r = co::send(fd, s.data(), (int)s.size(), _conf->http_send_timeout);
+            if (r < 0) goto send_err;
 
             s.resize(s.size() - res.body_len());
             HTTPLOG << "http send res: " << s;
-
-            if (need_close) {
-                co::close(fd);
-                goto cleanup;
-            }
+            if (need_close) { co::close(fd); goto cleanup; }
         } while (0);
 
         req.clear();
@@ -155,11 +282,11 @@ void Server::on_connection(sock_t fd) {
     }
 
   recv_zero_err:
-    LOG << "http client close the connection, connfd: " << fd;
+    LOG << "http client close the connection: " << co::peer(fd) << ", connfd: " << fd;
     co::close(fd);
     goto cleanup;
   idle_err:
-    ELOG << "http close idle connection, connfd: " << fd;
+    LOG << "http close idle connection: " << co::peer(fd) << ", connfd: " << fd;
     co::reset_tcp_socket(fd);
     goto cleanup;
   header_too_long_err:
@@ -172,6 +299,149 @@ void Server::on_connection(sock_t fd) {
     ELOG << "http send error: " << co::strerror();
     goto err_end;
   err_end:
+    co::reset_tcp_socket(fd, 1000);
+  cleanup:
+    atomic_dec(&_conn_num);
+    if (buf) { 
+        buf->clear();
+        buf->capacity() <= 1024 * 1024 ? _buffer.push(buf) : delete buf;
+    }
+}
+
+void ServerImpl::on_ssl_connection(SSL* s) {
+    atomic_inc(&_conn_num);
+    sock_t fd = ssl::get_fd(s);
+    if (fd < 0) {
+        ELOG << "ssl get_fd failed: " << ssl::strerror();
+        ssl::free_ssl(s);
+        return;
+    }
+
+    char c;
+    int r = 0, body_len = 0;
+    size_t pos = 0;
+    fastring* buf = 0;
+    Req req;
+    Res res;
+
+    while (true) {
+        do {
+          recv_beg:
+            if (!buf) {
+                r = ssl::recv(s, &c, 1, _conf->http_conn_idle_sec * 1000);
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) {
+                    if (!ssl::timeout()) goto recv_err;
+                    if (_conn_num > _conf->http_max_idle_conn) goto idle_err;
+                    goto recv_beg;
+                }
+                buf = (fastring*) _buffer.pop();
+                buf->clear();
+                buf->append(c);
+            }
+
+            // try to recv the http header
+            while ((pos = buf->find("\r\n\r\n")) == buf->npos) {
+                if (buf->size() > _conf->http_max_header_size) goto header_too_long_err;
+                buf->reserve(buf->size() + 1024);
+                r = ssl::recv(
+                    s, (void*)(buf->data() + buf->size()), 
+                    (int)(buf->capacity() - buf->size()), _conf->http_recv_timeout
+                );
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) goto recv_err;
+                buf->resize(buf->size() + r);
+            }
+
+            // parse http req
+            r = parse_req(*buf, pos, &req, &body_len);
+            if (r != 0) {
+                fastring fs(120);
+                fs << "HTTP/1.1" << ' ' << r << ' ' << Res::status_str(r) << "\r\n";
+                fs << "Content-Length: 0" << "\r\n";
+                fs << "Connection: close" << "\r\n";
+                fs << "\r\n";
+                ssl::send(s, fs.data(), (int)fs.size(), _conf->http_send_timeout);
+                HTTPLOG << "http parse req error, send res: " << fs;
+                goto err_end;
+            }
+
+            // try to recv the remain part of http body
+            do {
+                const size_t total_len = pos + 4 + body_len;
+                if (body_len > 0) {
+                    if (buf->size() < total_len) {
+                        buf->reserve(total_len);
+                        r = ssl::recvn(
+                            s, (void*)(buf->data() + buf->size()), 
+                            (int)(total_len - buf->size()), _conf->http_recv_timeout
+                        );
+                        if (r == 0) goto recv_zero_err;
+                        if (r < 0) goto recv_err;
+                        buf->resize(total_len);
+                    }
+                    req.set_body(buf->substr(pos + 4, body_len));
+                }
+
+                if (buf->size() == total_len) {
+                    buf->clear();
+                    _buffer.push(buf);
+                    buf = 0;
+                } else {
+                    buf->lshift(total_len);
+                }
+            } while (0);
+        } while (0);
+
+        // handle the http request
+        do {
+            HTTPLOG << "http recv req: " << req.dbg();
+            bool need_close = false;
+            const fastring& conn = req.header("CONNECTION");
+            if (!conn.empty()) res.add_header("Connection", conn);
+
+            if (req.is_version_http10()) {
+                res.set_version_http10();
+                if (conn.empty() || conn.lower() != "keep-alive") need_close = true;
+            } else {
+                if (!conn.empty() && conn == "close") need_close = true;
+            }
+
+            _on_req(req, res);
+            fastring fs = res.str();
+            r = ssl::send(s, fs.data(), (int)fs.size(), _conf->http_send_timeout);
+            if (r <= 0) goto send_err;
+
+            fs.resize(fs.size() - res.body_len());
+            HTTPLOG << "http send res: " << fs;
+            if (need_close) { co::close(fd); goto cleanup; }
+        } while (0);
+
+        req.clear();
+        res.clear();
+        body_len = 0;
+    }
+
+  recv_zero_err:
+    LOG << "https client may close the connection: " << co::peer(fd);
+    ssl::shutdown(s);
+    co::close(fd);
+    goto cleanup;
+  idle_err:
+    LOG << "http close idle connection: " << co::peer(fd);
+    co::reset_tcp_socket(fd);
+    goto cleanup;
+  header_too_long_err:
+    ELOG << "http recv error: header too long";
+    goto err_end;
+  recv_err:
+    ELOG << "http recv error: " << co::strerror();
+    goto err_end;
+  send_err:
+    ELOG << "http send error: " << co::strerror();
+    goto err_end;
+  err_end:
+    ssl::free_ssl(s);
     co::reset_tcp_socket(fd, 1000);
   cleanup:
     atomic_dec(&_conn_num);
@@ -418,7 +688,7 @@ int parse_header(fastring& s, size_t beg, size_t end, Base* base, int* body_len)
             return -1;
         }
 
-        if (len > FLG_http_max_body_size) {
+        if ((uint32)len > FLG_http_max_body_size) {
             ELOG << "http parse error, content-length is too long: " << v;
             return -1;
         }
