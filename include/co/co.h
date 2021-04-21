@@ -82,8 +82,8 @@ inline void go(F&& f, P&& p) {
  * @param p  parameter of f.
  */
 template<typename F, typename T, typename P>
-inline void go(F&& f, T&& t, P&& p) {
-    go(new_closure(std::forward<F>(f), std::forward<T>(t), std::forward<P>(p)));
+inline void go(F&& f, T* t, P&& p) {
+    go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
 }
 
 /**
