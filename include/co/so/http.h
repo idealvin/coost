@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tcp.h"
-#include "ssl.h"
+#include "../fastring.h"
+#include <functional>
 #include <vector>
 
 namespace so {
@@ -166,58 +166,6 @@ class Server {
     ~Server();
 
     /**
-     * set max size of http header 
-     *   - If not set, a global config FLG_http_max_header_size will be used. 
-     */
-    void set_http_max_header_size(uint32 n);
-
-    /**
-     * set max size of http body 
-     *   - If not set, a global config FLG_http_max_body_size will be used. 
-     */
-    void set_http_max_body_size(uint32 n);
-
-    /**
-     * set recv timeout (in milliseconds) 
-     *   - If not set, a global config FLG_http_recv_timeout will be used. 
-     */
-    void set_http_recv_timeout(uint32 ms);
-
-    /**
-     * set send timeout (in milliseconds) 
-     *   - If not set, a global config FLG_http_send_timeout will be used. 
-     */
-    void set_http_send_timeout(uint32 ms);
-
-    /**
-     * set connection timeout (in milliseconds) 
-     *   - If not set, a global config FLG_http_conn_timeout will be used. 
-     */
-    void set_http_conn_timeout(uint32 ms);
-
-    /**
-     * set a timeout for idle connection (in seconds) 
-     *   - If not set, a global config FLG_http_conn_idle_sec will be used. 
-     *   - Idle connections (no data was recieved for http_conn_idle_sec seconds) may 
-     *     be closed by the server. 
-     */
-    void set_http_conn_idle_sec(uint32 sec);
-
-    /**
-     * set max number of idle connections 
-     *   - If not set, a global config FLG_http_max_idle_conn will be used. 
-     *   - If the total number of connections was greater than this value, the server 
-     *     will close some idle connections. 
-     */
-    void set_http_max_idle_conn(uint32 n);
-
-    /**
-     * set ssl handshake timeout (in milliseconds) 
-     *   - If not set, a global config FLG_ssl_handshake_timeout will be used. 
-     */
-    void set_ssl_handshake_timeout(uint32 ms);
-
-    /**
      * set a callback for handling http request 
      * 
      * @param f  a pointer to void xxx(const Req&, Res&), or 
@@ -246,6 +194,7 @@ class Server {
 
     /**
      * start a https server 
+     *   - openssl required by this method. 
      * 
      * @param ip    server ip, either an ipv4 or ipv6 address.
      * @param port  server port.
@@ -256,14 +205,33 @@ class Server {
 
   private:
     void* _p;
+
+    DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
-class Client : public tcp::Client {
+class Client {
   public:
-    Client(const char* serv_ip, int serv_port);
-    virtual ~Client();
+    /**
+     * the constructor 
+     *   - serv_url: 
+     *     - "127.0.0.1:8080" 
+     *     - "http://127.0.0.1" 
+     *     - "https://127.0.0.1:7777" 
+     *     - "https://github.com" 
+     *     - "https://[::1]:7777/" 
+     * 
+     * @param serv_url  url of the http or https server.
+     */
+    explicit Client(const char* serv_url);
+    ~Client();
 
-    void call(const Req& req, Res& res);
+    void call(const Req& req, Res& res) {
+        if (_https) {
+            this->call_https(req, res);
+        } else {
+            this->call_http(req, res);
+        }
+    }
 
     fastring get(fastring&& url) {
         return on_method(kGet, std::move(url));
@@ -314,6 +282,9 @@ class Client : public tcp::Client {
     }
 
   private:
+    void call_http(const Req& req, Res& res);
+    void call_https(const Req& req, Res& res);
+
     fastring on_method(Method method, fastring&& url) {
         Req req(method);
         Res res;
@@ -347,15 +318,38 @@ class Client : public tcp::Client {
         this->call(req, res);
         return std::move(res.mutable_body());
     }
+
+  private:
+    void* _p;
+    bool _https;
+
+    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // http
 
-// start a static http server
-//   @root_dir: docroot, default is the current directory
-//   @ip: server ip
-//   @port: default is 80
+/**
+ * start a static http server 
+ *   - This function will block the calling thread. 
+ * 
+ * @param root_dir  docroot, default: the current directory.
+ * @param ip        server ip, either an ipv4 or ipv6 address, default: "0.0.0.0"
+ * @param port      server port, default: 80.
+ */
 void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
+
+/**
+ * start a static https server 
+ *   - This function will block the calling thread. 
+ *   - openssl required by this method. 
+ * 
+ * @param root_dir  docroot.
+ * @param ip        server ip, either an ipv4 or ipv6 address.
+ * @param port      server port.
+ * @param key       path of the private key file for ssl.
+ * @param ca        path of the certificate file for ssl.
+ */
+void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
 
 } // so
 

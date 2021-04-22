@@ -204,9 +204,6 @@ SchedulerManager::SchedulerManager() {
     _r = static_cast<uint32>((1ULL << 32) % FLG_co_sched_num);
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
 
-    LOG << "coroutine schedulers start, sched num: " << FLG_co_sched_num
-        << ", stack size: " << (FLG_co_stack_size >> 10) << 'k';
-
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
         Scheduler* s = new Scheduler(i, FLG_co_stack_size);
         s->start();

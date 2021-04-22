@@ -232,20 +232,8 @@ int send(SSL* s, const void* buf, int n, int ms) {
     } while (true);
 }
 
-struct ServerConfig {
-    int32 handshake_timeout;
-};
-
-Server::Server() : _ctx(0) {
-    ServerConfig* x = new ServerConfig();
-    x->handshake_timeout = FLG_ssl_handshake_timeout;
-    _config = x;
-}
-
-Server::~Server() {
-    ssl::free_ctx(_ctx);
-    delete (ServerConfig*)_config;
-}
+Server::Server() : _ctx(0) {}
+Server::~Server() { ssl::free_ctx(_ctx); }
 
 void Server::start(const char* ip, int port, const char* key, const char* ca) {
     _ctx = ssl::new_server_ctx();
@@ -275,7 +263,7 @@ void Server::on_tcp_connection(sock_t fd) {
     if (s == NULL) goto new_ssl_err;
 
     if (ssl::set_fd(s, fd) != 1) goto set_fd_err;
-    if (ssl::accept(s, ((ServerConfig*)_config)->handshake_timeout) <= 0) goto accept_err;
+    if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
 
     _on_ssl_connection(s);
     return;

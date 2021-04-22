@@ -260,15 +260,6 @@ class Server {
     virtual ~Server();
 
     /**
-     * set ssl handshake timeout 
-     *   - If the handshake timeout is not set by the user, a global config 
-     *     FLG_ssl_handshake_timeout will be used by default. 
-     * 
-     * @param ms  timeout in milliseconds.
-     */
-    void set_handshake_timeout(int32 ms);
-
-    /**
      * set a callback for handling a ssl connection 
      *   - The user MUST call ssl::free_ssl() to free the SSL when the connection was closed.
      * 
@@ -307,7 +298,6 @@ class Server {
   private:
     tcp::Server _tcp_serv;
     SSL_CTX* _ctx;
-    void* _config;
     std::function<void(SSL*)> _on_ssl_connection;
 
     void on_tcp_connection(sock_t fd);

@@ -53,7 +53,7 @@ int listen(sock_t fd, int backlog) {
 }
 
 static int find_address_family(sock_t fd) {
-    static std::vector<std::unordered_map<sock_t, int>> kAf(xx::max_sched_num());
+    static std::vector<std::unordered_map<sock_t, int>> kAf(xx::scheduler_num());
 
     auto& map = kAf[gSched->id()];
     int& af = map[fd];
