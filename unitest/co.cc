@@ -1,33 +1,37 @@
 #include "co/unitest.h"
 #include "co/co.h"
-#include "../src/co/impl/scheduler.h"
 
 namespace test {
 
 DEF_test(co) {
-    EXPECT(co::null_timer_id == co::timer_id_t());
+    EXPECT(co::xx::null_timer_id == co::xx::timer_id_t());
 
     DEF_case(sched.SchedManager) {
         int n = (int) FLG_co_sched_num;
-        co::Scheduler* s;
+        co::xx::Scheduler* s;
         for (int i = 0; i < n; ++i) {
-            s = co::sched_mgr()->next();
+            s = co::xx::scheduler_manager()->next_scheduler();
             EXPECT_EQ(s->id(), i);
         }
 
-        s = co::sched_mgr()->next();
+        s = co::xx::scheduler_manager()->next_scheduler();
         EXPECT_EQ(s->id(), 0);
+
+        auto& v = co::all_schedulers();
+        for (size_t i = 0; i < v.size(); ++i) {
+            EXPECT_EQ(v[i]->id(), (int)i);
+        }
     }
 
     DEF_case(sched.Copool) {
-        co::Copool pool(4);
-        co::Coroutine* c = pool.pop();
-        co::Coroutine* d = pool.pop();
+        co::xx::Copool pool(4);
+        co::xx::Coroutine* c = pool.pop();
+        co::xx::Coroutine* d = pool.pop();
         EXPECT_EQ(c->id, 0);
         EXPECT_EQ(d->id, 1);
 
         pool.push(d);
-        co::Coroutine* e = pool.pop();
+        co::xx::Coroutine* e = pool.pop();
         EXPECT_EQ(e->id, 1);
 
         d = pool.pop();
@@ -37,9 +41,9 @@ DEF_test(co) {
         EXPECT_EQ(e, pool[1]);
         EXPECT_EQ(c, pool[0]);
 
-        co::Coroutine* x = pool.pop();
-        co::Coroutine* y = pool.pop();
-        co::Coroutine* z = pool.pop();
+        co::xx::Coroutine* x = pool.pop();
+        co::xx::Coroutine* y = pool.pop();
+        co::xx::Coroutine* z = pool.pop();
 
         EXPECT_EQ(d, pool[2]);
         EXPECT_EQ(e, pool[1]);
@@ -57,38 +61,34 @@ DEF_test(co) {
     }
 
     DEF_case(sched.TaskManager) {
-        co::TaskManager mgr;
+        co::xx::TaskManager mgr;
         mgr.add_new_task((Closure*)8);
         mgr.add_new_task((Closure*)16);
-        mgr.add_ready_task((co::Coroutine*)24);
-        mgr.add_ready_task((co::Coroutine*)32);
-        mgr.add_ready_timer_task((co::Coroutine*)40, co::null_timer_id);
-        mgr.add_ready_timer_task((co::Coroutine*)48, co::null_timer_id);
+        mgr.add_ready_task((co::xx::Coroutine*)24);
+        mgr.add_ready_task((co::xx::Coroutine*)32);
 
         std::vector<Closure*> cbs;
-        std::vector<co::Coroutine*> cos;
-        std::unordered_map<co::Coroutine*, co::timer_id_t> cts;
-        mgr.get_all_tasks(cbs, cos, cts);
+        std::vector<co::xx::Coroutine*> cos;
+        mgr.get_all_tasks(cbs, cos);
 
         EXPECT_EQ(cbs.size(), 2);
         EXPECT_EQ(cos.size(), 2);
-        EXPECT_EQ(cts.size(), 2);
         EXPECT_EQ(cbs[0], (Closure*)8);
         EXPECT_EQ(cbs[1], (Closure*)16);
-        EXPECT_EQ(cos[0], (co::Coroutine*)24);
-        EXPECT_EQ(cos[1], (co::Coroutine*)32);
+        EXPECT_EQ(cos[0], (co::xx::Coroutine*)24);
+        EXPECT_EQ(cos[1], (co::xx::Coroutine*)32);
     }
 
     DEF_case(sched.TimerManager) {
-        co::TimerManager mgr;
-        std::vector<co::Coroutine*> timeout;
+        co::xx::TimerManager mgr;
+        std::vector<co::xx::Coroutine*> timeout;
         uint32 t = mgr.check_timeout(timeout);
         EXPECT_EQ(timeout.size(), 0);
         EXPECT_EQ(t, -1);
 
-        std::vector<co::Coroutine*> cos;
+        std::vector<co::xx::Coroutine*> cos;
         for (int i = 0; i < 8; ++i) {
-            cos.push_back(new co::Coroutine(i));
+            cos.push_back(new co::xx::Coroutine(i));
         }
 
         auto x = mgr.add_timer(64, cos[4]);
@@ -103,7 +103,7 @@ DEF_test(co) {
         EXPECT_EQ(timeout.size(), 0);
         EXPECT_LE(t, 4);
 
-        cos[2]->state = co::S_ready;
+        cos[2]->state = co::xx::S_ready;
         sleep::ms(16);
         t = mgr.check_timeout(timeout);
         EXPECT_EQ(timeout.size(), 3);

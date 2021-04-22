@@ -22,7 +22,7 @@
  * @file        context.h
  * @ingroup     platform
  *
- * modified by Alvin at 2018/12/21
+ * modified by Alvin at 2018/12/21, 2021/04/09
  */
 #pragma once
 
@@ -32,8 +32,11 @@
 extern "C" {
 #endif
 
-// context always points to the stack bottom, see more details on:
-//   https://tboox.org/cn/2016/10/28/coroutine-context/
+/**
+ * context for a coroutine 
+ *   - It always points to the stack bottom, see more details on: 
+ *     https://tboox.org/cn/2016/10/28/coroutine-context/
+ */
 typedef void* tb_context_t;
 
 /*! the context-from type
@@ -52,7 +55,7 @@ typedef struct __tb_context_from_t {
  */
 typedef void (*tb_context_func_t)(tb_context_from_t from);
 
-/*! make context from the given the stack space and the callback function
+/*! make context from the given stack space and the callback function
  *
  * @param stackdata     the stack data
  * @param stacksize     the stack size

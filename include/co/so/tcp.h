@@ -1,57 +1,86 @@
 #pragma once
 
 #include "../co.h"
-#include "../fastream.h"
 
 namespace so {
 namespace tcp {
 
-struct Connection {
-    sock_t fd;   // conn fd
-    fastring ip; // peer ip
-    int port;    // peer port
-    void* p;     // pointer to Server where this connection was accepted
-};
-
-// Tcp server based on coroutine.
-// Support both ipv4 and ipv6. One coroutine per connection.
+/**
+ * TCP server based on coroutine 
+ *   - Support both ipv4 and ipv6. 
+ *   - One coroutine per connection. 
+ */
 class Server {
   public:
-    // @ip is either a ipv4 or ipv6 address.
-    Server(const char* ip, int port)
-        : _ip((ip && *ip) ? ip : "0.0.0.0"), _port(port) {
-    }
-
+    Server() = default;
     virtual ~Server() = default;
 
-    // Run the server loop in coroutine.
-    virtual void start() {
-        go(&Server::loop, this);
+    /**
+     * start the server
+     *   - The server will loop in a coroutine, and it will not block the calling thread. 
+     *   - The user MUST call on_connection() to set a connection callback before start() 
+     *     was called. 
+     * 
+     * @param ip    either an ipv4 or ipv6 address. 
+     *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
+     * @param port  the listening port. 
+     */
+    void start(const char* ip, int port);
+
+    /**
+     * set a callback for handling a connection 
+     * 
+     * @param f  either a pointer to void f(sock_t), 
+     *           or a reference of std::function<void(sock_t)>.
+     */
+    void on_connection(std::function<void(sock_t)>&& f) {
+        _on_connection = std::move(f);
     }
 
-    // The derived class must implement this method.
-    // The @conn was created by operator new. Remember to delete it 
-    // when the connection was closed.
-    virtual void on_connection(Connection* conn) = 0;
-
-  protected:
-    fastring _ip;
-    uint32 _port;
+    /**
+     * set a callback for handling a connection 
+     * 
+     * @param f  a pointer to a method with a parameter of type sock_t in class T.
+     * @param o  a pointer to an object of class T.
+     */
+    template<typename T>
+    void on_connection(void (T::*f)(sock_t), T* o) {
+        _on_connection = std::bind(f, o, std::placeholders::_1);
+    }
 
   private:
-    // The server loop, listen on the port and wait for connections.
-    // Call on_connection() in a new coroutine for every connection. 
-    void loop();
+    std::function<void(sock_t)> _on_connection;
+
+    /**
+     * the server loop 
+     *   - It listens on a port and waits for connections. 
+     *   - When a connection is accepted, it will start a new coroutine and call 
+     *     the connection callback to handle the connection. 
+     */
+    void loop(void* p);
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
-// Tcp client based on coroutine.
-// Support both ipv4 and ipv6. One client corresponds to one connection.
-// The Client MUST be used in coroutine, and it is not coroutine-safe.
+/**
+ * TCP client based on coroutine 
+ *   - Support both ipv4 and ipv6. 
+ *   - One client corresponds to one connection. 
+ * 
+ *   - It MUST be used in a coroutine. 
+ *   - It is NOT coroutine-safe, NEVER use a same Client in different coroutines 
+ *     at the same time. 
+ * 
+ *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
+ *     may be established. 
+ */
 class Client {
   public:
-    // @ip is a domain name, or either a ipv4 or ipv6 address.
+    /**
+     * @param ip    a domain name, or either an ipv4 or ipv6 address of the server. 
+     *              if ip is NULL or empty, "127.0.0.1" will be used by default. 
+     * @param port  the server port. 
+     */
     Client(const char* ip, int port)
         : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
           _fd((sock_t)-1), _sched_id(-1) {
@@ -71,20 +100,33 @@ class Client {
         return co::send(_fd, buf, n, ms);
     }
 
-    bool connected() const { return _fd != (sock_t)-1; }
+    /**
+     * check whether the connection has been established 
+     */
+    bool connected() const {
+        return _fd != (sock_t)-1;
+    }
 
-    // @ms: timeout in milliseconds
+    /**
+     * connect to the server 
+     *   - It MUST be called in the thread that performed the IO operation. 
+     *
+     * @param ms  timeout in milliseconds, -1 for never timeout.
+     * 
+     * @return    true on success, false on timeout or error.
+     */
     bool connect(int ms);
 
-    // MUST be called in the thread where it is connected.
-    void disconnect() {
-        if (this->connected()) {
-            assert(_sched_id == co::sched_id());
-            co::close(_fd);
-            _fd = (sock_t)-1;
-            _sched_id = -1;
-        }
-    }
+    /**
+     * close the connection 
+     *   - It MUST be called in the thread that performed the IO operation. 
+     */
+    void disconnect();
+
+    /**
+     * get the socket fd 
+     */
+    sock_t fd() const { return _fd; }
 
   protected:
     fastring _ip;
@@ -96,12 +138,6 @@ class Client {
 };
 
 } // tcp
-
-using tcp::Connection;
 } // so
 
 namespace tcp = so::tcp;
-
-inline fastream& operator<<(fastream& fs, const so::Connection& c) {
-    return fs << c.ip << ':' << c.port;
-}

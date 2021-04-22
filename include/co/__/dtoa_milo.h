@@ -33,6 +33,8 @@
 #include <intrin.h>
 #endif
 
+namespace milo {
+
 #if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)) && defined(__x86_64__)
 namespace gcc_ints
 {
@@ -409,7 +411,7 @@ inline char* Prettify(char* buffer, int length, int k) {
     }
 }
 
-inline int dtoa_milo(double value, char* buffer) {
+inline int dtoa(double value, char* buffer) {
     // Not handling NaN and inf
     //assert(!isnan(value));
     //assert(!isinf(value));
@@ -434,3 +436,5 @@ inline int dtoa_milo(double value, char* buffer) {
 }
 
 #undef UINT64_C2
+
+} // milo

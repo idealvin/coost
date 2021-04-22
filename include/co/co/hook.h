@@ -18,10 +18,18 @@
 
 extern "C" {
 
-typedef int (*connect_fp_t)(int, const struct sockaddr*, socklen_t);
-typedef int (*accept_fp_t)(int, struct sockaddr*, socklen_t*);
+/**
+ * We have to hook some native APIs, as third-party network libraries may block our 
+ * coroutine schedulers.
+ */
+
+// strerror is hooked as it is not thread-safe. 
+typedef char* (*strerror_fp_t)(int);
+
 typedef int (*close_fp_t)(int);
 typedef int (*shutdown_fp_t)(int, int);
+typedef int (*connect_fp_t)(int, const struct sockaddr*, socklen_t);
+typedef int (*accept_fp_t)(int, struct sockaddr*, socklen_t*);
 
 typedef ssize_t (*read_fp_t)(int, void*, size_t);
 typedef ssize_t (*readv_fp_t)(int, const struct iovec*, int);
@@ -58,42 +66,46 @@ typedef int (*gethostbyaddr_r_fp_t)(const void*, socklen_t, int, struct hostent*
 typedef int (*kevent_fp_t)(int, const struct kevent*, int, struct kevent*, int, const struct timespec*);
 #endif
 
-extern connect_fp_t fp_connect;
-extern accept_fp_t fp_accept;
-extern close_fp_t fp_close;
-extern shutdown_fp_t fp_shutdown;
+#define raw_api(x) raw_##x
+#define dec_raw_api(x) extern x##_fp_t raw_api(x)
+#define def_raw_api(x) x##_fp_t raw_api(x) = 0
 
-extern read_fp_t fp_read;
-extern readv_fp_t fp_readv;
-extern recv_fp_t fp_recv;
-extern recvfrom_fp_t fp_recvfrom;
-extern recvmsg_fp_t fp_recvmsg;
-
-extern write_fp_t fp_write;
-extern writev_fp_t fp_writev;
-extern send_fp_t fp_send;
-extern sendto_fp_t fp_sendto;
-extern sendmsg_fp_t fp_sendmsg;
-
-extern poll_fp_t fp_poll;
-extern select_fp_t fp_select;
-
-extern sleep_fp_t fp_sleep;
-extern usleep_fp_t fp_usleep;
-extern nanosleep_fp_t fp_nanosleep;
-
-extern gethostbyname_fp_t fp_gethostbyname;
-extern gethostbyaddr_fp_t fp_gethostbyaddr;
+/**
+ * Declare raw API function pointers. We can use these pointers to call 
+ * the native API directly. The new name is raw_ + original name.
+ */
+dec_raw_api(strerror);
+dec_raw_api(close);
+dec_raw_api(shutdown);
+dec_raw_api(connect);
+dec_raw_api(accept);
+dec_raw_api(read);
+dec_raw_api(readv);
+dec_raw_api(recv);
+dec_raw_api(recvfrom);
+dec_raw_api(recvmsg);
+dec_raw_api(write);
+dec_raw_api(writev);
+dec_raw_api(send);
+dec_raw_api(sendto);
+dec_raw_api(sendmsg);
+dec_raw_api(poll);
+dec_raw_api(select);
+dec_raw_api(sleep);
+dec_raw_api(usleep);
+dec_raw_api(nanosleep);
+dec_raw_api(gethostbyname);
+dec_raw_api(gethostbyaddr);
 
 #ifdef __linux__
-extern epoll_wait_fp_t fp_epoll_wait;
-extern accept4_fp_t fp_accept4;
-extern gethostbyname2_fp_t fp_gethostbyname2;
-extern gethostbyname_r_fp_t fp_gethostbyname_r;
-extern gethostbyname2_r_fp_t fp_gethostbyname2_r;
-extern gethostbyaddr_r_fp_t fp_gethostbyaddr_r;
+dec_raw_api(epoll_wait);
+dec_raw_api(accept4);
+dec_raw_api(gethostbyname2);
+dec_raw_api(gethostbyname_r);
+dec_raw_api(gethostbyname2_r);
+dec_raw_api(gethostbyaddr_r);
 #else
-extern kevent_fp_t fp_kevent;
+dec_raw_api(kevent);
 #endif
 
 } // "C"

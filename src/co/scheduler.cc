@@ -1,10 +1,12 @@
-#include "scheduler.h"
+#include "co/co/scheduler.h"
+#include "co/co/io_event.h"
 #include "co/os.h"
 
-DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: cpu num");
+DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
 DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
 
 namespace co {
+namespace xx {
 
 const timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
@@ -28,11 +30,11 @@ void Scheduler::stop() {
     }
 }
 
-static void main_func(tb_context_from_t from) {
+void Scheduler::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
     gSched->running()->cb->run();
     gSched->recycle(gSched->running()); // recycle the current coroutine
-    tb_context_jump(from.ctx, 0);       // jump back to the main context
+    tb_context_jump(from.ctx, 0);       // jump back to the from context
 }
 
 /*
@@ -54,10 +56,16 @@ void Scheduler::resume(Coroutine* co) {
     }
 
     if (co->ctx == 0) {
+        assert(co->it == null_timer_id);
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
         SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
+        if (co->it != null_timer_id) {
+            SOLOG << "del timer: " << co->it;
+            _timer_mgr.del_timer(co->it);
+            co->it = null_timer_id;
+        }
         SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
         CHECK(_stack_top == (char*)co->ctx + co->stack.size());
         memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
@@ -77,7 +85,6 @@ void Scheduler::loop() {
     gSched = this;
     std::vector<Closure*> new_tasks;
     std::vector<Coroutine*> ready_tasks;
-    std::unordered_map<Coroutine*, timer_id_t> ready_timer_tasks;
 
     while (!_stop) {
         int n = _epoll.wait(_wait_ms);
@@ -97,24 +104,26 @@ void Scheduler::loop() {
             }
 
           #if defined(_WIN32)
-            Coroutine* co = (Coroutine*) _epoll.ud(ev);
-            if (co) this->resume(co);
+            IoEvent::PerIoInfo* info = (IoEvent::PerIoInfo*) _epoll.user_data(ev);
+            if (info->co) {
+                //info->n = ev.dwNumberOfBytesTransferred;
+                this->resume((Coroutine*)info->co);
+            } else {
+                WLOG << "io timeout, free PerIoInfo: " << (void*)info;
+                free(info);
+            }
           #elif defined(__linux__)
-            uint64 ud = _epoll.ud(ev);
+            uint64 ud = _epoll.user_data(ev);
             if (ud >> 32) this->resume(_co_pool[ud >> 32]);
             if ((uint32)ud) this->resume(_co_pool[(uint32)ud]);
           #else
-            this->resume((Coroutine*)_epoll.ud(ev));
+            this->resume((Coroutine*)_epoll.user_data(ev));
           #endif
         }
 
-      #ifdef _WIN32
-        _epoll.clear_timeout();
-      #endif
-
         SOLOG << "> check tasks ready to resume..";
         do {
-            _task_mgr.get_all_tasks(new_tasks, ready_tasks, ready_timer_tasks);
+            _task_mgr.get_all_tasks(new_tasks, ready_tasks);
 
             if (!new_tasks.empty()) {
                 SOLOG << ">> resume new tasks, num: " << new_tasks.size();
@@ -130,15 +139,6 @@ void Scheduler::loop() {
                     this->resume(ready_tasks[i]);
                 }
                 ready_tasks.clear();
-            }
-
-            if (!ready_timer_tasks.empty()) {
-                SOLOG << ">> resume ready timer tasks, num: " << ready_timer_tasks.size();
-                for (auto it = ready_timer_tasks.begin(); it != ready_timer_tasks.end(); ++it) {
-                    if (it->first->state == S_ready) this->del_timer(it->second);
-                    this->resume(it->first);
-                }
-                ready_timer_tasks.clear();
             }
         } while (0);
 
@@ -157,7 +157,7 @@ void Scheduler::loop() {
             }
         } while (0);
 
-        if (_running) _running = NULL;
+        if (_running) _running = 0;
     }
 
     this->cleanup();
@@ -173,6 +173,7 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
         if (co->state == S_init || atomic_swap(&co->state, S_init) == S_wait) {
+            co->it = null_timer_id;
             res.push_back(co);
         }
     }
@@ -194,33 +195,30 @@ static inline void wsa_startup() {}
 static inline void wsa_cleanup() {}
 #endif
 
-SchedManager::SchedManager() {
+SchedulerManager::SchedulerManager() {
     wsa_startup();
-    if (FLG_co_sched_num == 0) FLG_co_sched_num = os::cpunum();
-    if (FLG_co_sched_num > (uint32)co::max_sched_num()) FLG_co_sched_num = co::max_sched_num();
+    if (FLG_co_sched_num == 0 || FLG_co_sched_num > os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
     _n = -1;
     _r = static_cast<uint32>((1ULL << 32) % FLG_co_sched_num);
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
 
-    LOG << "coroutine schedulers start, sched num: " << FLG_co_sched_num
-        << ", stack size: " << (FLG_co_stack_size >> 10) << 'k';
-
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
         Scheduler* s = new Scheduler(i, FLG_co_stack_size);
-        s->loop_in_thread();
+        s->start();
         _scheds.push_back(s);
     }
 }
 
-SchedManager::~SchedManager() {
+SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete _scheds[i];
     wsa_cleanup();
 }
 
-void SchedManager::stop() {
+void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
 }
 
+} // xx
 } // co

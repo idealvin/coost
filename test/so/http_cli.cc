@@ -1,13 +1,12 @@
 #include "co/all.h"
 
-DEF_string(ip, "127.0.0.1", "http server ip or dns");
-DEF_int32(port, 80, "http server port");
+DEF_string(serv_url, "127.0.0.1:80", "url of the http server");
 DEF_int32(n, 1, "req num");
 
 SyncEvent ev;
 
 void fun() {
-    http::Client cli(FLG_ip.c_str(), FLG_port);
+    http::Client cli(FLG_serv_url.c_str());
  
     for (int i = 0; i < FLG_n; ++i) {
         fastring s = cli.get("/");

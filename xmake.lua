@@ -13,13 +13,6 @@ set_optimize("faster")  -- faster: -O2  fastest: -O3  none: -O0
 set_warnings("all")     -- -Wall
 set_symbols("debug")    -- dbg symbols
 
--- check sse/avx
---includes("check_cincludes.lua")
---check_cincludes("CO_AVX", "immintrin.h")
---check_cincludes("CO_SSE2", "emmintrin.h")
---check_cincludes("CO_SSE42", "nmmintrin.h")
---add_vectorexts("avx")
-
 
 if is_plat("macosx", "linux") then
     add_cxflags("-g3", "-Wno-narrowing")
@@ -33,6 +26,12 @@ if is_plat("windows") then
     add_cxflags("-MD", "-EHsc")
 end
 
+-- openssl
+add_requires("openssl", {optional = true})
+if has_package("openssl") then
+    add_defines("CO_SSL")
+    add_packages("openssl")
+end
 
 -- include dir
 add_includedirs("include")

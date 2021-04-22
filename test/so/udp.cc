@@ -12,16 +12,18 @@ void udp_server_fun() {
 
     struct sockaddr_in cli;
     int len = sizeof(cli);
-    char* buf = (char*) malloc(65536);
+    char buf[4];
+    char pong[4]; memcpy(pong, "pong", 4);
 
     while (true) {
         len = sizeof(cli);
-        int r = co::recvfrom(fd, buf, 65507, &cli, &len);
+        int r = co::recvfrom(fd, buf, 4, &cli, &len);
         if (r >= 0) {
             COUT << "server recv " << fastring(buf, r) << " from "
                  << co::ip_str(&cli) << ':' << ntoh16(cli.sin_port);
 
-            r = co::sendto(fd, "pong", 4, &cli, len);
+            //r = co::sendto(fd, "pong", 4, &cli, len);
+            r = co::sendto(fd, pong, 4, &cli, len);
             if (r == -1) {
                 COUT << "server sendto error: " << co::strerror();
                 break;
@@ -44,16 +46,18 @@ void udp_client_fun() {
     struct sockaddr_in addr;
     co::init_ip_addr(&addr, FLG_ip.c_str(), FLG_port);
 
-    char* buf = (char*) malloc(65536);
+    char buf[4];
+    char ping[4]; memcpy(ping, "ping", 4);
 
     while (true) {
-        int r = co::sendto(fd, "ping", 4, &addr, sizeof(addr));
+        //int r = co::sendto(fd, "ping", 4, &addr, sizeof(addr));
+        int r = co::sendto(fd, ping, 4, &addr, sizeof(addr));
         if (r == -1) {
             COUT << "client sendto error: " << co::strerror();
             break;
         } else {
             COUT << "client send ping ok";
-            r = co::recvfrom(fd, buf, 65537, NULL, NULL);
+            r = co::recvfrom(fd, buf, 4, NULL, NULL);
             if (r == -1) {
                 COUT << "client recvform error: " << co::strerror();
                 break;
@@ -70,6 +74,7 @@ void udp_client_fun() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
 
     go(udp_server_fun);
     sleep::ms(32);

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "tcp.h"
-#include <vector>
+#include "../fastring.h"
 #include <functional>
+#include <vector>
 
 namespace so {
 namespace http {
 
 enum Version {
-    kHTTP10, kHTTP11,
+    kHTTP10, kHTTP11, kHTTP20,
 };
 
 enum Method {
@@ -160,46 +160,78 @@ class Res : public Base {
     static const char** create_status_table();
 };
 
-class Server : public tcp::Server {
+class Server {
   public:
-    typedef std::function<void(const Req&, Res&)> Fun;
+    Server();
+    ~Server();
 
-    Server(const char* ip, int port);
-    virtual ~Server();
+    /**
+     * set a callback for handling http request 
+     * 
+     * @param f  a pointer to void xxx(const Req&, Res&), or 
+     *           a reference of std::function<void(const Req&, Res&)>
+     */
+    void on_req(std::function<void(const Req&, Res&)>&& f);
 
-    void on_req(Fun&& fun) {
-        _on_req = std::move(fun);
+    /**
+     * set a callback for handling http request 
+     * 
+     * @param f  a pointer to a method in class T.
+     * @param o  a pointer to an object of class T.
+     */
+    template<typename T>
+    void on_req(void (T::*f)(const Req&, Res&), T* o) {
+        on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
     }
 
-    void on_req(const Fun& fun) {
-        _on_req = fun;
-    }
+    /**
+     * start a http server 
+     * 
+     * @param ip    server ip, either an ipv4 or ipv6 address, default: "0.0.0.0".
+     * @param port  server port, default: 80.
+     */
+    void start(const char* ip="0.0.0.0", int port=80);
 
-    void process(const Req& req, Res& res) {
-        if (_on_req) {
-            _on_req(req, res);
-        } else {
-            res.set_status(501);
-        }
-    }
-
-    virtual void start();
+    /**
+     * start a https server 
+     *   - openssl required by this method. 
+     * 
+     * @param ip    server ip, either an ipv4 or ipv6 address.
+     * @param port  server port.
+     * @param key   path of the private key file for ssl.
+     * @param ca    path of the certificate file for ssl.
+     */
+    void start(const char* ip, int port, const char* key, const char* ca);
 
   private:
-    virtual void on_connection(Connection* conn);
+    void* _p;
 
-  private:
-    int32 _conn_num;
-    co::Pool _buffer; // memory buffer for co::recv()
-    Fun _on_req;
+    DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
-class Client : public tcp::Client {
+class Client {
   public:
-    Client(const char* serv_ip, int serv_port);
-    virtual ~Client();
+    /**
+     * the constructor 
+     *   - serv_url: 
+     *     - "127.0.0.1:8080" 
+     *     - "http://127.0.0.1" 
+     *     - "https://127.0.0.1:7777" 
+     *     - "https://github.com" 
+     *     - "https://[::1]:7777/" 
+     * 
+     * @param serv_url  url of the http or https server.
+     */
+    explicit Client(const char* serv_url);
+    ~Client();
 
-    void call(const Req& req, Res& res);
+    void call(const Req& req, Res& res) {
+        if (_https) {
+            this->call_https(req, res);
+        } else {
+            this->call_http(req, res);
+        }
+    }
 
     fastring get(fastring&& url) {
         return on_method(kGet, std::move(url));
@@ -250,6 +282,9 @@ class Client : public tcp::Client {
     }
 
   private:
+    void call_http(const Req& req, Res& res);
+    void call_https(const Req& req, Res& res);
+
     fastring on_method(Method method, fastring&& url) {
         Req req(method);
         Res res;
@@ -283,15 +318,38 @@ class Client : public tcp::Client {
         this->call(req, res);
         return std::move(res.mutable_body());
     }
+
+  private:
+    void* _p;
+    bool _https;
+
+    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // http
 
-// start a static http server
-//   @root_dir: docroot, default is the current directory
-//   @ip: server ip
-//   @port: default is 80
+/**
+ * start a static http server 
+ *   - This function will block the calling thread. 
+ * 
+ * @param root_dir  docroot, default: the current directory.
+ * @param ip        server ip, either an ipv4 or ipv6 address, default: "0.0.0.0"
+ * @param port      server port, default: 80.
+ */
 void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
+
+/**
+ * start a static https server 
+ *   - This function will block the calling thread. 
+ *   - openssl required by this method. 
+ * 
+ * @param root_dir  docroot.
+ * @param ip        server ip, either an ipv4 or ipv6 address.
+ * @param port      server port.
+ * @param key       path of the private key file for ssl.
+ * @param ca        path of the certificate file for ssl.
+ */
+void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
 
 } // so
 

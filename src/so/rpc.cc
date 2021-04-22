@@ -39,7 +39,8 @@ inline void set_header(void* header, int msg_len) {
 class ServerImpl : public rpc::Server, public tcp::Server {
   public:
     ServerImpl(const char* ip, int port, const char* passwd)
-        : tcp::Server(ip, port), _conn_num(0), _buffer(
+        : _ip((ip && *ip) ? ip : "0.0.0.0"), _port(port), 
+          _conn_num(0), _buffer(
               []() { return (void*) new fastring(4096); },
               [](void* p) { delete (fastring*)p; }
           ) {
@@ -48,41 +49,38 @@ class ServerImpl : public rpc::Server, public tcp::Server {
 
     virtual ~ServerImpl() = default;
 
-    virtual void start() {
-        tcp::Server::start();
-        LOG << "rpc server start, ip: " << _ip << ", port: " << _port
-            << ", has password : " << !_passwd.empty();
-    }
-
     virtual void add_service(Service* service) {
         _service.reset(service);
     }
 
-    virtual void on_connection(Connection* conn);
+    virtual void on_connection(sock_t fd);
 
-    bool auth(Connection* conn);
+    virtual void start() {
+        tcp::Server::start(_ip.c_str(), _port);
+    }
+
+    bool auth(sock_t fd);
 
   private:
+    fastring _ip;
+    int _port;
     int _conn_num;
     fastring _passwd;
     std::unique_ptr<Service> _service;
     co::Pool _buffer;
 };
 
-void ServerImpl::on_connection(Connection* conn) {
-    std::unique_ptr<Connection> x(conn);
-    sock_t fd = conn->fd;
+void ServerImpl::on_connection(sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
     
-    if (!_passwd.empty() && !this->auth(conn)) {
-        ELOG << "auth failed, reset connection from " << *conn << " 3 seconds later..";
+    if (!_passwd.empty() && !this->auth(fd)) {
+        ELOG << "auth failed, reset connection " << fd << " 3 seconds later..";
         co::reset_tcp_socket(fd, 3000);
         return;
     }
 
-    LOG << "rpc server accept new connection: " << *conn << ", conn fd: " << fd
-        << ", conn num: " << atomic_inc(&_conn_num);
+    atomic_inc(&_conn_num);
 
     int r = 0, len = 0;
     Header header;
@@ -142,11 +140,11 @@ void ServerImpl::on_connection(Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "rpc client close the connection: " << *conn;
+    LOG << "rpc client close the connection, connfd: " << fd;
     co::close(fd);
     goto cleanup;
   idle_err:
-    ELOG << "rpc close idle connection: " << *conn;
+    ELOG << "rpc close idle connection, connfd: " << fd;
     co::close(fd);
     goto cleanup;
   magic_err:
@@ -174,7 +172,7 @@ void ServerImpl::on_connection(Connection* conn) {
     }
 }
 
-bool ServerImpl::auth(Connection* conn) {
+bool ServerImpl::auth(sock_t fd) {
     static const fastring kAuth("auth");
 
     int r = 0, len = 0;
@@ -186,7 +184,7 @@ bool ServerImpl::auth(Connection* conn) {
 
     // wait for the first req from client, timeout in 7 seconds
     do {
-        r = co::recvn(conn->fd, &header, sizeof(header), 7000);
+        r = co::recvn(fd, &header, sizeof(header), 7000);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;
@@ -195,7 +193,7 @@ bool ServerImpl::auth(Connection* conn) {
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
 
         fs.resize(len);
-        r = co::recvn(conn->fd, (char*)fs.data(), len, FLG_rpc_recv_timeout);
+        r = co::recvn(fd, (char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
@@ -220,7 +218,7 @@ bool ServerImpl::auth(Connection* conn) {
         res.str(fs);
         set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
 
-        r = co::send(conn->fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
+        r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
         DLOG << "send auth require to the client: " << (fs.data() + sizeof(Header));
@@ -228,7 +226,7 @@ bool ServerImpl::auth(Connection* conn) {
 
     // wait for the auth answer from the client
     do {
-        r = co::recvn(conn->fd, &header, sizeof(header), FLG_rpc_recv_timeout);
+        r = co::recvn(fd, &header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;
@@ -237,7 +235,7 @@ bool ServerImpl::auth(Connection* conn) {
         if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
 
         fs.resize(len);
-        r = co::recvn(conn->fd, (char*)fs.data(), len, FLG_rpc_recv_timeout);
+        r = co::recvn(fd, (char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
         if (unlikely(r == -1)) goto recv_err;
 
@@ -266,7 +264,7 @@ bool ServerImpl::auth(Connection* conn) {
             res.str(fs);
             set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
 
-            r = co::send(conn->fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
+            r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
             DLOG << "send auth result to client: " << (fs.c_str() + sizeof(Header));
@@ -281,7 +279,7 @@ bool ServerImpl::auth(Connection* conn) {
             res.str(fs);
             set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
 
-            r = co::send(conn->fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
+            r = co::send(fd, fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
             DLOG << "send auth result to client: " << (fs.c_str() + sizeof(Header));
@@ -296,7 +294,7 @@ bool ServerImpl::auth(Connection* conn) {
     ELOG << "recv error: body too long: " << len;
     return false;
   recv_zero_err:
-    LOG << "client close the connection: " << *conn;
+    LOG << "client close the connection, fd: " << fd;
     return false;
   recv_err:
     ELOG << "recv error: " << co::strerror();
