@@ -272,10 +272,10 @@ void Server::on_tcp_connection(sock_t fd) {
     ELOG << "new SSL failed: " << ssl::strerror();
     goto err_end;
   set_fd_err:
-    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror();
+    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror(s);
     goto err_end;
   accept_err:
-    ELOG << "ssl accept failed: " << ssl::strerror();
+    ELOG << "ssl accept failed: " << ssl::strerror(s);
     goto err_end;
   err_end:
     if (s) ssl::free_ssl(s);
@@ -290,41 +290,37 @@ Client::Client(const char* serv_ip, int serv_port)
 bool Client::connect(int ms) {
     if (this->connected()) return true;
     if (!_tcp_cli.connect(ms)) return false;
-
-    _ctx = ssl::new_client_ctx();
-    if (_ctx == NULL) {
-        ELOG << "ssl new client contex error: " << ssl::strerror();
-        goto err;
-    }
-
-    _ssl = ssl::new_ssl(_ctx);
-    if (_ssl == NULL) {
-        ELOG << "new SSL failed: " << ssl::strerror();
-        goto err;
-    }
-
-    if (ssl::set_fd(_ssl, _tcp_cli.fd()) != 1) {
-        ELOG << "ssl set fd (" << _tcp_cli.fd() << ") failed: " << ssl::strerror();
-        goto err;
-    }
-
-    if (ssl::connect(_ssl, ms) != 1) {
-        ELOG << "ssl connect failed: " << ssl::strerror();
-        goto err;
-    }
-
+    if ((_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
+    if ((_ssl = ssl::new_ssl(_ctx)) == NULL) goto new_ssl_err;
+    if (ssl::set_fd(_ssl, _tcp_cli.fd()) != 1) goto set_fd_err;
+    if (ssl::connect(_ssl, ms) != 1) goto connect_err;
     return true;
-
-  err:
+  
+  new_ctx_err:
+    ELOG << "ssl connect new client contex error: " << ssl::strerror();
+    goto err_end;
+  new_ssl_err:
+    ELOG << "ssl connect new SSL failed: " << ssl::strerror();
+    goto err_end;
+  set_fd_err:
+    ELOG << "ssl connect set fd (" << _tcp_cli.fd() << ") failed: " << ssl::strerror(_ssl);
+    goto err_end;
+  connect_err:
+    ELOG << "ssl connect failed: " << ssl::strerror();
+    goto err_end;
+  err_end:
     if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
     if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
     _tcp_cli.disconnect();
     return false;
 }
 
+/**
+ * NOTE: close the underlying TCP connection directly here..
+ */
 void Client::disconnect() {
     if (this->connected()) {
-        if (_ssl) { ssl::shutdown(_ssl); ssl::free_ssl(_ssl); _ssl = 0; } 
+        if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
         if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
         _tcp_cli.disconnect();
     }

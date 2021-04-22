@@ -18,11 +18,10 @@ namespace ssl {
  *     openssl error queue for the current thread as a string, and the error queue 
  *     will be cleared then. 
  * 
- * @param s  a pointer to SSL. 
- *           if s is not NULL, result code of ssl I/O operations will also be checked. 
- *           default: NULL. 
+ * @param s  a pointer to SSL, if s is not NULL, result code of ssl I/O operations 
+ *           will also be checked to obtain more error message. 
  * 
- * @return  a pointer to the error message.
+ * @return   a pointer to the error message.
  */
 const char* strerror(SSL* s=0);
 
@@ -157,24 +156,27 @@ inline int check_private_key(const SSL_CTX* c) {
 
 /**
  * shutdown a ssl connection 
- *   - It MUST be called in the coroutine that performed the IO operation. 
+ *   - It MUST be called in the coroutine that performed the I/O operation. 
  *   - This function will check the result of SSL_get_error(), if SSL_ERROR_SYSCALL 
  *     or SSL_ERROR_SSL was returned, SSL_shutdown() will not be called. 
  *   - See documents here: 
- *     https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
+ *     https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html 
+ * 
+ *   - NOTE: Is it necessary to shutdown the SSL connection on TCP? Why not close the 
+ *     underlying TCP connection directly?
  * 
  * @param s   a pointer to SSL.
  * @param ms  timeout in milliseconds, -1 for never timeout. 
- *            default: -1. 
+ *            default: 3000. 
  * 
  * @return    1 on success, 
  *           <0 on any error, call ssl::strerror() to get the error message. 
  */
-int shutdown(SSL* s, int ms=-1);
+int shutdown(SSL* s, int ms=3000);
 
 /**
  * wait for a TLS/SSL client to initiate a handshake 
- *   - It MUST be called in the coroutine that performed the IO operation. 
+ *   - It MUST be called in the coroutine that performed the I/O operation. 
  * 
  * @param s   a pointer to SSL.
  * @param ms  timeout in milliseconds, -1 for never timeout. 
@@ -187,7 +189,7 @@ int accept(SSL* s, int ms=-1);
 
 /**
  * initiate the handshake with a TLS/SSL server
- *   - It MUST be called in the coroutine that performed the IO operation. 
+ *   - It MUST be called in the coroutine that performed the I/O operation. 
  * 
  * @param s   a pointer to SSL.
  * @param ms  timeout in milliseconds, -1 for never timeout. 
@@ -254,10 +256,14 @@ int send(SSL* s, const void* buf, int n, int ms=-1);
  */
 inline bool timeout() { return co::timeout(); }
 
+/**
+ * ssl server based on coroutine 
+ *   - It is designed to work with TCP. 
+ */
 class Server {
   public:
     Server();
-    virtual ~Server();
+    ~Server();
 
     /**
      * set a callback for handling a ssl connection 
@@ -305,10 +311,14 @@ class Server {
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
+/**
+ * ssl client based on coroutine 
+ *   - It is designed to work with TCP. 
+ */
 class Client {
   public:
     Client(const char* serv_ip, int serv_port);
-    virtual ~Client() { this->disconnect(); }
+    ~Client() { this->disconnect(); }
 
     int recv(void* buf, int n, int ms=-1) {
         return ssl::recv(_ssl, buf, n, ms);
@@ -326,7 +336,7 @@ class Client {
 
     /**
      * connect to the ssl server 
-     *   - It MUST be called in the thread that performed the IO operation. 
+     *   - It MUST be called in the thread that performed the I/O operation. 
      *
      * @param ms  timeout in milliseconds
      */
@@ -334,8 +344,8 @@ class Client {
 
     /**
      * close the connection 
-     *   - It MUST be called in the thread that performed the IO operation. 
-     *   - The underlying socket will also be closed. 
+     *   - It MUST be called in the thread that performed the I/O operation. 
+     *   - The underlying tcp connection will also be closed. 
      */
     void disconnect();
 
