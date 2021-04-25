@@ -33,14 +33,8 @@ class Client {
     Client(const char* ip, int port, const char* passwd);
     ~Client() = default;
 
-    /**
-     * perform a general rpc request
-     */
     void call(const Json& req, Json& res);
 
-    /**
-     * send a heartbeat
-     */
     void ping() {
         Json req, res;
         req.add_member("method", "ping");
