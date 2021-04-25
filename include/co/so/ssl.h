@@ -10,16 +10,16 @@ namespace ssl {
 
 /**
  * get ssl error message 
- *   - He grandmother's. It's really boring to handle the errors in openssl. I have 
- *     never seen such a stupid error design. See more details here: 
+ *   - openssl is good, but it's really boring to handle the errors in openssl. 
+ *     See more details here: 
  *         https://en.wikibooks.org/wiki/OpenSSL/Error_handling
  * 
  *   - This function will clear the previous error message, and store the entire 
  *     openssl error queue for the current thread as a string, and the error queue 
  *     will be cleared then. 
  * 
- * @param s  a pointer to SSL, if s is not NULL, result code of ssl I/O operations 
- *           will also be checked to obtain more error message. 
+ * @param s  a pointer to SSL, if s is not NULL, result code of the previous ssl I/O 
+ *           operation will also be checked to obtain more error message.
  * 
  * @return   a pointer to the error message.
  */

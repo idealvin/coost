@@ -1,7 +1,7 @@
 #include "co/all.h"
 
 DEF_string(serv, "127.0.0.1:80", "url of the http server");
-DEF_int32(n, 1, "req num");
+DEF_int32(n, 3, "req num");
 
 SyncEvent ev;
 
@@ -16,7 +16,7 @@ void fun() {
     for (int i = 0; i < FLG_n; ++i) {
         http::Req req;
         http::Res res;
-        req.set_version_http10();
+        req.add_header("hello", "world");
         req.set_method_get();
         req.set_url("/");
         cli.call(req, res);
