@@ -410,7 +410,6 @@ void ServerImpl::on_ssl_connection(SSL* s) {
 Client::Client(const char* serv_url) : _https(false), _req(0), _res(0) {
     fastring url(std::move(fastring(serv_url).tolower()));
     const char* p = url.c_str();
-    fastring ip;
     int port = 0;
 
     if (memcmp(p, "https://", 8) == 0) {
@@ -424,21 +423,22 @@ Client::Client(const char* serv_url) : _https(false), _req(0), _res(0) {
     if (s != NULL) {
         const char* r = strrchr(p, ':');
         if (r == s) {                  /* ipv4:port */
-            ip = fastring(p, r - p);
+            _host = fastring(p, r - p);
             port = atoi(r + 1);
         } else if (*(r - 1) == ']') {  /* ipv6:port */
             if (*p == '[') ++p;
-            ip = fastring(p, r - p - 1);
+            _host = fastring(p, r - p - 1);
             port = atoi(r + 1);
         }
     }
 
+    if (_host.empty()) _host = p;
     if (_https) {
       #ifdef CO_SSL
-        _p = new ssl::Client(ip.empty() ? p : ip.c_str(), port == 0 ? 443 : port);
+        _p = new ssl::Client(_host.c_str(), port == 0 ? 443 : port);
       #endif
     } else {
-        _p = new tcp::Client(ip.empty() ? p : ip.c_str(), port == 0 ? 80 : port);
+        _p = new tcp::Client(_host.c_str(), port == 0 ? 80 : port);
     }
 }
 
@@ -455,19 +455,21 @@ Client::~Client() {
 }
 
 // user-defined error code:
-//   577: "Connection Timeout";
-//   578: "Connection Closed";
-//   579: "Send Timeout";   580: "Recv Timeout";
-//   581: "Send Failed";    582: "Recv Failed";
-void Client::call_http(const Req& req, Res& res) {
+//   477: "Connection Timeout";
+//   478: "Connection Closed";
+//   479: "Send Timeout";   480: "Recv Timeout";
+//   481: "Send Failed";    482: "Recv Failed";
+void Client::call_http(Req& req, Res& res) {
+    int r, body_len;
+    size_t pos;
     tcp::Client* c = (tcp::Client*)_p;
     if (!c->connected() && !c->connect(FLG_http_conn_timeout)) {
-        res.set_status(577); // Connection Timeout
+        res.set_status(477); // Connection Timeout
         return;
     }
 
-    int r = 0, body_len = 0;
-    size_t pos = 0;
+    r = body_len = 0;
+    pos = 0;
 
     { /* send request */
         fastring s = req.str();
@@ -495,23 +497,28 @@ void Client::call_http(const Req& req, Res& res) {
         if (r != 0) goto parse_err;
         if ((uint32)body_len > FLG_http_max_body_size) goto body_too_long_err;
 
-        {
+        if (body_len > 0) {
             size_t total_len = pos + 4 + body_len;
-            if (body_len > 0) {
-                if (buf.size() < total_len) {
-                    buf.reserve(total_len);
-                    r = c->recvn(
-                        (void*)(buf.data() + buf.size()), 
-                        (int)(total_len - buf.size()), FLG_http_recv_timeout
-                    );
-                    if (r == 0) goto recv_zero_err;
-                    if (r < 0) goto recv_err;
-                    buf.resize(total_len);
-                }
-                res.set_body(buf.substr(pos + 4, body_len));
+            if (buf.size() < total_len) {
+                buf.reserve(total_len);
+                r = c->recvn(
+                    (void*)(buf.data() + buf.size()), 
+                    (int)(total_len - buf.size()), FLG_http_recv_timeout
+                );
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) goto recv_err;
+                buf.resize(total_len);
             }
+            res.set_body(buf.substr(pos + 4, body_len));
             if (buf.size() != total_len) goto content_length_err;
-        };
+        } else if (res.header("Transfer-Encoding") == "chunked") {
+            /**
+             * TODO:
+             *   - In this case, "Content-Length" will not be set in the response.
+             *     Someone may help?
+             */
+            WLOG << "[Transfer-Encoding: chunked] not supported at this moment..";
+        }
 
         HTTPLOG << "http recv res: " << res.dbg();
         goto success;
@@ -535,15 +542,15 @@ void Client::call_http(const Req& req, Res& res) {
     goto err_end;
   recv_zero_err:
     ELOG << "http server close the connection..";
-    res.set_status(578); // Connection Closed
+    res.set_status(478); // Connection Closed
     goto err_end;
   recv_err:
     ELOG << "http recv error: " << co::strerror();
-    res.set_status(co::timeout() ? 580 : 582);
+    res.set_status(co::timeout() ? 480 : 482);
     goto err_end;
   send_err:
     ELOG << "http send error: " << co::strerror();
-    res.set_status(co::timeout() ? 579 : 581);
+    res.set_status(co::timeout() ? 479 : 481);
     goto err_end;
   err_end:
     c->disconnect();
@@ -551,20 +558,22 @@ void Client::call_http(const Req& req, Res& res) {
     return;
 }
 
-void Client::call_https(const Req& req, Res& res) {
+void Client::call_https(Req& req, Res& res) {
   #ifdef CO_SSL
+    int r, body_len;
+    size_t pos;
     ssl::Client* c = (ssl::Client*)_p;
     if (!c->connected() && !c->connect(FLG_http_conn_timeout)) {
-        res.set_status(577); // Connection Timeout
+        res.set_status(477); // Connection Timeout
         return;
     }
 
-    int r = 0, body_len = 0;
-    size_t pos = 0;
+    r = body_len = 0;
+    pos = 0;
 
     { /* send request */
         fastring s = req.str();
-        r = c->send(s.data(), (int) s.size(), FLG_http_send_timeout);
+        r = c->send(s.data(), (int)s.size(), FLG_http_send_timeout);
         if (r <= 0) goto send_err;
 
         s.resize(s.size() - req.body_size());
@@ -589,23 +598,29 @@ void Client::call_https(const Req& req, Res& res) {
         if (r != 0) goto parse_err;
         if ((uint32)body_len > FLG_http_max_body_size) goto body_too_long_err;
 
-        {
+        if (body_len > 0) {
             size_t total_len = pos + 4 + body_len;
-            if (body_len > 0) {
-                if (buf.size() < total_len) {
-                    buf.reserve(total_len);
-                    r = c->recvn(
-                        (void*)(buf.data() + buf.size()), 
-                        (int)(total_len - buf.size()), FLG_http_recv_timeout
-                    );
-                    if (r == 0) goto recv_zero_err;
-                    if (r < 0) goto recv_err;
-                    buf.resize(total_len);
-                }
-                res.set_body(buf.substr(pos + 4, body_len));
+            if (buf.size() < total_len) {
+                buf.reserve(total_len);
+                r = c->recvn(
+                    (void*)(buf.data() + buf.size()), 
+                    (int)(total_len - buf.size()), FLG_http_recv_timeout
+                );
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) goto recv_err;
+                buf.resize(total_len);
             }
+            res.set_body(buf.substr(pos + 4, body_len));
             if (buf.size() != total_len) goto content_length_err;
-        };
+
+        } else if (res.header("Transfer-Encoding") == "chunked") {
+            /**
+             * TODO:
+             *   - In this case, "Content-Length" will not be set in the response.
+             *     Someone may help?
+             */
+            WLOG << "[Transfer-Encoding: chunked] not supported at this moment..";
+        }
 
         HTTPLOG << "http recv res: " << res.dbg();
         goto success;
@@ -629,15 +644,15 @@ void Client::call_https(const Req& req, Res& res) {
     goto err_end;
   recv_zero_err:
     ELOG << "https server close the connection..";
-    res.set_status(578); // Connection Closed
+    res.set_status(478); // Connection Closed
     goto err_end;
   recv_err:
     ELOG << "https recv error: " << ssl::strerror(c->ssl());
-    res.set_status(ssl::timeout() ? 580 : 582);
+    res.set_status(ssl::timeout() ? 480 : 482);
     goto err_end;
   send_err:
     ELOG << "https send error: " << ssl::strerror(c->ssl());
-    res.set_status(ssl::timeout() ? 579 : 581);
+    res.set_status(ssl::timeout() ? 479 : 481);
     goto err_end;
   err_end:
     c->disconnect();
@@ -811,6 +826,7 @@ static int parse_res_start_line(const char* beg, const char* end, Res* res) {
 }
 
 int Res::parse(const char* s, size_t n, int* body_size) {
+    DLOG << "parse res: " << fastring(s, n);
     _from_peer = true;
     const char* p = strchr(s, '\r');
     if (!p || *(p + 1) != '\n') return -1;
@@ -872,16 +888,14 @@ const char** create_status_table() {
     s[505] = "HTTP Version Not Supported";
 
     // ================================================================
-    // user-defined error code: 577 - 599
+    // user-defined error code: 477 - 482
     // ================================================================
-    #if 0
-    s[577] = "Connection Timeout";
-    s[578] = "Connection Closed";
-    s[579] = "Send Timeout";
-    s[580] = "Recv Timeout";
-    s[581] = "Send Failed";
-    s[582] = "Recv Failed";
-    #endif
+    s[477] = "Connection Timeout";
+    s[478] = "Connection Closed";
+    s[479] = "Send Timeout";
+    s[480] = "Recv Timeout";
+    s[481] = "Send Failed";
+    s[482] = "Recv Failed";
     return s;
 }
 
