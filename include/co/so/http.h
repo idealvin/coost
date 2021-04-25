@@ -224,7 +224,6 @@ class Client {
      */
     void call(Req& req, Res& res) {
         req.add_header("Host", _host);
-        req.add_header("Accept-Encoding", "identity");
         _https ? this->call_https(req, res): this->call_http(req, res);
     }
 
