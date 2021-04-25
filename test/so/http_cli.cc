@@ -1,16 +1,16 @@
 #include "co/all.h"
 
-DEF_string(serv_url, "127.0.0.1:80", "url of the http server");
+DEF_string(serv, "127.0.0.1:80", "url of the http server");
 DEF_int32(n, 1, "req num");
 
 SyncEvent ev;
 
 void fun() {
-    http::Client cli(FLG_serv_url.c_str());
+    http::Client cli(FLG_serv.c_str());
  
     for (int i = 0; i < FLG_n; ++i) {
-        fastring s = cli.get("/");
-        COUT << "content length: " << s.size();
+        auto& res = cli.get("/");
+        COUT << "content length: " << res.body_size();
     }
    
     for (int i = 0; i < FLG_n; ++i) {
@@ -20,7 +20,7 @@ void fun() {
         req.set_method_get();
         req.set_url("/");
         cli.call(req, res);
-        COUT << "content length: " << res.body_len();
+        COUT << "content length: " << res.body_size();
     }
 
     ev.signal();
