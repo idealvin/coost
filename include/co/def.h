@@ -18,16 +18,6 @@ typedef uint64_t uint64;
 #define __forceinline __attribute__((always_inline))
 #endif
 
-#define load8(p)     (*(const uint8*) (p))
-#define load16(p)    (*(const uint16*)(p))
-#define load32(p)    (*(const uint32*)(p))
-#define load64(p)    (*(const uint64*)(p))
-
-#define save8(p, v)  (*(uint8*) (p) = (v))
-#define save16(p, v) (*(uint16*)(p) = (v))
-#define save32(p, v) (*(uint32*)(p) = (v))
-#define save64(p, v) (*(uint64*)(p) = (v))
-
 #define MAX_UINT8  ((uint8)  ~((uint8) 0))
 #define MAX_UINT16 ((uint16) ~((uint16)0))
 #define MAX_UINT32 ((uint32) ~((uint32)0))
@@ -46,11 +36,6 @@ typedef uint64_t uint64;
 #define DISALLOW_COPY_AND_ASSIGN(Type) \
     Type(const Type&) = delete; \
     void operator=(const Type&) = delete
-
-template<typename To, typename From>
-inline To force_cast(From f) {
-    return (To) f;
-}
 
 #if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__clang__)
 #define  unlikely(x)  __builtin_expect(!!(x), 0)

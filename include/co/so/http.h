@@ -222,7 +222,8 @@ class Client {
     /**
      * perform a general http request 
      */
-    void call(const Req& req, Res& res) {
+    void call(Req& req, Res& res) {
+        req.add_header("Host", _host);
         _https ? this->call_https(req, res): this->call_http(req, res);
     }
 
@@ -274,8 +275,8 @@ class Client {
     }
 
   private:
-    void call_http(const Req& req, Res& res);
-    void call_https(const Req& req, Res& res);
+    void call_http(Req& req, Res& res);
+    void call_https(Req& req, Res& res);
 
     Res& do_req(Method method, fastring&& url) {
         if (_req) { _req->clear(); _res->clear(); }
@@ -301,6 +302,7 @@ class Client {
     bool _https;
     Req* _req;
     Res* _res;
+    fastring _host;
 
     DISALLOW_COPY_AND_ASSIGN(Client);
 };
