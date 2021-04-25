@@ -36,7 +36,7 @@ class HelloWorldImpl : public HelloWorld {
 } // xx
 
 void client_fun() {
-    rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
+    rpc::Client* c = new rpc::Client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
 
     for (int i = 0; i < FLG_n; ++i) {
         Json req, res;
@@ -48,7 +48,7 @@ void client_fun() {
 }
 
 void test_ping() {
-    rpc::Client* c = rpc::new_client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
+    rpc::Client* c = new rpc::Client(FLG_serv_ip.c_str(), 7788, FLG_passwd.c_str());
     while (true) {
         c->ping();
         co::sleep(FLG_hb);
@@ -60,11 +60,11 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    if (!FLG_c) {
-        rpc::Server* server = rpc::new_server("", 7788, FLG_passwd.c_str()); 
-        server->add_service(new xx::HelloWorldImpl);
-        server->start();
+    rpc::Server serv;
 
+    if (!FLG_c) {
+        serv.add_service(new xx::HelloWorldImpl);
+        serv.start("0.0.0.0", 7788, FLG_passwd.c_str());
     } else {
         if (FLG_ping) {
             go(&test_ping);

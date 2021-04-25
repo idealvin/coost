@@ -13,7 +13,7 @@ namespace tcp {
 class Server {
   public:
     Server() = default;
-    virtual ~Server() = default;
+    ~Server() = default;
 
     /**
      * start the server
@@ -86,7 +86,7 @@ class Client {
           _fd((sock_t)-1), _sched_id(-1) {
     }
 
-    virtual ~Client() { this->disconnect(); }
+    ~Client() { this->disconnect(); }
 
     int recv(void* buf, int n, int ms=-1) {
         return co::recv(_fd, buf, n, ms);

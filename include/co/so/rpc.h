@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tcp.h"
 #include "../json.h"
 
 namespace so {
@@ -15,24 +16,46 @@ class Service {
 
 class Server {
   public:
-    Server() = default;
-    virtual ~Server() = default;
+    Server();
+    ~Server();
 
-    virtual void start() = 0;
-    virtual void add_service(Service*) = 0;
+    void add_service(Service* s);
+    void start(const char* ip, int port, const char* passwd="");
+
+  private:
+    void* _p;
+
+    DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
 class Client {
   public:
-    Client() = default;
-    virtual ~Client() = default;
+    Client(const char* ip, int port, const char* passwd);
+    ~Client() = default;
 
-    virtual void ping() = 0; // send a heartbeat
-    virtual void call(const Json& req, Json& res) = 0;
+    /**
+     * perform a general rpc request
+     */
+    void call(const Json& req, Json& res);
+
+    /**
+     * send a heartbeat
+     */
+    void ping() {
+        Json req, res;
+        req.add_member("method", "ping");
+        this->call(req, res);
+    }
+
+  private:
+    tcp::Client _tcp_cli;
+    fastring _passwd;
+    fastream _fs;
+
+    bool auth();
+    bool connect();
+    DISALLOW_COPY_AND_ASSIGN(Client);
 };
-
-Server* new_server(const char* ip, int port, const char* passwd="");
-Client* new_client(const char* ip, int port, const char* passwd="");
 
 } // rpc
 } // so
