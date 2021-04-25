@@ -106,10 +106,8 @@ void Scheduler::loop() {
           #if defined(_WIN32)
             IoEvent::PerIoInfo* info = (IoEvent::PerIoInfo*) _epoll.user_data(ev);
             if (info->co) {
-                //info->n = ev.dwNumberOfBytesTransferred;
                 this->resume((Coroutine*)info->co);
             } else {
-                WLOG << "io timeout, free PerIoInfo: " << (void*)info;
                 free(info);
             }
           #elif defined(__linux__)

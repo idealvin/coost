@@ -11,6 +11,7 @@
 #include "co/path.h"
 #include "co/lru_map.h"
 #include <memory>
+#include <unordered_map>
 
 DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
 DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
@@ -40,11 +41,9 @@ class ServerImpl {
 
   private:
     void on_tcp_connection(sock_t fd);
-    void on_tcp_connection_v2(sock_t fd);
 
   #ifdef CO_SSL
     void on_ssl_connection(SSL* s);
-    void on_ssl_connection_v2(SSL* s);
   #endif
 
   private:
@@ -113,9 +112,6 @@ void ServerImpl::start(const char* ip, int port, const char* key, const char* ca
 #endif
 }
 
-int parse_req(fastring& s, size_t end, Req* req, int* body_len);
-int parse_res(fastring& s, size_t end, Res* res, int* body_len);
-
 void ServerImpl::on_tcp_connection(sock_t fd) {
     char c;
     int r = 0, body_len = 0;
@@ -159,10 +155,10 @@ void ServerImpl::on_tcp_connection(sock_t fd) {
             }
 
             // parse http req
-            r = parse_req(*buf, pos, &req, &body_len);
+            r = req.parse(buf->c_str(), pos, &body_len);
             if (r != 0) {
                 fastring s(120);
-                s << "HTTP/1.1" << ' ' << r << ' ' << Res::status_str(r) << "\r\n";
+                s << "HTTP/1.1" << ' ' << r << ' ' << http::status_str(r) << "\r\n";
                 s << "Content-Length: 0" << "\r\n";
                 s << "Connection: close" << "\r\n";
                 s << "\r\n";
@@ -219,7 +215,7 @@ void ServerImpl::on_tcp_connection(sock_t fd) {
             r = co::send(fd, s.data(), (int)s.size(), FLG_http_send_timeout);
             if (r < 0) goto send_err;
 
-            s.resize(s.size() - res.body_len());
+            s.resize(s.size() - res.body_size());
             HTTPLOG << "http send res: " << s;
             if (need_close) { co::close(fd); goto cleanup; }
         };
@@ -308,10 +304,10 @@ void ServerImpl::on_ssl_connection(SSL* s) {
             }
 
             // parse http req
-            r = parse_req(*buf, pos, &req, &body_len);
+            r = req.parse(buf->c_str(), pos, &body_len);
             if (r != 0) {
                 fastring fs(120);
-                fs << "HTTP/1.1" << ' ' << r << ' ' << Res::status_str(r) << "\r\n";
+                fs << "HTTP/1.1" << ' ' << r << ' ' << http::status_str(r) << "\r\n";
                 fs << "Content-Length: 0" << "\r\n";
                 fs << "Connection: close" << "\r\n";
                 fs << "\r\n";
@@ -368,7 +364,7 @@ void ServerImpl::on_ssl_connection(SSL* s) {
             r = ssl::send(s, fs.data(), (int)fs.size(), FLG_http_send_timeout);
             if (r <= 0) goto send_err;
 
-            fs.resize(fs.size() - res.body_len());
+            fs.resize(fs.size() - res.body_size());
             HTTPLOG << "https send res: " << fs;
             if (need_close) { co::close(fd); goto cleanup; }
         };
@@ -411,16 +407,17 @@ void ServerImpl::on_ssl_connection(SSL* s) {
 }
 #endif
 
-Client::Client(const char* serv_url) : _https(false) {
-    const char* p = serv_url;
+Client::Client(const char* serv_url) : _https(false), _req(0), _res(0) {
+    fastring url(std::move(fastring(serv_url).tolower()));
+    const char* p = url.c_str();
     fastring ip;
     int port = 0;
 
-    if (memcmp(serv_url, "https://", 8) == 0) {
+    if (memcmp(p, "https://", 8) == 0) {
         p += 8;
         _https = true;
     } else {
-        if (memcmp(serv_url, "http://", 7) == 0) p += 7;
+        if (memcmp(p, "http://", 7) == 0) p += 7;
     }
 
     const char* s = strchr(p, ':');
@@ -434,7 +431,7 @@ Client::Client(const char* serv_url) : _https(false) {
             ip = fastring(p, r - p - 1);
             port = atoi(r + 1);
         }
-    } 
+    }
 
     if (_https) {
       #ifdef CO_SSL
@@ -445,7 +442,17 @@ Client::Client(const char* serv_url) : _https(false) {
     }
 }
 
-Client::~Client() = default;
+Client::~Client() {
+    if (_https) {
+      #ifdef CO_SSL
+        delete (ssl::Client*)_p;
+      #endif
+    } else {
+        delete (tcp::Client*)_p;
+    }
+    if (_req) delete _req;
+    if (_res) delete _res;
+}
 
 // user-defined error code:
 //   577: "Connection Timeout";
@@ -466,7 +473,7 @@ void Client::call_http(const Req& req, Res& res) {
         fastring s = req.str();
         r = c->send(s.data(), (int)s.size(), FLG_http_send_timeout);
         if (r < 0) goto send_err;
-        s.resize(s.size() - req.body_len());
+        s.resize(s.size() - req.body_size());
         HTTPLOG << "http send req: " << s;
     };
 
@@ -484,7 +491,7 @@ void Client::call_http(const Req& req, Res& res) {
             buf.resize(buf.size() + r);
         } while ((pos = buf.find("\r\n\r\n")) == buf.npos);
 
-        r = parse_res(buf, pos, &res, &body_len);
+        r = res.parse(buf.c_str(), pos, &body_len);
         if (r != 0) goto parse_err;
         if ((uint32)body_len > FLG_http_max_body_size) goto body_too_long_err;
 
@@ -560,7 +567,7 @@ void Client::call_https(const Req& req, Res& res) {
         r = c->send(s.data(), (int) s.size(), FLG_http_send_timeout);
         if (r <= 0) goto send_err;
 
-        s.resize(s.size() - req.body_len());
+        s.resize(s.size() - req.body_size());
         HTTPLOG << "https send req: " << s;
     };
 
@@ -578,7 +585,7 @@ void Client::call_https(const Req& req, Res& res) {
             buf.resize(buf.size() + r);
         } while ((pos = buf.find("\r\n\r\n")) == buf.npos);
 
-        r = parse_res(buf, pos, &res, &body_len);
+        r = res.parse(buf.c_str(), pos, &body_len);
         if (r != 0) goto parse_err;
         if ((uint32)body_len > FLG_http_max_body_size) goto body_too_long_err;
 
@@ -641,89 +648,80 @@ void Client::call_https(const Req& req, Res& res) {
   #endif
 }
 
-fastring Req::str() const {
+const fastring& Header::header(const char* key) const {
+    static const fastring kEmptyString;
+    if (headers.empty()) return kEmptyString;
+
+    fastring s(std::move(fastring(key).toupper()));
+    for (size_t i = 0; i < headers.size(); i += 2) {
+        if (headers[i].upper() == s) return headers[i + 1];
+    }
+    return kEmptyString;
+}
+
+fastring Req::str(bool dbg) const {
     fastring s;
-    s << method_str() << ' ' << _url << ' ' << version_str() << "\r\n";
+    s << method_str(_method) << ' ' << _url << ' ' << version_str(_version) << "\r\n";
+    if (!_body.empty() && !_from_peer) s << "Content-Length: " << _body.size() << "\r\n";
 
-    if (!_body.empty() && !this->parsing()) {
-        s << "Content-Length: " << _body.size() << "\r\n";
+    for (size_t i = 0; i < _header.headers.size(); i += 2) {
+        s << _header.headers[i] << ": " << _header.headers[i + 1] << "\r\n";
     }
 
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s << _headers[i] << ": " << _headers[i + 1] << "\r\n";
+    if (!dbg) {
+        s << "\r\n";
+        if (!_body.empty()) s << _body;
     }
-
-    s << "\r\n";
-    if (!_body.empty()) s << _body;
     return std::move(s);
 }
 
-fastring Req::dbg() const {
+fastring Res::str(bool dbg) const {
     fastring s;
-    s << method_str() << ' ' << _url << ' ' << version_str() << "\r\n";
+    s << version_str(_version) << ' ' << _status << ' ' << status_str(_status) << "\r\n";
+    if (!_from_peer) s << "Content-Length: " << _body.size() << "\r\n";
 
-    if (!_body.empty() && !this->parsing()) {
-        s << "Content-Length: " << _body.size() << "\r\n";
+    for (size_t i = 0; i < _header.headers.size(); i += 2) {
+        s << _header.headers[i] << ": " << _header.headers[i + 1] << "\r\n";
     }
 
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s << _headers[i] << ": " << _headers[i + 1] << "\r\n";
+    if (!dbg) {
+        s << "\r\n";
+        if (!_body.empty()) s << _body;
     }
-
     return std::move(s);
 }
 
-fastring Res::str() const {
-    fastring s;
-    s << version_str() << ' ' << status() << ' ' << status_str() << "\r\n";
-
-    if (!this->parsing()) {
-        s << "Content-Length: " << _body.size() << "\r\n";
-    }
-
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s << _headers[i] << ": " << _headers[i + 1] << "\r\n";
-    }
-
-    s << "\r\n";
-    if (!_body.empty()) s << _body;
-    return std::move(s);
+static std::unordered_map<fastring, int>* method_map() {
+    static std::unordered_map<fastring, int> m;
+    m["GET"]     = kGet;
+    m["POST"]    = kPost;
+    m["HEAD"]    = kHead;
+    m["PUT"]     = kPut;
+    m["DELETE"]  = kDelete;
+    m["OPTIONS"] = kOptions;
+    return &m;
 }
 
-fastring Res::dbg() const {
-    fastring s;
-    s << version_str() << ' ' << status() << ' ' << status_str() << "\r\n";
-
-    if (!this->parsing()) {
-        s << "Content-Length: " << _body.size() << "\r\n";
-    }
-
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s << _headers[i] << ": " << _headers[i + 1] << "\r\n";
-    }
-
-    return std::move(s);
+static std::unordered_map<fastring, int>* version_map() {
+    static std::unordered_map<fastring, int> m;
+    m["HTTP/1.0"] = kHTTP10;
+    m["HTTP/1.1"] = kHTTP11;
+    return &m;
 }
 
-int parse_req_start_line(const char* beg, const char* end, Req* req) {
+static int parse_req_start_line(const char* beg, const char* end, Req* req) {
     const char* p = strchr(beg, ' ');
     if (!p || p >= end) return 400; // Bad Request
 
+    static std::unordered_map<fastring, int>* mm = method_map();
     fastring method(std::move(fastring(beg, p - beg).toupper()));
-    if (method == "GET") {
-        req->set_method_get();
-    } else if (method == "POST") {
-        req->set_method_post();
-    } else if (method == "HEAD") {
-        req->set_method_head();
-    } else if (method == "PUT") {
-        req->set_method_put();
-    } else if (method == "DELETE") {
-        req->set_method_delete();
+    auto it = mm->find(method);
+    if (it != mm->end()) {
+        req->set_method((Method)(it->second));
     } else {
         return 405; // Method Not Allowed
     }
-    
+   
     do { ++p; } while (*p == ' ' && p < end);
     const char* q = strchr(p, ' ');
     if (!q || q >= end) return 400;
@@ -732,11 +730,11 @@ int parse_req_start_line(const char* beg, const char* end, Req* req) {
     do { ++q; } while (*q == ' ' && q < end);
     if (q >= end) return 400;
 
+    static std::unordered_map<fastring, int>* vm = version_map();
     fastring version(std::move(fastring(q, end - q).toupper()));
-    if (version == "HTTP/1.1") {
-        req->set_version_http11();
-    } else if (version == "HTTP/1.0") {
-        req->set_version_http10();
+    it = vm->find(version);
+    if (it != vm->end()) {
+        req->set_version((Version)(it->second));
     } else {
         return 505; // HTTP Version Not Supported
     }
@@ -744,67 +742,58 @@ int parse_req_start_line(const char* beg, const char* end, Req* req) {
     return 0;
 }
 
-int parse_header(fastring& s, size_t beg, size_t end, Base* base, int* body_len) {
-    size_t x;
+static int parse_header(const char* beg, const char* end, Header* header, int* body_size) {
+    const char* p;
+    const char* x;
     while (beg < end) {
-        x = s.find('\r', beg);
-        if (s[x + 1] != '\n') return -1;
+        p = strchr(beg, '\r');
+        if (!p || *(p + 1) != '\n') return -1;
 
-        size_t t = s.find(':', beg);
-        if (t >= x) return -1;
+        x = strchr(beg, ':');
+        if (!x || x > p) return -1;
 
-        fastring key = s.substr(beg, t - beg);
-        do { ++t; } while (s[t] == ' ' && t < x);
-        base->add_header(std::move(key), s.substr(t, x - t));
-        beg = x + 2;
+        fastring key(beg, x - beg);
+        do { ++x; } while (*x == ' ' && x < p);
+        header->add_header(std::move(key), fastring(x, p - x));
+        beg = p + 2;
     }
 
-    fastring v = base->header("CONTENT-LENGTH");
+    const fastring& v = header->header("CONTENT-LENGTH");
     if (v.empty() || v == "0") {
-        *body_len = 0;
+        *body_size = 0;
         return 0;
     } else {
         int len = atoi(v.c_str());
-        if (len <= 0) {
-            ELOG << "http parse error, invalid content-length: " << v;
-            return -1;
+        if (len > 0) {
+            *body_size = len;
+            return 0;
         }
-
-        if ((uint32)len > FLG_http_max_body_size) {
-            ELOG << "http parse error, content-length is too long: " << v;
-            return -1;
-        }
-
-        *body_len = len;
-        return 0;
+        ELOG << "http parse error, invalid content-length: " << v;
+        return -1;
     }
 }
 
-int parse_req(fastring& s, size_t end, Req* req, int* body_len) {
-    req->set_parsing();
+int Req::parse(const char* s, size_t n, int* body_size) {
+    _from_peer = true;
+    const char* p = strchr(s, '\r'); // MUST NOT be NULL
+    if (*(p + 1) != '\n') return 400;
 
-    // start line
-    size_t p = s.find('\r');
-    if (s[p + 1] != '\n') return 400;
-
-    const char* beg = s.c_str();
-    int r = parse_req_start_line(beg, beg + p, req);
+    int r = parse_req_start_line(s, p, this);
     if (r != 0) return r;
-    p += 2;
+    p += 2; // skip "\r\n"
 
-    // headers 
-    r = parse_header(s, p, end, req, body_len);
+    r = parse_header(p, s + n, &_header, body_size);
     return r == 0 ? 0 : 400;
 }
 
-int parse_res_start_line(const char* beg, const char* end, Res* res) {
+static int parse_res_start_line(const char* beg, const char* end, Res* res) {
     const char* p = strchr(beg, ' ');
     if (!p || p >= end) return -1;
 
     fastring version(std::move(fastring(beg, p - beg).toupper()));
     if (version == "HTTP/1.1") {
         res->set_version_http11();
-    } else if (version == "HTTP/1.0") {
+    } else {
         res->set_version_http10();
     }
     
@@ -812,7 +801,8 @@ int parse_res_start_line(const char* beg, const char* end, Res* res) {
     const char* q = strchr(p, ' ');
     if (!q || q >= end) return -1;
 
-    int status = atoi(fastring(p, q - p).c_str());
+    fastring s(p, q - p);
+    int status = atoi(s.c_str());
     res->set_status(status);
 
     do { ++q; } while (*q == ' ' && q < end);
@@ -820,25 +810,21 @@ int parse_res_start_line(const char* beg, const char* end, Res* res) {
     return 0;
 }
 
-int parse_res(fastring& s, size_t end, Res* res, int* body_len) {
-    res->set_parsing();
+int Res::parse(const char* s, size_t n, int* body_size) {
+    _from_peer = true;
+    const char* p = strchr(s, '\r');
+    if (!p || *(p + 1) != '\n') return -1;
 
-    // start line
-    size_t p = s.find('\r');
-    if (s[p + 1] != '\n') return -1;
-
-    const char* beg = s.c_str();
-    int r = parse_res_start_line(beg, beg + p, res);
+    int r = parse_res_start_line(s, p, this);
     if (r != 0) return r;
-    p += 2;
+    p += 2; // skip "\r\n"
 
-    // headers 
-    return parse_header(s, p, end, res, body_len);
+    return parse_header(p, s + n, &_header, body_size);
 }
 
-const char** Res::create_status_table() {
-    static const char* s[600];
-    for (int i = 0; i < 600; ++i) s[i] = "";
+const char** create_status_table() {
+    static const char* s[512];
+    for (int i = 0; i < 512; ++i) s[i] = "";
 
     s[100] = "Continue";
     s[101] = "Switching Protocols";
@@ -888,13 +874,20 @@ const char** Res::create_status_table() {
     // ================================================================
     // user-defined error code: 577 - 599
     // ================================================================
+    #if 0
     s[577] = "Connection Timeout";
     s[578] = "Connection Closed";
     s[579] = "Send Timeout";
     s[580] = "Recv Timeout";
     s[581] = "Send Failed";
     s[582] = "Recv Failed";
+    #endif
     return s;
+}
+
+const char* status_str(int n) {
+    static const char** s = create_status_table();
+    return (100 <= n && n <= 511) ? s[n] : s[500];
 }
 
 } // http
