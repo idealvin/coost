@@ -403,7 +403,7 @@ namespace std {
 template<>
 struct hash<fastring> {
     size_t operator()(const fastring& s) const {
-        return murmur_hash(s);
+        return murmur_hash(s.data(), s.size());
     }
 };
 } // std
