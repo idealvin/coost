@@ -262,7 +262,7 @@ void Server::on_tcp_connection(sock_t fd) {
     SSL* s = ssl::new_ssl(_ctx);
     if (s == NULL) goto new_ssl_err;
 
-    if (ssl::set_fd(s, fd) != 1) goto set_fd_err;
+    if (ssl::set_fd(s, (int)fd) != 1) goto set_fd_err;
     if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
 
     _on_ssl_connection(s);
@@ -292,7 +292,7 @@ bool Client::connect(int ms) {
     if (!_tcp_cli.connect(ms)) return false;
     if ((_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
     if ((_ssl = ssl::new_ssl(_ctx)) == NULL) goto new_ssl_err;
-    if (ssl::set_fd(_ssl, _tcp_cli.fd()) != 1) goto set_fd_err;
+    if (ssl::set_fd(_ssl, (int)_tcp_cli.fd()) != 1) goto set_fd_err;
     if (ssl::connect(_ssl, ms) != 1) goto connect_err;
     return true;
   
