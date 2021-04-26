@@ -2,7 +2,6 @@
 #include "co/log.h"
 #include "co/str.h"
 
-namespace so {
 namespace tcp {
 
 struct ServerParam {
@@ -114,4 +113,3 @@ void Client::disconnect() {
 }
 
 } // tcp
-} // so

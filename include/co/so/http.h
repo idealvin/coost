@@ -4,7 +4,6 @@
 #include <functional>
 #include <vector>
 
-namespace so {
 namespace http {
 
 enum Version {
@@ -309,6 +308,8 @@ class Client {
 
 } // http
 
+namespace so {
+
 /**
  * start a static http server 
  *   - This function will block the calling thread. 
@@ -333,5 +334,3 @@ void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
 
 } // so
-
-namespace http = so::http;

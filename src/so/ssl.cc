@@ -8,7 +8,6 @@
 
 DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
 
-namespace so {
 namespace ssl {
 
 static int errcb(const char* p, size_t n, void* u) {
@@ -327,6 +326,5 @@ void Client::disconnect() {
 }
 
 } // ssl
-} // so
 
 #endif

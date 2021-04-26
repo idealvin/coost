@@ -1,11 +1,10 @@
 #pragma once
 
 #ifdef CO_SSL
+#include "tcp.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include "tcp.h"
 
-namespace so {
 namespace ssl {
 
 /**
@@ -360,8 +359,5 @@ class Client {
 };
 
 } // ssl
-} // so
-
-namespace ssl = so::ssl;
 
 #endif

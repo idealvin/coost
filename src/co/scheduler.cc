@@ -195,7 +195,7 @@ static inline void wsa_cleanup() {}
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
-    if (FLG_co_sched_num == 0 || FLG_co_sched_num > os::cpunum()) FLG_co_sched_num = os::cpunum();
+    if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
     _n = -1;

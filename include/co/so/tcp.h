@@ -2,7 +2,6 @@
 
 #include "../co.h"
 
-namespace so {
 namespace tcp {
 
 /**
@@ -138,6 +137,3 @@ class Client {
 };
 
 } // tcp
-} // so
-
-namespace tcp = so::tcp;

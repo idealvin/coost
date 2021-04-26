@@ -1,12 +1,11 @@
 #include "co/so/rpc.h"
 #include "co/so/tcp.h"
-#include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
 #include "co/fastream.h"
 #include "co/str.h"
-#include "co/hash.h"
+#include "co/hash/md5.h"
 #include "co/time.h"
 #include <memory>
 
@@ -20,7 +19,6 @@ DEF_bool(rpc_log, true, "#2 enable rpc log if true");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
-namespace so {
 namespace rpc {
 
 struct Header {
@@ -322,12 +320,39 @@ bool ServerImpl::auth(sock_t fd) {
     return false;
 }
 
-Client::Client(const char* serv_ip, int serv_port, const char* passwd)
-    : _tcp_cli(serv_ip, serv_port) {
-    if (passwd && *passwd) _passwd = md5sum(passwd);
+class ClientImpl {
+  public:
+    ClientImpl(const char* ip, int port, const char* passwd)
+        : _tcp_cli(ip, port) {
+        if (passwd && *passwd) _passwd = md5sum(passwd);
+    }
+
+    ~ClientImpl() = default;
+
+    void call(const Json& req, Json& res);
+
+  private:
+    tcp::Client _tcp_cli;
+    fastring _passwd;
+    fastream _fs;
+
+    bool auth();
+    bool connect();
+};
+
+Client::Client(const char* ip, int port, const char* passwd) {
+    _p = new ClientImpl(ip, port, passwd);
 }
 
-bool Client::connect() {
+Client::~Client() {
+    delete (ClientImpl*)_p;
+}
+
+void Client::call(const Json& req, Json& res) {
+    return ((ClientImpl*)_p)->call(req, res);
+}
+
+bool ClientImpl::connect() {
     if (!_tcp_cli.connect(FLG_rpc_conn_timeout)) return false;
     if (!_passwd.empty() && !this->auth()) {
         _tcp_cli.disconnect();
@@ -336,7 +361,7 @@ bool Client::connect() {
     return true;
 }
 
-void Client::call(const Json& req, Json& res) {
+void ClientImpl::call(const Json& req, Json& res) {
     int r = 0, len = 0;
     Header header;
 
@@ -397,7 +422,7 @@ void Client::call(const Json& req, Json& res) {
     _tcp_cli.disconnect();
 }
 
-bool Client::auth() {
+bool ClientImpl::auth() {
     int r = 0, len = 0;
     Header header;
     fastream fs;
@@ -507,4 +532,3 @@ bool Client::auth() {
 }
 
 } // rpc
-} // so

@@ -24,7 +24,6 @@ DEF_bool(http_log, true, "#2 enable http log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
 
-namespace so {
 namespace http {
 
 class ServerImpl {
@@ -905,6 +904,8 @@ const char* status_str(int n) {
 }
 
 } // http
+
+namespace so {
 
 void easy(const char* root_dir, const char* ip, int port) {
     return so::easy(root_dir, ip, port, NULL, NULL);

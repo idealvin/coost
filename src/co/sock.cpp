@@ -207,7 +207,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     IoEvent ev(fd, EV_read);
 
     do {
-        int r = ::recvfrom(fd, (char*)buf, n, 0, (sockaddr*)addr, addrlen);
+        r = ::recvfrom(fd, (char*)buf, n, 0, (sockaddr*)addr, addrlen);
         if (r != -1) return r;
 
         if (co::error() == WSAEWOULDBLOCK) {
@@ -289,7 +289,7 @@ class Error {
                 FORMAT_MESSAGE_IGNORE_INSERTS,
                 0, e,
                 MAKELANGID(LANG_ENGLISH /*LANG_NEUTRAL*/, SUBLANG_DEFAULT),
-                (LPTSTR)&s, 0, 0
+                (LPSTR)&s, 0, 0
             );
 
             if (s) {

@@ -1,9 +1,7 @@
 #pragma once
 
-#include "tcp.h"
 #include "../json.h"
 
-namespace so {
 namespace rpc {
 
 class Service {
@@ -31,7 +29,7 @@ class Server {
 class Client {
   public:
     Client(const char* ip, int port, const char* passwd);
-    ~Client() = default;
+    ~Client();
 
     void call(const Json& req, Json& res);
 
@@ -42,16 +40,9 @@ class Client {
     }
 
   private:
-    tcp::Client _tcp_cli;
-    fastring _passwd;
-    fastream _fs;
+    void* _p;
 
-    bool auth();
-    bool connect();
     DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // rpc
-} // so
-
-namespace rpc = so::rpc;
