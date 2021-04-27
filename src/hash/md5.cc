@@ -37,8 +37,6 @@
 
 #include "co/hash/md5.h"
 
-namespace {
-
 /*
  * The basic MD5 functions.
  *
@@ -88,13 +86,12 @@ namespace {
  * This processes one or more 64-byte data blocks, but does NOT update
  * the bit counters.  There are no alignment requirements.
  */
-const void* body(md5_ctx_t* ctx, const void* data, size_t size) {
+static const void* body(md5_ctx_t* ctx, const void* data, size_t size) {
     const uint8* ptr;
     uint32 a, b, c, d;
     uint32 saved_a, saved_b, saved_c, saved_d;
 
     ptr = (const uint8*) data;
-
     a = ctx->a;
     b = ctx->b;
     c = ctx->c;
@@ -182,7 +179,6 @@ const void* body(md5_ctx_t* ctx, const void* data, size_t size) {
         b += saved_b;
         c += saved_c;
         d += saved_d;
-
         ptr += 64;
     } while (size -= 64);
 
@@ -190,7 +186,6 @@ const void* body(md5_ctx_t* ctx, const void* data, size_t size) {
     ctx->b = b;
     ctx->c = c;
     ctx->d = d;
-
     return ptr;
 }
 
@@ -203,14 +198,11 @@ const void* body(md5_ctx_t* ctx, const void* data, size_t size) {
 #undef SET
 #undef GET
 
-} // namespace
-
 void md5_init(md5_ctx_t* ctx) {
     ctx->a = 0x67452301;
     ctx->b = 0xefcdab89;
     ctx->c = 0x98badcfe;
     ctx->d = 0x10325476;
-
     ctx->lo = 0;
     ctx->hi = 0;
 }
@@ -310,9 +302,9 @@ fastring md5sum(const void* s, size_t n) {
     r.resize(32);
     char* x = (char*) r.data();
 
-    for (int i = 0; i < 16; ++i) {
-        *x++ = "0123456789abcdef"[md5[i] >> 4];
-        *x++ = "0123456789abcdef"[md5[i] & 0x0f];
+    for (int i = 0; i < 16; ++i, x += 2) {
+        x[0] = "0123456789abcdef"[md5[i] >> 4];
+        x[1] = "0123456789abcdef"[md5[i] & 0x0f];
     }
 
     return r;

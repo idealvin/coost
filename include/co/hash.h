@@ -6,7 +6,13 @@
 #include "hash/md5.h"
 #include "hash/base64.h"
 
-// murmur2 64 bit hash
+/**
+ * 64 bit hash 
+ *
+ * @param s  a pointer to the data, it may not work on some systems if s is not 
+ *           8-byte aligned.
+ * @param n  size of the data.
+ */
 inline uint64 hash64(const void* s, size_t n) {
     return murmur_hash64(s, n, 0);
 }
@@ -15,28 +21,35 @@ inline uint64 hash64(const char* s) {
     return hash64(s, strlen(s));
 }
 
-template<typename S>
-inline uint64 hash64(const S& s) {
+inline uint64 hash64(const fastring& s) {
     return hash64(s.data(), s.size());
 }
 
-#ifdef ARCH64
-// use the lower 32 bit of murmur_hash64 on 64 bit platform
-inline uint32 hash32(const void* s, size_t n) {
-    return (uint32) hash64(s, n);
+inline uint64 hash64(const std::string& s) {
+    return hash64(s.data(), s.size());
 }
-#else
-// use murmur_hash32 on 32 bit platform
+
+/**
+ * 32 bit hash 
+ *   - The result is the lower 32 bit of murmur_hash64 on 64 bit platforms. On 
+ *     32 bit platforms, murmur_hash32 will be used instead. 
+ * 
+ * @param s  a pointer to the data, it may not work on some systems if s is not 
+ *           4-byte or 8-byte aligned.
+ * @param n  size of the data.
+ */
 inline uint32 hash32(const void* s, size_t n) {
-    return murmur_hash32(s, n, 0);
+    return (uint32) murmur_hash(s, n);
 }
-#endif
 
 inline uint32 hash32(const char* s) {
     return hash32(s, strlen(s));
 }
 
-template<typename S>
-inline uint32 hash32(const S& s) {
+inline uint32 hash32(const fastring& s) {
+    return hash32(s.data(), s.size());
+}
+
+inline uint32 hash32(const std::string& s) {
     return hash32(s.data(), s.size());
 }
