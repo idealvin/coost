@@ -92,7 +92,7 @@ void Epoll::del_ev_read(int fd) {
         r = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event);
     }
 
-    ELOG_IF(r != 0) << "del ev read error: " << co::strerror() << ", fd: " << fd;
+    ELOG_IF(r != 0 && co::error() != ENOENT) << "del ev read error: " << co::strerror() << ", fd: " << fd;
 }
 
 void Epoll::del_ev_write(int fd) {
@@ -111,7 +111,7 @@ void Epoll::del_ev_write(int fd) {
         r = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &event);
     }
 
-    ELOG_IF(r != 0) << "del ev write error: " << co::strerror() << ", fd: " << fd;
+    ELOG_IF(r != 0 && co::error() != ENOENT) << "del ev write error: " << co::strerror() << ", fd: " << fd;
 }
 
 #else  /* kqueue */
