@@ -131,12 +131,12 @@ size_t fastring::find_last_not_of(char c, size_t pos) const {
     return npos;
 }
 
-void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
-    if (this->empty()) return;
+fastring& fastring::replace(const char* sub, const char* to, size_t maxreplace) {
+    if (this->empty()) return *this;
 
     const char* from = this->c_str();
     const char* p = strstr(from, sub);
-    if (!p) return;
+    if (!p) return *this;
 
     size_t n = strlen(sub);
     size_t m = strlen(to);
@@ -152,10 +152,11 @@ void fastring::replace(const char* sub, const char* to, size_t maxreplace) {
     if (from < _p + _size) s.append(from);
 
     this->swap(s);
+    return *this;
 }
 
-void fastring::strip(const char* s, char d) {
-    if (this->empty()) return;
+fastring& fastring::strip(const char* s, char d) {
+    if (this->empty()) return *this;
 
     typedef unsigned char u8;
     char bs[256] = { 0 };
@@ -164,8 +165,7 @@ void fastring::strip(const char* s, char d) {
     if (d == 'l' || d == 'L') {
         size_t b = 0;
         while (b < _size && bs[(u8)(_p[b])]) ++b;
-        if (b == 0 || (_size -= b) == 0) return;
-        memmove(_p, _p + b, _size);
+        if (b != 0 && (_size -= b) != 0) memmove(_p, _p + b, _size);
 
     } else if (d == 'r' || d == 'R') {
         size_t e = _size;
@@ -176,13 +176,14 @@ void fastring::strip(const char* s, char d) {
         size_t e = _size;
         while (e > 0 && bs[(u8)(_p[e - 1])]) --e;
         if (e != _size) _size = e;
-        if (e == 0) return;
+        if (e == 0) return *this;
 
         size_t b = 0;
         while (b < _size && bs[(u8)(_p[b])]) ++b;
-        if (b == 0 || (_size -= b) == 0) return;
-        memmove(_p, _p + b, _size);
+        if (b != 0 && (_size -= b) != 0) memmove(_p, _p + b, _size);
     }
+
+    return *this;
 }
 
 static bool _Match(const char* e, const char* p) {

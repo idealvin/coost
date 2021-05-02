@@ -192,12 +192,12 @@ class fastring : public fast::stream {
     size_t find_last_not_of(char c, size_t pos=npos) const;
 
     // @maxreplace: 0 for unlimited
-    void replace(const char* sub, const char* to, size_t maxreplace=0);
+    fastring& replace(const char* sub, const char* to, size_t maxreplace=0);
 
     // @d: 'l' or 'L' for left, 'r' or 'R' for right
-    void strip(const char* s=" \t\r\n", char d='b');
+    fastring& strip(const char* s=" \t\r\n", char d='b');
     
-    void strip(char c, char d='b') {
+    fastring& strip(char c, char d='b') {
         char s[2] = { c, '\0' };
         this->strip((const char*)s, d);
     }
