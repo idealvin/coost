@@ -199,7 +199,7 @@ class fastring : public fast::stream {
     
     fastring& strip(char c, char d='b') {
         char s[2] = { c, '\0' };
-        this->strip((const char*)s, d);
+        return this->strip((const char*)s, d);
     }
 
     bool starts_with(char c) const {
