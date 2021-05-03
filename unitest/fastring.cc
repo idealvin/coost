@@ -168,59 +168,44 @@ DEF_test(fastring) {
 
     DEF_case(replace) {
         fastring s("1122332211");
-        s.replace("22", "xx");
-        EXPECT_EQ(s, "11xx33xx11");
-
-        s.replace("xx", "22", 1);
-        EXPECT_EQ(s, "112233xx11");
+        EXPECT_EQ(s.replace("22", "xx"), "11xx33xx11");
+        EXPECT_EQ(s.replace("xx", "22", 1), "112233xx11");
 
         s = "xxxxx";
-        s.replace("xx", "yy");
-        EXPECT_EQ(s, "yyyyx");
+        EXPECT_EQ(s.replace("xx", "yy"), "yyyyx");
 
         s = "xxxxx";
-        s.replace("xxx", "x");
-        EXPECT_EQ(s, "xxx");
+        EXPECT_EQ(s.replace("xxx", "x"), "xxx");
 
         s = "xxxxxxxxx";
-        s.replace("xxx", "x");
-        EXPECT_EQ(s, "xxx");
-
-        s.replace("x", "xx");
-        EXPECT_EQ(s, "xxxxxx");
+        EXPECT_EQ(s.replace("xxx", "x"), "xxx");
+        EXPECT_EQ(s.replace("x", "xx"), "xxxxxx");
     }
 
     DEF_case(strip) {
         fastring s("xx1122332211");
         const char* p = s.data();
 
-        s.strip("x", 'l');
-        EXPECT_EQ(s, "1122332211");
+        EXPECT_EQ(s.strip("x", 'l'), "1122332211");
         EXPECT_EQ(s.data(), p);
 
-        s.strip("1", 'r');
-        EXPECT_EQ(s, "11223322");
+        EXPECT_EQ(s.strip("1", 'r'), "11223322");
         EXPECT_EQ(s.data(), p);
 
-        s.strip("12");
-        EXPECT_EQ(s, "33");
+        EXPECT_EQ(s.strip("12"), "33");
         EXPECT_EQ(s.data(), p);
 
-        s.strip("3");
-        EXPECT_EQ(s, "");
+        EXPECT_EQ(s.strip("3"), "");
         EXPECT_EQ(s.data(), p);
 
         s = "xxxyyy";
-        s.strip("xy");
-        EXPECT_EQ(s, "");
+        EXPECT_EQ(s.strip("xy"), "");
 
         s = "xxx";
-        s.strip("xy", 'r');
-        EXPECT_EQ(s, "");
+        EXPECT_EQ(s.strip("xy", 'r'), "");
 
         s = "xxx";
-        s.strip("xy", 'l');
-        EXPECT_EQ(s, "");
+        EXPECT_EQ(s.strip("xy", 'l'), "");
     }
 
     DEF_case(starts_ends) {
