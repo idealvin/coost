@@ -28,11 +28,11 @@ DEF_bool(http_log, true, "#2 enable http log if true");
 namespace http {
 
 /**
- *  ╔════════════════════════════════════════════════════════════════════════════╗
- *  ║ HTTP client                                                                ║
- *  ║   - libcurl & zlib required.                                               ║
- *  ║   - openssl required for https.                                            ║
- *  ╚════════════════════════════════════════════════════════════════════════════╝
+ * ===========================================================================
+ * HTTP client 
+ *   - libcurl & zlib required. 
+ *   - openssl required for https. 
+ * ===========================================================================
  */
 
 #ifdef HAS_LIBCURL
@@ -444,10 +444,10 @@ int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose) {
 
 
 /**
- *  ╔════════════════════════════════════════════════════════════════════════════╗
- *  ║ HTTP server                                                                ║
- *  ║   - openssl required for https.                                            ║
- *  ╚════════════════════════════════════════════════════════════════════════════╝
+ * ===========================================================================
+ * HTTP server 
+ *   - openssl required for https. 
+ * ===========================================================================
  */
 
 inline const char* version_str(int v) {
@@ -727,7 +727,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                         if (o < n) {
                             buf->append(s.data() + x + 2, o);
                             buf->reserve(buf->size() + n - o + 2);
-                            r = conn->recvn((void*)(buf->data() + buf->size()), n - o + 2, FLG_http_recv_timeout);
+                            r = conn->recvn((void*)(buf->data() + buf->size()), (int)(n - o + 2), FLG_http_recv_timeout);
                             if (r == 0) goto recv_zero_err;
                             if (r < 0) goto recv_err;
                             buf->resize(buf->size() + r - 2);
