@@ -379,7 +379,7 @@ struct Connection : public tcp::Connection {
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int close(int ms) {
+    virtual int close(int ms=0) {
         ssl::shutdown(s);
         ssl::free_ssl(s);
         return tcp::Connection::close(ms);
@@ -390,9 +390,13 @@ struct Connection : public tcp::Connection {
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int reset(int ms) {
+    virtual int reset(int ms=0) {
         ssl::free_ssl(s);
         return tcp::Connection::reset(ms);
+    }
+
+    virtual const char* strerror() const {
+        return ssl::strerror(s);
     }
 
     SSL* s;

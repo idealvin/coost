@@ -809,20 +809,20 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
   recv_zero_err:
     LOG << "http client close the connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
-    conn->close(0);
+    conn->close();
     goto cleanup;
   idle_err:
     LOG << "http close idle connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
-    conn->reset(0);
+    conn->reset();
     goto cleanup;
   header_too_long_err:
     ELOG << "http recv error: header too long";
     goto err_end;
   recv_err:
-    ELOG << "http recv error: " << co::strerror();
+    ELOG << "http recv error: " << conn->strerror();
     goto err_end;
   send_err:
-    ELOG << "http send error: " << co::strerror();
+    ELOG << "http send error: " << conn->strerror();
     goto err_end;
   chunk_err:
     ELOG << "http invalid chunked data..";
@@ -950,7 +950,7 @@ int Req::parse(fastring* buf) {
         parse_headers(x, s, _headers);
     }
 
-    { /* parse body & body size */
+    { /* parse body size */
         const char* v = this->header("CONTENT-LENGTH");
         if (*v == '\0' || *v == '0') {
             _body_size = 0;

@@ -157,7 +157,7 @@ struct Connection {
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int close(int ms) {
+    virtual int close(int ms=0) {
         return co::close(fd, ms);
     }
 
@@ -166,8 +166,12 @@ struct Connection {
      * 
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int reset(int ms) {
+    virtual int reset(int ms=0) {
         return co::reset_tcp_socket(fd, ms);
+    }
+
+    virtual const char* strerror() const {
+        return co::strerror();
     }
 
     sock_t fd;
