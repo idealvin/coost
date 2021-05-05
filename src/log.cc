@@ -383,7 +383,10 @@ const char* LogTime::update() {
 } // namespace xx
 
 void init() {
-    xx::level_logger()->init();
+    static bool initialized = false;
+    if (atomic_compare_swap(&initialized, false, true) == false) {
+        xx::level_logger()->init();
+    }
 }
 
 void close() {

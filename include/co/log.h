@@ -9,15 +9,22 @@
 #pragma warning (disable:4722)
 #endif
 
+DEC_bool(cout);
 DEC_int32(min_log_level);
 
 namespace ___ {
 namespace log {
 
-// log::init() must be called once at the beginning of main().
+/**
+ * initialize the log library and start the logging thread 
+ *   - log::init() SHOULD be called once at the beginning of main(). 
+ *   - It is safe to call log::init() for multiple times. 
+ */
 void init();
 
-// Write all buffered logs to destination and stop the logging thread.
+/**
+ * write all buffered logs to destination and stop the logging thread 
+ */
 void close();
 
 namespace xx {
