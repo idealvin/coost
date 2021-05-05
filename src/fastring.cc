@@ -39,7 +39,7 @@ fastring& fastring::append(const void* x, size_t n) {
     const char* p = (const char*) x;
 
     if (!this->_Inside(p)) {
-        return (fastring&) this->_Append(p, n);
+        return (fastring&) fast::stream::append(p, n);
     } else {
         assert(p + n <= _p + _size);
         size_t pos = p - _p;
@@ -53,7 +53,7 @@ fastring& fastring::append(const void* x, size_t n) {
 fastring& fastring::append(const fastring& s) {
     if (&s != this) {
         if (s.empty()) return *this;
-        return (fastring&) this->_Append(s.data(), s.size());
+        return (fastring&) fast::stream::append(s.data(), s.size());
     } else { /* append itself */
         if (_p) {
             this->reserve(_size << 1);

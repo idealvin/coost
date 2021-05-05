@@ -65,6 +65,14 @@ DEF_test(fastring) {
         std::string x("xx");
         s.append(x);
         EXPECT_EQ(s, "xxx");
+
+        uint8 u = 'x';
+        s.append(u);
+        EXPECT_EQ(s, "xxxx");
+
+        int i = 'x';
+        s.append(i);
+        EXPECT_EQ(s, "xxxxx");
     }
 
     DEF_case(substr) {
