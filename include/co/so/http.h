@@ -247,16 +247,16 @@ class Req {
     Req() = default;
     ~Req() = default;
 
-    Version version()          const { return (Version)_version; }
-    bool is_method_get()       const { return _method == kGet; }
-    bool is_method_head()      const { return _method == kHead; }
-    bool is_method_post()      const { return _method == kPost; }
-    bool is_method_put()       const { return _method == kPut; }
-    bool is_method_delete()    const { return _method == kDelete; }
-    bool is_method_options()   const { return _method == kOptions; }
-    const fastring& url()      const { return _url; }
-    const char* body()         const { return _buf->data() + _body; }
-    size_t body_size()         const { return _body_size; }
+    Version version()        const { return (Version)_version; }
+    bool is_method_get()     const { return _method == kGet; }
+    bool is_method_head()    const { return _method == kHead; }
+    bool is_method_post()    const { return _method == kPost; }
+    bool is_method_put()     const { return _method == kPut; }
+    bool is_method_delete()  const { return _method == kDelete; }
+    bool is_method_options() const { return _method == kOptions; }
+    const fastring& url()    const { return _url; }
+    const char* body()       const { return _buf->data() + _body; }
+    size_t body_size()       const { return _body_size; }
 
     const char* header(const char* key) const;
 
@@ -316,6 +316,8 @@ class Res {
  * http server based on coroutine 
  *   - support both http and https, openssl required for https. 
  *   - support both ipv4 and ipv6. 
+ *   - NOTE: http::Server will not url-decode the url in the request. The user may 
+ *     call url_decode() in co/hash/url.h to decode the url, if necessary. 
  */
 class Server {
   public:
