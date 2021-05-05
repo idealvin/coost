@@ -686,14 +686,10 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
 }
 #endif
 
-} // "C"
-
-namespace co {
-
-bool init_hooks();
+static bool init_hooks();
 static bool _dummy = init_hooks();
 
-bool init_hooks() {
+static bool init_hooks() {
     (void) _dummy;
     init_hook(strerror);
     init_hook(close);
@@ -729,12 +725,13 @@ bool init_hooks() {
     init_hook(kevent);
   #endif
 
+    (void) gHook();
     return true;
 }
 
+} // "C"
+
 #undef do_hook
 #undef init_hook
-
-} // co
 
 #endif
