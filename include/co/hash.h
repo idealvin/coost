@@ -5,6 +5,7 @@
 #include "hash/crc16.h"
 #include "hash/md5.h"
 #include "hash/base64.h"
+#include "hash/url.h"
 
 /**
  * 64 bit hash 
