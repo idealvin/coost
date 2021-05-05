@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <string>
 #include <utility>
 
 namespace fast {
@@ -138,10 +137,6 @@ class stream {
         fs.swap(*this);
     }
 
-    stream& append(const std::string& s) {
-        return this->_Append(s.data(), s.size());
-    }
-
     stream& append(size_t n, char c) {
         this->ensure(n);
         memset(_p + _size, c, n);
@@ -155,36 +150,8 @@ class stream {
         return *this;
     }
 
-    stream& append(uint8 v) {
-        return this->append((char)v);
-    }
-
-    stream& append(int16 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
-    stream& append(uint16 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
-    stream& append(int32 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
-    stream& append(uint32 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
-    stream& append(int64 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
-    stream& append(uint64 v) {
-        return this->_Append(&v, sizeof(v));
-    }
-
     stream& operator<<(bool v) {
-        return v ? this->_Append("true", 4) : this->_Append("false", 5);
+        return v ? this->append("true", 4) : this->append("false", 5);
     }
 
     stream& operator<<(char v) {
@@ -246,11 +213,7 @@ class stream {
     }
 
     stream& operator<<(const char* v) {
-        return this->_Append(v, strlen(v));
-    }
-
-    stream& operator<<(const std::string& v) {
-        return this->_Append(v.data(), v.size());
+        return this->append(v, strlen(v));
     }
 
     stream& operator<<(const void* v) {
@@ -272,7 +235,7 @@ class stream {
     }
 
   protected:
-    stream& _Append(const void* p, size_t n) {
+    stream& append(const void* p, size_t n) {
         this->ensure(n);
         memcpy(_p + _size, p, n);
         _size += n;

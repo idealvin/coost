@@ -28,7 +28,7 @@ class fastream : public fast::stream {
     }
 
     fastream& append(const void* p, size_t n) {
-        return (fastream&) this->_Append(p, n);
+        return (fastream&) fast::stream::append(p, n);
     }
 
     fastream& append(const char* s) {
@@ -40,15 +40,7 @@ class fastream : public fast::stream {
     }
 
     fastream& append(const std::string& s) {
-        return (fastream&) fast::stream::append(s);
-    }
-
-    fastream& append(size_t n, char c) {
-        return (fastream&) fast::stream::append(n, c);
-    }
-
-    fastream& append(char c, size_t n) {
-        return this->append(n, c);
+        return this->append(s.data(), s.size());
     }
 
     fastream& append(const fastream& s) {
@@ -59,21 +51,64 @@ class fastream : public fast::stream {
         return *this;
     }
 
-    template<typename T>
-    fastream& append(T v) {
-        return (fastream&) fast::stream::append(v);
+    fastream& append(size_t n, char c) {
+        return (fastream&) fast::stream::append(n, c);
+    }
+
+    fastream& append(char c, size_t n) {
+        return this->append(n, c);
+    }
+
+    fastream& append(char c) {
+        return (fastream&) fast::stream::append(c);
+    }
+
+    fastream& append(unsigned char v) {
+        return this->append((char)v);
+    }
+
+    fastream& append(short v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(unsigned short v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(int v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(unsigned int v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(long v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(unsigned long v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(long long v) {
+        return this->append(&v, sizeof(v));
+    }
+
+    fastream& append(unsigned long long v) {
+        return this->append(&v, sizeof(v));
     }
 
     fastream& operator<<(const char* s) {
-        return (fastream&) fast::stream::operator<<(s);
+        return this->append(s);
     }
 
     fastream& operator<<(const std::string& s) {
-        return (fastream&) fast::stream::operator<<(s);
+        return this->append(s);
     }
 
     fastream& operator<<(const fastring& s) {
-        return this->append(s.data(), s.size());
+        return this->append(s);
     }
 
     fastream& operator<<(const fastream& s) {

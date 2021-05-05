@@ -64,7 +64,7 @@ class fastring : public fast::stream {
     fastring& append(const fastring& s);
 
     fastring& append(const std::string& s) {
-        return (fastring&) fast::stream::append(s);
+        return (fastring&) fast::stream::append(s.data(), s.size());
     }
 
     fastring& append(size_t n, char c) {
@@ -75,9 +75,8 @@ class fastring : public fast::stream {
         return this->append(n, c);
     }
 
-    template<typename T>
-    fastring& append(T v) {
-        return (fastring&) fast::stream::append(v);
+    fastring& append(char c) {
+        return (fastring&) fast::stream::append(c);
     }
 
     fastring& operator+=(const char* s) {
@@ -97,11 +96,11 @@ class fastring : public fast::stream {
     }
 
     fastring& operator<<(const char* s) {
-        return (fastring&) fast::stream::operator<<(s);
+        return this->append(s);
     }
 
     fastring& operator<<(const std::string& s) {
-        return (fastring&) fast::stream::operator<<(s);
+        return this->append(s);
     }
 
     fastring& operator<<(const fastring& s) {
