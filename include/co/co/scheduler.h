@@ -33,7 +33,7 @@ namespace xx {
 
 struct Coroutine;
 typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
-extern const timer_id_t null_timer_id;
+extern timer_id_t null_timer_id;
 
 class Scheduler;
 extern __thread Scheduler* gSched;

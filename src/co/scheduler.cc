@@ -8,7 +8,7 @@ DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutine
 namespace co {
 namespace xx {
 
-const timer_id_t null_timer_id;
+timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
 
 Scheduler::Scheduler(uint32 id, uint32 stack_size)
@@ -56,12 +56,13 @@ void Scheduler::resume(Coroutine* co) {
     }
 
     if (co->ctx == 0) {
-        assert(co->it == null_timer_id);
+        //assert(co->it == null_timer_id);
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
         SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
-        if (co->it != null_timer_id) {
+        //if (co->it != null_timer_id) {
+        if (*(void**)&co->it != NULL) {
             SOLOG << "del timer: " << co->it;
             _timer_mgr.del_timer(co->it);
             co->it = null_timer_id;
@@ -195,6 +196,7 @@ static inline void wsa_cleanup() {}
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
+    memset(&null_timer_id, 0, sizeof(null_timer_id));
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
