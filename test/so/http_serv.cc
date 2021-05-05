@@ -33,21 +33,44 @@ int main(int argc, char** argv) {
             if (req.is_method_get()) {
                 if (req.url() == "/hello") {
                     res.set_status(200);
-                    res.set_body("hello world");
+                    res.set_body("hello get");
                 } else {
                     res.set_status(404);
                 }
+            } else if (req.is_method_post()) {
+                if (req.url() == "/hello") {
+                    res.set_status(200);
+                    res.add_header("hello", "xxxxx");
+                    res.set_body("hello post");
+                } else {
+                    res.set_status(403);
+                }
+            } else if (req.is_method_put()) {
+                if (req.url() == "/hello") {
+                    res.set_status(200);
+                    res.set_body("hello put");
+                } else {
+                    res.set_status(403);
+                }
+            } else if (req.is_method_delete()) {
+                if (req.url() == "/hello") {
+                    res.set_status(200);
+                    res.set_body("hello delete");
+                } else {
+                    res.set_status(403);
+                }
             } else {
-                res.set_status(501);
+                res.set_status(405); // method not allowed
             }
         }
     );
 
     if (!FLG_key.empty() && !FLG_ca.empty()) {
         if (FLG_port == 80) FLG_port = 443;
+        serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
+    } else {
+        serv.start(FLG_ip.c_str(), FLG_port);
     }
-
-    serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
 
     while (true) sleep::sec(1024);
     return 0;

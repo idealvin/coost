@@ -4,7 +4,235 @@
 #include <functional>
 #include <vector>
 
+#ifdef HAS_LIBCURL
+#include <curl/curl.h>
+#endif
+
 namespace http {
+
+/**
+ *  ╔════════════════════════════════════════════════════════════════════════════╗
+ *  ║ HTTP client                                                                ║
+ *  ║   - libcurl & zlib required.                                               ║
+ *  ║   - openssl required for https.                                            ║
+ *  ╚════════════════════════════════════════════════════════════════════════════╝
+ */
+
+#ifdef HAS_LIBCURL
+struct curl_ctx;
+
+/**
+ * http client for coroutine programming
+ *   - This is an implement based on libcurl. Internally, each client owns a multi
+ *     handle and an easy handle. Multi handle in libcurl is a little complicated.
+ *     It is recommended to read the documents below to have a better understanding
+ *     of the multi handle:
+ *       https://everything.curl.dev/libcurl/drive/multi-socket
+ *
+ *   - NOTE: http::Client will not url-encode the url passed in. The user may call
+ *     url_encode() in co/hash/url.h to encode the url before passing it to a http
+ *     request, if necessary.
+ */
+class Client {
+  public:
+    /**
+     * initialize a http client with a server url
+     *   - If a protocol is not present in the url, http will be used by default.
+     *   - If a port is not present in the url, the default port 80 or 443 will be used.
+     *   - If the url contains both an ipv6 address and a port, the ip must be enclosed
+     *     with [] to distinguish it from the port.
+     *   - eg.
+     *     "github.com"   "https://github.com"   "http://127.0.0.1:7777"   "http://[::1]:8888"
+     *
+     * @param serv_url  server url in a form of "protocol://host:port".
+     *                  - protocol:  http or https.
+     *                  - host:      a domain name, or an ipv4 or ipv6 address.
+     *                  - port:      server port.
+     */
+    explicit Client(const char* serv_url);
+    ~Client();
+
+    Client(const Client&) = delete;
+    void operator=(const Client&) = delete;
+
+    /**
+     * add a HTTP header
+     *   - The header will be set into an easy curl handle, which will be reused
+     *     in later HTTP requests.
+     *
+     * @param key  a non-empty string.
+     * @param val  the value, an empty string is allowed.
+     */
+    void add_header(const char* key, const char* val);
+
+    /**
+     * add a HTTP header with an integer value
+     *   - add_header("Content-Length", 777);
+     *
+     * @param key  a non-empty string.
+     * @param val  an integer value.
+     */
+    void add_header(const char* key, int val);
+
+    /**
+     * remove a HTTP header
+     *   - A header will be reused by all the following requests by default. The
+     *     user can use this method to remove a header, so it will not appear in
+     *     later HTTP requests.
+     *
+     * @param key  a non-empty string.
+     */
+    void remove_header(const char* key);
+
+    /**
+     * perform a HTTP GET request
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void get(const char* url);
+
+    /**
+     * perform a HTTP HEAD request
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void head(const char* url);
+
+    /**
+     * perform a HTTP POST request
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void post(const char* url, const char* data, size_t size);
+
+    void post(const char* url, const char* s) {
+        this->post(url, s, strlen(s));
+    }
+
+    /**
+     * perform a HTTP PUT request
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void put(const char* url, const char* data, size_t size);
+
+    void put(const char* url, const char* s) {
+        this->put(url, s, strlen(s));
+    }
+
+    /**
+     * perform a HTTP DELETE request
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void del(const char* url, const char* data, size_t size);
+
+    void del(const char* url, const char* s) {
+        this->del(url, s, strlen(s));
+    }
+
+    /**
+     * perform a HTTP DELETE request without a body
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void del(const char* url) {
+      return this->del(url, "", 0);
+    }
+
+    /**
+     * set http url
+     *
+     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     */
+    void set_url(const char* url);
+
+    /**
+     * get curl easy handle owned by this client
+     */
+    CURL* easy_handle() const;
+
+    /**
+     * perform a HTTP request
+     *   - This method is designed for HTTP request other than GET, HEAD, POST,
+     *     PUT, DELETE.
+     *   - The user may call set_url() to set a url, and set other options with
+     *     the easy handle, then call this method to perform the request.
+     */
+    void perform();
+
+    /**
+     * get response code of the current HTTP request
+     *
+     * @return  a non-zero value like 200, 404, if a response was recieved from the
+     *          server, otherwise 0 will be returned and strerror() can be used to
+     *          get the error message.
+     */
+    int response_code() const;
+
+    /**
+     * get error message of the current request
+     */
+    const char* strerror() const;
+
+    /**
+     * get value of a HTTP header in the current response
+     *   - NOTE: Contents of the header will be cleared when the next request was performed.
+     *   - The result will be an empty string if the header is not found.
+     *
+     * @param key  a null terminated string, non-case sensitive.
+     *
+     * @return     a pointer to a null-terminated string.
+     */
+    const char* header(const char* key);
+
+    /**
+     * get the entire header part of the current HTTP response
+     *   - NOTE: Contents of the header will be cleared when the next request was performed.
+     *
+     * @return  a pointer to a null-terminated string, which contains the response start line.
+     */
+    const char* header() const;
+
+    /**
+     * get body of the current HTTP response
+     *   - NOTE: Contents of the body will be cleared when the next request was performed.
+     *   - The result may not be null-terminated, call body_size() to get the size.
+     *
+     * @return  a pointer to the response body.
+     */
+    const char* body() const;
+
+    /**
+     * get body size of the current HTTP response
+     */
+    size_t body_size() const;
+
+    /**
+     * close the http connection
+     *   - Once close() is called, this client can not be used anymore.
+     */
+    void close();
+
+  private:
+    void do_io();
+    void set_headers();
+    void append_header(const char* s);
+    const char* make_url(const char* url);
+
+  private:
+    curl_ctx* _ctx;
+};
+#endif
+
+
+/**
+ *  ╔════════════════════════════════════════════════════════════════════════════╗
+ *  ║ HTTP server                                                                ║
+ *  ║   - openssl required for https.                                            ║
+ *  ║   - only support HTTP/1.0 & HTTP/1.1 at this moment.                       ║
+ *  ╚════════════════════════════════════════════════════════════════════════════╝
+ */
 
 enum Version {
     kHTTP10, kHTTP11,
@@ -14,137 +242,79 @@ enum Method {
     kGet, kHead, kPost, kPut, kDelete, kOptions,
 };
 
-inline const char* version_str(Version v) {
-    static const char* s[] = { "HTTP/1.0", "HTTP/1.1", "HTTP/2.0" };
-    return s[v];
-}
-
-inline const char* method_str(Method m) {
-    static const char* s[] = { "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS" };
-    return s[m];
-}
-
-const char* status_str(int n);
-
-struct Header {
-    void add_header(fastring&& key, fastring&& val) {
-        headers.push_back(std::move(key));
-        headers.push_back(std::move(val));
-    }
-
-    void add_header(const fastring& key, const fastring& val) {
-        headers.push_back(key);
-        headers.push_back(val);
-    }
-
-    const fastring& header(const char* key) const;
-
-    std::vector<fastring> headers;
-};
-
 class Req {
   public:
-    Req()         : _version(kHTTP11), _method(kGet), _from_peer(false) {}
-    Req(Method m) : _version(kHTTP11), _method(m), _from_peer(false) {}
+    Req() = default;
     ~Req() = default;
 
-    Version version()          const { return _version; }
-    bool is_version_http10()   const { return _version == kHTTP10; }
-    bool is_version_http11()   const { return _version == kHTTP11; }
-    void set_version_http10()        { _version = kHTTP10; }
-    void set_version_http11()        { _version = kHTTP11; }
-    void set_version(Version v)      { _version = v; }
-
-    Method method()            const { return _method; }
+    Version version()          const { return (Version)_version; }
     bool is_method_get()       const { return _method == kGet; }
     bool is_method_head()      const { return _method == kHead; }
     bool is_method_post()      const { return _method == kPost; }
     bool is_method_put()       const { return _method == kPut; }
     bool is_method_delete()    const { return _method == kDelete; }
     bool is_method_options()   const { return _method == kOptions; }
-    void set_method_get()            { _method = kGet; }
-    void set_method_head()           { _method = kHead; }
-    void set_method_post()           { _method = kPost; }
-    void set_method_put()            { _method = kPut; }
-    void set_method_delete()         { _method = kDelete; }
-    void set_method_options()        { _method = kOptions; }
-    void set_method(Method m)        { _method = m; }
-
     const fastring& url()      const { return _url; }
-    void set_url(fastring&& s)       { _url = std::move(s); }
-    void set_url(const fastring& s)  { _url = s; }
+    const char* body()         const { return _buf->data() + _body; }
+    size_t body_size()         const { return _body_size; }
 
-    const fastring& body()     const { return _body; }
-    fastring& body()                 { return _body; }
-    int body_size()            const { return (int)_body.size(); }
-    void set_body(fastring&& s)      { _body = std::move(s); }
-    void set_body(const fastring& s) { _body = s; }
+    const char* header(const char* key) const;
 
-    void add_header(fastring&& k, fastring&& v)           { _header.add_header(std::move(k), std::move(v)); }
-    void add_header(const fastring& k, const fastring& v) { _header.add_header(k, v); }
-    const fastring& header(const char* k)           const { return _header.header(k); }
-
-    void clear() { _header.headers.clear(); _url.clear(); _body.clear(); _from_peer = false; }
-
-    fastring str(bool dbg=false) const;
-    fastring dbg() const { return str(true); }
+    void clear() { _buf = 0; _url.clear(); _s.clear(); _headers.clear(); }
 
   private:
-    Version _version;
-    Method _method;
-    Header _header;
+    int _version;
+    int _method;
+    size_t _body;
+    size_t _body_size;
+    fastring* _buf;
     fastring _url;
-    fastring _body;
-    bool _from_peer; // this req was recieved from a remote peer
+    fastring _s;
+    std::vector<size_t> _headers;
 
     friend class ServerImpl;
-    int parse(const char* s, size_t n, int* body_size);
+    int parse(fastring* buf);
 };
 
 class Res {
   public:
-    Res() : _version(kHTTP11), _status(200), _from_peer(false) {}
+    Res() : _version(kHTTP11), _status(200) {}
     ~Res() = default;
 
-    Version version()          const { return _version; }
-    bool is_version_http10()   const { return _version == kHTTP10; }
-    bool is_version_http11()   const { return _version == kHTTP11; }
-    void set_version_http10()        { _version = kHTTP10; }
-    void set_version_http11()        { _version = kHTTP11; }
-    void set_version(Version v)      { _version = v; }
+    void set_version(Version v) { _version = v; }
+    void set_status(int status) { _status = status; }
 
-    int status()               const { return _status; }
-    void set_status(int status)      { _status = status; }
+    void add_header(const char* key, const char* val) {
+        _header.append(key).append(": ").append(val).append("\r\n");
+    }
 
-    const fastring& body()     const { return _body; }
-    fastring& body()                 { return _body; }
-    int body_size()            const { return (int)_body.size(); }
-    void set_body(fastring&& s)      { _body = std::move(s); }
-    void set_body(const fastring& s) { _body = s; }
+    void set_body(const void* s, size_t n) {
+        _body.clear();
+        _body.append(s, n);
+    }
 
-    void add_header(fastring&& k, fastring&& v)           { _header.add_header(std::move(k), std::move(v)); }
-    void add_header(const fastring& k, const fastring& v) { _header.add_header(k, v); }
-    const fastring& header(const char* k)           const { return _header.header(k); }
+    void set_body(const char* s) {
+        this->set_body(s, strlen(s));
+    }
 
-    void clear() { _status = 200; _header.headers.clear(); _body.clear(); _from_peer = false; }
+    void clear() {
+        _version = kHTTP11; _status = 200;
+        _header.clear(); _body.clear();
+    }
 
-    fastring str(bool dbg=false) const;
-    fastring dbg() const { return str(true); }
+    fastring str() const;
+    size_t body_size() const { return _body.size(); }
 
   private:
-    Version _version;
+    int _version;
     int _status;
-    Header _header;
+    fastring _header;
     fastring _body;
-    bool _from_peer; // this res was recieved from a remote peer
-
-    friend class Client;
-    int parse(const char* s, size_t n, int* body_size);
 };
 
 /**
  * http server based on coroutine 
- *   - support both http and https. 
+ *   - support both http and https, openssl required for https. 
  *   - support both ipv4 and ipv6. 
  */
 class Server {
@@ -196,114 +366,6 @@ class Server {
     void* _p;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
-};
-
-/**
- * http client based on coroutine 
- *   - support both http and https. 
- *   - support both ipv4 and ipv6. 
- *   - It MUST be used in a coroutine, all the public methods MUST be called in a coroutine. 
- */
-class Client {
-  public:
-    /**
-     * - serv_url 
-     *   - "127.0.0.1"                 http://127.0.0.1:80 
-     *   - "https://127.0.0.1"         https://127.0.0.1:443 
-     *   - "https://github.com"        https://github.com:443
-     *   - "https://[::1]:7777"        enclose the ipv6 address with [] to distinguish it from the port 
-     * 
-     * @param serv_url  the server url in a form of "protocol://host:port".
-     */
-    explicit Client(const char* serv_url);
-    ~Client();
-
-    /**
-     * perform a general http request 
-     */
-    void call(Req& req, Res& res) {
-        req.add_header("Host", _host);
-        _https ? this->call_https(req, res): this->call_http(req, res);
-    }
-
-    /**
-     * perform a simple GET request 
-     * 
-     * @param url  url of the request, it MUST begins with '/'.
-     */
-    Res& get(fastring&& url)      { return do_req(kGet, std::move(url)); }
-    Res& get(const fastring& url) { return do_req(kGet, fastring(url)); }
-
-    /**
-     * perform a simple POST request 
-     * 
-     * @param url   url of the request, it MUST begins with '/'.
-     * @param body  body of the request.
-     */
-    Res& post(fastring&& url, fastring&& body)           { return do_req(kPost, std::move(url), std::move(body)); }
-    Res& post(const fastring& url, const fastring& body) { return do_req(kPost, fastring(url), fastring(body)); }
-
-    /**
-     * perform a simple DELETE request 
-     * 
-     * @param url   url of the request, it MUST begins with '/'.
-     */
-    Res& del(fastring&& url)      { return do_req(kDelete, std::move(url)); }
-    Res& del(const fastring& url) { return do_req(kDelete, fastring(url)); }
-
-    /**
-     * perform a simple PUT request 
-     * 
-     * @param url   url of the request, it MUST begins with '/'.
-     * @param body  body of the request.
-     */
-    Res& put(fastring&& url, fastring&& body)           { return do_req(kPut, std::move(url), std::move(body)); }
-    Res& put(const fastring& url, const fastring& body) { return do_req(kPut, fastring(url), fastring(body)); }
-
-    /**
-     * perform a simple OPTIONS request 
-     *   - The user can check res.header("Allow") to get the result. 
-     */
-    Res& options() {
-        if (_req) { _req->clear(); _res->clear(); }
-        else { _req = new Req; _res = new Res; }
-        _req->set_method_options();
-        _req->set_url("*");
-        this->call(*_req, *_res);
-        return *_res;
-    }
-
-  private:
-    void call_http(Req& req, Res& res);
-    void call_https(Req& req, Res& res);
-
-    Res& do_req(Method method, fastring&& url) {
-        if (_req) { _req->clear(); _res->clear(); }
-        else { _req = new Req; _res = new Res; }
-        _req->set_method(method);
-        _req->set_url(std::move(url));
-        this->call(*_req, *_res);
-        return *_res;
-    }
-
-    Res& do_req(Method method, fastring&& url, fastring&& body) {
-        if (_req) { _req->clear(); _res->clear(); }
-        else { _req = new Req; _res = new Res; }
-        _req->set_method(method);
-        _req->set_url(std::move(url));
-        _req->set_body(std::move(body));
-        this->call(*_req, *_res);
-        return *_res;
-    }
-
-  private:
-    void* _p;
-    bool _https;
-    Req* _req;
-    Res* _res;
-    fastring _host;
-
-    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // http

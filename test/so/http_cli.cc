@@ -1,26 +1,60 @@
+#ifdef HAS_LIBCURL
 #include "co/all.h"
 
-DEF_string(serv, "127.0.0.1:80", "url of the http server");
-DEF_int32(n, 1, "req num");
-DEC_bool(cout);
+DEF_string(s, "https://github.com", "server url");
+DEF_string(m, "", "method, GET, POST, DELETE, PUT");
+DEF_string(url, "", "url of http request");
 
 SyncEvent ev;
 
-void fun() {
-    http::Client cli(FLG_serv.c_str());
- 
-    for (int i = 0; i < FLG_n; ++i) {
-        auto& res = cli.get("/");
-    }
-   
-    for (int i = 0; i < FLG_n; ++i) {
-        http::Req req;
-        http::Res res;
-        req.set_method_get();
-        req.set_url("/");
-        cli.call(req, res);
+void fa() {
+    http::Client c(FLG_s.c_str());
+    //http headers can be added here before the request was performed.
+    //c.add_header("hello", "world");
+
+    int r;
+    LOG << "get /";
+    c.get("/");
+    r = c.response_code();
+    LOG << "response code: " << r;
+    LOG_IF(r == 0) << "error: " << c.strerror();
+    LOG << "body size: " << c.body_size();
+    LOG << "Content-Length: " << c.header("Content-Length");
+    LOG << c.header();
+
+    LOG << "get /idealvin/co";
+    c.get("/idealvin/co");
+    r = c.response_code();
+    LOG << "response code: " << r;
+    LOG_IF(r == 0) << "error: " << c.strerror();
+    LOG << "body size: " << c.body_size();
+    LOG << "Content-Length: " << c.header("Content-Length");
+    LOG << c.header();
+
+    // close the client before sending a signal
+    c.close();
+    ev.signal();
+}
+
+void fb() {
+    http::Client c(FLG_s.c_str());
+    COUT << FLG_m << " " << FLG_url;
+    if (FLG_m == "GET") {
+        c.get(FLG_url.c_str());
+    } else if (FLG_m == "POST") {
+        c.post(FLG_url.c_str(), "hello world");
+    } else if (FLG_m == "PUT") {
+        c.put(FLG_url.c_str(), "hello world");
+    } else if (FLG_m == "DELETE") {
+        c.del(FLG_url.c_str());
+    } else {
+        LOG << "method not supported: " << FLG_m;
     }
 
+    LOG << c.header();
+    LOG << fastring(c.body(), c.body_size());
+
+    c.close();
     ev.signal();
 }
 
@@ -29,9 +63,14 @@ int main(int argc, char** argv) {
     FLG_cout = true;
     log::init();
 
-    go(fun);
+    if (FLG_m.empty() && FLG_url.empty()) {
+        go(fa);
+    } else {
+        go(fb);
+    }
 
     ev.wait();
-    co::stop();
     return 0;
 }
+
+#endif

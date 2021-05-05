@@ -26,22 +26,22 @@ if is_plat("windows") then
     add_cxflags("-MD", "-EHsc")
 end
 
-add_requires("openssl", {optional = true, external = false})
-if has_package("openssl") then
-    add_defines("CO_SSL")
-    add_packages("openssl")
-end
-
---[[
-add_requires("libcurl", {optional = true, external = false})
-add_requires("zlib", {optional = true, external = false})
-if has_package("curl") then
-    add_defines("CO_CURL")
-    add_packages("curl")
+---[[
+add_requires("zlib", {optional = true})
+add_requires("libcurl", {optional = true})
+add_requires("openssl", {optional = true})
+if has_package("libcurl") then
+    add_defines("HAS_LIBCURL")
+    add_packages("libcurl")
 end
 if has_package("zlib") then
-    add_defines("CO_ZLIB")
+    add_defines("HAS_ZLIB")
     add_packages("zlib")
+end
+if has_package("openssl") then
+    add_defines("CO_SSL")
+    add_defines("HAS_OPENSSL")
+    add_packages("openssl")
 end
 --]]
 
