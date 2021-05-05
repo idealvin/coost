@@ -395,6 +395,11 @@ struct Connection : public tcp::Connection {
         return tcp::Connection::reset(ms);
     }
 
+    /**
+     * get error message of the last I/O operation 
+     *   - If an error occured in send() or recv(), the user can call this method 
+     *     to get the error message. 
+     */
     virtual const char* strerror() const {
         return ssl::strerror(s);
     }

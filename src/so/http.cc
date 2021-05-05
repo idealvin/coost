@@ -15,10 +15,10 @@
 
 DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
 DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
-DEF_uint32(http_recv_timeout, 1024, "#2 recv timeout in ms");
-DEF_uint32(http_send_timeout, 1024, "#2 send timeout in ms");
 DEF_uint32(http_timeout, 3000, "#2 http send or recv timeout in ms");
-DEF_uint32(http_conn_timeout, 3000, "#2 http connect timeout in ms");
+DEF_uint32(http_recv_timeout, 3000, "#2 http recv timeout in ms");
+DEF_uint32(http_send_timeout, 3000, "#2 http send timeout in ms");
+DEF_uint32(http_conn_timeout, 3000, "#2 http http connect timeout in ms");
 DEF_uint32(http_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
 DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections");
 DEF_bool(http_log, true, "#2 enable http log if true");
@@ -525,8 +525,6 @@ class ServerImpl {
   private:
     void on_connection(tcp::Connection* conn);
 
-    void recv_stupid_chunked_data();
-
     void on_tcp_connection(sock_t s) {
         co::set_tcp_keepalive(s);
         co::set_tcp_nodelay(s);
@@ -637,6 +635,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
         {
           recv_beg:
             if (!buf) {
+                // try recieving a single byte
                 r = conn->recv(&c, 1, FLG_http_conn_idle_sec * 1000);
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
@@ -662,9 +661,9 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                 buf->resize(buf->size() + r);
             }
 
-            // parse header of http req
+            // parse http header
             req._body = pos + 4;
-            (*buf)[pos + 2] = '\0'; // end of header
+            (*buf)[pos + 2] = '\0'; // make header null-terminated
             HTTPLOG << "http recv req: " << buf->data();
             r = req.parse(buf);
             if (r != 0) { /* parse error */
@@ -718,7 +717,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                     // chunked data:  1a[;xxx]\r\n data\r\n
                     s[x] = '\0';
                     if ((o = s.find(';')) == s.npos) o = x;
-                    for (i = 0; i < o; ++i) {
+                    for (i = 0, n = 0; i < o; ++i) {
                         if ((r = hex2int(s[i])) < 0) goto chunk_err;
                         n = (n << 4) + r;
                     }
@@ -743,8 +742,6 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                             goto err_end;
                         }
 
-                        n = 0;
-
                     } else { /* n == 0, end of chunked data */
                         req._body_size = buf->size() - pos - 4;
                         s[x] = '\r'; s.lshift(x);
@@ -758,6 +755,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
                         s[x + 2] = '\0';
                         if (s.size() > 4) {
+                            // there are some tailing headers following the chunked data
                             total_len = buf->size() + x + 4;
                             o = buf->size();
                             buf->append(s.data(), s.size());
@@ -766,7 +764,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                             total_len = buf->size();
                         }
 
-                        break;
+                        break; // exit the while loop
                     }
                 }
             };
