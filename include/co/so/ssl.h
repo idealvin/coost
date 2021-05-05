@@ -358,6 +358,46 @@ class Client {
     DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
+struct Connection : public tcp::Connection {
+    Connection(SSL* ssl) : tcp::Connection(ssl::get_fd(ssl)), s(ssl) {}
+    virtual ~Connection() = default;
+
+    virtual int recv(void* buf, int n, int ms) {
+        return ssl::recv(s, buf, n, ms);
+    }
+
+    virtual int recvn(void* buf, int n, int ms) {
+        return ssl::recvn(s, buf, n, ms);
+    }
+
+    virtual int send(const void* buf, int n, int ms) {
+        return ssl::send(s, buf, n, ms);
+    }
+
+    /**
+     * close the connection
+     *
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int close(int ms) {
+        ssl::shutdown(s);
+        ssl::free_ssl(s);
+        return tcp::Connection::close(ms);
+    }
+
+    /**
+     * reset the connection
+     *
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int reset(int ms) {
+        ssl::free_ssl(s);
+        return tcp::Connection::reset(ms);
+    }
+
+    SSL* s;
+};
+
 } // ssl
 
 #endif

@@ -136,4 +136,41 @@ class Client {
     DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
+struct Connection {
+    Connection(sock_t s) : fd(s) {}
+    virtual ~Connection() = default;
+
+    virtual int recv(void* buf, int n, int ms) {
+        return co::recv(fd, buf, n, ms);
+    }
+
+    virtual int recvn(void* buf, int n, int ms) {
+        return co::recvn(fd, buf, n, ms);
+    }
+
+    virtual int send(const void* buf, int n, int ms) {
+        return co::send(fd, buf, n, ms);
+    }
+
+    /**
+     * close the connection 
+     *
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int close(int ms) {
+        return co::close(fd, ms);
+    }
+
+    /**
+     * reset the connection 
+     * 
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int reset(int ms) {
+        return co::reset_tcp_socket(fd, ms);
+    }
+
+    sock_t fd;
+};
+
 } // tcp
