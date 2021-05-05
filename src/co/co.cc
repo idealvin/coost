@@ -10,7 +10,7 @@ using namespace co::xx;
 
 class EventImpl {
   public:
-    EventImpl() = default;
+    EventImpl() : _signaled(false) {}
     ~EventImpl() = default;
 
     void wait();
@@ -22,16 +22,19 @@ class EventImpl {
   private:
     ::Mutex _mtx;
     std::unordered_set<Coroutine*> _co_wait;
+    bool _signaled;
 };
 
 void EventImpl::wait() {
     CHECK(gSched) << "must be called in coroutine..";
     Coroutine* co = gSched->running();
-    co->state = S_wait;
     if (co->s != gSched) co->s = gSched;
     assert(co->it == null_timer_id);
+
     {
         ::MutexGuard g(_mtx);
+        if (_signaled) { _signaled = false; return; }
+        co->state = S_wait;
         _co_wait.insert(co);
     }
 
@@ -42,16 +45,17 @@ void EventImpl::wait() {
 bool EventImpl::wait(unsigned int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     Coroutine* co = gSched->running();
-    co->state = S_wait;
     if (co->s != gSched) co->s = gSched;
 
-    gSched->add_timer(ms);
     {
         ::MutexGuard g(_mtx);
+        if (_signaled) { _signaled = false; return true; }
+        co->state = S_wait;
         _co_wait.insert(co);
     }
-    gSched->yield();
 
+    gSched->add_timer(ms);
+    gSched->yield();
     if (gSched->timeout()) {
         ::MutexGuard g(_mtx);
         _co_wait.erase(co);
@@ -65,7 +69,11 @@ void EventImpl::signal() {
     std::unordered_set<Coroutine*> co_wait;
     {
         ::MutexGuard g(_mtx);
-        if (!_co_wait.empty()) _co_wait.swap(co_wait);
+        if (!_co_wait.empty()) {
+            _co_wait.swap(co_wait);
+        } else {
+            if (!_signaled) _signaled = true;
+        }
     }
 
     // Using atomic operation here, as check_timeout() in the Scheduler 
