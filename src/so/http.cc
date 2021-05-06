@@ -15,13 +15,13 @@
 
 DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
 DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
-DEF_uint32(http_timeout, 3000, "#2 http send or recv timeout in ms");
-DEF_uint32(http_recv_timeout, 3000, "#2 http recv timeout in ms");
-DEF_uint32(http_send_timeout, 3000, "#2 http send timeout in ms");
-DEF_uint32(http_conn_timeout, 3000, "#2 http http connect timeout in ms");
-DEF_uint32(http_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
-DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections");
-DEF_bool(http_log, true, "#2 enable http log if true");
+DEF_uint32(http_timeout, 3000, "#2 send or recv timeout in ms for http client");
+DEF_uint32(http_conn_timeout, 3000, "#2 connect timeout in ms for http client");
+DEF_uint32(http_recv_timeout, 3000, "#2 recv timeout in ms for http server");
+DEF_uint32(http_send_timeout, 3000, "#2 send timeout in ms for http server");
+DEF_uint32(http_conn_idle_sec, 180, "#2 http server may close the connection if no data was recieved for n seconds");
+DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections for http server");
+DEF_bool(http_log, true, "#2 enable http server log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
 
@@ -615,7 +615,7 @@ int parse_headers(const char* x, const char* beg, std::vector<size_t>& headers);
 void send_error_message(int err, Res& res, tcp::Connection* conn) {
     res.set_status(err);
     fastring s = res.str();
-    conn->send(s.data(), (int)s.size(), FLG_http_timeout);
+    conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
     HTTPLOG << "http send res: " << s;
     res.clear();
 }
