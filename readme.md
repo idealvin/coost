@@ -81,8 +81,8 @@
       }
   );
 
-  serv.start("0.0.0.0", 80);                                   // http
-  serv.start("0.0.0.0", 80, "privkey.pem", "certificate.pem"); // https
+  serv.start("0.0.0.0", 80);                                    // http
+  serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
   ```
 
 - http client ([libcurl](https://curl.se/libcurl/) & zlib required)
@@ -148,12 +148,12 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 - Build and run
   ```sh
-  ./xx # Start with default parameters
-  ./xx -i=4k -s="hello world" # Integer types can have units k,m,g,t,p, not case sensitive
-  ./xx -i 4k -s "hello world" # Equivalent to above
-  ./xx --mkconf # Automatically generate configuration file xx.conf
-  ./xx xx.conf # Start from the configuration file
-  ./xx -config xx.conf # Start from configuration file
+  ./xx                         # start with default config values
+  ./xx -i=4k -s="hello world"  # integer types can take units k,m,g,t,p, non-case sensitive
+  ./xx -i 4k -s "hello world"  # same as above
+  ./xx --mkconf                # generate configuration file xx.conf
+  ./xx xx.conf                 # start from configuration file
+  ./xx -config xx.conf         # start from configuration file
   ```
 
 
@@ -313,7 +313,7 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 ## License
 
-The `MIT` license. `CO` contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
+The MIT license. `CO` contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
 
 
 ## Special thanks

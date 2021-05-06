@@ -41,7 +41,7 @@
 
 ### 网络(so)
 
-[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个基于 json 的简单 rpc 框架，另外还支持可选的 HTTP, HTTPS 与 SSL。
+[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个简单的基于 json 的 rpc 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
 
 - 简单的静态 web server
   ```cpp
@@ -61,7 +61,7 @@
   }
   ```
 
-- http server ([openssl](https://www.openssl.org/) required for https server)
+- http server ([openssl](https://www.openssl.org/) required for https)
   ```cpp
   http::Server serv;
 
@@ -80,8 +80,8 @@
       }
   );
 
-  serv.start("0.0.0.0", 80);                                   // http
-  serv.start("0.0.0.0", 80, "privkey.pem", "certificate.pem"); // https
+  serv.start("0.0.0.0", 80);                                    // http
+  serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
   ```
 
 - http client ([libcurl](https://curl.se/libcurl/) & zlib required)
@@ -107,8 +107,10 @@
 
 - 打印日志
   ```cpp
-  LOG << "hello " << 23;  // info
-  ELOG << "hello again";  // error
+  LOG << "hello " << 23; // info
+  DLOG << "hello" << 23; // debug
+  WLOG << "hello" << 23; // warning
+  ELOG << "hello again"; // error
   ```
 
 - 与 glog 的性能比较
@@ -126,7 +128,7 @@
 
 ### 命令行与配置文件解析(flag)
 
-[flag](https://github.com/idealvin/co/blob/master/include/flag.h) 是一个方便、易用的命令行及配置文件解析库，支持自动生成配置文件。
+[flag](https://github.com/idealvin/co/blob/master/include/flag.h) 是一个方便易用的命令行及配置文件解析库，支持自动生成配置文件。
 
 - 代码示例
   ```cpp
@@ -156,7 +158,7 @@
 
 ### json
 
-[json](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用、高性能 json 库。最新版本的实现将 Json 对象构建到一块连续的内存上，几乎不需要内存分配操作，大大提高了 json 的解析速度，可以达到 GB 每秒。
+[json](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 json 库。最新版本将 Json 对象构建到一块连续的内存上，几乎不需要内存分配操作，大大提高了 json 的解析速度，可以达到 GB 每秒。
 
 - 代码示例
   ```cpp
@@ -310,15 +312,15 @@
 
 ## License
 
-`MIT` license. `CO` 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+The MIT license. `CO` 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
 
 ## 特别致谢
 
 - [co/context](https://github.com/idealvin/co/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
 - co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
-- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 编译脚本，特别表示感谢！
-- [izhengfan](https://github.com/izhengfan) 提供了 cmake 编译脚本，特别表示感谢！
+- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
+- [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
 
 
 ## 友情合作
