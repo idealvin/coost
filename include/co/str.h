@@ -10,33 +10,58 @@
 
 namespace str {
 
-// split("x y z", ' ');  ->  [ "x", "y", "z" ]
-// split("|x|y|", '|');  ->  [ "", "x", "y" ]
-// split("xooy", "oo");  ->  [ "x", "y"]
-// split("xooy", 'o', 1);  ->  [ "x", "oy" ]
-std::vector<fastring> split(const char* s, char c, uint32 maxsplit=0);
-std::vector<fastring> split(const fastring& s, char c, uint32 maxsplit=0);
-std::vector<fastring> split(const char* s, const char* c, uint32 maxsplit=0);
+/**
+ * split a string 
+ *   split("x y z", ' ');    ->  [ "x", "y", "z" ]
+ *   split("|x|y|", '|');    ->  [ "", "x", "y" ]
+ *   split("xooy", "oo");    ->  [ "x", "y"]
+ *   split("xooy", 'o', 1);  ->  [ "x", "oy" ]
+ * 
+ * @param s  the string, either a null-terminated string or a reference of fastring.
+ * @param c  the delimiter, either a single character or a null-terminated string.
+ * @param n  max split times, 0 or -1 for unlimited.
+ */
+std::vector<fastring> split(const char* s, char c, uint32 n=0);
+std::vector<fastring> split(const fastring& s, char c, uint32 n=0);
+std::vector<fastring> split(const char* s, const char* c, uint32 n=0);
 
-inline std::vector<fastring> split(const fastring& s, const char* c, uint32 maxsplit=0) {
-    return split(s.c_str(), c, maxsplit);
+inline std::vector<fastring> split(const fastring& s, const char* c, uint32 n=0) {
+    return split(s.c_str(), c, n);
 }
 
-// replace("xooxoox", "oo", "ee");     ->  "xeexeex"
-// replace("xooxoox", "oo", "ee", 1);  ->  "xeexoox"
-fastring replace(const char* s, const char* sub, const char* to, uint32 maxreplace=0);
-fastring replace(const fastring& s, const char* sub, const char* to, uint32 maxreplace=0);
+/**
+ * replace substring in a string with another string 
+ *   replace("xooxoox", "oo", "ee");     ->  "xeexeex" 
+ *   replace("xooxoox", "oo", "ee", 1);  ->  "xeexoox" 
+ * 
+ * @param s    the string, either a null-terminated string or a reference of fastring.
+ * @param sub  substring to replace.
+ * @param to   string replaced to.
+ * @param n    max replace times.
+ */
+fastring replace(const char* s, const char* sub, const char* to, uint32 n=0);
+fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0);
 
-// strip("abxxa", "ab")       ->  "xx"     strip both left and right.
-// strip("abxxa", "ab", 'l')  ->  "xxa"    strip left only.
-// strip("abxxa", "ab", 'r')  ->  "abxx"   strip right only.
+/**
+ * strip a string 
+ *   strip("abxxa", "ab")       ->  "xx"     strip both sides. 
+ *   strip("abxxa", "ab", 'l')  ->  "xxa"    strip left only. 
+ *   strip("abxxa", "ab", 'r')  ->  "abxx"   strip right only. 
+ * 
+ * @param s  the string, either a null-terminated string or a reference of fastring.
+ * @param c  characters to be stripped, either a single character or a null-terminated string.
+ * @param d  direction, 'l' for left, 'r' for right, 'b' for both sides.
+ */
 fastring strip(const char* s, const char* c=" \t\r\n", char d='b');
 fastring strip(const char* s, char c, char d = 'b');
 fastring strip(const fastring& s, const char* c=" \t\r\n", char d='b');
 fastring strip(const fastring& s, char c, char d='b');
 fastring strip(const fastring& s, const fastring& c, char d='b');
 
-// convert string to built-in types, throw <const char*> on any error
+/**
+ * convert string to built-in types 
+ *   - An exception of type const char* will be thrown if any error occured. 
+ */
 bool to_bool(const char* s);
 int32 to_int32(const char* s);
 int64 to_int64(const char* s);
@@ -44,41 +69,23 @@ uint32 to_uint32(const char* s);
 uint64 to_uint64(const char* s);
 double to_double(const char* s);
 
-template<typename S>
-inline bool to_bool(const S& s) {
-    return to_bool(s.c_str());
-}
+inline bool to_bool(const fastring& s)        { return to_bool(s.c_str()); }
+inline bool to_bool(const std::string& s)     { return to_bool(s.c_str()); }
+inline int32 to_int32(const fastring& s)      { return to_int32(s.c_str()); }
+inline int32 to_int32(const std::string& s)   { return to_int32(s.c_str()); }
+inline int64 to_int64(const fastring& s)      { return to_int64(s.c_str()); }
+inline int64 to_int64(const std::string& s)   { return to_int64(s.c_str()); }
+inline uint32 to_uint32(const fastring& s)    { return to_uint32(s.c_str()); }
+inline uint32 to_uint32(const std::string& s) { return to_uint32(s.c_str()); }
+inline uint64 to_uint64(const fastring& s)    { return to_uint64(s.c_str()); }
+inline uint64 to_uint64(const std::string& s) { return to_uint64(s.c_str()); }
+inline double to_double(const fastring& s)    { return to_double(s.c_str()); }
+inline double to_double(const std::string& s) { return to_double(s.c_str()); }
 
-template<typename S>
-inline int32 to_int32(const S& s) {
-    return to_int32(s.c_str());
-}
 
-template<typename S>
-inline int64 to_int64(const S& s) {
-    return to_int64(s.c_str());
-}
-
-template<typename S>
-inline uint32 to_uint32(const S& s) {
-    return to_uint32(s.c_str());
-}
-
-template<typename S>
-inline uint64 to_uint64(const S& s) {
-    return to_uint64(s.c_str());
-}
-
-template<typename S>
-inline double to_double(const S& s) {
-    return to_double(s.c_str());
-}
-
-// convert built-in types to string
-inline fastring from(const fastring& s) {
-    return s;
-}
-
+/**
+ * convert built-in types to string 
+ */
 template<typename T>
 inline fastring from(T t) {
     return std::move(fastring(24) << t);
@@ -89,11 +96,11 @@ inline void dbg(const char* s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
-inline void dbg(const std::string& s, fastring& fs) {
+inline void dbg(const fastring& s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
-inline void dbg(const fastring& s, fastring& fs) {
+inline void dbg(const std::string& s, fastring& fs) {
     fs << '\"' << s << '\"';
 }
 
@@ -123,8 +130,16 @@ void dbg(const T& beg, const T& end, char c1, char c2, fastring& fs) {
     }
     fs.back() = c2;
 }
+
+template<typename T>
+inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
+    fastring fs(128);
+    dbg(beg, end, c1, c2, fs);
+    return std::move(fs);
+}
 } // xx
 
+// convert std::pair to a debug string
 template<typename K, typename V>
 inline fastring dbg(const std::pair<K, V>& x) {
     fastring fs(64);
@@ -132,36 +147,34 @@ inline fastring dbg(const std::pair<K, V>& x) {
     return std::move(fs);
 }
 
-template<typename T>
-inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
-    fastring fs(128);
-    xx::dbg(beg, end, c1, c2, fs);
-    return std::move(fs);
-}
-
+// convert std::vector to a debug string
 template<typename T>
 inline fastring dbg(const std::vector<T>& v) {
-    return dbg(v.begin(), v.end(), '[', ']');
+    return xx::dbg(v.begin(), v.end(), '[', ']');
 }
 
+// convert std::set to a debug string
 template<typename T>
 inline fastring dbg(const std::set<T>& v) {
-    return dbg(v.begin(), v.end(), '{', '}');
+    return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert std::map to a debug string
 template<typename K, typename V>
 inline fastring dbg(const std::map<K, V>& v) {
-    return dbg(v.begin(), v.end(), '{', '}');
+    return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert std::unordered_set to a debug string
 template<typename T>
 inline fastring dbg(const std::unordered_set<T>& v) {
-    return dbg(v.begin(), v.end(), '{', '}');
+    return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert std::unordered_map to a debug string
 template<typename K, typename V>
 inline fastring dbg(const std::unordered_map<K, V>& v) {
-    return dbg(v.begin(), v.end(), '{', '}');
+    return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
 } // namespace str
