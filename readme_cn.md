@@ -1,8 +1,8 @@
 ## Basic [(English)](readme.md)
 
-`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库。
+`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，并提供可选的 ssl, http 与 https 特性。
 
-`CO` 包含协程库(golang-style)、网络库(tcp/http/rpc)、日志库、命令行与配置文件解析库、单元测试框架、json 库等基本组件。
+`CO` 包含协程库、网络库、日志库、命令行与配置文件解析库、单元测试框架、json 库等基本组件。
 
 
 ## 参考文档
@@ -13,33 +13,37 @@
 
 ## 亮点功能
 
-- **[co](https://github.com/idealvin/co/tree/master/src/co)**
+### 协程(co)
 
-  `co` 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，有如下特性:
-  - 支持多线程调度，默认线程数为系统 CPU 核数.
-  - 协程共享线程栈(默认大小为 1MB)，内存占用极低，单机可轻松创建数百万协程.
-  - 支持系统 api hook (Linux & Mac).
-  - 支持协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
-  - 支持协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
-  - 支持协程池 [co::Pool](https://github.com/idealvin/co/blob/master/src/co/impl/co.cc).
+[co](https://github.com/idealvin/co/blob/master/include/co/co.h) 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，支持如下特性:
+- 多线程调度，默认线程数为系统 CPU 核数.
+- 协程共享栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
+- 系统 api hook (Linux & Mac).
+- 协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
+- 协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
+- 协程池 [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
+- 协程化的 [socket API](https://github.com/idealvin/co/blob/master/include/co/co/sock.h).
 
-  - 用 `go()` 创建协程:
+- 用 `go()` 创建协程:
   ```cpp
-  void fun() {
-      std::cout << "hello world" << std::endl;
+  void f() {
+      LOG << "hello world";
   }
 
-  go(fun);
+  void g(int v) {
+      LOG << "hello "<< v;
+  }
+
+  go(f);
+  go(g, 777);
   ```
 
-- **[so](https://github.com/idealvin/co/tree/master/src/so)**
 
-  `so` 是基于协程的 C++ 网络库，可轻松实现同时支持 `ipv4` 与 `ipv6` 的网络程序，包含如下几个模块:
-  - tcp 模块, 支持一般的 tcp 编程.
-  - http 模块, 支持基本的 http 编程.
-  - rpc 模块，基于 json 的 rpc 框架，单线程 qps 可达到 12w+.
+### 网络(so)
 
-  - 实现静态 **web server**:
+[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个基于 json 的简单 rpc 框架，另外还支持可选的 HTTP, HTTPS 与 SSL。
+
+- 简单的静态 web server
   ```cpp
   #include "co/flag.h"
   #include "co/log.h"
@@ -57,9 +61,9 @@
   }
   ```
 
-  - 实现一般的 http server:
+- http server ([openssl](https://www.openssl.org/) required for https server)
   ```cpp
-  http::Server serv("0.0.0.0", 80);
+  http::Server serv;
 
   serv.on_req(
       [](const http::Req& req, http::Res& res) {
@@ -71,24 +75,43 @@
                   res.set_status(404);
               }
           } else {
-              res.set_status(501);
+              res.set_status(405); // method not allowed
           }
       }
   );
 
-  serv.start();
+  serv.start("0.0.0.0", 80);                                   // http
+  serv.start("0.0.0.0", 80, "privkey.pem", "certificate.pem"); // https
   ```
 
-- **[log](https://github.com/idealvin/co/blob/master/src/log.cc)**
+- http client ([libcurl](https://curl.se/libcurl/) & zlib required)
+  ```cpp
+  http::Client c("http://127.0.0.1:7777"); // http
+  http::Client c("https://github.com");    // https, openssl required
+  c.add_header("hello", "world");          // add headers here..
 
-  `log` 是一个超级快的本地日志系统，打印日志比 `printf` 更安全:
+  c.get("/");
+  LOG << "response code: " << c.response_code();
+  LOG << "body size: " << c.body_size();
+  LOG << "Content-Length: " << c.header("Content-Length");
+  LOG << c.header();
+
+  c.post("/hello", "data xxx");
+  LOG << "response code: " << c.response_code();
+  ```
+
+
+### 日志库(log)
+
+[log](https://github.com/idealvin/co/blob/master/include/co/log.h) 是一个高性能的本地日志系统。
+
+- 打印日志
   ```cpp
   LOG << "hello " << 23;  // info
   ELOG << "hello again";  // error
   ```
 
-  下面直观感受一下 `log` 的性能:  
-
+- 与 glog 的性能比较
   | log vs glog | google glog | co/log |
   | ------ | ------ | ------ |
   | win2012 HHD | 1.6MB/s | 180MB/s |
@@ -96,14 +119,16 @@
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
   
-  上表是单线程连续打印 100 万条 info 日志(每条 50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
+上表是单线程连续打印 100 万条 info 日志(每条 50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
-  为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
+为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
 
-- **[flag](https://github.com/idealvin/co/blob/master/src/flag.cc)**
 
-  `flag` 是一个方便、易用的命令行及配置文件解析库，支持自动生成配置文件。
+### 命令行与配置文件解析(flag)
 
+[flag](https://github.com/idealvin/co/blob/master/include/flag.h) 是一个方便、易用的命令行及配置文件解析库，支持自动生成配置文件。
+
+- 代码示例
   ```cpp
   #include "co/flag.h"
 
@@ -118,19 +143,22 @@
   }
   ```
 
-  编译后运行:
+- 编译后运行
   ```sh
   ./xx                          # 以默认参数启动
   ./xx -i=4k -s="hello world"   # 整数类型可以带单位 k,m,g,t,p, 不分大小写
   ./xx -i 4k -s "hello world"   # 与上等价
   ./xx --mkconf                 # 自动生成配置文件 xx.conf
-  ./xx -config=xx.conf          # 从配置文件启动
+  ./xx xx.conf                  # 从配置文件启动
+  ./xx -config xx.conf          # 从配置文件启动
   ```
 
-- **[json](https://github.com/idealvin/co/blob/master/src/json.cc)**
 
-  `json` 是一个简单易用、性能堪比 [rapidjson](https://github.com/Tencent/rapidjson) 的 json 库。最新版本将 Json 对象存到一块连续的内存上，构建 Json 时几乎不需要分配内存，大大提高了 json pasing 的速度，可以达到 GB 每秒。
+### json
 
+[json](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用、高性能 json 库。最新版本的实现将 Json 对象构建到一块连续的内存上，几乎不需要内存分配操作，大大提高了 json 的解析速度，可以达到 GB 每秒。
+
+- 代码示例
   ```cpp
   #include "co/json.h"
 
@@ -174,16 +202,16 @@
   代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
 
 
-## 编译执行
+## 构建
 
 ### xmake
 
-`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 进行编译。
+`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
 - 编译器
-    - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
-    - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-    - Windows: [vs2015+](https://visualstudio.microsoft.com/)
+  - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
+  - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
+  - Windows: [vs2015+](https://visualstudio.microsoft.com/)
 
 - 安装 xmake
 
@@ -198,18 +226,18 @@
 
   ```sh
   # 所有命令都在 co 根目录执行，后面不再说明
-  xmake       # 默认编译 libco 与 gen
-  xmake -a    # 编译所有项目 (libco, gen, co/test, co/unitest)
+  xmake       # 默认构建 libco 与 gen
+  xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
   ```
 
-- 编译 libco
+- 构建 libco
 
   ```sh
-  xmake build libco       # 编译 libco
+  xmake build libco       # 仅构建 libco
   xmake -b libco          # 与上同
   ```
 
-- 编译及运行 unitest 代码
+- 构建及运行 unitest 代码
 
   [co/unitest](https://github.com/idealvin/co/tree/master/unitest) 是单元测试代码，用于检验 libco 库功能的正确性。
 
@@ -221,9 +249,9 @@
   xmake r unitest -json   # 执行单元测试 json
   ```
 
-- 编译及运行 test 代码
+- 构建及运行 test 代码
 
-  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
+  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录或子目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
   xmake build flag             # 编译 flag.cc
@@ -232,7 +260,6 @@
   xmake build rapidjson        # 编译 rapidjson.cc
   xmake build rpc              # 编译 rpc.cc
   xmake build easy             # 编译 so/easy.cc
-  xmake build pingpong         # 编译 so/pingpong.cc
   
   xmake r flag -xz             # 测试 flag 库
   xmake r log                  # 测试 log 库
@@ -243,12 +270,9 @@
   xmake r rpc                  # 启动 rpc server
   xmake r rpc -c               # 启动 rpc client
   xmake r easy -d xxx          # 启动 web server
-  xmake r pingpong             # pingpong server:   127.0.0.1:9988
-  xmake r pingpong ip=::       # pingpong server:   :::9988  (ipv6)
-  xmake r pingpong -c ip=::1   # pingpong client -> ::1:9988
   ```
 
-- 编译 gen
+- 构建 gen
 
   ```sh
   # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
@@ -275,18 +299,18 @@
 - 可以用 `BUILD_ALL` 指定编译所有项目.
 - 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
 
-```sh
-mkdir build && cd build
-cmake ..
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
-make -j8
-make install
-```
+  ```sh
+  mkdir build && cd build
+  cmake ..
+  cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+  make -j8
+  make install
+  ```
 
 
 ## License
 
-`CO` 以 `MIT` License 发布. `CO` 包含了一些其他项目的代码，可能使用了与 `CO` 不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+`MIT` license. `CO` 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
 
 ## 特别致谢
