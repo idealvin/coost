@@ -218,7 +218,7 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 - Install xmake
 
-  For windows, mac and debian/ubuntu, you can go directly to the [release page of xmake](https://github.com/xmake-io/xmake/releases) to get the installation package. For other systems, please refer to xmake's [Installation instructions](https:/ /xmake.io/#/guide/installation).
+  For windows, mac and debian/ubuntu, you can go directly to the [release page of xmake](https://github.com/xmake-io/xmake/releases) to get the installation package. For other systems, please refer to xmake's [Installation instructions](https://xmake.io/#/guide/installation).
 
   Xmake disables compiling as root by default on linux. [ruki](https://github.com/waruqi) says it is not safe. You can add the following line to `~/.bashrc` to enable it:
   ```sh
