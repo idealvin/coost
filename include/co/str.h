@@ -44,9 +44,10 @@ fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0)
 
 /**
  * strip a string 
- *   strip("abxxa", "ab")       ->  "xx"     strip both sides. 
- *   strip("abxxa", "ab", 'l')  ->  "xxa"    strip left only. 
- *   strip("abxxa", "ab", 'r')  ->  "abxx"   strip right only. 
+ *   strip(" xx\r\n");           ->  "xx"     strip " \t\r\n" by default. 
+ *   strip("abxxa", "ab");       ->  "xx"     strip both sides. 
+ *   strip("abxxa", "ab", 'l');  ->  "xxa"    strip left only. 
+ *   strip("abxxa", "ab", 'r');  ->  "abxx"   strip right only. 
  * 
  * @param s  the string, either a null-terminated string or a reference of fastring.
  * @param c  characters to be stripped, either a single character or a null-terminated string.
