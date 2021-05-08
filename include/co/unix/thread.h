@@ -105,7 +105,7 @@ class SyncEvent {
 //   Thread x(f);                        // void f();
 //   Thread x(f, p);                     // void f(void*);  void* p;
 //   Thread x(&T::f, &t);                // void T::f();  T t;
-//   Thread x(std::bind(f, 7));          // void f(int v);
+//   Thread x(f, 7);                     // void f(int v);
 //   Thread x(std::bind(&T::f, &t, 7));  // void T::f(int v);  T t;
 //
 // run independently from thread object:
@@ -119,25 +119,19 @@ class Thread {
         assert(r == 0);
     }
 
-    explicit Thread(void (*f)())
-        : Thread(new_closure(f)) {
+    template<typename F>
+    explicit Thread(F&& f)
+        : Thread(new_closure(std::forward<F>(f))) {
     }
 
-    Thread(void (*f)(void*), void* p)
-        : Thread(new_closure(f, p)) {
+    template<typename F, typename P>
+    Thread(F&& f, P&& p)
+        : Thread(new_closure(std::forward<F>(f), std::forward<P>(p))) {
     }
 
-    template<typename T>
-    Thread(void (T::*f)(), T* p)
-        : Thread(new_closure(f, p)) {
-    }
-
-    explicit Thread(std::function<void()>&& f)
-        : Thread(new_closure(std::move(f))) {
-    }
-
-    explicit Thread(const std::function<void()>& f)
-        : Thread(new_closure(f)) {
+    template<typename F, typename T, typename P>
+    Thread(F&& f, T* t, P&& p)
+        : Thread(new_closure(std::forward<F>(f), t, std::forward<P>(p))) {
     }
 
     ~Thread() {
@@ -192,7 +186,6 @@ class thread_ptr {
     ~thread_ptr() {
         int r = pthread_key_delete(_key);
         assert(r == 0);
-
         for (auto it = _objs.begin(); it != _objs.end(); ++it) {
             delete it->second;
         }
