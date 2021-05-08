@@ -128,7 +128,7 @@
 
 ### 命令行与配置文件解析(flag)
 
-[flag](https://github.com/idealvin/co/blob/master/include/flag.h) 是一个方便易用的命令行及配置文件解析库，支持自动生成配置文件。
+[flag](https://github.com/idealvin/co/blob/master/include/co/flag.h) 是一个方便易用的命令行及配置文件解析库，支持自动生成配置文件。
 
 - 代码示例
   ```cpp

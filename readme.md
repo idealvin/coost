@@ -129,7 +129,7 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 ### Command line and configuration file parsing (flag)
 
-[flag](https://github.com/idealvin/co/blob/master/include/flag.h) is a convenient and easy-to-use command line and configuration file parsing library that supports automatic generation of configuration files.
+[flag](https://github.com/idealvin/co/blob/master/include/co/flag.h) is a convenient and easy-to-use command line and configuration file parsing library that supports automatic generation of configuration files.
 
 - Code example
   ```cpp
