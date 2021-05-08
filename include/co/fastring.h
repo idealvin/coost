@@ -2,6 +2,7 @@
 
 #include "fast.h"
 #include "hash/murmur_hash.h"
+#include <string>
 #include <ostream>
 
 class fastring : public fast::stream {
