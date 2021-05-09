@@ -1,6 +1,6 @@
-#ifdef HAS_LIBCURL
 #include "co/all.h"
 
+#ifdef HAS_LIBCURL
 DEF_string(s, "https://github.com", "server url");
 DEF_string(m, "", "method, GET, POST, DELETE, PUT");
 DEF_string(url, "", "url of http request");
@@ -72,5 +72,9 @@ int main(int argc, char** argv) {
     ev.wait();
     return 0;
 }
-
+#else
+int main(int argc, char** argv) {
+    COUT << "libcurl required..";
+    return 0;
+}
 #endif

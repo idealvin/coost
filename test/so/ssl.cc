@@ -1,8 +1,6 @@
-#ifdef CO_SSL
-
 #include "co/all.h"
-#include "co/so/ssl.h"
 
+#ifdef CO_SSL
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_string(key, "", "private key file");
@@ -137,5 +135,9 @@ int main(int argc, char** argv) {
 
     while (true) sleep::sec(1024);
 }
-
+#else
+int main(int argc, char** argv) {
+    COUT << "openssl required..";
+    return 0;
+}
 #endif
