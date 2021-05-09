@@ -82,7 +82,7 @@ class Client {
      */
     Client(const char* ip, int port)
         : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
-          _fd((sock_t)-1), _sched_id(-1) {
+          _sched_id(-1), _fd((sock_t)-1) {
     }
 
     ~Client() { this->disconnect(); }

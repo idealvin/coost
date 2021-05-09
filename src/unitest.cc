@@ -1,6 +1,7 @@
 #include "co/unitest.h"
 #include "co/time.h"
 #include "co/os.h"
+
 #include <vector>
 #include <map>
 
@@ -15,10 +16,6 @@ DEF_bool(a, false, ".Run all tests if true");
 namespace unitest {
 using std::cout;
 using std::endl;
-
-void init(int argc, char** argv) {
-    flag::init(argc, argv);
-}
 
 inline std::vector<Test*>& gTests() {
     static std::vector<Test*> tests;

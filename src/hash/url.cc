@@ -2,8 +2,8 @@
 
 static const char* init_url_encode_table() {
     static char tb[256] = { 0 };
-    const char* p = "-_.~!*'();:@&=+$,/?#[]";
-    const size_t n = strlen(p);
+    const unsigned char* p = (const unsigned char*) "-_.~!*'();:@&=+$,/?#[]";
+    const size_t n = strlen((const char*)p);
     for (size_t i = 0; i < n; ++i) tb[p[i]] = 1;
     for (int i = 'A'; i <= 'Z'; ++i) tb[i] = 1;
     for (int i = 'a'; i <= 'z'; ++i) tb[i] = 1;
@@ -39,7 +39,7 @@ fastring url_encode(const void* s, size_t n) {
         dst.append("0123456789ABCDEF"[static_cast<uint8>(c) & 0x0F]);
     }
 
-    return std::move(dst);
+    return dst;
 }
 
 fastring url_decode(const void* s, size_t n) {
@@ -63,5 +63,5 @@ fastring url_decode(const void* s, size_t n) {
         i += 2;
     }
 
-    return std::move(dst);
+    return dst;
 }

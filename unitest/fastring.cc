@@ -20,7 +20,7 @@ DEF_test(fastring) {
         EXPECT_EQ(x, "");
         EXPECT_EQ(x.capacity(), 0);
         EXPECT_EQ(x.size(), 0);
-        EXPECT_EQ(x.data(), (const char*)0);
+        EXPECT_EQ(((size_t)x.data()), ((size_t)0));
     }
 
     DEF_case(append) {

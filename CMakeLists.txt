@@ -22,7 +22,7 @@ set(CMAKE_DEBUG_POSTFIX "d")
 include_directories(include)
 
 if(UNIX)
-    add_compile_options(-Wall -O2 -g3)
+    add_compile_options(-Wall -O2 -g3 -Wno-sign-compare -Wno-class-memaccess)
     if(APPLE)
         add_compile_options(-fno-pie)
     endif()

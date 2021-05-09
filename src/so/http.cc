@@ -856,7 +856,7 @@ fastring Res::str() const {
     s << "Content-Length: " << _body.size() << "\r\n";
     s << _header << "\r\n";
     if (_body.size() > 0) s << _body;
-    return std::move(s);
+    return s;
 }
 
 static std::unordered_map<fastring, int>* method_map() {

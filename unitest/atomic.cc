@@ -164,13 +164,13 @@ DEF_test(atomic) {
         func_t f = (func_t) 8;
         void* p = (void*) 0;
 
-        atomic_swap(&p, 8);
+        atomic_swap(&p, (void*)8);
         EXPECT_EQ(p, (void*)8);
 
-        atomic_compare_swap(&p, 8, 0);
+        atomic_compare_swap(&p, (void*)8, (void*)0);
         EXPECT_EQ(p, (void*)0);
 
-        atomic_set(&f, 0);
+        atomic_set(&f, (void*)0);
         EXPECT_EQ(f, (func_t)0);
     }
 }

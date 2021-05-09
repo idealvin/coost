@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     def_case(now::str("%Y"));
     def_case(now::str());
 
-    int64 v;
+    int64 v; (void)v;
     def_case(v = now::ms());
     def_case(v = now::us());
     

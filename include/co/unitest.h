@@ -6,11 +6,9 @@
 #include <memory>
 #include <iostream>
 
-// UNITEST is a C++ unit testing framework similar to google's gtests.
+// co/unitest is a C++ unit test framework similar to google's gtests.
 
 namespace unitest {
-
-void init(int argc, char** argv);
 
 void run_all_tests();
 

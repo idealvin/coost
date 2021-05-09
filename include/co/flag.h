@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <vector>
 
-// FLAG is a library similar to Google's gflags.
+// co/flag is a library similar to Google's gflags.
 // A flag is in fact a global variable, and value can be passed to it
 // from command line or from a config file.
 

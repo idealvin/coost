@@ -587,12 +587,14 @@ struct hostent* gethostbyname(const char* name) {
     int* err = (int*) fs.data();
 
     int r = -1;
-    while (r = gethostbyname_r(name, ent,
-        (char*)(fs.data() + 8), fs.capacity() - 8, &res, err) == ERANGE &&
-        *err == NETDB_INTERNAL)
-    {
-        fs.reserve(fs.capacity() << 1);
-        err = (int*) fs.data();
+    while (true) {
+        r = gethostbyname_r(name, ent, (char*)(fs.data() + 8), fs.capacity() - 8, &res, err);
+        if (r == ERANGE && *err == NETDB_INTERNAL) {
+            fs.reserve(fs.capacity() << 1);
+            err = (int*) fs.data();
+        } else {
+            break;
+        }
     }
 
     if (r == 0 && ent == res) return res;
@@ -610,12 +612,14 @@ struct hostent* gethostbyname2(const char* name, int af) {
     int* err = (int*) fs.data();
 
     int r = -1;
-    while (r = gethostbyname2_r(name, af, ent,
-        (char*)(fs.data() + 8), fs.capacity() - 8, &res, err) == ERANGE &&
-        *err == NETDB_INTERNAL)
-    {
-        fs.reserve(fs.capacity() << 1);
-        err = (int*) fs.data();
+    while (true) {
+        r = gethostbyname2_r(name, af, ent, (char*)(fs.data() + 8), fs.capacity() - 8, &res, err);
+        if (r == ERANGE && *err == NETDB_INTERNAL) {
+            fs.reserve(fs.capacity() << 1);
+            err = (int*) fs.data();
+        } else {
+            break;
+        }
     }
 
     if (r == 0 && ent == res) return res;
@@ -633,12 +637,14 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     int* err = (int*) fs.data();
 
     int r = -1;
-    while (r = gethostbyaddr_r(addr, len, type, ent,
-        (char*)(fs.data() + 8), fs.capacity() - 8, &res, err) == ERANGE &&
-        *err == NETDB_INTERNAL)
-    {
-        fs.reserve(fs.capacity() << 1);
-        err = (int*) fs.data();
+    while (true) {
+        r = gethostbyaddr_r(addr, len, type, ent, (char*)(fs.data() + 8), fs.capacity() - 8, &res, err);
+        if (r == ERANGE && *err == NETDB_INTERNAL) {
+            fs.reserve(fs.capacity() << 1);
+            err = (int*) fs.data();
+        } else {
+            break;
+        }
     }
 
     if (r == 0 && ent == res) return res;

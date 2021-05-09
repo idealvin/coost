@@ -36,7 +36,6 @@ void udp_server_fun() {
         }
     }
 
-    free(buf);
     co::close(fd);
 }
 
@@ -68,7 +67,6 @@ void udp_client_fun() {
         }
     }
 
-    free(buf);
     co::close(fd);
 }
 

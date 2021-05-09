@@ -15,7 +15,7 @@ set_symbols("debug")    -- dbg symbols
 
 
 if is_plat("macosx", "linux") then
-    add_cxflags("-g3", "-Wno-narrowing")
+    add_cxflags("-g3", "-Wno-narrowing", "-Wno-sign-compare", "-Wno-class-memaccess")
     if is_plat("macosx") then
         add_cxflags("-fno-pie")
     end

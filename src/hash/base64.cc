@@ -38,7 +38,7 @@ fastring base64_encode(const void* p, size_t n) {
         x[3] = '=';
     }
 
-    return std::move(v);
+    return v;
 }
 
 fastring base64_decode(const void* p, size_t n) {
@@ -86,7 +86,7 @@ fastring base64_decode(const void* p, size_t n) {
         }
     }
 
-    if (s == e) return std::move(v);
+    if (s == e) return v;
     if (e < s + 4) goto err;
 
     if (unlikely(e[-1] == '\n' || e[-1] == '\r')) {
@@ -120,7 +120,7 @@ fastring base64_decode(const void* p, size_t n) {
     } while (0);
 
     v.resize(x - v.data());
-    return std::move(v);
+    return v;
 
   err:
     return fastring();

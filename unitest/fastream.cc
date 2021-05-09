@@ -181,7 +181,7 @@ DEF_test(fastream) {
         fs.swap(fastream());
         EXPECT_EQ(fs.capacity(), 0);
         EXPECT_EQ(fs.size(), 0);
-        EXPECT_EQ(fs.data(), (const char*)0);
+        EXPECT_EQ(((size_t)fs.data()), ((size_t)0));
         EXPECT_EQ(fs.str(), "");
     }
 

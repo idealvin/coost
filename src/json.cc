@@ -288,9 +288,9 @@ const char* Parser::parse_string(const char* b, const char* e, uint32& index) {
 inline const char* init_hex_table() {
     static char tb[256];
     memset(tb, 16, 256);
-    for (char c = '0'; c <= '9'; ++c) tb[c] = c - '0';
-    for (char c = 'A'; c <= 'F'; ++c) tb[c] = c - 'A' + 10;
-    for (char c = 'a'; c <= 'f'; ++c) tb[c] = c - 'a' + 10;
+    for (char c = '0'; c <= '9'; ++c) tb[(uint8)c] = c - '0';
+    for (char c = 'A'; c <= 'F'; ++c) tb[(uint8)c] = c - 'A' + 10;
+    for (char c = 'a'; c <= 'f'; ++c) tb[(uint8)c] = c - 'a' + 10;
     return tb;
 }
 
@@ -507,7 +507,6 @@ fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
         const bool trunc = debug && len > 512;
         const char* s = (const char*) _p8(h->index);
         const char* e = trunc ? s + 512 : s + len;
-        static const char* tb = init_e2s_table();
 
         char c;
         for (const char* p; (p = find_escapse(s, e, c)) < e;) {

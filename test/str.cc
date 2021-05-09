@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     COUT << "ss: " << ss;
 
     COUT << "\n======= find =======";
-    size_t r;
+    size_t r; (void)r;
     def_case(r = xfs.find_first_of("no"));
     def_case(r = xss.find_first_of("no"));
     def_case(r = xfs.find_first_not_of("he"));

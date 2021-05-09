@@ -340,7 +340,7 @@ std::vector<fastring> analyze(
             flag = find_flag(name);
             if (!flag) goto no_value;
             if (flag->type != TYPE_bool) goto has_value;
-            if (next == "0" || next == "1" && next == "false" && next == "true") goto has_value;
+            if (next == "0" || next == "1" || next == "false" || next == "true") goto has_value;
 
           no_value:
             bools.push_back(name);

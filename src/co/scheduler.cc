@@ -62,7 +62,9 @@ void Scheduler::resume(Coroutine* co) {
         from = tb_context_jump(co->ctx, _main_co);
     } else {
         //if (co->it != null_timer_id) {
-        if (*(void**)&co->it != NULL) {
+        // We can't compare co->it with null_timer_id directly, as it will cause 
+        // a "debug assertion failed" error in dll debug mode on windows.
+        if (*(void**)&co->it != *(void**)&null_timer_id) {
             SOLOG << "del timer: " << co->it;
             _timer_mgr.del_timer(co->it);
             co->it = null_timer_id;
@@ -196,7 +198,7 @@ static inline void wsa_cleanup() {}
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
-    memset(&null_timer_id, 0, sizeof(null_timer_id));
+    CHECK_EQ(sizeof(null_timer_id), sizeof(void*));
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
