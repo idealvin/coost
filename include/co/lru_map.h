@@ -7,30 +7,23 @@ template <typename K, typename V>
 class LruMap {
   public:
     typedef typename std::unordered_map<K, V>::iterator iterator;
+    typedef typename std::unordered_map<K, V>::key_type key_type;
+    typedef typename std::unordered_map<K, V>::value_type value_type;
 
-    explicit LruMap(size_t capacity = 1024) {
+    LruMap() : _capacity(1024) {}
+
+    explicit LruMap(size_t capacity) {
         _capacity = capacity > 0 ? capacity : 1024;
     }
 
     ~LruMap() {}
 
-    bool empty() const {
-        return _kv.size() == 0;
-    }
+    size_t size()    const { return _kv.size(); }
+    bool empty()     const { return this->size() == 0; }
+    iterator begin() const { return ((LruMap*)this)->_kv.begin(); }
+    iterator end()   const { return ((LruMap*)this)->_kv.end(); }
 
-    size_t size() const {
-        return _kv.size();
-    }
-
-    iterator begin() {
-        return _kv.begin();
-    }
-
-    iterator end() {
-        return _kv.end();
-    }
-
-    iterator find(const K& key) {
+    iterator find(const key_type& key) {
         iterator it = _kv.find(key);
         if (it != _kv.end() && _kl.front() != key) {
             auto ki = _ki.find(key);
@@ -41,18 +34,18 @@ class LruMap {
     }
 
     // The key is not inserted if it already exists.
-    void insert(const K& key, const V& value) {
-        auto r = _kv.insert(std::make_pair(key, value));
-        if (!r.second) return;
-
-        _kl.push_front(key);
-        _ki[key] = _kl.begin();
-
-        if (_kv.size() > _capacity) {
+    template <typename Key, typename Val>
+    void insert(Key&& key, Val&& value) {
+        if (_kv.size() >= _capacity) {
             K k = _kl.back();
             _kl.pop_back();
             _kv.erase(k);
             _ki.erase(k);
+        }
+        auto r = _kv.insert(value_type(std::forward<Key>(key), std::forward<Val>(value)));
+        if (r.second) {
+            _kl.push_front(key);
+            _ki[key] = _kl.begin();
         }
     }
 
@@ -65,7 +58,7 @@ class LruMap {
         }
     }
 
-    void erase(const K& key) {
+    void erase(const key_type& key) {
         this->erase(_kv.find(key));
     }
 
@@ -75,11 +68,15 @@ class LruMap {
         _kl.clear();
     }
 
-    void swap(LruMap& x) {
+    void swap(LruMap& x) noexcept {
         _kv.swap(x._kv);
         _ki.swap(x._ki);
         _kl.swap(x._kl);
         std::swap(_capacity, x._capacity);
+    }
+
+    void swap(LruMap&& x) noexcept {
+        x.swap(*this);
     }
 
   private:
