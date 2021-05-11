@@ -252,11 +252,15 @@ class fastring : public fast::stream {
     fastring& tolower();
 
     fastring upper() const {
-        return fastring(*this).toupper();
+        fastring s(*this);
+        s.toupper();
+        return s;
     }
 
     fastring lower() const {
-        return fastring(*this).tolower();
+        fastring s(*this);
+        s.tolower();
+        return s;
     }
 
     fastring& lshift(size_t n) {
@@ -293,6 +297,14 @@ inline fastring operator+(const fastring& a, const fastring& b) {
     return fastring(a.size() + b.size() + 1).append(a).append(b);
 }
 
+inline fastring operator+(const fastring& a, const std::string& b) {
+    return fastring(a.size() + b.size() + 1).append(a).append(b);
+}
+
+inline fastring operator+(const std::string& a, const fastring& b) {
+    return fastring(a.size() + b.size() + 1).append(a).append(b);
+}
+
 inline fastring operator+(const fastring& a, const char* b) {
     size_t n = strlen(b);
     return fastring(a.size() + n + 1).append(a).append(b, n);
@@ -308,6 +320,16 @@ inline bool operator==(const fastring& a, const fastring& b) {
     return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
 }
 
+inline bool operator==(const fastring& a, const std::string& b) {
+    if (a.size() != b.size()) return false;
+    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
+}
+
+inline bool operator==(const std::string& a, const fastring& b) {
+    if (a.size() != b.size()) return false;
+    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
+}
+
 inline bool operator==(const fastring& a, const char* b) {
     if (a.size() != strlen(b)) return false;
     return a.size() == 0 || memcmp(a.data(), b, a.size()) == 0;
@@ -318,6 +340,14 @@ inline bool operator==(const char* a, const fastring& b) {
 }
 
 inline bool operator!=(const fastring& a, const fastring& b) {
+    return !(a == b);
+}
+
+inline bool operator!=(const fastring& a, const std::string& b) {
+    return !(a == b);
+}
+
+inline bool operator!=(const std::string& a, const fastring& b) {
     return !(a == b);
 }
 
@@ -337,6 +367,22 @@ inline bool operator<(const fastring& a, const fastring& b) {
     }
 }
 
+inline bool operator<(const fastring& a, const std::string& b) {
+    if (a.size() < b.size()) {
+        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
+    } else {
+        return memcmp(a.data(), b.data(), b.size()) < 0;
+    }
+}
+
+inline bool operator<(const std::string& a, const fastring& b) {
+    if (a.size() < b.size()) {
+        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
+    } else {
+        return memcmp(a.data(), b.data(), b.size()) < 0;
+    }
+}
+
 inline bool operator<(const fastring& a, const char* b) {
     size_t n = strlen(b);
     if (a.size() < n) {
@@ -347,6 +393,22 @@ inline bool operator<(const fastring& a, const char* b) {
 }
 
 inline bool operator>(const fastring& a, const fastring& b) {
+    if (a.size() > b.size()) {
+        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
+    } else {
+        return memcmp(a.data(), b.data(), a.size()) > 0;
+    }
+}
+
+inline bool operator>(const fastring& a, const std::string& b) {
+    if (a.size() > b.size()) {
+        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
+    } else {
+        return memcmp(a.data(), b.data(), a.size()) > 0;
+    }
+}
+
+inline bool operator>(const std::string& a, const fastring& b) {
     if (a.size() > b.size()) {
         return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
     } else {
@@ -375,6 +437,14 @@ inline bool operator<=(const fastring& a, const fastring& b) {
     return !(a > b);
 }
 
+inline bool operator<=(const fastring& a, const std::string& b) {
+    return !(a > b);
+}
+
+inline bool operator<=(const std::string& a, const fastring& b) {
+    return !(a > b);
+}
+
 inline bool operator<=(const fastring& a, const char* b) {
     return !(a > b);
 }
@@ -384,6 +454,14 @@ inline bool operator<=(const char* a, const fastring& b) {
 }
 
 inline bool operator>=(const fastring& a, const fastring& b) {
+    return !(a < b);
+}
+
+inline bool operator>=(const fastring& a, const std::string& b) {
+    return !(a < b);
+}
+
+inline bool operator>=(const std::string& a, const fastring& b) {
     return !(a < b);
 }
 
