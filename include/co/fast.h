@@ -105,7 +105,7 @@ class stream {
     void ensure(size_t n) {
         if (_cap < _size + n) {
             _cap += ((_cap >> 1) + n);
-            _p = (char*) realloc(_p, _cap);
+            _p = (char*) realloc(_p, _cap); assert(_p);
         }
     }
 
