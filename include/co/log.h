@@ -71,6 +71,8 @@ class FatalLogSaver {
     FatalLogSaver(const char* file, unsigned int line) {
         if (xxLog == 0) xxLog = new fastream(128);
         xxLog->clear();
+        (*xxLog) << 'F';
+        xxLog->resize(14);
         (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
