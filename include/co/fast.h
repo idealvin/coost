@@ -159,9 +159,7 @@ class stream {
     }
 
     stream& operator<<(unsigned char v) {
-        this->ensure(4);
-        _size += fast::u32toa(v, _p + _size);
-        return *this;
+        return this->append((char)v);
     }
 
     stream& operator<<(short v) {
