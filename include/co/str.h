@@ -89,7 +89,9 @@ inline double to_double(const std::string& s) { return to_double(s.c_str()); }
  */
 template<typename T>
 inline fastring from(T t) {
-    return std::move(fastring(24) << t);
+    fastring s(24);
+    s << t;
+    return s;
 }
 
 namespace xx {
@@ -145,7 +147,7 @@ template<typename K, typename V>
 inline fastring dbg(const std::pair<K, V>& x) {
     fastring fs(64);
     xx::dbg(x, fs);
-    return std::move(fs);
+    return fs;
 }
 
 // convert std::vector to a debug string
