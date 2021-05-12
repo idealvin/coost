@@ -255,12 +255,12 @@ void LevelLogger::write(fastream* fs) {
 void LevelLogger::push_fatal_log(fastream* log) {
     log::close();
 
-    fastring s(log->size() + 14);
-    s.append(_log_time.get()).append(log->data(), log->size());
-    fwrite(s.data(), 1, s.size(), stderr);
+    memcpy((char*)log->data() + 1, _log_time.get(), 13);
+    this->write(log);
+    if (!_config->cout) fwrite(log->data(), 1, log->size(), stderr);
 
     if (this->open_log_file(fatal)) {
-        _file.write(s.data(), s.size());
+        _file.write(log->data(), log->size());
         _stack_trace->set_file(&_file);
     }
 
