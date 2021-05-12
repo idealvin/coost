@@ -67,7 +67,7 @@ DEF_test(fastream) {
         const char& x = c;
         fastream fs;
         fs << c << ' ' << uc << ' ' << x;
-        EXPECT_EQ(fs.str(), "c 99 c");
+        EXPECT_EQ(fs.str(), "c c c");
     }
 
     DEF_case(int) {
