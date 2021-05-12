@@ -17,13 +17,15 @@ namespace log {
 
 /**
  * initialize the log library and start the logging thread 
- *   - log::init() SHOULD be called once at the beginning of main(). 
+ *   - log::init() should be called once at the beginning of main(). 
  *   - It is safe to call log::init() for multiple times. 
  */
 void init();
 
 /**
- * write all buffered logs to destination and stop the logging thread 
+ * close the log library 
+ *   - write all buffered logs to destination.
+ *   - stop the logging thread.
  */
 void close();
 
@@ -116,23 +118,27 @@ using namespace ___;
 #define COUT   log::xx::CLogSaver().fs()
 #define CLOG   log::xx::CLogSaver(__FILE__, __LINE__).fs()
 
-// DLOG  ->  DEBUG
-// LOG   ->  INFO
-// WLOG  ->  WARNING
-// ELOG  ->  ERROR
-// FLOG  ->  FATAL    A FATAL log will terminate the program.
-// CHECK ->  FATAL
+// DLOG  ->  debug log
+// LOG   ->  info log
+// WLOG  ->  warning log
+// ELOG  ->  error log
+// FLOG  ->  fatal log    A fatal log will terminate the program.
+// CHECK ->  fatal log
 //
 // LOG << "hello world " << 23;
 // WLOG_IF(1 + 1 == 2) << "xx";
-#define DLOG  if (FLG_min_log_level <= log::xx::debug) \
-              log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::debug).fs()
-#define LOG   log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::info).fs()
-#define WLOG  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::warning).fs()
-#define ELOG  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::error).fs()
-#define _FLOG log::xx::FatalLogSaver(__FILE__, __LINE__).fs()
-#define FLOG  _FLOG << "fatal error! "
+#define _DLOG_STREAM  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::debug).fs()
+#define _LOG_STREAM   log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::info).fs()
+#define _WLOG_STREAM  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::warning).fs()
+#define _ELOG_STREAM  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::error).fs()
+#define _FLOG_STREAM  log::xx::FatalLogSaver(__FILE__, __LINE__).fs()
+#define DLOG  if (FLG_min_log_level <= log::xx::debug) _DLOG_STREAM
+#define LOG   if (FLG_min_log_level <= log::xx::info) _LOG_STREAM
+#define WLOG  if (FLG_min_log_level <= log::xx::warning) _WLOG_STREAM
+#define ELOG  if (FLG_min_log_level <= log::xx::error) _ELOG_STREAM
+#define FLOG  _FLOG_STREAM << "fatal error! "
 
+// conditional log
 #define DLOG_IF(cond) if (cond) DLOG
 #define  LOG_IF(cond) if (cond) LOG
 #define WLOG_IF(cond) if (cond) WLOG
@@ -140,15 +146,15 @@ using namespace ___;
 #define FLOG_IF(cond) if (cond) FLOG
 
 #define CHECK(cond) \
-    if (!(cond)) _FLOG << "check failed: " #cond "! "
+    if (!(cond)) _FLOG_STREAM << "check failed: " #cond "! "
 
 #define CHECK_NOTNULL(p) \
-    if ((p) == 0) _FLOG << "check failed: " #p " mustn't be NULL! "
+    if ((p) == 0) _FLOG_STREAM << "check failed: " #p " mustn't be NULL! "
 
 #define _CHECK_OP(a, b, op) \
     for (auto _x_ = std::make_pair(a, b); !(_x_.first op _x_.second);) \
-        _FLOG << "check failed: " #a " " #op " " #b ", " \
-              << _x_.first << " vs " << _x_.second << "! "
+        _FLOG_STREAM << "check failed: " #a " " #op " " #b ", " \
+                     << _x_.first << " vs " << _x_.second << "! "
 
 #define CHECK_EQ(a, b) _CHECK_OP(a, b, ==)
 #define CHECK_NE(a, b) _CHECK_OP(a, b, !=)
@@ -157,18 +163,18 @@ using namespace ___;
 #define CHECK_GT(a, b) _CHECK_OP(a, b, >)
 #define CHECK_LT(a, b) _CHECK_OP(a, b, <)
 
-// Occasional Log.
-#define XX_LOG_COUNTER_NAME(x, n) XX_LOG_COUNTER_NAME_CONCAT(x, n)
-#define XX_LOG_COUNTER_NAME_CONCAT(x, n) x##n
-#define XX_LOG_COUNTER XX_LOG_COUNTER_NAME(XX_log_counter_, __LINE__)
+// occasional log
+#define CO_LOG_COUNTER_NAME(x, n) CO_LOG_COUNTER_NAME_CONCAT(x, n)
+#define CO_LOG_COUNTER_NAME_CONCAT(x, n) x##n
+#define CO_LOG_COUNTER CO_LOG_COUNTER_NAME(CO_log_counter_, __LINE__)
 
 #define _LOG_EVERY_N(n, what) \
-    static unsigned int XX_LOG_COUNTER = 0; \
-    if (atomic_fetch_inc(&XX_LOG_COUNTER) % (n) == 0) what
+    static unsigned int CO_LOG_COUNTER = 0; \
+    if (atomic_fetch_inc(&CO_LOG_COUNTER) % (n) == 0) what
 
 #define _LOG_FIRST_N(n, what) \
-    static int XX_LOG_COUNTER = 0; \
-    if (XX_LOG_COUNTER < (n) && atomic_fetch_inc(&XX_LOG_COUNTER) < (n)) what
+    static int CO_LOG_COUNTER = 0; \
+    if (CO_LOG_COUNTER < (n) && atomic_fetch_inc(&CO_LOG_COUNTER) < (n)) what
 
 #define DLOG_EVERY_N(n) _LOG_EVERY_N(n, DLOG)
 #define  LOG_EVERY_N(n) _LOG_EVERY_N(n, LOG)
