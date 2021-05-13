@@ -32,7 +32,7 @@ void close();
 namespace xx {
 
 void push_fatal_log(fastream* fs);
-void push_level_log(fastream* fs, int level);
+void push_level_log(fastream* fs);
 
 extern __thread fastream* xxLog;
 
@@ -46,8 +46,8 @@ enum LogLevel {
 
 class LevelLogSaver {
   public:
-    LevelLogSaver(const char* file, unsigned line, int level) : _level(level) {
-        if (xxLog == 0) xxLog = new fastream(128);
+    LevelLogSaver(const char* file, unsigned line, int level) {
+        if (unlikely(xxLog == 0)) xxLog = new fastream(128);
         xxLog->clear();
 
         (*xxLog) << "DIWEF"[level];
@@ -57,21 +57,18 @@ class LevelLogSaver {
 
     ~LevelLogSaver() {
         (*xxLog) << '\n';
-        push_level_log(xxLog, _level);
+        push_level_log(xxLog);
     }
 
     fastream& fs() {
         return *xxLog;
     }
-
-  private:
-    int _level;
 };
 
 class FatalLogSaver {
   public:
     FatalLogSaver(const char* file, unsigned int line) {
-        if (xxLog == 0) xxLog = new fastream(128);
+        if (unlikely(xxLog == 0)) xxLog = new fastream(128);
         xxLog->clear();
         (*xxLog) << 'F';
         xxLog->resize(14);
@@ -92,7 +89,7 @@ class CLogSaver {
   public:
     CLogSaver() : _fs(128) {}
 
-    CLogSaver(const char* file, unsigned int line) {
+    CLogSaver(const char* file, unsigned int line) : _fs(128) {
         _fs << file << ':' << line << ']' << ' ';
     }
 
@@ -132,10 +129,10 @@ using namespace ___;
 #define _WLOG_STREAM  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::warning).fs()
 #define _ELOG_STREAM  log::xx::LevelLogSaver(__FILE__, __LINE__, log::xx::error).fs()
 #define _FLOG_STREAM  log::xx::FatalLogSaver(__FILE__, __LINE__).fs()
-#define DLOG  if (FLG_min_log_level <= log::xx::debug) _DLOG_STREAM
-#define LOG   if (FLG_min_log_level <= log::xx::info) _LOG_STREAM
+#define DLOG  if (FLG_min_log_level <= log::xx::debug)   _DLOG_STREAM
+#define LOG   if (FLG_min_log_level <= log::xx::info)     _LOG_STREAM
 #define WLOG  if (FLG_min_log_level <= log::xx::warning) _WLOG_STREAM
-#define ELOG  if (FLG_min_log_level <= log::xx::error) _ELOG_STREAM
+#define ELOG  if (FLG_min_log_level <= log::xx::error)   _ELOG_STREAM
 #define FLOG  _FLOG_STREAM << "fatal error! "
 
 // conditional log
