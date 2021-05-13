@@ -241,6 +241,20 @@ DEF_test(fastring) {
         EXPECT(s.ends_with("yyzzz", 5));
     }
 
+    DEF_case(remove_tail) {
+        fastring s("xx.log");
+        EXPECT_EQ(s.remove_tail(".log"), "xx");
+        EXPECT_EQ(s.remove_tail(".log"), "xx");
+
+        s = "xx.exe";
+        fastring x(".exe");
+        EXPECT_EQ(s.remove_tail(x), "xx");
+
+        s = "xx.exe";
+        std::string e(".exe");
+        EXPECT_EQ(s.remove_tail(e), "xx");
+    }
+
     DEF_case(upperlower) {
         fastring s("xYz88");
         EXPECT_EQ(s.upper(), "XYZ88");

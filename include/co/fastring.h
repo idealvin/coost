@@ -244,6 +244,23 @@ class fastring : public fast::stream {
         return this->ends_with(s.data(), s.size());
     }
 
+    fastring& remove_tail(const char* s, size_t n) {
+        if (this->ends_with(s, n)) this->resize(this->size() - n); 
+        return *this;
+    }
+
+    fastring& remove_tail(const char* s) {
+        return this->remove_tail(s, strlen(s));
+    }
+
+    fastring& remove_tail(const fastring& s) {
+        return this->remove_tail(s.data(), s.size());
+    }
+
+    fastring& remove_tail(const std::string& s) {
+        return this->remove_tail(s.data(), s.size());
+    }
+
     // * matches everything
     // ? matches any single character
     bool match(const char* pattern) const;
