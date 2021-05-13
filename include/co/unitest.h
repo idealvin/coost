@@ -138,8 +138,8 @@ const char* const default_color = "\033[39m";
         _current_case.reset(new unitest::Case("default")); \
     } \
     \
-    auto _U_x = x; \
-    auto _U_y = y; \
+    auto _U_x = (x); \
+    auto _U_y = (y); \
     \
     if (_U_x op _U_y) { \
         cout << unitest::green \
