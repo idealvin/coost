@@ -2,12 +2,14 @@
 
 #include "co/time.h"
 #include <time.h>
+#include <winsock2.h>  // for struct timeval
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 namespace now {
 namespace _Mono {
+
 inline int64 _QueryFrequency() {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
@@ -36,6 +38,7 @@ inline int64 us() {
     const int64& freq = _Frequency();
     return (count / freq) * 1000000 + (count % freq * 1000000 / freq);
 }
+
 } // _Mono
 
 int64 ms() {
@@ -58,6 +61,27 @@ fastring str(const char* fm) {
 }
 
 } // now
+
+namespace epoch {
+
+inline int64 filetime() {
+    FILETIME ft;
+    LARGE_INTEGER x;
+    GetSystemTimeAsFileTime(&ft);
+    x.LowPart = ft.dwLowDateTime;
+    x.HighPart = ft.dwHighDateTime;
+    return x.QuadPart - 116444736000000000ULL;
+}
+
+int64 ms() {
+    return filetime() / 10000;
+}
+
+int64 us() {
+    return filetime() / 10;
+}
+
+} // epoch
 
 namespace ___ {
 namespace sleep {

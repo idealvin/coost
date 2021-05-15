@@ -5,13 +5,35 @@
 
 namespace now {
 
-int64 ms(); // now in milliseconds
-int64 us(); // now in microseconds
+/**
+ * monotonic timestamp in milliseconds
+ */
+int64 ms();
+
+/**
+ * monotonic timestamp in microseconds
+ */
+int64 us();
 
 // "%Y-%m-%d %H:%M:%S" ==> 2018-08-08 08:08:08
 fastring str(const char* fm="%Y-%m-%d %H:%M:%S");
 
 } // now
+
+namespace epoch {
+
+/**
+ * milliseconds since epoch
+ */
+int64 ms();
+
+/**
+ * 
+ * microseconds since epoch
+ */
+int64 us();
+
+} // epoch
 
 namespace ___ {
 namespace sleep {

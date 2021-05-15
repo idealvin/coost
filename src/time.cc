@@ -22,15 +22,11 @@ inline int64 us() {
 
 #else
 inline int64 ms() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
+    return epoch::ms();
 }
 
 inline int64 us() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
+    return epoch::us();
 }
 #endif
 
@@ -56,6 +52,22 @@ fastring str(const char* fm) {
 }
 
 } // now
+
+namespace epoch {
+
+int64 ms() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
+}
+
+int64 us() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
+}
+
+} // epoch
 
 namespace ___ {
 namespace sleep {
