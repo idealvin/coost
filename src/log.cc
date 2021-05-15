@@ -3,7 +3,9 @@
 #include "co/os.h"
 #include "co/str.h"
 #include "co/path.h"
+#include "co/time.h"
 #include "co/__/stack_trace.h"
+#include "co/co/hook.h"
 
 #include <time.h>
 #include <signal.h>
@@ -30,7 +32,7 @@ namespace xx {
 
 __thread fastream* xxLog = NULL;
 
-// failure handler for SIGSEGV SIGABRT SIGFPE SIGBUS.
+// failure handler for SIGSEGV SIGABRT SIGFPE SIGBUS SIGILL.
 void on_failure();
 
 // Signal handler for SIGINT SIGTERM SIGQUIT.
@@ -47,30 +49,26 @@ inline void install_signal_handler() {
 class LogTime {
   public:
     LogTime();
+    ~LogTime();
 
     const char* update();
 
-    const char* get() {
-        return _buf;
-    }
+    const char* get() { return _buf; }
 
-    void reset() {
-        _start = time(0);
-      #ifdef _WIN32
-        _localtime64_s(&_tm, &_start);
-      #else
-        localtime_r(&_start, &_tm);
-      #endif
-        strftime(_buf, 16, "%m%d %H:%M:%S", &_tm);
-    }
+    uint32 ms() const { return _ms; }
+
+    void reset(time_t sec = 0);
 
   private:
     time_t _start;
     struct tm _tm;
     char _buf[16];
-    uint16 _cache[60];
+    uint16* _tb60;
+    uint32* _tb1000;
+    uint32 _ms;
 };
 
+// I0515 11:15:30.123
 class LevelLogger {
   public:
     LevelLogger();
@@ -81,7 +79,7 @@ class LevelLogger {
 
     void push(fastream* log) {
         MutexGuard g(_log_mutex);
-        memcpy((char*)(log->data() + 1), _time_str, 13);
+        memcpy((char*)(log->data() + 1), _t.data, _t.total_size);
 
         if (unlikely(_fs->size() >= FLG_max_log_buffer_size)) {
             const char* p = strchr(_fs->data() + (_fs->size() >> 1) + 7, '\n');
@@ -109,7 +107,8 @@ class LevelLogger {
     void on_failure() {
         this->safe_stop();
         if (this->open_log_file(fatal)) {
-            _file.write(_log_time.get());
+            _file.write('F');
+            _file.write(_t.data, _t.total_size);
             _file.write("] ");
             _stack_trace->set_file(&_file);
         }
@@ -132,7 +131,7 @@ class LevelLogger {
     fastring _log_file_name;
 
     LogTime _log_time;
-    char _time_str[16];
+    log_time_t _t;
     int _stop;
     std::unique_ptr<StackTrace> _stack_trace;
 };
@@ -142,18 +141,21 @@ LevelLogger::LevelLogger()
     _stack_trace.reset(new_stack_trace());
     _stack_trace->set_callback(&xx::on_failure);
     install_signal_handler();
-    memcpy(_time_str, _log_time.get(), 16);
+    _t.update(_log_time.get());
+    _t.update_ms(_log_time.ms());
 }
 
 inline void LevelLogger::init_config() {
     static bool initialized = false;
     if (!initialized && atomic_compare_swap(&initialized, false, true) == false) {
-        FLG_log_dir = path::clean(str::replace(FLG_log_dir, "\\", "/"));
-        FLG_log_file_name.remove_tail(".log");
-        if (FLG_log_file_name.empty()) {
-            FLG_log_file_name = os::exename();
-            FLG_log_file_name.remove_tail(".exe");
+        _log_dir = path::clean(str::replace(FLG_log_dir, "\\", "/"));
+        _log_file_name = FLG_log_file_name;
+        _log_file_name.remove_tail(".log");
+        if (_log_file_name.empty()) {
+            _log_file_name = os::exename();
+            _log_file_name.remove_tail(".exe");
         }
+ 
         if (FLG_max_log_file_num <= 0) FLG_max_log_file_num = 8;
         if (FLG_max_log_file_size <= 0) FLG_max_log_file_size = 256 << 20;
         if (FLG_max_log_buffer_size < (1 << 20)) FLG_max_log_buffer_size = (1 << 20);
@@ -204,10 +206,11 @@ void LevelLogger::thread_fun() {
         bool signaled = _log_event.wait(128);
         if (_stop) break;
 
-        const char* updated = _log_time.update();
+        const char* s = _log_time.update();
         {
             MutexGuard g(_log_mutex);
-            if (updated) memcpy(_time_str, updated, 13);
+            if (s) _t.update(s);
+            _t.update_ms(_log_time.ms());
             if (!_fs->empty()) _fs.swap(fs);
             if (signaled) _log_event.reset();
         }
@@ -229,6 +232,8 @@ inline void LevelLogger::rotate() {
 }
 
 void LevelLogger::write(fastream* fs) {
+    //fs->clear();
+    //return;
     fs::file& f = _file;
     if (f || this->open_log_file()) {
         f.write(fs->data(), fs->size());
@@ -240,7 +245,7 @@ void LevelLogger::write(fastream* fs) {
 void LevelLogger::push_fatal_log(fastream* log) {
     log::close();
 
-    memcpy((char*)log->data() + 1, _log_time.get(), 13);
+    memcpy((char*)log->data() + 1, _t.data, _t.total_size);
     this->write(log);
     if (!FLG_cout) fwrite(log->data(), 1, log->size(), stderr);
 
@@ -255,7 +260,7 @@ void LevelLogger::push_fatal_log(fastream* log) {
 
 bool LevelLogger::open_log_file(int level) {
     this->init_config();
-    static fastring path_base = path::join(FLG_log_dir, FLG_log_file_name);
+    static fastring path_base = path::join(_log_dir, _log_file_name);
 
     fastring path(path_base.size() + 8);
     if (level < xx::fatal) {
@@ -285,7 +290,7 @@ bool LevelLogger::open_log_file(int level) {
         path.append(path_base).append(".fatal");
     }
 
-    if (!fs::exists(FLG_log_dir)) fs::mkdir(FLG_log_dir, true);
+    if (!fs::exists(_log_dir)) fs::mkdir(_log_dir, true);
     if (!_file.open(path.c_str(), 'a')) {
         printf("failed to open the log file: %s\n", path.c_str());
         return false;
@@ -318,17 +323,36 @@ void push_level_log(fastream* fs) {
 }
 
 LogTime::LogTime() {
-    memset(_buf, 0, 16);
-    for (int i = 0; i < 60; ++i) {
-        char* p = (char*) &_cache[i];
-        p[0] = i / 10 + '0';
-        p[1] = i % 10 + '0';
+    memset(_buf, 0, sizeof(_buf));
+
+    _tb1000 = (uint32*) malloc(sizeof(uint32) * 1000);
+    for (int i = 0; i < 1000; ++i) {
+        char* p = (char*)(_tb1000 + i);
+        p[0] = '.';
+        p[1] = '0' + i / 100;
+        p[2] = '0' + i % 100 / 10;
+        p[3] = '0' + i % 10;
     }
+
+    _tb60 = (uint16*) malloc(sizeof(uint16) * 60);
+    for (int i = 0; i < 60; ++i) {
+        char* p = (char*)(_tb60 + i);
+        p[0] = '0' + i / 10;
+        p[1] = '0' + i % 10;
+    }
+
     this->reset();
 }
 
+LogTime::~LogTime() {
+    free(_tb1000);
+    free(_tb60);
+}
+
 const char* LogTime::update() {
-    time_t now_sec = time(0);
+    const int64 now_ms = epoch::ms();
+    time_t now_sec = now_ms / 1000;
+    _ms = _tb1000[(uint32)(now_ms - now_sec * 1000)];
     if (now_sec == _start) return 0;
 
     int dt = (int) (now_sec - _start);
@@ -341,14 +365,14 @@ const char* LogTime::update() {
         _start = now_sec;
 
         if (_tm.tm_sec < 60) {
-            char* p = (char*) &_cache[_tm.tm_sec];
+            char* p = (char*)(_tb60 + _tm.tm_sec);
             _buf[11] = p[0];
             _buf[12] = p[1];
         } else {
             _tm.tm_min++;
             _tm.tm_sec -= 60;
-            *(uint16*)(_buf + 8) = _cache[_tm.tm_min];
-            char* p = (char*) &_cache[_tm.tm_sec];
+            *(uint16*)(_buf + 8) = _tb60[_tm.tm_min];
+            char* p = (char*)(_tb60 + _tm.tm_sec);
             _buf[11] = p[0];
             _buf[12] = p[1];
         }
@@ -357,8 +381,25 @@ const char* LogTime::update() {
     } while (0);
 
   reset:
-    this->reset();
+    this->reset(now_sec);
     return _buf;
+}
+
+void LogTime::reset(time_t sec) {
+    if (sec != 0) {
+        _start = sec;
+    } else {
+        int64 now_ms = epoch::ms();
+        _start = now_ms / 1000;
+        _ms = _tb1000[(uint32)(now_ms - _start * 1000)];
+    }
+
+  #ifdef _WIN32
+    _localtime64_s(&_tm, &_start);
+  #else
+    localtime_r(&_start, &_tm);
+  #endif
+    strftime(_buf, 16, "%m%d %H:%M:%S", &_tm);
 }
 
 } // namespace xx

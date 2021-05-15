@@ -44,14 +44,35 @@ enum LogLevel {
     fatal = 4
 };
 
+// xxx0523 17:00:00.123xxxx
+struct log_time_t {
+    enum {
+        size = 13,
+        total_size = 17
+    };
+    char buf[24];
+    char* data;
+
+    log_time_t() {
+        memset(buf, 0, 24);
+        data = buf + 3;
+    }
+
+    void update(const char* s) {
+        memcpy(data, s, size);
+    }
+
+    void update_ms(uint32 ms) {
+        *((uint32*)(buf + 16)) = ms;
+    }
+};
+
 class LevelLogSaver {
   public:
     LevelLogSaver(const char* file, unsigned line, int level) {
         if (unlikely(xxLog == 0)) xxLog = new fastream(128);
-        xxLog->clear();
-
-        (*xxLog) << "DIWEF"[level];
-        xxLog->resize(14); // make room for time: 1108 18:16:08
+        xxLog->resize(log_time_t::total_size + 1); // make room for time
+        xxLog->front() = "DIWEF"[level];
         (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
@@ -69,9 +90,8 @@ class FatalLogSaver {
   public:
     FatalLogSaver(const char* file, unsigned int line) {
         if (unlikely(xxLog == 0)) xxLog = new fastream(128);
-        xxLog->clear();
-        (*xxLog) << 'F';
-        xxLog->resize(14);
+        xxLog->resize(log_time_t::total_size + 1);
+        xxLog->front() = 'F';
         (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
@@ -90,7 +110,7 @@ class CLogSaver {
     CLogSaver() : _fs(128) {}
 
     CLogSaver(const char* file, unsigned int line) : _fs(128) {
-        _fs << file << ':' << line << ']' << ' ';
+        _fs << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~CLogSaver() {
