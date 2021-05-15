@@ -7,37 +7,36 @@
 #include <Windows.h>
 
 namespace now {
+namespace _Mono {
+inline int64 _QueryFrequency() {
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    return freq.QuadPart;
+}
 
-struct _Mono {
-    static inline int64 _QueryFrequency() {
-        LARGE_INTEGER freq;
-        QueryPerformanceFrequency(&freq);
-        return freq.QuadPart;
-    }
+inline int64 _QueryCounter() {
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return counter.QuadPart;
+}
 
-    static inline int64 _QueryCounter() {
-        LARGE_INTEGER counter;
-        QueryPerformanceCounter(&counter);
-        return counter.QuadPart;
-    }
+inline const int64& _Frequency() {
+    static int64 freq = _QueryFrequency();
+    return freq;
+}
 
-    static inline const int64& _Frequency() {
-        static int64 freq = _QueryFrequency();
-        return freq;
-    }
+inline int64 ms() {
+    int64 count = _QueryCounter();
+    const int64& freq = _Frequency();
+    return (count / freq) * 1000 + (count % freq * 1000 / freq);
+}
 
-    static inline int64 ms() {
-        int64 count = _QueryCounter();
-        const int64& freq = _Frequency();
-        return (count / freq) * 1000 + (count % freq * 1000 / freq);
-    }
-
-    static inline int64 us() {
-        int64 count = _QueryCounter();
-        const int64& freq = _Frequency();
-        return (count / freq) * 1000000 + (count % freq * 1000000 / freq);
-    }
-};
+inline int64 us() {
+    int64 count = _QueryCounter();
+    const int64& freq = _Frequency();
+    return (count / freq) * 1000000 + (count % freq * 1000000 / freq);
+}
+} // _Mono
 
 int64 ms() {
     return _Mono::ms();
@@ -52,9 +51,10 @@ fastring str(const char* fm) {
     struct tm t;
     _localtime64_s(&t, &x);
 
-    char buf[32]; // 32 is big enough int most cases
-    size_t r = strftime(buf, 32, fm, &t);
-    return fastring(buf, r);
+    fastring s(32); // 32 is big enough in most cases
+    const size_t r = strftime((char*)s.data(), 32, fm, &t);
+    s.resize(r);
+    return s;
 }
 
 } // now

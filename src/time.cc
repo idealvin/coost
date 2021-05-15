@@ -5,34 +5,36 @@
 #include <sys/time.h>
 
 namespace now {
+namespace _Mono {
 
-struct _Mono {
-  #ifdef CLOCK_MONOTONIC
-    static inline int64 ms() {
-        struct timespec t;
-        clock_gettime(CLOCK_MONOTONIC, &t);
-        return static_cast<int64>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
-    }
+#ifdef CLOCK_MONOTONIC
+inline int64 ms() {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
+}
 
-    static inline int64 us() {
-        struct timespec t;
-        clock_gettime(CLOCK_MONOTONIC, &t);
-        return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
-    }
-  #else
-    static inline int64 ms() {
-        struct timeval t;
-        gettimeofday(&t, 0);
-        return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
-    }
+inline int64 us() {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
+}
 
-    static inline int64 us() {
-        struct timeval t;
-        gettimeofday(&t, 0);
-        return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
-    }
-  #endif
-};
+#else
+inline int64 ms() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
+}
+
+inline int64 us() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
+}
+#endif
+
+} // _Mono
 
 int64 ms() {
     return _Mono::ms();
@@ -47,9 +49,10 @@ fastring str(const char* fm) {
     struct tm t;
     localtime_r(&x, &t);
 
-    char buf[32]; // 32 is big enough in most cases
-    size_t r = strftime(buf, 32, fm, &t);
-    return fastring(buf, r);
+    fastring s(32); // 32 is big enough in most cases
+    const size_t r = strftime((char*)s.data(), 32, fm, &t);
+    s.resize(r);
+    return s;
 }
 
 } // now
