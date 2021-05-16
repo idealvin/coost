@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
+#include "co/co/hook.h"
 #include <assert.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -124,7 +125,7 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*) _p;
     if (!p || p->fd == nullfd) return;
-    ::close(p->fd);
+    raw_close(p->fd);
     p->fd = nullfd;
 }
 
@@ -135,7 +136,7 @@ void file::seek(int64 off, int whence) {
 }
 
 size_t file::read(void* s, size_t n) {
-    int64 r = ::read(((fctx*)_p)->fd, s, n);
+    int64 r = raw_read(((fctx*)_p)->fd, s, n);
     return r < 0 ? 0 : (size_t)r;
 }
 
@@ -146,7 +147,7 @@ fastring file::read(size_t n) {
 }
 
 size_t file::write(const void* s, size_t n) {
-    int64 r = ::write(((fctx*)_p)->fd, s, n);
+    int64 r = raw_write(((fctx*)_p)->fd, s, n);
     return r < 0 ? 0 : (size_t)r;
 }
 
