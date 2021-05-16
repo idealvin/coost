@@ -113,25 +113,19 @@ class Thread {
         assert(_h != INVALID_HANDLE_VALUE);
     }
 
-    explicit Thread(void (*f)())
-        : Thread(new_closure(f)) {
+    template<typename F>
+    explicit Thread(F&& f)
+        : Thread(new_closure(std::forward<F>(f))) {
     }
 
-    Thread(void (*f)(void*), void* p)
-        : Thread(new_closure(f, p)) {
+    template<typename F, typename P>
+    Thread(F&& f, P&& p)
+        : Thread(new_closure(std::forward<F>(f), std::forward<P>(p))) {
     }
 
-    template<typename T>
-    Thread(void (T::*f)(), T* p)
-        : Thread(new_closure(f, p)) {
-    }
-
-    explicit Thread(std::function<void()>&& f)
-        : Thread(new_closure(std::move(f))) {
-    }
-
-    explicit Thread(const std::function<void()>& f)
-        : Thread(new_closure(f)) {
+    template<typename F, typename T, typename P>
+    Thread(F&& f, T* t, P&& p)
+        : Thread(new_closure(std::forward<F>(f), t, std::forward<P>(p))) {
     }
 
     ~Thread() {
