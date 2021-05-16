@@ -3,11 +3,11 @@
 
 #include "co/__/stack_trace.h"
 #include "co/fs.h"
+#include "co/os.h"
 #include "StackWalker.hpp"
 
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 
 namespace {
 
@@ -23,12 +23,16 @@ struct Param {
     }
 
     char* s;
-    unsigned int n; // 16k
+    unsigned int n;
     fs::file* f;
     void (*cb)();
     void* p;
     void* h;
 };
+
+inline void write_to_stderr(const char* s, size_t n) {
+    auto r = fwrite(s, 1, n, stderr); (void)r;
+}
 
 class StackTraceImpl : public StackTrace, public StackWalker {
   public:
@@ -45,8 +49,7 @@ class StackTraceImpl : public StackTrace, public StackWalker {
 
     virtual void OnOutput(LPCSTR s) {
         size_t len = strlen(s);
-        fwrite(s, 1, len, stderr);
-
+        write_to_stderr(s, len);
         fs::file* f = (fs::file*) kParam->f;
         if (f) f->write(s, len);
     }
@@ -75,7 +78,7 @@ const int kOptions =
 StackTraceImpl::StackTraceImpl() : StackWalker(kOptions) {
     kParam = new Param;
     kParam->p = this;
-    signal(SIGABRT, &StackTraceImpl::on_signal);
+    os::set_sig_handler(SIGABRT, &StackTraceImpl::on_signal);
 
     // Signal handler for SIGSEGV and SIGFPE installed in main thread
     // does not work for other threads. SetUnhandledExceptionFilter()
@@ -84,14 +87,14 @@ StackTraceImpl::StackTraceImpl() : StackWalker(kOptions) {
 }
 
 StackTraceImpl::~StackTraceImpl() {
-    signal(SIGABRT, SIG_DFL);
+    os::set_sig_handler(SIGABRT, SIG_DFL);
     RemoveVectoredContinueHandler(kParam->h);
     delete kParam;
 }
 
 inline void write_msg(const char* msg, size_t len = 0, fs::file* f = 0) {
     if (len == 0) len = strlen(msg);
-    fwrite(msg, 1, len, stderr);
+    write_to_stderr(msg, len);
     if (f) f->write(msg, len);
 }
 

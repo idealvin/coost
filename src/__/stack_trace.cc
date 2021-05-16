@@ -4,8 +4,8 @@
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/fastream.h"
+#include "co/co/hook.h"
 
-#include <signal.h>
 #include <unistd.h>
 #include <execinfo.h>
 #include <sys/wait.h>
@@ -16,18 +16,6 @@
 #include <dlfcn.h>
 
 namespace {
-
-typedef void (*sig_handler_t)(int);
-
-bool set_sig_handler(int sig, sig_handler_t handler, int flag) {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sigemptyset(&sa.sa_mask);
-
-    if (flag > 0) sa.sa_flags = flag;
-    sa.sa_handler = handler;
-    return sigaction(sig, &sa, NULL) == 0;
-}
 
 struct Param {
     Param() : f(0), cb(0), s(8 * 1024) {
@@ -69,41 +57,43 @@ Param* StackTraceImpl::kParam = 0;
 StackTraceImpl::StackTraceImpl() {
     kParam = new Param;
     const int flag = SA_RESTART | SA_ONSTACK;
-    set_sig_handler(SIGSEGV, &StackTraceImpl::on_signal, flag);
-    set_sig_handler(SIGABRT, &StackTraceImpl::on_signal, flag);
-    set_sig_handler(SIGFPE, &StackTraceImpl::on_signal, flag);
-    set_sig_handler(SIGBUS, &StackTraceImpl::on_signal, flag);
-    set_sig_handler(SIGILL, &StackTraceImpl::on_signal, flag);
-    set_sig_handler(SIGPIPE, SIG_IGN, 0);
+    os::set_sig_handler(SIGSEGV, &StackTraceImpl::on_signal, flag);
+    os::set_sig_handler(SIGABRT, &StackTraceImpl::on_signal, flag);
+    os::set_sig_handler(SIGFPE, &StackTraceImpl::on_signal, flag);
+    os::set_sig_handler(SIGBUS, &StackTraceImpl::on_signal, flag);
+    os::set_sig_handler(SIGILL, &StackTraceImpl::on_signal, flag);
 }
 
 StackTraceImpl::~StackTraceImpl() {
-    set_sig_handler(SIGSEGV, SIG_DFL, 0);
-    set_sig_handler(SIGABRT, SIG_DFL, 0);
-    set_sig_handler(SIGFPE, SIG_DFL, 0);
-    set_sig_handler(SIGBUS, SIG_DFL, 0);
-    set_sig_handler(SIGILL, SIG_DFL, 0);
+    os::set_sig_handler(SIGSEGV, SIG_DFL);
+    os::set_sig_handler(SIGABRT, SIG_DFL);
+    os::set_sig_handler(SIGFPE, SIG_DFL);
+    os::set_sig_handler(SIGBUS, SIG_DFL);
+    os::set_sig_handler(SIGILL, SIG_DFL);
     delete kParam;
+}
+
+inline void write_to_stderr(const char* s, size_t n) {
+    auto r = raw_write(STDERR_FILENO, s, n);
+    (void)r;
 }
 
 #define write_msg(msg, len, f) \
     do { \
-        auto r = write(STDERR_FILENO, msg, len); \
-        (void)r; \
+        write_to_stderr(msg, len); \
         if (f) f->write(msg, len); \
     } while (0)
 
 #define safe_abort(n) \
     do { \
         kill(getppid(), SIGCONT); \
-        set_sig_handler(SIGABRT, SIG_DFL, 0); \
+        os::set_sig_handler(SIGABRT, SIG_DFL); \
         abort(); \
     } while (n)
 
 #define abort_if(cond, msg) \
     if (cond) { \
-        auto r = write(STDERR_FILENO, msg, strlen(msg)); \
-        (void)r; \
+        write_to_stderr(msg, strlen(msg)); \
         safe_abort(0); \
     }
 
@@ -113,7 +103,7 @@ static void addr2line(const char* exe, const char* addr, char* buf, size_t len) 
 
     pid_t pid = fork();
     if (pid == 0) {
-        close(pipefd[0]);
+        raw_close(pipefd[0]);
         dup2(pipefd[1], STDOUT_FILENO);
         dup2(pipefd[1], STDERR_FILENO);
 
@@ -126,11 +116,11 @@ static void addr2line(const char* exe, const char* addr, char* buf, size_t len) 
       #endif
     }
 
-    close(pipefd[1]);
+    raw_close(pipefd[1]);
     abort_if(waitpid(pid, NULL, 0) != pid, "waitpid failed");
 
-    ssize_t r = read(pipefd[0], buf, len - 1);
-    close(pipefd[0]);
+    ssize_t r = raw_read(pipefd[0], buf, len - 1);
+    raw_close(pipefd[0]);
     buf[r > 0 ? r : 0] = '\0';
 }
 
@@ -143,7 +133,7 @@ void StackTraceImpl::on_signal(int sig) {
         int status;
         kill(getpid(), SIGSTOP);
         waitpid(pid, &status, WNOHANG);
-        set_sig_handler(SIGABRT, SIG_DFL, 0);
+        os::set_sig_handler(SIGABRT, SIG_DFL);
         abort();
     }
 
@@ -225,7 +215,7 @@ void StackTraceImpl::on_signal(int sig) {
         fs << (*line ? line : "???\n");
       #endif
 
-        if (check_failed && i == nskip) fwrite("\n", 1, 1, stderr);
+        if (check_failed && i == nskip) write_to_stderr("\n", 1);
         write_msg(fs.data(), fs.size(), file);
         fs.clear();
     }
