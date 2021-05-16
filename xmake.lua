@@ -54,4 +54,4 @@ add_installfiles("(include/**)", {prefixdir = ""})
 add_installfiles("*.md", {prefixdir = "include/co"})
 
 -- include sub-projects
-includes("src", "gen", "test", "unitest")
+includes("src", "gen", "test", "unitest", "benchmark")

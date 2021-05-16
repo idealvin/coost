@@ -1,329 +1,70 @@
-## Basic [(中文)](readme_cn.md)
+## benchmark
 
-`CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It pursues simplicity and efficiency, and does not rely on third-party libraries such as [boost](https://www.boost.org/), and provides optional support for ssl, http and https with libcurl & openssl.
+### log benchmark
 
-`CO` includes coroutine library, network library, log library, command line and configuration file parsing library, unit test framework, json library, etc.
-
-
-## Documents
-
-- [English](https://idealvin.gitee.io/coding/2020/07/co_en/)
-- [中文](https://idealvin.gitee.io/coding/2020/07/co/)
-
-
-## Highlights
-
-### Coroutine (co)
-
-[co](https://github.com/idealvin/co/blob/master/include/co/co.h) is a [golang-style](https://github.com/golang/go) C++ coroutine library with the following features:
-
-- Multi-thread scheduling, the default number of threads is the number of system CPU cores.
-- Coroutines share the thread stack (default size is 1MB), and the memory footprint is low, a single machine can easily create millions of coroutines.
-- System api hook (Linux & Mac).
-- Coroutine lock [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
-- Coroutine synchronization event [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
-- Coroutine Pool [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
-- Coroutineized [socket API](https://github.com/idealvin/co/blob/master/include/co/co/sock.h).
-
-- create coroutine with `go()`:
-  ```cpp
-  void f() {
-      LOG << "hello world";
-  }
-
-  void g(int v) {
-      LOG << "hello "<< v;
-  }
-
-  go(f);
-  go(g, 777);
-  ```
-
-
-### Network (so)
-
-[so](https://github.com/idealvin/co/blob/master/include/co/so) is a C++ network library based on coroutines. It provides a general ipv6-compatible TCP framework and implements a simple json-based rpc framework, and also provides an optional support for HTTP, HTTPS and SSL.
-
-- Simple static web server
-  ```cpp
-  #include "co/flag.h"
-  #include "co/log.h"
-  #include "co/so.h"
-
-  DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
-
-  int main(int argc, char** argv) {
-      flag::init(argc, argv);
-      log::init();
-
-      so::easy(FLG_d.c_str()); // mum never have to worry again
-
-      return 0;
-  }
-  ```
-
-- http server ([openssl](https://www.openssl.org/) required for https)
-  ```cpp
-  http::Server serv;
-
-  serv.on_req(
-      [](const http::Req& req, http::Res& res) {
-          if (req.is_method_get()) {
-              if (req.url() == "/hello") {
-                  res.set_status(200);
-                  res.set_body("hello world");
-              } else {
-                  res.set_status(404);
-              }
-          } else {
-              res.set_status(405); // method not allowed
-          }
-      }
-  );
-
-  serv.start("0.0.0.0", 80);                                    // http
-  serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
-  ```
-
-- http client ([libcurl](https://curl.se/libcurl/) & zlib required)
-  ```cpp
-  http::Client c("http://127.0.0.1:7777"); // http
-  http::Client c("https://github.com");    // https, openssl required
-  c.add_header("hello", "world");          // add headers here
-
-  c.get("/");
-  LOG << "response code: "<< c.response_code();
-  LOG << "body size: "<< c.body_size();
-  LOG << "Content-Length: "<< c.header("Content-Length");
-  LOG << c.header();
-
-  c.post("/hello", "data xxx");
-  LOG << "response code: "<< c.response_code();
-  ```
-
-
-### Log library (log)
-
-[log](https://github.com/idealvin/co/blob/master/include/co/log.h) is a high-performance local log system.
-
-- Print logs
-  ```cpp
-  LOG << "hello " << 23; // info
-  DLOG << "hello" << 23; // debug
-  WLOG << "hello" << 23; // warning
-  ELOG << "hello again"; // error
-  ```
-
-- Performance vs glog
-  | log vs glog | google glog | co/log |
-  | ------ | ------ | ------ |
-  | win2012 HHD | 1.6MB/s | 180MB/s |
-  | win10 SSD | 3.7MB/s | 560MB/s |
-  | mac SSD | 17MB/s | 450MB/s |
-  | linux SSD | 54MB/s | 1023MB/s |
-  
-The above table is the test result of one million info logs (about 50 bytes each) continuously printed by a single thread. The [co/log](https://github.com/idealvin/co/blob/master/include/log.h) is almost two orders of magnitude faster than [glog](https://github.com/google/glog).
-
-Why is it so fast? The first is that it is based on [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) that is 8-25 times faster than `sprintf`. The second is that it has almost no memory allocation operations.
-
-
-### Command line and configuration file parsing (flag)
-
-[flag](https://github.com/idealvin/co/blob/master/include/co/flag.h) is a convenient and easy-to-use command line and configuration file parsing library that supports automatic generation of configuration files.
-
-- Code example
-  ```cpp
-  #include "co/flag.h"
-
-  DEF_int32(i, 32, "comments");
-  DEF_string(s, "xxx", "string type");
-
-  int main(int argc, char** argv) {
-      flag::init(argc, argv);
-      std::cout << "i: "<< FLG_i << std::endl;
-      std::cout << "s: "<< FLG_s << std::endl;
-      return 0;
-  }
-  ```
-
-- Build and run
+- build and run
   ```sh
-  ./xx                         # start with default config values
-  ./xx -i=4k -s="hello world"  # integer types can take units k,m,g,t,p, non-case sensitive
-  ./xx -i 4k -s "hello world"  # same as above
-  ./xx --mkconf                # generate configuration file xx.conf
-  ./xx xx.conf                 # start from configuration file
-  ./xx -config xx.conf         # start from configuration file
+  # build log benchmark
+  xmake -b log_bm
+
+  # run with single thread, 1 million info logs in total.
+  xmake r log_bm
+
+  # run with 2 threads, 1 million info logs in total.
+  xmake r log_bm -t 2
+
+  # run with 4 threads, 1 million info logs in total.
+  xmake r log_bm -t 4
+
+  # run with 8 threads, 1 million info logs in total.
+  xmake r log_bm -t 8
   ```
+
+- results(test on windows)
+
+  | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
+  | ------ | ------ | ------ | ------ |
+  | 1 | 1000000 | 0.103619 | 0.482525 |
+  | 2 | 1000000 | 0.202246 | 0.565262 |
+  | 4 | 1000000 | 0.330694 | 0.722709 |
+  | 8 | 1000000 | 0.386760 | 1.322471 |
 
 
 ### json
 
-[json](https://github.com/idealvin/co/blob/master/include/json.h) is an easy-to-use, high-performance json library. The latest version stores the Json object in a piece of contiguous memory, nearly no memory allocation is needed during pasing Json from a string, which greatly improves the parsing speed(GB per second).
-
-- Code example
-  ```cpp
-  #include "co/json.h"
-
-  // Json: {"hello":"json", "array":[123, 3.14, true, "nice"]}
-  json::Root r;
-  r.add_member("hello", "json");        // add key:value pair
-
-  json::Value a = r.add_array("array"); // add key:array
-  a.push_back(123, 3.14, true, "nice"); // push value to array, accepts any number of parameters
-
-  COUT << a[0].get_int();               // 123
-  COUT << r["array"][0].get_int();      // 123
-  COUT << r["hello"].get_string();      // "json"
-
-  fastring s = r.str();                 // convert Json to string
-  fastring p = r.pretty();              // convert Json to human-readable string
-  json::Root x = json::parse(s);        // parse Json from a string
-  ```
-
-
-## Code composition
-
-- [co/include](https://github.com/idealvin/co/tree/master/include)
-
-  Header files of `libco`.
-
-- [co/src](https://github.com/idealvin/co/tree/master/src)
-
-  Source files of `libco`.
-
-- [co/test](https://github.com/idealvin/co/tree/master/test)
-
-  Some test codes, each `.cc` file will be compiled into a separate test program.
-
-- [co/unitest](https://github.com/idealvin/co/tree/master/unitest)
-
-  Some unit test codes, each `.cc` file corresponds to a different test unit, and all codes will be compiled into a single test program.
-
-- [co/gen](https://github.com/idealvin/co/tree/master/gen)
-
-  A code generation tool automatically generates rpc framework code according to the proto file.
-
-
-## Building
-
-### xmake
-
-`CO` recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
-
-- Compiler
-  - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
-  - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-  - Windows: [vs2015+](https://visualstudio.microsoft.com/)
-
-- Install xmake
-
-  For windows, mac and debian/ubuntu, you can go directly to the [release page of xmake](https://github.com/xmake-io/xmake/releases) to get the installation package. For other systems, please refer to xmake's [Installation instructions](https://xmake.io/#/guide/installation).
-
-  Xmake disables compiling as root by default on linux. [ruki](https://github.com/waruqi) says it is not safe. You can add the following line to `~/.bashrc` to enable it:
+- build and run
   ```sh
-  export XMAKE_ROOT=y
+  # cd to root directory of co
+  cd co
+
+  # get twitter.json
+  wget https://raw.githubusercontent.com/simdjson/simdjson/master/jsonexamples/twitter.json
+
+  # build json benchmark
+  xmake -b json_bm
+
+  # copy twitter.json to the release dir
+  cp twitter.json build/windows/x64/release/twitter.json
+  cp twitter.json build/linux/x86_64/release/twitter.json
+
+  # run benchmark with twitter.json
+  xmake r json_bm
+
+  # run benchmark with minimal twitter.json
+  xmake r json_bm -minimal
   ```
 
-- Quick start
-
-  ```sh
-  # All commands are executed in the root directory of co (the same below)
-  xmake      # build libco and gen by default
-  xmake -a   # build all projects (libco, gen, co/test, co/unitest)
-  ```
-
-- build libco
-
-  ```sh
-  xmake build libco     # build libco only
-  xmake -b libco        # same as above
-  ```
-
-- build and run unitest code
-
-  [co/unitest](https://github.com/idealvin/co/tree/master/unitest) contains some unit test codes, which are used to check the correctness of the functionality of libco.
-
-  ```sh
-  xmake build unitest    # build can be abbreviated as -b
-  xmake run unitest -a   # run all unit tests
-  xmake r unitest -a     # same as above
-  xmake r unitest -os    # run unit test os
-  xmake r unitest -json  # run unit test json
-  ```
-
-- build and run test code
-
-  [co/test](https://github.com/idealvin/co/tree/master/test) contains some test codes. You can easily add a source file like `xxx.cc` in the directory `co/test` or its subdirectories, and then run `xmake build xxx` to build it.
-
-  ```sh
-  xmake build flag             # flag.cc
-  xmake build log              # log.cc
-  xmake build json             # json.cc
-  xmake build rapidjson        # rapidjson.cc
-  xmake build rpc              # rpc.cc
-  xmake build easy             # so/easy.cc
-  
-  xmake r flag -xz             # test flag
-  xmake r log                  # test log
-  xmake r log -cout            # also log to terminal
-  xmake r log -perf            # performance test
-  xmake r json                 # test json
-  xmake r rapidjson            # test rapidjson
-  xmake r rpc                  # start rpc server
-  xmake r rpc -c               # start rpc client
-  xmake r easy -d xxx          # start web server
-  ```
-
-- build gen
-
-  ```sh
-  # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
-  xmake build gen
-  gen hello_world.proto
-  ```
-
-  Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto).
-
-- Installation
-
-  ```sh
-  # Install header files, libco, gen by default.
-  xmake install -o pkg         # package related files to the pkg directory
-  xmake i -o pkg               # the same as above
-  xmake install -o /usr/local  # install to the /usr/local directory
-  ```
-
-### cmake
-
-[izhengfan](https://github.com/izhengfan) helped provide cmake support:
-- By default, only `libco` and `gen` are build.
-- The library files are in the `build/lib` directory, and the executable files are in the `build/bin` directory.
-- You can use `BUILD_ALL` to compile all projects.
-- You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
-
-  ```sh
-  mkdir build && cd build
-  cmake ..
-  cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
-  make -j8
-  make install
-  ```
+- results on linux
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 1233.701 us | 2503 us | 1057.799 us | 2243 us |
+  | simdjson | 385.3 us | 1779 us| 351.752 us | 2298 us |
+  | co/json | 666.979 us | 1660 us | 457.381 us | 981 us |
 
 
-## License
-
-The MIT license. `CO` contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
-
-
-## Special thanks
-
-- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
-- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
-- [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
-- [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!
-
-
-## Donate
-
-Goto the [Donate](https://idealvin.github.io/donate/) page.
+- results on windows
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 4197.339 us | 3008 us | 4078.067 us | 2216 us |
+  | simdjson | 843.06 us | 2373 us| 607.946 us | 2119 us |
+  | co/json | 717.444 us | 1514 us | 623.745 us | 993 us |
