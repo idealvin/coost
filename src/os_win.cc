@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
 #include "co/os.h"
+#include <signal.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -57,6 +58,10 @@ int cpunum() {
 }
 
 void daemon() {}
+
+sig_handler_t set_sig_handler(int sig, sig_handler_t handler, int) {
+    return signal(sig, handler);
+}
 
 } // os
 

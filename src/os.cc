@@ -60,6 +60,16 @@ fastring exepath() {
 void daemon() {}
 #endif
 
+sig_handler_t set_sig_handler(int sig, sig_handler_t handler, int flag) {
+    struct sigaction sa, old;
+    memset(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
+    if (flag > 0) sa.sa_flags = flag;
+    sa.sa_handler = handler;
+    int r = sigaction(sig, &sa, &old);
+    return r == 0 ? old.sa_handler : SIG_ERR;
+}
+
 } // os
 
 #endif
