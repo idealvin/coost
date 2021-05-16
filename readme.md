@@ -260,7 +260,6 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
   xmake build flag             # flag.cc
   xmake build log              # log.cc
   xmake build json             # json.cc
-  xmake build rapidjson        # rapidjson.cc
   xmake build rpc              # rpc.cc
   xmake build easy             # so/easy.cc
   
@@ -269,7 +268,6 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
   xmake r log -cout            # also log to terminal
   xmake r log -perf            # performance test
   xmake r json                 # test json
-  xmake r rapidjson            # test rapidjson
   xmake r rpc                  # start rpc server
   xmake r rpc -c               # start rpc client
   xmake r easy -d xxx          # start web server

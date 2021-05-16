@@ -259,7 +259,6 @@
   xmake build flag             # 编译 flag.cc
   xmake build log              # 编译 log.cc
   xmake build json             # 编译 json.cc
-  xmake build rapidjson        # 编译 rapidjson.cc
   xmake build rpc              # 编译 rpc.cc
   xmake build easy             # 编译 so/easy.cc
   
@@ -268,7 +267,6 @@
   xmake r log -cout            # 终端也打印日志
   xmake r log -perf            # log 库性能测试
   xmake r json                 # 测试 json
-  xmake r rapidjson            # 测试 rapidjson
   xmake r rpc                  # 启动 rpc server
   xmake r rpc -c               # 启动 rpc client
   xmake r easy -d xxx          # 启动 web server
