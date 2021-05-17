@@ -32,9 +32,9 @@ class Tasked {
     }
 
     // run_at(f, 23, 0, 0);  -> run f() once at 23:00:00
-    void run_at(F&& f, int hour=0, int minute=0, int second=0);
+    void run_at(F&& f, int hour, int minute=0, int second=0);
 
-    void run_at(const F& f, int hour=0, int minute=0, int second=0) {
+    void run_at(const F& f, int hour, int minute=0, int second=0) {
         this->run_at(F(f), hour, minute, second);
     }
 
