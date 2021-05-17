@@ -111,13 +111,15 @@ file::operator bool() const {
 
 const fastring& file::path() const {
     fctx* p = (fctx*) _p;
-    return p->path;
+    if (p) return p->path;
+    static fastring kPath;
+    return kPath;
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
     fctx* p = (fctx*) _p;
-    if (!p) _p = p = new fctx;
+    if (!p) _p = (p = new fctx);
     p->path = path;
     return (p->fd = xx::open(path, mode)) != nullfd;
 }
@@ -131,13 +133,20 @@ void file::close() {
 
 void file::seek(int64 off, int whence) {
     static int seekfrom[3] = { SEEK_SET, SEEK_CUR, SEEK_END };
-    whence = seekfrom[whence];
-    ::lseek(((fctx*)_p)->fd, off, whence);
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        whence = seekfrom[whence];
+        ::lseek(p->fd, off, whence);
+    }
 }
 
 size_t file::read(void* s, size_t n) {
-    int64 r = raw_read(((fctx*)_p)->fd, s, n);
-    return r < 0 ? 0 : (size_t)r;
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        auto r = raw_read(p->fd, s, n);
+        return r < 0 ? 0 : (size_t)r;
+    }
+    return 0;
 }
 
 fastring file::read(size_t n) {
@@ -147,8 +156,12 @@ fastring file::read(size_t n) {
 }
 
 size_t file::write(const void* s, size_t n) {
-    int64 r = raw_write(((fctx*)_p)->fd, s, n);
-    return r < 0 ? 0 : (size_t)r;
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        auto r = raw_write(p->fd, s, n);
+        return r < 0 ? 0 : (size_t)r;
+    }
+    return 0;
 }
 
 #undef nullfd
