@@ -59,8 +59,8 @@ int cpunum() {
 
 void daemon() {}
 
-sig_handler_t set_sig_handler(int sig, sig_handler_t handler, int) {
-    return signal(sig, handler);
+sig_handler_t signal(int sig, sig_handler_t handler, int) {
+    return ::signal(sig, handler);
 }
 
 } // os

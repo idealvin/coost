@@ -57,19 +57,19 @@ Param* StackTraceImpl::kParam = 0;
 StackTraceImpl::StackTraceImpl() {
     kParam = new Param;
     const int flag = SA_RESTART | SA_ONSTACK;
-    os::set_sig_handler(SIGSEGV, &StackTraceImpl::on_signal, flag);
-    os::set_sig_handler(SIGABRT, &StackTraceImpl::on_signal, flag);
-    os::set_sig_handler(SIGFPE, &StackTraceImpl::on_signal, flag);
-    os::set_sig_handler(SIGBUS, &StackTraceImpl::on_signal, flag);
-    os::set_sig_handler(SIGILL, &StackTraceImpl::on_signal, flag);
+    os::signal(SIGSEGV, &StackTraceImpl::on_signal, flag);
+    os::signal(SIGABRT, &StackTraceImpl::on_signal, flag);
+    os::signal(SIGFPE, &StackTraceImpl::on_signal, flag);
+    os::signal(SIGBUS, &StackTraceImpl::on_signal, flag);
+    os::signal(SIGILL, &StackTraceImpl::on_signal, flag);
 }
 
 StackTraceImpl::~StackTraceImpl() {
-    os::set_sig_handler(SIGSEGV, SIG_DFL);
-    os::set_sig_handler(SIGABRT, SIG_DFL);
-    os::set_sig_handler(SIGFPE, SIG_DFL);
-    os::set_sig_handler(SIGBUS, SIG_DFL);
-    os::set_sig_handler(SIGILL, SIG_DFL);
+    os::signal(SIGSEGV, SIG_DFL);
+    os::signal(SIGABRT, SIG_DFL);
+    os::signal(SIGFPE, SIG_DFL);
+    os::signal(SIGBUS, SIG_DFL);
+    os::signal(SIGILL, SIG_DFL);
     delete kParam;
 }
 
@@ -87,7 +87,7 @@ inline void write_to_stderr(const char* s, size_t n) {
 #define safe_abort(n) \
     do { \
         kill(getppid(), SIGCONT); \
-        os::set_sig_handler(SIGABRT, SIG_DFL); \
+        os::signal(SIGABRT, SIG_DFL); \
         abort(); \
     } while (n)
 
@@ -133,7 +133,7 @@ void StackTraceImpl::on_signal(int sig) {
         int status;
         kill(getpid(), SIGSTOP);
         waitpid(pid, &status, WNOHANG);
-        os::set_sig_handler(SIGABRT, SIG_DFL);
+        os::signal(SIGABRT, SIG_DFL);
         abort();
     }
 

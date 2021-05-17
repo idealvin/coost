@@ -33,6 +33,6 @@ typedef void (*sig_handler_t)(int);
 
 // set a handler for the specified signal
 // return the old handler.
-sig_handler_t set_sig_handler(int sig, sig_handler_t handler, int flag=0);
+sig_handler_t signal(int sig, sig_handler_t handler, int flag=0);
 
 } // namespace os

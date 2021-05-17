@@ -39,11 +39,11 @@ void on_failure();
 void on_signal(int sig);
 
 inline void install_signal_handler() {
-    os::set_sig_handler(SIGINT, xx::on_signal);
-    os::set_sig_handler(SIGTERM, xx::on_signal);
+    os::signal(SIGINT, xx::on_signal);
+    os::signal(SIGTERM, xx::on_signal);
   #ifndef _WIN32
-    os::set_sig_handler(SIGQUIT, xx::on_signal);
-    os::set_sig_handler(SIGPIPE, SIG_IGN);
+    os::signal(SIGQUIT, xx::on_signal);
+    os::signal(SIGPIPE, SIG_IGN);
   #endif
 }
 
@@ -318,7 +318,7 @@ void on_failure() {
 
 void on_signal(int sig) {
     level_logger()->safe_stop();
-    os::set_sig_handler(sig, SIG_DFL);
+    os::signal(sig, SIG_DFL);
     raise(sig);
 }
 
