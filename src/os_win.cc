@@ -46,7 +46,7 @@ int pid() {
     return (int) GetCurrentProcessId();
 }
 
-static inline int _Cpunum() {
+inline int _Cpunum() {
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return (int) info.dwNumberOfProcessors;
