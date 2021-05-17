@@ -56,7 +56,7 @@ fastring str(const char* fm) {
 
     char buf[256];
     const size_t r = strftime(buf, sizeof(buf), fm, &t);
-    return fastring(buf);
+    return fastring(buf, r);
 }
 
 } // now
