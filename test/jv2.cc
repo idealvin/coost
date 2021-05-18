@@ -4,7 +4,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    json::Root r;
+    Json r;
     CLOG << r.is_null();
 
     r.add_member("name", "Bob");
