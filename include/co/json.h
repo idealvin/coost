@@ -253,9 +253,9 @@ class Root {
         fastream& str(fastream& fs)     const { return _root->_Json2str(fs, false, _index); }
         fastream& dbg(fastream& fs)     const { return _root->_Json2str(fs, true, _index); }
         fastream& pretty(fastream& fs)  const { return _root->_Json2pretty(fs, 4, 4, _index); }
-        fastring str(uint32 cap=256)    const { fastream s(cap); return std::move(*(fastring*) &this->str(s)); }
-        fastring dbg(uint32 cap=256)    const { fastream s(cap); return std::move(*(fastring*) &this->dbg(s)); }
-        fastring pretty(uint32 cap=256) const { fastream s(cap); return std::move(*(fastring*) &this->pretty(s)); }
+        fastring str(uint32 cap=256)    const { fastring s(cap); this->str(*(fastream*)&s); return s; }
+        fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(*(fastream*)&s); return s; }
+        fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(*(fastream*)&s); return s; }
 
         class iterator {
           public:
@@ -398,9 +398,9 @@ class Root {
     fastream& str(fastream& fs)     const { return this->_Json2str(fs, false, 0); }
     fastream& dbg(fastream& fs)     const { return this->_Json2str(fs, true, 0); }
     fastream& pretty(fastream& fs)  const { return this->_Json2pretty(fs, 4, 4, 0); }
-    fastring str(uint32 cap=256)    const { fastream s(cap); return std::move(*(fastring*) &this->str(s)); }
-    fastring dbg(uint32 cap=256)    const { fastream s(cap); return std::move(*(fastring*) &this->dbg(s)); }
-    fastring pretty(uint32 cap=256) const { fastream s(cap); return std::move(*(fastring*) &this->pretty(s)); }
+    fastring str(uint32 cap=256)    const { fastring s(cap); this->str(*(fastream*)&s); return s; }
+    fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(*(fastream*)&s); return s; }
+    fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(*(fastream*)&s); return s; }
 
     // Parse Json from string, inverse to stringify.
     bool parse_from(const char* s, size_t n);
@@ -427,6 +427,7 @@ class Root {
 
     iterator _begin(uint32 index) const {
         _Header* h = (_Header*) _p8(index);
+        if (h->type == kNull) return iterator((Root*)this, 0, kNull);
         assert(h->type & (kObject | kArray));
         uint32 q = h->index;
         if (q && ((xx::Queue*)_p8(q))->size == 0) q = 0;
@@ -595,8 +596,10 @@ inline Root object() { return Root(Root::TypeObject()); }
 
 inline Root parse(const char* s, size_t n) {
     void* p = 0;
-    if (((Root*)&p)->parse_from(s, n)) return std::move(*(Root*)&p);
-    return std::move((*(Root*)&p) = Root());
+    Root& r = *(Root*) &p;
+    if (r.parse_from(s, n)) return std::move(r);
+    r.set_null();
+    return std::move(r);
 }
 
 inline Root parse(const char* s)        { return parse(s, strlen(s)); }

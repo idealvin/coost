@@ -93,6 +93,25 @@ DEF_test(json) {
         EXPECT_EQ(s.pretty(), "\"hello world\"");
     }
 
+    DEF_case(operator=) {
+        Json r;
+        json::Value s = r["s"];
+        s = "hello world";
+        EXPECT(s.is_string());
+        
+        s = 1;
+        EXPECT(s.is_int());
+        EXPECT_EQ(s.get_int(), 1);
+
+        s = false;
+        EXPECT(s.is_bool());
+        EXPECT_EQ(s.get_bool(), false);
+
+        s = "xxx";
+        EXPECT(s.is_string());
+        EXPECT_EQ(fastring(s.get_string()), "xxx");
+    }
+    
     DEF_case(array) {
         Json a = json::array();
         EXPECT(a.is_array());
@@ -168,6 +187,8 @@ DEF_test(json) {
 
     DEF_case(iterator) {
         Json v;
+        EXPECT(v.begin() == v.end());
+
         json::Value a = v.add_array("num", 3);
         EXPECT(a.begin() == a.end());
         a.push_back(1);

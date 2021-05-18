@@ -733,6 +733,7 @@ uint32 Root::_size(uint32 index) const {
 
 uint32 Root::_array_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
+    if (h->type == kNull) return 0;
     assert(h->type == kArray);
     uint32 n = 0;
     for (uint32 k = h->index; k != 0;) {
@@ -745,6 +746,7 @@ uint32 Root::_array_size(uint32 index) const {
 
 uint32 Root::_object_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
+    if (h->type == kNull) return 0;
     assert(h->type == kObject);
     uint32 n = 0;
     for (uint32 k = h->index; k != 0;) {
