@@ -110,7 +110,7 @@ class CLogSaver {
     CLogSaver() : _fs(128) {}
 
     CLogSaver(const char* file, unsigned int line) : _fs(128) {
-        _fs << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
+        _fs << file << ':' << line << ']' << ' ';
     }
 
     ~CLogSaver() {
