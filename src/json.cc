@@ -8,7 +8,7 @@ namespace json {
 // return the current position, or NULL on any error
 class Parser {
   public:
-    Parser(Root* root) : _root(root) {}
+    Parser(Json* root) : _root(root) {}
     ~Parser() = default;
 
     bool parse(const char* b, const char* e);
@@ -21,7 +21,7 @@ class Parser {
     const char* parse_null(const char* b, const char* e, uint32& index);
 
   private:
-    Root* _root;
+    Json* _root;
 };
 
 inline const char* Parser::parse_key(const char* b, const char* e, uint32& index) {
@@ -195,7 +195,7 @@ bool Parser::parse(const char* b, const char* e) {
         index = _root->_alloc_queue((char*)(s.p + size), (s.size - size) << 2);
         s.size = size;
         val = s.pop();
-        ((Root::_Header*)_root->_p8(val))->index = index;
+        ((Json::_Header*)_root->_p8(val))->index = index;
     } else {
         val = s.pop();
     }
@@ -439,7 +439,7 @@ const char* Parser::parse_number(const char* b, const char* e, uint32& index) {
     return 0;
 }
 
-bool Root::parse_from(const char* s, size_t n) {
+bool Json::parse_from(const char* s, size_t n) {
     if (_mem == 0) {
         _mem = xx::jalloc()->alloc_jblock(_b8(n + (n >> 1)));
     } else {
@@ -499,7 +499,7 @@ inline const char* find_escapse(const char* b, const char* e, char& c) {
 #endif
 }
 
-fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
+fastream& Json::_Json2str(fastream& fs, bool debug, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kString) {
         fs << '"';
@@ -560,7 +560,7 @@ fastream& Root::_Json2str(fastream& fs, bool debug, uint32 index) const {
 
 // @indent:  4 spaces by default
 // @n:       number of spaces to insert at the beginning for the current line
-fastream& Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
+fastream& Json::_Json2pretty(fastream& fs, int indent, int n, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kObject) {
         fs << '{';
@@ -597,7 +597,7 @@ fastream& Root::_Json2pretty(fastream& fs, int indent, int n, uint32 index) cons
     return fs;
 }
 
-void Root::_add_member(uint32 key, uint32 val, uint32 index) {
+void Json::_add_member(uint32 key, uint32 val, uint32 index) {
     _Header* h = (_Header*)_p8(index);
     if (h->type != kNull) {
         assert(h->type == kObject);
@@ -629,7 +629,7 @@ void Root::_add_member(uint32 key, uint32 val, uint32 index) {
     }
 }
 
-void Root::_push_back(uint32 val, uint32 index) {
+void Json::_push_back(uint32 val, uint32 index) {
     _Header* h = (_Header*)_p8(index);
     if (h->type != kNull) {
         assert(h->type == kArray);
@@ -661,20 +661,20 @@ void Root::_push_back(uint32 val, uint32 index) {
     }
 }
 
-Value Root::_at(uint32 i, uint32 index) const {
+Value Json::_at(uint32 i, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     assert(h->type == kArray);
 
     for (uint32 k = h->index;;) {
         assert(k != 0);
         xx::Queue* a = (xx::Queue*) _p8(k);
-        if (i < a->size) return Value((Root*)this, a->p[i]);
+        if (i < a->size) return Value((Json*)this, a->p[i]);
         i -= a->size;
         k = a->next;
     }
 }
 
-Value Root::_at(Key key, uint32 index) const {
+Value Json::_at(Key key, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type != kNull) {
         assert(h->type == kObject);
@@ -687,19 +687,19 @@ Value Root::_at(Key key, uint32 index) const {
         xx::Queue* a = (xx::Queue*) _p8(k);
         for (uint32 i = 0; i < a->size; i += 2) {
             if (strcmp((const char*)_p8(a->p[i]), key) == 0) {
-                return Value((Root*)this, a->p[i + 1]);
+                return Value((Json*)this, a->p[i + 1]);
             }
         }
         k = a->next;
     }
 
-    const uint32 k = ((Root*)this)->_make_key(key);
-    const uint32 v = ((Root*)this)->_make_null();
-    ((Root*)this)->_add_member(k, v, index);
-    return Value((Root*)this, v);
+    const uint32 k = ((Json*)this)->_make_key(key);
+    const uint32 v = ((Json*)this)->_make_null();
+    ((Json*)this)->_add_member(k, v, index);
+    return Value((Json*)this, v);
 }
 
-bool Root::_has_member(Key key, uint32 index) const {
+bool Json::_has_member(Key key, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kNull) return false;
     assert(h->type == kObject);
@@ -716,7 +716,7 @@ bool Root::_has_member(Key key, uint32 index) const {
     return false;
 }
 
-uint32 Root::_size(uint32 index) const {
+uint32 Json::_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kString) return h->size;
     if (h->type & (kObject | kArray)) {
@@ -731,7 +731,7 @@ uint32 Root::_size(uint32 index) const {
     return 0;
 }
 
-uint32 Root::_array_size(uint32 index) const {
+uint32 Json::_array_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kNull) return 0;
     assert(h->type == kArray);
@@ -744,7 +744,7 @@ uint32 Root::_array_size(uint32 index) const {
     return n;
 }
 
-uint32 Root::_object_size(uint32 index) const {
+uint32 Json::_object_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
     if (h->type == kNull) return 0;
     assert(h->type == kObject);

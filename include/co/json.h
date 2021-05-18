@@ -10,7 +10,7 @@ namespace json {
 namespace xx {
 
 // JBlock is an array of uint64.
-// json::Root will be parsed or constructed as a JBlock.
+// json::Json will be parsed or constructed as a JBlock.
 class JBlock {
   public:
     enum { N = 8 }; // block size
@@ -55,7 +55,7 @@ class JBlock {
     }
 
   private:
-    friend class Root;
+    friend class Json;
     struct _Header {
         uint32 cap;
         uint32 size;
@@ -150,8 +150,7 @@ struct Queue {
 
 } // xx
 
-// root node of the json
-class Root {
+class Json {
   public:
     enum Type {
         kNull = 0,
@@ -169,8 +168,7 @@ class Root {
     typedef const char* Key;
     typedef const char* S;
 
-    // sub node of Root.
-    // A Value must be created from a Root.
+    // A Value must be created from a Json.
     class Value {
       public:
         ~Value() = default;
@@ -259,9 +257,9 @@ class Root {
 
         class iterator {
           public:
-            iterator(Root* root, uint32 q, uint32 type)
+            iterator(Json* root, uint32 q, uint32 type)
                 : _root(root), _q(q), _i(0) {
-                _step = (type == Root::kObject ? 2 : 1);
+                _step = (type == Json::kObject ? 2 : 1);
             }
 
             struct End {}; // fake end
@@ -280,7 +278,7 @@ class Root {
             Value value()     const { return Value(_root, ((xx::Queue*)_root->_p8(_q))->p[_i + 1]); }
 
           private:
-            Root* _root;
+            Json* _root;
             uint32 _q; // index of the Queue
             uint32 _i; // position in the Queue
             uint32 _step;
@@ -290,28 +288,28 @@ class Root {
         const iterator::End& end() const { return iterator::end(); }
 
       private:
-        Root* _root;
+        Json* _root;
         uint32 _index;
 
-        friend class Root;
-        Value(Root* root, uint32 index)
+        friend class Json;
+        Value(Json* root, uint32 index)
             : _root(root), _index(index) {
         }
     };
 
-    Root()           : _mem(xx::jalloc()->alloc_jblock()) { _make_null(); }
-    Root(TypeArray)  : _mem(xx::jalloc()->alloc_jblock()) { _make_array(); }
-    Root(TypeObject) : _mem(xx::jalloc()->alloc_jblock()) { _make_object(); }
-    Root(Root&& r) noexcept : _mem(r._mem) { r._mem = 0; }
-    ~Root() { if (_mem) xx::jalloc()->dealloc_jblock(_mem); }
+    Json()           : _mem(xx::jalloc()->alloc_jblock()) { _make_null(); }
+    Json(TypeArray)  : _mem(xx::jalloc()->alloc_jblock()) { _make_array(); }
+    Json(TypeObject) : _mem(xx::jalloc()->alloc_jblock()) { _make_object(); }
+    Json(Json&& r) noexcept : _mem(r._mem) { r._mem = 0; }
+    ~Json() { if (_mem) xx::jalloc()->dealloc_jblock(_mem); }
 
-    Root(const Root& r) : _mem(xx::jalloc()->alloc_jblock()) { _jb.copy_from(r._jb); }
-    Root& operator=(const Root& r) {
+    Json(const Json& r) : _mem(xx::jalloc()->alloc_jblock()) { _jb.copy_from(r._jb); }
+    Json& operator=(const Json& r) {
         if (&r != this) { _jb.clear(); _jb.copy_from(r._jb); }
         return *this;
     }
 
-    Root& operator=(Root&& r) noexcept {
+    Json& operator=(Json&& r) noexcept {
         if (&r != this) {
             if (_mem) xx::jalloc()->dealloc_jblock(_mem);
             _mem = r._mem; r._mem = 0;
@@ -427,11 +425,11 @@ class Root {
 
     iterator _begin(uint32 index) const {
         _Header* h = (_Header*) _p8(index);
-        if (h->type == kNull) return iterator((Root*)this, 0, kNull);
+        if (h->type == kNull) return iterator((Json*)this, 0, kNull);
         assert(h->type & (kObject | kArray));
         uint32 q = h->index;
         if (q && ((xx::Queue*)_p8(q))->size == 0) q = 0;
-        return iterator((Root*)this, q, h->type);
+        return iterator((Json*)this, q, h->type);
     }
 
     // _b8() calculate blocks num from bytes, _b8(15) = 2, etc.
@@ -587,28 +585,28 @@ class Root {
     };
 };
 
-typedef Root::Value Value;
+typedef Json::Value Value;
 
 // json::array()  creates an empty array
 // json::object() creates an empty object
-inline Root array()  { return Root(Root::TypeArray()); }
-inline Root object() { return Root(Root::TypeObject()); }
+inline Json array()  { return Json(Json::TypeArray()); }
+inline Json object() { return Json(Json::TypeObject()); }
 
-inline Root parse(const char* s, size_t n) {
+inline Json parse(const char* s, size_t n) {
     void* p = 0;
-    Root& r = *(Root*) &p;
+    Json& r = *(Json*) &p;
     if (r.parse_from(s, n)) return std::move(r);
     r.set_null();
     return std::move(r);
 }
 
-inline Root parse(const char* s)        { return parse(s, strlen(s)); }
-inline Root parse(const fastring& s)    { return parse(s.data(), s.size()); }
-inline Root parse(const std::string& s) { return parse(s.data(), s.size()); }
+inline Json parse(const char* s)        { return parse(s, strlen(s)); }
+inline Json parse(const fastring& s)    { return parse(s.data(), s.size()); }
+inline Json parse(const std::string& s) { return parse(s.data(), s.size()); }
 
 } // json
 
-typedef json::Root Json;
+typedef json::Json Json;
 
-inline fastream& operator<<(fastream& fs, const json::Root& x)  { return x.dbg(fs); }
+inline fastream& operator<<(fastream& fs, const json::Json& x)  { return x.dbg(fs); }
 inline fastream& operator<<(fastream& fs, const json::Value& x) { return x.dbg(fs); }

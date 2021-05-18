@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    json::Root v;
+    Json v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
 
@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     fastring s = v.str();
     COUT << s;
 
-    json::Root u = json::parse(s.data(), s.size());
+    Json u = json::parse(s.data(), s.size());
     if (!u.is_object()) {
         COUT << "parse error..";
         return -1;
@@ -46,13 +46,13 @@ int main(int argc, char** argv) {
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
-        json::Root xx = json::parse(s.data(), s.size());
+        Json xx = json::parse(s.data(), s.size());
     }
     int64 end = now::us();
 
     COUT << "parse average time used: " << (end - beg) * 1.0 / n << "us";
 
-    json::Root xx = json::parse(s.data(), s.size());
+    Json xx = json::parse(s.data(), s.size());
     fastring xs;
     beg = now::us();
     for (int i = 0; i < n; ++i) {
