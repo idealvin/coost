@@ -157,11 +157,12 @@ inline void sleep(unsigned int ms) {
  * check whether the current coroutine has timed out 
  *   - When a coroutine returns from an API with a timeout like co::recv, it may 
  *     call co::timeout() to check whether the previous API call has timed out. 
+ *   - It MUST be called in a coroutine.
  * 
  * @return  true if timed out, otherwise false.
  */
 inline bool timeout() {
-    return scheduler() && scheduler()->timeout();
+    return scheduler()->timeout();
 }
 
 /**
