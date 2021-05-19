@@ -14,12 +14,14 @@ __thread Scheduler* gSched = 0;
 Scheduler::Scheduler(uint32 id, uint32 stack_size)
     : _id(id), _stack_size(stack_size), _stack(0), _stack_top(0), _running(0), 
       _wait_ms(-1), _co_pool(), _stop(false), _timeout(false) {
-    _main_co = _co_pool.pop();
+    //_main_co = _co_pool.pop();
+    _main_co = new Coroutine(-1);
 }
 
 Scheduler::~Scheduler() {
     this->stop();
     free(_stack);
+    delete _main_co;
 }
 
 void Scheduler::stop() {
