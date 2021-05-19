@@ -101,7 +101,7 @@ class Copool {
         if (!_ids.empty()) {
             Coroutine* co = _pool[_ids.back()];
             assert(co->state == S_init);
-            assert(co->it == null_timer_id);
+            //assert(co->it == null_timer_id);
             co->stack.clear();
             co->ctx = 0;
             _ids.pop_back();
