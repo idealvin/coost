@@ -193,13 +193,30 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
 #ifdef _WIN32
 extern void wsa_startup();
 extern void wsa_cleanup();
+inline void init_hooks() {}
 #else
-static inline void wsa_startup() {}
-static inline void wsa_cleanup() {}
+inline void wsa_startup() {}
+inline void wsa_cleanup() {}
+
+void init_hooks() {
+    if (raw_close == 0) {
+  #ifdef __linux__
+        ::epoll_wait(-1, 0, 0, 0);
+        CHECK(raw_epoll_wait != 0);
+  #else
+        ::kevent(-1, 0, 0, 0, 0, 0);
+        CHECK(raw_kevent != 0);
+  #endif
+        ::close(-1);
+        ::read(-1, 0, 0);
+        ::write(-1, 0, 0);
+    }
+}
 #endif
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
+    init_hooks();
     CHECK_EQ(sizeof(null_timer_id), sizeof(void*));
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
