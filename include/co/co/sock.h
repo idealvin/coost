@@ -417,7 +417,9 @@ inline fastring to_string(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
     const size_t n = strlen(s);
-    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin_port));
+    fastring r(n + 8);
+    r.append(s, n).append(':') << ntoh16(addr->sin_port);
+    return r;
 }
 
 /**
@@ -429,7 +431,9 @@ inline fastring to_string(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
     const size_t n = strlen(s);
-    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin6_port));
+    fastring r(n + 8);
+    r.append(s, n).append(':') << ntoh16(addr->sin6_port);
+    return r;
 }
 
 /**
