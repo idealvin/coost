@@ -11,7 +11,7 @@ int n = 0;
 
 void f1() {
     ev.wait();
-    CLOG << "f1()";
+    LOG << "f1()";
     {
         co::MutexGuard g(mtx);
         ++v;
@@ -24,17 +24,18 @@ void f1() {
 
 void f2() {
     bool r = ev.wait(50);
-    CLOG << "f2() r: " << r;
+    LOG << "f2() r: " << r;
 }
 
 void f3() {
-    CLOG << "f3()";
+    LOG << "f3()";
     ev.signal();
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+    FLG_cout = true;
 
     for (int i = 0; i < 8; ++i) go(f1);
     go(f2);
@@ -44,8 +45,8 @@ int main(int argc, char** argv) {
 
     sleep::ms(200);
 
-    CLOG << "v: " << v;
-    CLOG << "n: " << n;
+    LOG << "v: " << v;
+    LOG << "n: " << n;
 
     return 0;
 }
