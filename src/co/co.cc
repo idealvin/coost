@@ -22,6 +22,7 @@ class EventImpl {
   private:
     ::Mutex _mtx;
     std::unordered_set<Coroutine*> _co_wait;
+    std::unordered_set<Coroutine*> _co_swap;
     bool _signaled;
 };
 
@@ -66,24 +67,25 @@ bool EventImpl::wait(unsigned int ms) {
 }
 
 void EventImpl::signal() {
-    std::unordered_set<Coroutine*> co_wait;
     {
         ::MutexGuard g(_mtx);
         if (!_co_wait.empty()) {
-            _co_wait.swap(co_wait);
+            _co_wait.swap(_co_swap);
         } else {
             if (!_signaled) _signaled = true;
+            return;
         }
     }
 
     // Using atomic operation here, as check_timeout() in the Scheduler 
     // may also modify the state.
-    for (auto it = co_wait.begin(); it != co_wait.end(); ++it) {
+    for (auto it = _co_swap.begin(); it != _co_swap.end(); ++it) {
         Coroutine* co = *it;
         if (atomic_compare_swap(&co->state, S_wait, S_ready) == S_wait) {
             co->s->add_ready_task(co);
         }
     }
+    _co_swap.clear();
 }
 
 Event::Event() {
