@@ -120,7 +120,11 @@ class file {
     void operator=(const file& x) = delete;
     void operator=(file&& x) = delete;
 
-    operator bool() const;
+    explicit operator bool() const;
+    
+    bool operator!() const {
+        return !(bool)(*this);
+    }
 
     const fastring& path() const;
 
@@ -195,8 +199,12 @@ class fstream {
         this->close();
     }
 
-    operator bool() const {
-        return _f;
+    explicit operator bool() const {
+        return (bool)_f;
+    }
+
+    bool operator!() const {
+        return !(bool)_f;
     }
 
     bool open(const char* path, char mode) {

@@ -246,6 +246,10 @@ class thread_ptr {
         return this->get() == 0;
     }
 
+    explicit operator bool() const {
+        return this->get() != 0;
+    }
+
   private:
     pthread_key_t _key;
 
