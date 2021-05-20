@@ -52,7 +52,7 @@ int listen(sock_t fd, int backlog) {
     return ::listen(fd, backlog);
 }
 
-static int find_address_family(sock_t fd) {
+inline int find_address_family(sock_t fd) {
     static std::vector<std::unordered_map<sock_t, int>> kAf(xx::scheduler_num());
 
     auto& map = kAf[gSched->id()];
@@ -204,18 +204,41 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     int r;
-    IoEvent ev(fd, EV_read);
+    char* s = 0;
+    char* h = 0;
+    if (gSched->on_stack(buf)) h = (char*) malloc(n);
 
-    do {
-        r = ::recvfrom(fd, (char*)buf, n, 0, (sockaddr*)addr, addrlen);
-        if (r != -1) return r;
+    IoEvent ev(fd, sizeof(sockaddr_in6) + 8);
+    ev->buf.buf = (h ? h : (char*)buf);
+    ev->buf.len = n;
 
-        if (co::error() == WSAEWOULDBLOCK) {
-            if (!ev.wait(ms)) return -1;
-        } else {
-            return -1;
-        }
-    } while (true);
+    if (addr && addrlen) {
+        s = ev->s;
+        *(int*)s = sizeof(sockaddr_in6);
+        r = WSARecvFrom(fd, &ev->buf, 1, &ev->n, &ev->flags, (sockaddr*)(s + 8), (int*)s, &ev->ol, 0);
+    } else {
+        r = WSARecvFrom(fd, &ev->buf, 1, &ev->n, &ev->flags, 0, 0, &ev->ol, 0);
+    }
+
+    if (r == 0) {
+        ev.wait();
+    } else if (co::error() == WSA_IO_PENDING) {
+        if (!ev.wait(ms)) goto err;
+    } else {
+        goto err;
+    }
+
+    if (s) {
+        memcpy(addr, s + 8, *addrlen);
+        *addrlen = *(int*)s;
+    }
+
+    if (h) { memcpy(buf, h, n); free(h); }
+    return (int)ev->n;
+
+  err:
+    if (h) free(h);
+    return -1;
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
@@ -243,25 +266,41 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
-    const char* s = (const char*) buf;
-    int remain = n;
-    IoEvent ev(fd, EV_write);
+    int r;
+    char* h = 0;
+    if (gSched->on_stack(buf)) {
+        h = (char*) malloc(n); assert(h);
+        memcpy(h, buf, n);
+    }
 
-    do {
-        int r = ::sendto(fd, s, remain, 0, (const sockaddr*)addr, addrlen);
-        if (r == remain) return n;
+    IoEvent ev(fd);
+    ev->buf.buf = (h ? h : (char*)buf);
+    ev->buf.len = n;
 
-        if (r == -1) {
-            if (co::error() == WSAEWOULDBLOCK) {
-                if (!ev.wait(ms)) return -1;
-            } else {
-                return -1;
-            }
+    while (true) {
+        r = WSASendTo(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
+        if (r == 0) {
+            ev.wait();
+        } else if (co::error() == WSA_IO_PENDING) {
+            if (!ev.wait(ms)) goto err;
         } else {
-            remain -= r;
-            s += r;
+            goto err;
         }
-    } while (true);
+
+        if (ev->n == (DWORD)ev->buf.len) goto end;
+        if (ev->n == 0) goto err;
+        ev->buf.buf += ev->n;
+        ev->buf.len -= ev->n;
+        memset(&ev->ol, 0, sizeof(ev->ol));
+    }
+
+  end:
+    if (h) free(h);
+    return n;
+
+  err:
+    if (h) free(h);
+    return -1;
 }
 
 class Error {

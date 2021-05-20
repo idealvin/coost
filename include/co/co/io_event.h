@@ -56,12 +56,11 @@ class IoEvent {
      * 
      * @param fd  the socket.
      * @param ev  the IO event, either EV_read or EV_write.
-     * @param n   extra bytes to be allocated for PerIoInfo.
      */
-    IoEvent(sock_t fd, io_event_t ev, int n=0)
+    IoEvent(sock_t fd, io_event_t ev)
         : _fd(fd), _ev(ev) {
         gSched->add_io_event(fd, ev);
-        _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
+        _info = new (malloc(sizeof(PerIoInfo))) PerIoInfo();
     }
 
     ~IoEvent() {

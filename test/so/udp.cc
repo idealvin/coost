@@ -15,6 +15,7 @@ void udp_server_fun() {
     char buf[4];
     char pong[4]; memcpy(pong, "pong", 4);
 
+    COUT << "server start";
     while (true) {
         len = sizeof(cli);
         int r = co::recvfrom(fd, buf, 4, &cli, &len);
