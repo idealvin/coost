@@ -29,7 +29,6 @@ class IoEvent {
         void* co;     // user data, pointer to a coroutine
         DWORD n;      // bytes transfered
         DWORD flags;  // flags for WSARecv, WSARecvFrom
-        uint32 sn;    // serial number
         WSABUF buf;   // buffer for WSARecv, WSARecvFrom, WSASend, WSASendTo
         char s[];     // extra buffer allocated
     };
