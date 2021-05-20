@@ -204,12 +204,12 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     int r;
+    const int N = sizeof(sockaddr_in6) + 8;
+    const bool on_stack = gSched->on_stack(buf);
     char* s = 0;
-    char* h = 0;
-    if (gSched->on_stack(buf)) h = (char*) malloc(n);
 
-    IoEvent ev(fd, sizeof(sockaddr_in6) + 8);
-    ev->buf.buf = (h ? h : (char*)buf);
+    IoEvent ev(fd, on_stack ? N + n : N);
+    ev->buf.buf = (on_stack ? ev->s + N : (char*)buf);
     ev->buf.len = n;
 
     if (addr && addrlen) {
@@ -223,22 +223,19 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     if (r == 0) {
         ev.wait();
     } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) goto err;
+        if (!ev.wait(ms)) return -1;
     } else {
-        goto err;
+        return -1;
     }
 
     if (s) {
-        memcpy(addr, s + 8, *addrlen);
-        *addrlen = *(int*)s;
+        const int peer_len = *(int*)s;
+        if (peer_len <= *addrlen) memcpy(addr, s + 8, peer_len);
+        *addrlen = peer_len;
     }
 
-    if (h) { memcpy(buf, h, n); free(h); }
+    if (on_stack) memcpy(buf, ev->s + N, ev->n);
     return (int)ev->n;
-
-  err:
-    if (h) free(h);
-    return -1;
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
@@ -267,40 +264,29 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     int r;
-    char* h = 0;
-    if (gSched->on_stack(buf)) {
-        h = (char*) malloc(n); assert(h);
-        memcpy(h, buf, n);
-    }
+    const bool on_stack = gSched->on_stack(buf);
 
-    IoEvent ev(fd);
-    ev->buf.buf = (h ? h : (char*)buf);
+    IoEvent ev(fd, on_stack ? n : 0);
+    ev->buf.buf = (on_stack ? ev->s : (char*)buf);
     ev->buf.len = n;
+    if (on_stack) memcpy(ev->s, buf, n);
 
     while (true) {
         r = WSASendTo(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
         if (r == 0) {
             ev.wait();
         } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) goto err;
+            if (!ev.wait(ms)) return -1;
         } else {
-            goto err;
+            return -1;
         }
 
-        if (ev->n == (DWORD)ev->buf.len) goto end;
-        if (ev->n == 0) goto err;
+        if (ev->n == (DWORD)ev->buf.len) return n;
+        if (ev->n == 0) return -1;
         ev->buf.buf += ev->n;
         ev->buf.len -= ev->n;
         memset(&ev->ol, 0, sizeof(ev->ol));
     }
-
-  end:
-    if (h) free(h);
-    return n;
-
-  err:
-    if (h) free(h);
-    return -1;
 }
 
 class Error {
