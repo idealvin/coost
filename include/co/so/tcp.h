@@ -19,6 +19,7 @@ class Server {
      *   - The server will loop in a coroutine, and it will not block the calling thread. 
      *   - The user MUST call on_connection() to set a connection callback before start() 
      *     was called. 
+     *   - Once the start() is called, we do not need the Server object any more.
      * 
      * @param ip    either an ipv4 or ipv6 address. 
      *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
@@ -56,7 +57,7 @@ class Server {
      *   - When a connection is accepted, it will start a new coroutine and call 
      *     the connection callback to handle the connection. 
      */
-    void loop(void* p);
+    static void loop(void* p);
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
@@ -81,8 +82,7 @@ class Client {
      * @param port  the server port. 
      */
     Client(const char* ip, int port)
-        : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
-          _sched_id(-1), _fd((sock_t)-1) {
+        : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port), _fd((sock_t)-1) {
     }
 
     ~Client() { this->disconnect(); }
@@ -120,7 +120,12 @@ class Client {
      * close the connection 
      *   - It MUST be called in the thread that performed the IO operation. 
      */
-    void disconnect();
+    void disconnect() {
+        if (this->connected()) {
+            co::close(_fd);
+            _fd = (sock_t)-1;
+        }
+    }
 
     /**
      * get the socket fd 
@@ -130,7 +135,6 @@ class Client {
   protected:
     fastring _ip;
     uint32 _port;
-    int _sched_id;  // id of scheduler where this client runs in
     sock_t _fd;
 
     DISALLOW_COPY_AND_ASSIGN(Client);

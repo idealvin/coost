@@ -5,10 +5,16 @@
 namespace tcp {
 
 struct ServerParam {
+    ServerParam(const char* ip, int port, std::function<void(sock_t)>&& on_connection)
+        : ip((ip && *ip) ? ip : "0.0.0.0"), port(str::from(port)), 
+          on_connection(std::move(on_connection)) {
+    }
+
     fastring ip;
     fastring port;
     sock_t fd;
     sock_t connfd;
+    std::function<void(sock_t)> on_connection;
 
     // use union here to support both ipv4 and ipv6
     union {
@@ -20,10 +26,8 @@ struct ServerParam {
 
 void Server::start(const char* ip, int port) {
     CHECK(_on_connection != NULL) << "connection callback not set..";
-    ServerParam* p = new ServerParam();
-    p->ip = ((ip && *ip) ? ip : "0.0.0.0");
-    p->port = str::from(port);
-    go(&Server::loop, this, (void*)p);
+    ServerParam* p = new ServerParam(ip, port, std::move(_on_connection));
+    go(&Server::loop, (void*)p);
 }
 
 void Server::loop(void* arg) {
@@ -54,18 +58,18 @@ void Server::loop(void* arg) {
         freeaddrinfo(info);
     } while (0);
 
-    LOG << "server_" << p->fd << " start: " << p->ip << ':' << p->port;
+    LOG << "server " << p->fd << " start: " << p->ip << ':' << p->port;
     while (true) {
         p->addrlen = sizeof(p->addr);
         p->connfd = co::accept(p->fd, &p->addr, &p->addrlen);
         if (unlikely(p->connfd == (sock_t)-1)) {
-            WLOG << "server_" << p->fd << " accept error: " << co::strerror();
+            WLOG << "server " << p->fd << " accept error: " << co::strerror();
             continue;
         }
 
-        DLOG << "server_" << p->fd << " accept new connection: "
+        DLOG << "server " << p->fd << " accept new connection: "
              << co::to_string(&p->addr, p->addrlen) << ", connfd: " << p->connfd;
-        go(&_on_connection, p->connfd);
+        go(&p->on_connection, p->connfd);
     }
 }
 
@@ -75,9 +79,9 @@ bool Client::connect(int ms) {
     fastring port = str::from(_port);
     struct addrinfo* info = 0;
     int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
-    CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
-    CHECK(info != NULL);
+    if (r != 0) goto err;
 
+    CHECK_NOTNULL(info);
     _fd = co::tcp_socket(info->ai_family);
     if (_fd == (sock_t)-1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
@@ -90,26 +94,14 @@ bool Client::connect(int ms) {
         goto err;
     }
 
-    _sched_id = co::scheduler_id();
     co::set_tcp_nodelay(_fd);
-    freeaddrinfo(info);
+    if (info) freeaddrinfo(info);
     return true;
 
   err:
-    if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
-    if (_sched_id != -1) { _sched_id = -1; }
-    freeaddrinfo(info);
+    this->disconnect();
+    if (info) freeaddrinfo(info);
     return false;
-}
-
-void Client::disconnect() {
-    if (this->connected()) {
-        if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
-        if (_sched_id != -1) {
-            CHECK_EQ(_sched_id, co::scheduler_id());
-            _sched_id = -1;
-        }
-    }
 }
 
 } // tcp

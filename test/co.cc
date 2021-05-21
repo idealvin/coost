@@ -32,6 +32,10 @@ void f3() {
     ev.signal();
 }
 
+void f() {
+    LOG << "s: " << co::scheduler_id() << " c: " << co::coroutine_id();
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
@@ -48,5 +52,8 @@ int main(int argc, char** argv) {
     LOG << "v: " << v;
     LOG << "n: " << n;
 
+    for (int i = 0; i < 32; ++i) go(f);
+
+    sleep::ms(300);
     return 0;
 }

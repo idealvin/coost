@@ -9,7 +9,7 @@ struct Connection {
     int port;    // peer port
 };
 
-void on_new_connection(void* p) {
+void on_connection(void* p) {
     std::unique_ptr<Connection> conn((Connection*)p);
     sock_t fd = conn->fd;
     co::set_tcp_keepalive(fd);
@@ -26,11 +26,11 @@ void on_new_connection(void* p) {
             co::reset_tcp_socket(fd, 3000);
             break;
         } else {
-            COUT << "server recv " << fastring(buf, r);
-            COUT << "server send pong";
+            LOG << "server recv " << fastring(buf, r);
+            LOG << "server send pong";
             r = co::send(fd, "pong", 4);
             if (r == -1) {
-                COUT << "server send error: " << co::strerror();
+                LOG << "server send error: " << co::strerror();
                 co::reset_tcp_socket(fd, 3000);
                 break;
             }
@@ -61,8 +61,8 @@ void server_fun() {
         conn->port = ntoh16(addr.sin_port);
 
         // create a new coroutine for this connection
-        COUT << "server accept new connection: " << conn->ip << ":" << conn->port;
-        co::go(on_new_connection, conn);
+        LOG << "server accept new connection: " << conn->ip << ":" << conn->port;
+        co::go(on_connection, conn);
     }
 }
 
@@ -78,22 +78,22 @@ void client_fun() {
     char buf[8] = { 0 };
 
     while (true) {
-        COUT << "client send ping";
+        LOG << "client send ping";
         int r = co::send(fd, "ping", 4);
         if (r == -1) {
-            COUT << "client send error: " << co::strerror();
+            LOG << "client send error: " << co::strerror();
             break;
         }
 
         r = co::recv(fd, buf, 8);
         if (r == -1) {
-            COUT << "client recv error: " << co::strerror();
+            LOG << "client recv error: " << co::strerror();
             break;
         } else if (r == 0) {
-            COUT << "server close the connection";
+            LOG << "server close the connection";
             break;
         } else {
-            COUT << "client recv " << fastring(buf, r) << '\n';
+            LOG << "client recv " << fastring(buf, r) << '\n';
             co::sleep(3000);
         }
     }
@@ -103,6 +103,8 @@ void client_fun() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
+    FLG_cout = true;
 
     go(server_fun);
     sleep::ms(32);

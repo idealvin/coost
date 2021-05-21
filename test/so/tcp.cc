@@ -18,11 +18,11 @@ void on_connection(sock_t fd) {
             co::reset_tcp_socket(fd, 3000);
             break;
         } else {
-            COUT << "server recv " << fastring(buf, r);
-            COUT << "server send pong";
+            LOG << "server recv " << fastring(buf, r);
+            LOG << "server send pong";
             r = co::send(fd, "pong", 4);
             if (r == -1) {
-                COUT << "server send error: " << co::strerror();
+                LOG << "server send error: " << co::strerror();
                 co::reset_tcp_socket(fd, 3000);
                 break;
             }
@@ -33,29 +33,30 @@ void on_connection(sock_t fd) {
 void client_fun() {
     tcp::Client c(FLG_ip.c_str(), FLG_port);
     if (!c.connect(3000)) {
-        COUT << "failed to connect to server " << FLG_ip << ':' << FLG_port;
+        LOG << "failed to connect to server " << FLG_ip << ':' << FLG_port
+            << " error: " << co::strerror();
         return;
     }
 
     char buf[8] = { 0 };
 
     while (true) {
-        COUT << "client send ping";
+        LOG << "client send ping";
         int r = c.send("ping", 4);
         if (r == -1) {
-            COUT << "client send error: " << co::strerror();
+            LOG << "client send error: " << co::strerror();
             break;
         }
 
         r = c.recv(buf, 8);
         if (r == -1) {
-            COUT << "client recv error: " << co::strerror();
+            LOG << "client recv error: " << co::strerror();
             break;
         } else if (r == 0) {
-            COUT << "server close the connection";
+            LOG << "server close the connection";
             break;
         } else {
-            COUT << "client recv " << fastring(buf, r) << '\n';
+            LOG << "client recv " << fastring(buf, r) << '\n';
             co::sleep(3000);
         }
     }
@@ -65,10 +66,16 @@ void client_fun() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
+    FLG_cout = true;
 
-    tcp::Server s;
-    s.on_connection(on_connection);
-    s.start(FLG_ip.c_str(), FLG_port);
+    // Once the server is started, we do not need the Server object any more.
+    {
+        tcp::Server s;
+        s.on_connection(on_connection);
+        //s.start(FLG_ip.c_str(), FLG_port);
+        s.start("0.0.0.0", FLG_port);
+    }
 
     sleep::ms(32);
     go(client_fun);
