@@ -22,7 +22,7 @@ DEC_uint32(co_stack_size);
 
 #ifdef CODBG
 #define SOLOG LOG << 'S' << gSched->id() << ' '
-#define COLOG LOG << 'S' << gSched->id() << '.' << gSched->coroutine_id() << ' '
+#define COLOG LOG << 'S' << gSched->id() << '.' << gSched->running()->id << ' '
 #else
 #define SOLOG LOG_IF(false)
 #define COLOG LOG_IF(false)
@@ -241,7 +241,7 @@ class Scheduler {
 
     // id of the current running coroutine
     int coroutine_id() const {
-        return scheduler_num() * _running->id + _id;
+        return scheduler_num() * (_running->id - 1) + _id;
     }
 
     // check whether a pointer is on the stack of the coroutine
