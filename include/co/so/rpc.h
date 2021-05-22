@@ -18,7 +18,20 @@ class Server {
     ~Server();
 
     void add_service(Service* s);
-    void start(const char* ip, int port, const char* passwd="");
+
+    void start(const char* ip, int port) {
+        return this->start(ip, port, NULL, NULL, NULL);
+    }
+
+    void start(const char* ip, int port, const char* key, const char* ca) {
+        return this->start(ip, port, key, ca, NULL);
+    }
+
+    void start(const char* ip, int port, const char* passwd) {
+        return this->start(ip, port, NULL, NULL, passwd);
+    }
+
+    void start(const char* ip, int port, const char* key, const char* ca, const char* passwd);
 
   private:
     void* _p;
@@ -28,7 +41,20 @@ class Server {
 
 class Client {
   public:
-    Client(const char* ip, int port, const char* passwd);
+    Client(const char* ip, int port)
+        : Client(ip, port, false, "") {
+    }
+
+    Client(const char* ip, int port, bool use_ssl)
+        : Client(ip, port, use_ssl, "") {
+    }
+
+    Client(const char* ip, int port, const char* passwd)
+        : Client(ip, port, false, passwd) {
+    }
+
+    Client(const char* ip, int port, bool user_ssl, const char* passwd);
+
     ~Client();
 
     void call(const Json& req, Json& res);
