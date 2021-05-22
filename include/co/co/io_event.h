@@ -87,31 +87,7 @@ class IoEvent {
      * 
      * @return    true if an IO event is present, or false on timeout or error.
      */
-    bool wait(int ms=-1) {
-        if (_ev == EV_read) {
-            const int r = WSARecv(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
-            if (r == -1 && co::error() != WSA_IO_PENDING) return false;
-        } else if (_ev == EV_write) {
-            const int r = WSASend(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
-            if (r == -1 && co::error() != WSA_IO_PENDING) return false;
-        }
-
-        if (ms >= 0) {
-            gSched->add_io_timer(ms);
-            gSched->yield();
-            if (!gSched->timeout()) {
-                return true;
-            } else {
-                CancelIo((HANDLE)_fd);
-                WSASetLastError(ETIMEDOUT);
-                _info->co = 0;
-                return false;
-            }
-        } else {
-            gSched->yield();
-            return true; 
-        }
-    }
+    bool wait(int ms=-1);
 
   private:
     sock_t _fd;
