@@ -1,6 +1,5 @@
 #include "co/all.h"
 
-#ifdef CO_SSL
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_string(key, "", "private key file");
@@ -13,20 +12,18 @@ struct Header {
     int32 body_len;
 };
 
-void on_connection(SSL* s) {
+void on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> c(conn);
     const char* msg = "hello client";
     Header header;
     fastream buf(128);
     int32 body_len;
     int r;
 
-    int fd = ssl::get_fd(s);
-    if (fd < 0) goto err;
-
     while (true) {
-        r = ssl::recvn(s, &header, sizeof(header), 3000);
+        r = conn->recvn(&header, sizeof(header), 3000);
         if (r != sizeof(header)) {
-            ELOG << "ssl server recvn error: " << ssl::strerror(s);
+            ELOG << "server recvn error: " << conn->strerror();
             goto err;
         }
 
@@ -34,9 +31,9 @@ void on_connection(SSL* s) {
         LOG << "server recv header, body_len: " << body_len;
 
         buf.clear();
-        r = ssl::recvn(s, (char*)buf.data(), body_len, 3000);
+        r = conn->recvn((char*)buf.data(), body_len, 3000);
         if (r != body_len) {
-            ELOG << "ssl server recvn error: " << ssl::strerror(s);
+            ELOG << "server recvn error: " << conn->strerror();
             goto err;
         }
 
@@ -49,23 +46,21 @@ void on_connection(SSL* s) {
         buf.append(&header, sizeof(header));
         buf.append(msg);
 
-        r = ssl::send(s, buf.data(), (int)buf.size(), 3000);
+        r = conn->send(buf.data(), (int)buf.size(), 3000);
         if (r != (int)buf.size()) {
-            ELOG << "ssl server send error: " << ssl::strerror(s);
+            ELOG << "server send error: " << conn->strerror();
             goto err;
         }
     }
 
   err:
-    ssl::shutdown(s);
-    ssl::free_ssl(s);
-    if (fd >= 0) { co::close(fd, 1000); fd = -1; }
+    conn->close();
 }
 
 void client_fun() {
-    ssl::Client c(FLG_ip.c_str(), FLG_port);
+    tcp::Client c(FLG_ip.c_str(), FLG_port, true);
     if (!c.connect(3000)) {
-        LOG << "ssl connect failed: " << ssl::strerror();
+        LOG << "connect failed: " << c.strerror();
         return;
     }
 
@@ -84,13 +79,13 @@ void client_fun() {
 
         int r = c.send(buf.data(), (int)buf.size(), 3000);
         if (r != (int)buf.size()) {
-            ELOG << "ssl client send error: " << ssl::strerror(c.ssl());
+            ELOG << "client send error: " << c.strerror();
             goto err;
         }
 
         r = c.recvn(&header, sizeof(header), 3000);
         if (r != sizeof(header)) {
-            ELOG << "ssl client recvn error: " << ssl::strerror(c.ssl());
+            ELOG << "client recvn error: " << c.strerror();
             goto err;
         }
 
@@ -100,7 +95,7 @@ void client_fun() {
         buf.clear();
         r = c.recvn((char*)buf.data(), body_len, 3000);
         if (r != body_len) {
-            ELOG << "ssl client recvn error: " << ssl::strerror(c.ssl());
+            ELOG << "ssl client recvn error: " << c.strerror();
             goto err;
         }
 
@@ -117,11 +112,13 @@ void client_fun() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    FLG_cout = true;
     log::init();
+    FLG_cout = true;
 
-    ssl::Server serv;
+    tcp::Server serv;
     serv.on_connection(on_connection);
+    CHECK(!FLG_key.empty()) << "ssl private key file not set..";
+    CHECK(!FLG_ca.empty()) << "ssl certificate file not set..";
 
     if (FLG_t == 0) {
         serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
@@ -135,9 +132,3 @@ int main(int argc, char** argv) {
 
     while (true) sleep::sec(1024);
 }
-#else
-int main(int argc, char** argv) {
-    COUT << "openssl required..";
-    return 0;
-}
-#endif

@@ -1,6 +1,5 @@
 #include "co/so/http.h"
 #include "co/so/tcp.h"
-#include "co/so/ssl.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -516,7 +515,7 @@ inline const char* status_str(int n) {
 class ServerImpl {
   public:
     ServerImpl();
-    ~ServerImpl();
+    ~ServerImpl() = default;
 
     void on_req(std::function<void(const Req&, Res&)>&& f) {
         _on_req = std::move(f);
@@ -527,23 +526,10 @@ class ServerImpl {
   private:
     void on_connection(tcp::Connection* conn);
 
-    void on_tcp_connection(sock_t s) {
-        co::set_tcp_keepalive(s);
-        co::set_tcp_nodelay(s);
-        this->on_connection(new tcp::Connection(s));
-    }
-
-  #ifdef CO_SSL
-    void on_ssl_connection(SSL* s) {
-        this->on_connection(new ssl::Connection(s));
-    }
-  #endif
-
   private:
     co::Pool _buffer; // buffer for recieving http data
     uint32 _conn_num;
-    bool _enable_ssl;
-    void* _serv;
+    std::unique_ptr<tcp::Server> _serv;
     std::function<void(const Req&, Res&)> _on_req;
 };
 
@@ -571,38 +557,14 @@ ServerImpl::ServerImpl()
     : _buffer(
           []() { return (void*) new fastring(4096); },
           [](void* p) { delete (fastring*)p; }
-      ), _conn_num(0), _enable_ssl(false), _serv(0) {
-}
-
-ServerImpl::~ServerImpl() {
-    if (_enable_ssl) {
-      #ifdef CO_SSL
-        delete (ssl::Server*)_serv;
-      #endif
-    } else {
-        delete (tcp::Server*)_serv;
-    }
+      ), _conn_num(0) {
 }
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
-    if (key && *key && ca && *ca) {
-      #ifdef CO_SSL
-        CHECK(_on_req != NULL) << "req callback must be set..";
-        _enable_ssl = true;
-        ssl::Server* s = new ssl::Server();
-        s->on_connection(&ServerImpl::on_ssl_connection, this);
-        s->start(ip, port, key, ca);
-        _serv = s;
-      #else
-        CHECK(false) << "openssl required by https..";
-      #endif
-    } else {
-        CHECK(_on_req != NULL) << "req callback must be set..";
-        tcp::Server* s = new tcp::Server();
-        s->on_connection(&ServerImpl::on_tcp_connection, this);
-        s->start(ip, port);
-        _serv = s;
-    }
+    CHECK(_on_req != NULL) << "req callback must be set..";
+    _serv.reset(new tcp::Server());
+    _serv->on_connection(&ServerImpl::on_connection, this);
+    _serv->start(ip, port, key, ca);
 }
 
 static inline int hex2int(char c) {
