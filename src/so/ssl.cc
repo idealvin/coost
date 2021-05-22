@@ -6,7 +6,6 @@
 #include "co/fastream.h"
 #include "co/thread.h"
 
-DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
 
 namespace ssl {
 
@@ -231,99 +230,7 @@ int send(SSL* s, const void* buf, int n, int ms) {
     } while (true);
 }
 
-Server::Server() : _ctx(0) {}
-Server::~Server() { ssl::free_ctx(_ctx); }
-
-void Server::start(const char* ip, int port, const char* key, const char* ca) {
-    _ctx = ssl::new_server_ctx();
-    CHECK(_ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
-    CHECK_NOTNULL(key) << "private key file must be set..";
-    CHECK_NOTNULL(ca) << "certificate file must be set..";
-
-    int r;
-    r = ssl::use_private_key_file(_ctx, key);
-    CHECK_EQ(r, 1) << "ssl use private key file (" << key << ") error: " << ssl::strerror();
-
-    r = ssl::use_certificate_file(_ctx, ca);
-    CHECK_EQ(r, 1) << "ssl use certificate file (" << ca << ") error: " << ssl::strerror();
-
-    r = ssl::check_private_key(_ctx);
-    CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
-
-    _tcp_serv.on_connection(&Server::on_tcp_connection, this);
-    _tcp_serv.start(ip, port);
-}
-
-void Server::on_tcp_connection(sock_t fd) {
-    co::set_tcp_keepalive(fd);
-    co::set_tcp_nodelay(fd);
-
-    SSL* s = ssl::new_ssl(_ctx);
-    if (s == NULL) goto new_ssl_err;
-
-    if (ssl::set_fd(s, (int)fd) != 1) goto set_fd_err;
-    if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
-
-    _on_ssl_connection(s);
-    return;
-
-  new_ssl_err:
-    ELOG << "new SSL failed: " << ssl::strerror();
-    goto err_end;
-  set_fd_err:
-    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror(s);
-    goto err_end;
-  accept_err:
-    ELOG << "ssl accept failed: " << ssl::strerror(s);
-    goto err_end;
-  err_end:
-    if (s) ssl::free_ssl(s);
-    co::close(fd, 1000);
-    return;
-}
-
-Client::Client(const char* serv_ip, int serv_port)
-    : _tcp_cli(serv_ip, serv_port), _ctx(0), _ssl(0) {
-}
-
-bool Client::connect(int ms) {
-    if (this->connected()) return true;
-    if (!_tcp_cli.connect(ms)) return false;
-    if ((_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
-    if ((_ssl = ssl::new_ssl(_ctx)) == NULL) goto new_ssl_err;
-    if (ssl::set_fd(_ssl, (int)_tcp_cli.fd()) != 1) goto set_fd_err;
-    if (ssl::connect(_ssl, ms) != 1) goto connect_err;
-    return true;
-  
-  new_ctx_err:
-    ELOG << "ssl connect new client contex error: " << ssl::strerror();
-    goto err_end;
-  new_ssl_err:
-    ELOG << "ssl connect new SSL failed: " << ssl::strerror();
-    goto err_end;
-  set_fd_err:
-    ELOG << "ssl connect set fd (" << _tcp_cli.fd() << ") failed: " << ssl::strerror(_ssl);
-    goto err_end;
-  connect_err:
-    ELOG << "ssl connect failed: " << ssl::strerror();
-    goto err_end;
-  err_end:
-    if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
-    if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-    _tcp_cli.disconnect();
-    return false;
-}
-
-/**
- * NOTE: close the underlying TCP connection directly here..
- */
-void Client::disconnect() {
-    if (this->connected()) {
-        if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
-        if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-        _tcp_cli.disconnect();
-    }
-}
+bool timeout() { return co::timeout(); }
 
 } // ssl
 
