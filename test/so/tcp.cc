@@ -3,27 +3,25 @@
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 
-void on_connection(sock_t fd) {
-    co::set_tcp_keepalive(fd);
-    co::set_tcp_nodelay(fd);
-
+void on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> c(conn);
     char buf[8] = { 0 };
 
     while (true) {
-        int r = co::recv(fd, buf, 8);
+        int r = conn->recv(buf, 8);
         if (r == 0) {         /* client close the connection */
-            co::close(fd);
+            conn->close();
             break;
         } else if (r == -1) { /* error */
-            co::reset_tcp_socket(fd, 3000);
+            conn->reset(3000);
             break;
         } else {
             LOG << "server recv " << fastring(buf, r);
             LOG << "server send pong";
-            r = co::send(fd, "pong", 4);
+            r = conn->send("pong", 4);
             if (r == -1) {
                 LOG << "server send error: " << co::strerror();
-                co::reset_tcp_socket(fd, 3000);
+                conn->reset(3000);
                 break;
             }
         }
@@ -69,13 +67,9 @@ int main(int argc, char** argv) {
     log::init();
     FLG_cout = true;
 
-    // Once the server is started, we do not need the Server object any more.
-    {
-        tcp::Server s;
-        s.on_connection(on_connection);
-        //s.start(FLG_ip.c_str(), FLG_port);
-        s.start("0.0.0.0", FLG_port);
-    }
+    tcp::Server s;
+    s.on_connection(on_connection);
+    s.start(FLG_ip.c_str(), FLG_port);
 
     sleep::ms(32);
     go(client_fun);
