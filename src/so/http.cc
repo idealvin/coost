@@ -38,7 +38,7 @@ namespace http {
 #ifdef HAS_LIBCURL
 struct curl_ctx {
     curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), s(-1), action(0), ms(0) {
+        : l(NULL), upload(NULL), upsize(0), s(-1), cs(-1), action(0), ms(0) {
         multi = curl_multi_init();
         easy = curl_easy_init();
     }
@@ -62,6 +62,7 @@ struct curl_ctx {
     const char* upload; // for PUT, data to upload
     size_t upsize;      // for PUT, size of the data to upload
     curl_socket_t s;
+    curl_socket_t cs;
     int action;
     int ms;
 };
@@ -358,7 +359,8 @@ int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* 
         ctx->action = action;
         break;
       case CURL_POLL_REMOVE:
-        co::scheduler()->del_io_event(s);
+        // delete io event if the socket was not created by the opensocket callback
+        if (s != ctx->cs) co::scheduler()->del_io_event(s);
         ctx->s = 0;
         ctx->action = 0;
         break;
@@ -425,7 +427,7 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_
     }
 
     const int r = co::connect(fd, &addr->addr, addr->addrlen, FLG_http_conn_timeout);
-    if (r == 0) return fd;
+    if (r == 0) return (ctx->cs = fd);
 
     ELOG << "connect to " << co::to_string(&addr->addr, addr->addrlen) << " failed: " << co::strerror();
     co::close(fd);
