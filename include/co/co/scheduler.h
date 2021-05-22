@@ -223,9 +223,7 @@ inline SchedulerManager* scheduler_manager() {
     return &kSchedMgr;
 }
 
-inline int scheduler_num() {
-    return (int) scheduler_manager()->all_schedulers().size();
-}
+int scheduler_num();
 
 /**
  * coroutine scheduler 

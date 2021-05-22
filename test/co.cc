@@ -33,6 +33,7 @@ void f3() {
 }
 
 void f() {
+    co::sleep(32);
     LOG << "s: " << co::scheduler_id() << " c: " << co::coroutine_id();
 }
 

@@ -116,8 +116,7 @@ inline const std::vector<xx::Scheduler*>& all_schedulers() {
  * @return  a positive value
  */
 inline int scheduler_num() {
-    static int kSchedNum = xx::scheduler_num();
-    return kSchedNum;
+    return xx::scheduler_num();
 }
 
 /**

@@ -214,6 +214,11 @@ void init_hooks() {
 }
 #endif
 
+inline bool& initialized() {
+    static bool kInitialized = false;
+    return kInitialized;
+}
+
 SchedulerManager::SchedulerManager() {
     wsa_startup();
     init_hooks();
@@ -230,6 +235,8 @@ SchedulerManager::SchedulerManager() {
         s->start();
         _scheds.push_back(s);
     }
+
+    initialized() = true;
 }
 
 SchedulerManager::~SchedulerManager() {
@@ -239,6 +246,11 @@ SchedulerManager::~SchedulerManager() {
 
 void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
+}
+
+int scheduler_num() {
+    if (initialized()) return (int) scheduler_manager()->all_schedulers().size();
+    return os::cpunum();
 }
 
 } // xx
