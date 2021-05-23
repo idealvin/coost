@@ -40,6 +40,8 @@ class JBlock {
 
     void clear() { _h->size = 0; }
 
+    void safe_clear() { memset(_h->p, 0, _h->size * N); _h->size = 0; }
+
     void reserve(uint32 n) {
         if (_h->cap < n) {
             _h->cap = n;
@@ -372,6 +374,9 @@ class Json {
     void set_null()   { _jb.clear(); _make_null(); }
     void set_array()  { _jb.clear(); _make_array(); }
     void set_object() { _jb.clear(); _make_object(); }
+
+    void clear() { _jb.clear(); _make_null(); }
+    void safe_clear() { _jb.safe_clear(); _make_null(); }
 
     typedef Value::iterator iterator;
     iterator begin()           const { return this->_begin(0); }

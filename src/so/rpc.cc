@@ -34,6 +34,19 @@ inline void set_header(void* header, int msg_len) {
     ((Header*) header)->len = hton32(msg_len);
 }
 
+class Ping : public Service {
+  public:
+    Ping() = default;
+    virtual ~Ping() = default;
+
+    virtual const char* name() const { return "ping"; }
+
+    virtual void process(const Json& req, Json& res) {
+        res.add_member("err", 200);
+        res.add_member("errmsg", "pong");
+    }
+};
+
 class ServerImpl {
   public:
     ServerImpl()
@@ -41,29 +54,65 @@ class ServerImpl {
               []() { return (void*) new fastring(4096); },
               [](void* p) { delete (fastring*)p; }
           ) {
+        this->add_service(new Ping);
     }
 
     ~ServerImpl() = default;
 
-    void add_service(Service* service) {
-        _service.reset(service);
+    void add_service(Service* s) {
+        _services[hash64(s->name())] = std::shared_ptr<Service>(s);
+    }
+
+    Service* find_service(const char* name) {
+        auto it = _services.find(hash64(name));
+        if (it != _services.end()) return it->second.get();
+        return NULL;
+    }
+
+    void add_userpass(const char* user, const char* pass) {
+        if (user && *user && pass && *pass) {
+            _userpass[user] = md5sum(pass);
+            DLOG << "add userpass: " << user << ':' << "******";
+        }
+    }
+
+    void add_userpass(const char* s) {
+        Json x = json::parse(s);
+        if (x.is_object()) {
+            for (auto it = x.begin(); it != x.end(); ++it) {
+                const char* user = it.key();
+                auto pass = it.value();
+                if (!pass.is_string()) {
+                    ELOG << "add userpass failed, user: " << user << ", password is not string..";
+                    continue;
+                }
+                this->add_userpass(user, pass.get_string());
+            }
+        } else {
+            DLOG << "no userpass added..";
+        }
+
+        x.safe_clear(); // clear password info in the json.
     }
 
     void on_connection(tcp::Connection* conn);
 
-    void start(const char* ip, int port, const char* key, const char* ca, const char* passwd) {
-        if (passwd && *passwd) _passwd = md5sum(passwd);
+    void start(const char* ip, int port, const char* key, const char* ca) {
         _tcp_serv.on_connection(&ServerImpl::on_connection, this);
         _tcp_serv.start(ip, port, key, ca);
     }
 
     bool auth(tcp::Connection* conn);
 
+    void process(const Json& req, Json& res);
+
+    bool check_userpass(const char* user, const char* pass, const char* nonce);
+
   private:
     tcp::Server _tcp_serv;
     int _conn_num;
-    fastring _passwd;
-    std::unique_ptr<Service> _service;
+    std::unordered_map<fastring, fastring> _userpass;
+    std::unordered_map<uint64, std::shared_ptr<Service>> _services;
     co::Pool _buffer;
 };
 
@@ -79,13 +128,37 @@ void Server::add_service(Service* s) {
     ((ServerImpl*)_p)->add_service(s);
 }
 
-void Server::start(const char* ip, int port, const char* key, const char* ca, const char* passwd) {
-    ((ServerImpl*)_p)->start(ip, port, key, ca, passwd);
+void Server::add_userpass(const char* user, const char* pass) {
+    ((ServerImpl*)_p)->add_userpass(user, pass);
+}
+
+void Server::add_userpass(const char* s) {
+    ((ServerImpl*)_p)->add_userpass(s);
+}
+
+void Server::start(const char* ip, int port, const char* key, const char* ca) {
+    ((ServerImpl*)_p)->start(ip, port, key, ca);
+}
+
+void ServerImpl::process(const Json& req, Json& res) {
+    auto service = req["service"];
+    if (service.is_string()) {
+        auto s = this->find_service(service.get_string());
+        if (s) {
+            s->process(req, res);
+        } else {
+            res.add_member("err", 404);
+            res.add_member("errmsg", "service not found");
+        }
+    } else {
+        res.add_member("err", 400);
+        res.add_member("errmsg", "req has no service");
+    }
 }
 
 void ServerImpl::on_connection(tcp::Connection* conn) {
     std::unique_ptr<tcp::Connection> c(conn);
-    if (!_passwd.empty() && !this->auth(conn)) {
+    if (!_userpass.empty() && !this->auth(conn)) {
         ELOG << "auth failed, reset connection " << conn->socket() << " 3 seconds later..";
         conn->reset(3000);
         return;
@@ -136,8 +209,8 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
         // call rpc and send response to the client
         do {
-            res = Json();
-            _service->process(req, res);
+            res.clear();
+            this->process(req, res);
 
             buf->resize(sizeof(Header));
             res.str(*(fastream*)buf);
@@ -183,6 +256,21 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     }
 }
 
+bool ServerImpl::check_userpass(const char* user, const char* pass, const char* nonce) {
+    auto it = _userpass.find(user);
+    if (it == _userpass.end()) return false;
+
+    auto s = md5sum(it->second + nonce);
+    if (s.size() != strlen(pass)) return false;
+
+    // compare the password safely to avoid timing attacks.
+    int equal = 0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        equal |= (s[i] ^ pass[i]);
+    }
+    return equal == 0;
+}
+
 bool ServerImpl::auth(tcp::Connection* conn) {
     static const fastring kAuth("auth");
 
@@ -223,7 +311,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         res.add_member("method", "auth");
         res.add_member("nonce", str::from(now::us()));
         res.add_member("err", 401);
-        res.add_member("errmsg", "401 Unauthorized");
+        res.add_member("errmsg", "auth required");
 
         fs.resize(sizeof(Header));
         res.str(fs);
@@ -232,7 +320,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
-        DLOG << "send auth require to the client: " << (fs.data() + sizeof(Header));
+        DLOG << "rpc send auth require: " << (fs.data() + sizeof(Header));
     } while (0);
 
     // wait for the auth answer from the client
@@ -253,7 +341,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         req = json::parse(fs.data(), fs.size());
         if (req.is_null()) goto json_parse_err;
 
-        DLOG << "recv auth response from the client: " << fs;
+        DLOG << "rpc recv auth answer: " << fs;
 
         x = req["method"];
         if (!x.is_string() || x.get_string() != kAuth) {
@@ -264,12 +352,14 @@ bool ServerImpl::auth(tcp::Connection* conn) {
 
     // send the final response to the client
     do {
-        x = req["md5"];
-        if (!x.is_string() || x.get_string() != md5sum(_passwd + res["nonce"].get_string())) {
-            res = Json();
+        auto user = req["username"];
+        auto pass = req["md5"];
+        if (!user.is_string() || !pass.is_string() || 
+            !this->check_userpass(user.get_string(), pass.get_string(), res["nonce"].get_string())) {
+            res.clear();
             res.add_member("method", "auth");
             res.add_member("err", 401);
-            res.add_member("errmsg", "401 auth failed");
+            res.add_member("errmsg", "auth failed");
 
             fs.resize(sizeof(Header));
             res.str(fs);
@@ -278,13 +368,13 @@ bool ServerImpl::auth(tcp::Connection* conn) {
             r = conn->send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
-            DLOG << "send auth result to client: " << (fs.c_str() + sizeof(Header));
+            DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
             return false;
         } else {
             res = Json();
             res.add_member("method", "auth");
             res.add_member("err", 200);
-            res.add_member("errmsg", "200 auth ok");
+            res.add_member("errmsg", "auth ok");
 
             fs.resize(sizeof(Header));
             res.str(fs);
@@ -293,7 +383,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
             r = conn->send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
             if (unlikely(r == -1)) goto send_err;
 
-            DLOG << "send auth result to client: " << (fs.c_str() + sizeof(Header));
+            DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
             return true;
         }
     } while (0);
@@ -320,17 +410,24 @@ bool ServerImpl::auth(tcp::Connection* conn) {
 
 class ClientImpl {
   public:
-    ClientImpl(const char* ip, int port, bool use_ssl, const char* passwd)
+    ClientImpl(const char* ip, int port, bool use_ssl)
         : _tcp_cli(ip, port, use_ssl) {
-        if (passwd && *passwd) _passwd = md5sum(passwd);
     }
 
     ~ClientImpl() = default;
 
     void call(const Json& req, Json& res);
 
+    void set_userpass(const char* user, const char* pass) {
+        if (user && *user && pass && *pass) {
+            _user = user;
+            _passwd = md5sum(pass);
+        }
+    }
+
   private:
     tcp::Client _tcp_cli;
+    fastring _user;
     fastring _passwd;
     fastream _fs;
 
@@ -338,16 +435,26 @@ class ClientImpl {
     bool connect();
 };
 
-Client::Client(const char* ip, int port, bool use_ssl, const char* passwd) {
-    _p = new ClientImpl(ip, port, use_ssl, passwd);
+Client::Client(const char* ip, int port, bool use_ssl) {
+    _p = new ClientImpl(ip, port, use_ssl);
 }
 
 Client::~Client() {
     delete (ClientImpl*)_p;
 }
 
+void Client::set_userpass(const char* user, const char* pass) {
+    ((ClientImpl*)_p)->set_userpass(user, pass);
+}
+
 void Client::call(const Json& req, Json& res) {
     return ((ClientImpl*)_p)->call(req, res);
+}
+
+void Client::ping() {
+    Json req, res;
+    req.add_member("service", "ping");
+    this->call(req, res);
 }
 
 bool ClientImpl::connect() {
@@ -457,7 +564,7 @@ bool ClientImpl::auth() {
         res = json::parse(fs.data(), fs.size());
         if (res.is_null()) goto json_parse_err;
 
-        DLOG << "recv auth request from server: " << fs;
+        DLOG << "rpc recv auth require: " << fs;
     } while (0);
 
     // get nonce and calculate the required md5, and send it to the server
@@ -468,6 +575,7 @@ bool ClientImpl::auth() {
             return false;
         }
 
+        req.add_member("username", _user);
         req.add_member("md5", md5sum(_passwd + x.get_string()));
 
         fs.resize(sizeof(header));
@@ -477,7 +585,7 @@ bool ClientImpl::auth() {
         r = _tcp_cli.send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r == -1)) goto send_err;
 
-        DLOG << "send auth answer to the server: " << (fs.c_str() + sizeof(header));
+        DLOG << "rpc send auth answer: " << (fs.c_str() + sizeof(header));
     } while (0);
 
     // recv the final auth response from server
@@ -498,7 +606,7 @@ bool ClientImpl::auth() {
         res = json::parse(fs.data(), fs.size());
         if (res.is_null()) goto json_parse_err;
 
-        DLOG << "recv auth result from the server: " << fs;
+        DLOG << "rpc recv auth res: " << fs;
 
         x = res["err"];
         if (!x.is_int() || x.get_int() != 200) {
