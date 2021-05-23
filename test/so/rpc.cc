@@ -60,36 +60,39 @@ class HelloAgainImpl : public HelloAgain {
 
 void client_fun() {
     bool use_ssl = FLG_ssl || (!FLG_key.empty() && !FLG_ca.empty());
-    rpc::Client* c = new rpc::Client(FLG_serv_ip.c_str(), 7788, use_ssl);
-    c->set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    rpc::Client c(FLG_serv_ip.c_str(), 7788, use_ssl);
+    c.set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    FLG_password.safe_clear(); // clear password in the memory
 
     for (int i = 0; i < FLG_n; ++i) {
         Json req, res;
         req.add_member("service", "xx.HelloWorld");
         req.add_member("method", "world");
-        c->call(req, res);
+        c.call(req, res);
     }
 
     for (int i = 0; i < FLG_n; ++i) {
         Json req, res;
         req.add_member("service", "xx.HelloAgain");
         req.add_member("method", "again");
-        c->call(req, res);
+        c.call(req, res);
     }
 
-    delete c;
+    c.close();
 }
 
 void test_ping() {
     bool use_ssl = FLG_ssl || (!FLG_key.empty() && !FLG_ca.empty());
-    rpc::Client* c = new rpc::Client(FLG_serv_ip.c_str(), 7788, use_ssl);
-    c->set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    rpc::Client c(FLG_serv_ip.c_str(), 7788, use_ssl);
+    c.set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    FLG_password.safe_clear(); // clear password in the memory
 
     while (true) {
-        c->ping();
+        c.ping();
         co::sleep(FLG_hb);
     }
-    delete c;
+
+    c.close();
 }
 
 int main(int argc, char** argv) {

@@ -31,7 +31,8 @@ class Server {
 
     /**
      * add a pair of username and password 
-     *   - Multiple usernames and passwords can be added into the server.
+     *   - Multiple usernames and passwords can be added into the server. 
+     *   - Empty username or password will be ignored. 
      */
     void add_userpass(const char* user, const char* pass);
 
@@ -64,11 +65,27 @@ class Client {
     Client(const char* ip, int port, bool use_ssl=false);
     ~Client();
 
+    /**
+     * set a pair of username and password to logon to the server 
+     *   - if user or pass is empty, nothing will be done. 
+     */
     void set_userpass(const char* user, const char* pass);
 
+    /**
+     * perform a rpc request
+     *   - Empty username or password will be ignored. 
+     */
     void call(const Json& req, Json& res);
 
+    /**
+     * send a heartbeat
+     */
     void ping();
+
+    /**
+     * close the connection 
+     */
+    void close();
 
   private:
     void* _p;

@@ -425,6 +425,10 @@ class ClientImpl {
         }
     }
 
+    void close() {
+        _tcp_cli.disconnect();
+    }
+
   private:
     tcp::Client _tcp_cli;
     fastring _user;
@@ -449,6 +453,10 @@ void Client::set_userpass(const char* user, const char* pass) {
 
 void Client::call(const Json& req, Json& res) {
     return ((ClientImpl*)_p)->call(req, res);
+}
+
+void Client::close() {
+    return ((ClientImpl*)_p)->close();
 }
 
 void Client::ping() {
