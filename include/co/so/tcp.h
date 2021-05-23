@@ -121,6 +121,7 @@ class Server {
 /**
  * TCP client based on coroutine 
  *   - Support both ipv4 and ipv6. 
+ *   - Support ssl (openssl required).
  *   - One client corresponds to one connection. 
  * 
  *   - It MUST be used in a coroutine. 
@@ -133,9 +134,10 @@ class Server {
 class Client {
   public:
     /**
-     * @param ip    a domain name, or either an ipv4 or ipv6 address of the server. 
-     *              if ip is NULL or empty, "127.0.0.1" will be used by default. 
-     * @param port  the server port. 
+     * @param ip       a domain name, or either an ipv4 or ipv6 address of the server. 
+     *                 if ip is NULL or empty, "127.0.0.1" will be used by default. 
+     * @param port     the server port. 
+     * @param use_ssl  use ssl if it is true.
      */
     Client(const char* ip, int port, bool use_ssl=false)
         : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
