@@ -8,7 +8,7 @@
 ## Documents
 
 - [English](https://idealvin.gitee.io/coding/2020/07/co_en/)
-- [中文](https://idealvin.gitee.io/coding/2020/07/co/)
+- [中文](https://www.yuque.com/idealvin/co)
 
 
 ## Highlights
