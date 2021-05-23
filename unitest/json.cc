@@ -10,6 +10,9 @@ DEF_test(json) {
         EXPECT(n.is_null());
         EXPECT_EQ(n.str(), "null");
         EXPECT_EQ(n.pretty(), "null");
+
+        n.safe_clear();
+        EXPECT(n.is_null());
     }
 
     DEF_case(bool) {
@@ -25,6 +28,9 @@ DEF_test(json) {
         EXPECT_EQ(b.get_bool(), false);
         EXPECT_EQ(b.str(), "false");
         EXPECT_EQ(b.pretty(), "false");
+
+        r.clear();
+        EXPECT(r.is_null());
     }
 
     DEF_case(int) {
@@ -47,6 +53,9 @@ DEF_test(json) {
         EXPECT_EQ(i64.get_int64(), 12345);
         EXPECT_EQ(i64.str(), "12345");
         EXPECT_EQ(i64.pretty(), "12345");
+
+        r.safe_clear();
+        EXPECT(r.is_null());
     }
 
     DEF_case(double) {
