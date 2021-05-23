@@ -292,6 +292,19 @@ DEF_test(fastring) {
         EXPECT_EQ(fastring("hello").lshift(6), "");
     }
 
+    DEF_case(safe_clear) {
+        fastring s("xxx");
+        s.safe_clear();
+        EXPECT_EQ(s.size(), 0);
+        EXPECT_EQ(s[0], 0);
+        EXPECT_EQ(s[1], 0);
+        EXPECT_EQ(s[2], 0);
+
+        fastring x;
+        x.safe_clear();
+        EXPECT_EQ(s.size(), 0);
+    }
+
     DEF_case(shrink) {
         fastring s(256);
         (s = "hello world").shrink();
