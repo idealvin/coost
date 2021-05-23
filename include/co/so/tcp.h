@@ -179,6 +179,13 @@ class Client {
     virtual void disconnect();
 
     /**
+     * the same as disconnect 
+     */
+    void close() {
+        this->disconnect();
+    }
+
+    /**
      * get error string
      */
     virtual const char* strerror() const;
