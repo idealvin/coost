@@ -149,6 +149,16 @@ class Client {
 
     virtual ~Client() { this->disconnect(); }
 
+    Client()
+        : _fd((sock_t)-1), _ssl(0), _ssl_ctx(0) {
+    }
+
+    void copy_from(const Client& c) {
+        _ip = c._ip;
+        _port = c._port;
+        _use_ssl = c._use_ssl;
+    }
+
     virtual int recv(void* buf, int n, int ms=-1);
 
     virtual int recvn(void* buf, int n, int ms=-1);
