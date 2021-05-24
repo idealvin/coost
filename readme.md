@@ -7,7 +7,7 @@
 
 ## Documents
 
-- [English](https://idealvin.gitee.io/coding/2020/07/co_en/)
+- [English](https://www.yuque.com/idealvin/co_en)
 - [中文](https://www.yuque.com/idealvin/co)
 
 
