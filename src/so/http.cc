@@ -1,5 +1,6 @@
 #include "co/so/http.h"
 #include "co/so/tcp.h"
+#include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -774,11 +775,11 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "http client close the connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
+    LOG << "http client close the connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
     conn->close();
     goto cleanup;
   idle_err:
-    LOG << "http close idle connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
+    LOG << "http close idle connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
     conn->reset();
     goto cleanup;
   header_too_long_err:

@@ -1,3 +1,4 @@
+#include "co/co.h"
 #include "co/so/tcp.h"
 #include "co/so/ssl.h"
 #include "co/log.h"
@@ -6,6 +7,40 @@
 DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
 
 namespace tcp {
+
+int Connection::recv(void* buf, int n, int ms) {
+    return co::recv(_fd, buf, n, ms);
+}
+
+int Connection::recvn(void* buf, int n, int ms) {
+    return co::recvn(_fd, buf, n, ms);
+}
+
+int Connection::send(const void* buf, int n, int ms) {
+    return co::send(_fd, buf, n, ms);
+}
+
+int Connection::close(int ms) {
+    if (_fd != -1) {
+        int r = co::close(_fd, ms);
+        _fd = -1;
+        return r;
+    }
+    return 0;
+}
+
+int Connection::reset(int ms) {
+    if (_fd != -1) {
+        int r = co::reset_tcp_socket(_fd, ms);
+        _fd = -1;
+        return r;
+    }
+    return 0;
+}
+
+const char* Connection::strerror() const {
+    return co::strerror();
+}
 
 #ifdef CO_SSL
 struct SSLConnection : public tcp::Connection {
@@ -24,11 +59,6 @@ struct SSLConnection : public tcp::Connection {
         return ssl::send(s, buf, n, ms);
     }
 
-    /**
-     * close the connection
-     *
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
     virtual int close(int ms=0) {
         if (s) {
             ssl::shutdown(s);
@@ -39,11 +69,6 @@ struct SSLConnection : public tcp::Connection {
         return 0;
     }
 
-    /**
-     * reset the connection
-     *
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
     virtual int reset(int ms=0) {
         if (s) {
             ssl::free_ssl(s);
@@ -53,11 +78,6 @@ struct SSLConnection : public tcp::Connection {
         return 0;
     }
 
-    /**
-     * get error message of the last I/O operation
-     *   - If an error occured in send() or recv(), the user can call this method
-     *     to get the error message.
-     */
     virtual const char* strerror() const {
         return ssl::strerror(s);
     }
@@ -105,7 +125,7 @@ static void server_loop(void* p);
 static void on_tcp_connection(ServerParam* p, sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
-    p->on_connection(new tcp::Connection(fd));
+    p->on_connection(new tcp::Connection((int)fd));
 }
 
 #ifdef CO_SSL
@@ -211,6 +231,13 @@ void server_loop(void* arg) {
     }
 }
 
+Client::Client(const char* ip, int port, bool use_ssl)
+    : _ip((ip && *ip) ? ip : "127.0.0.1"), _port((uint16)port),
+      _use_ssl(use_ssl), _fd(-1), _ssl(0), _ssl_ctx(0) {
+  #ifndef CO_SSL
+    CHECK(!use_ssl) << "openssl must be installed..";
+  #endif
+}
 
 int Client::recv(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recv(_fd, buf, n, ms);
@@ -242,8 +269,8 @@ bool Client::connect(int ms) {
     if (r != 0) goto err;
 
     CHECK_NOTNULL(info);
-    _fd = co::tcp_socket(info->ai_family);
-    if (_fd == (sock_t)-1) {
+    _fd = (int) co::tcp_socket(info->ai_family);
+    if (_fd == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
         goto err;
     }
@@ -295,7 +322,7 @@ void Client::disconnect() {
         if (_ssl) { ssl::free_ssl((SSL*)_ssl); _ssl = 0; }
         if (_ssl_ctx) { ssl::free_ctx((SSL_CTX*)_ssl_ctx); _ssl_ctx = 0; }
       #endif
-        co::close(_fd); _fd = (sock_t)-1;
+        co::close(_fd); _fd = -1;
     }
 }
 

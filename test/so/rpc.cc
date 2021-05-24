@@ -58,11 +58,13 @@ class HelloAgainImpl : public HelloAgain {
 
 } // xx
 
+// proto client
+std::unique_ptr<rpc::Client> proto;
+
 void client_fun() {
-    bool use_ssl = FLG_ssl || (!FLG_key.empty() && !FLG_ca.empty());
-    rpc::Client c(FLG_serv_ip.c_str(), 7788, use_ssl);
-    c.set_userpass(FLG_username.c_str(), FLG_password.c_str());
-    FLG_password.safe_clear(); // clear password in the memory
+    // copy a client from proto, 
+    // and we needn't set username & password again.
+    rpc::Client c(*proto);
 
     for (int i = 0; i < FLG_n; ++i) {
         Json req, res;
@@ -81,24 +83,29 @@ void client_fun() {
     c.close();
 }
 
+co::Pool pool(
+    []() { return (void*) new rpc::Client(*proto); },
+    [](void* p) { delete (rpc::Client*) p; }
+);
+
 void test_ping() {
-    bool use_ssl = FLG_ssl || (!FLG_key.empty() && !FLG_ca.empty());
-    rpc::Client c(FLG_serv_ip.c_str(), 7788, use_ssl);
-    c.set_userpass(FLG_username.c_str(), FLG_password.c_str());
-    FLG_password.safe_clear(); // clear password in the memory
+    co::PoolGuard<rpc::Client> c(pool);
 
     while (true) {
-        c.ping();
+        c->ping();
         co::sleep(FLG_hb);
     }
-
-    c.close();
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
     FLG_cout = true;
+
+    // initialize the proto client, other client can simply copy from it.
+    proto.reset(new rpc::Client(FLG_serv_ip.c_str(), 7788, FLG_ssl));
+    proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    FLG_password.safe_clear(); // clear the password
 
     rpc::Server serv;
 
@@ -109,7 +116,8 @@ int main(int argc, char** argv) {
         serv.start("0.0.0.0", 7788, FLG_key.c_str(), FLG_ca.c_str());
     } else {
         if (FLG_ping) {
-            go(&test_ping);
+            go(test_ping);
+            go(test_ping);
         } else {
             for (int i = 0; i < FLG_conn; ++i) {
                 go(&client_fun);

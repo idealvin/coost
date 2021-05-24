@@ -1,5 +1,6 @@
 #include "co/so/rpc.h"
 #include "co/so/tcp.h"
+#include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -415,7 +416,7 @@ class ClientImpl {
     }
 
     ClientImpl(const ClientImpl& c)
-        : _tcp_cli(c._tcp_cli), _user(c._user), _passwd(c._passwd) {
+        : _tcp_cli(c._tcp_cli), _user(c._user), _pass(c._pass) {
     }
 
     ~ClientImpl() = default;
@@ -425,7 +426,7 @@ class ClientImpl {
     void set_userpass(const char* user, const char* pass) {
         if (user && *user && pass && *pass) {
             _user = user;
-            _passwd = md5sum(pass);
+            _pass = md5sum(pass);
         }
     }
 
@@ -436,7 +437,7 @@ class ClientImpl {
   private:
     tcp::Client _tcp_cli;
     fastring _user;
-    fastring _passwd;
+    fastring _pass;
     fastream _fs;
 
     bool auth();
@@ -445,6 +446,10 @@ class ClientImpl {
 
 Client::Client(const char* ip, int port, bool use_ssl) {
     _p = new ClientImpl(ip, port, use_ssl);
+}
+
+Client::Client(const Client& c) {
+    _p = new ClientImpl(*(ClientImpl*)c._p);
 }
 
 Client::~Client() {
@@ -471,7 +476,7 @@ void Client::ping() {
 
 bool ClientImpl::connect() {
     if (!_tcp_cli.connect(FLG_rpc_conn_timeout)) return false;
-    if (!_passwd.empty() && !this->auth()) {
+    if (!_pass.empty() && !this->auth()) {
         _tcp_cli.disconnect();
         return false;
     }
@@ -588,7 +593,7 @@ bool ClientImpl::auth() {
         }
 
         req.add_member("username", _user);
-        req.add_member("md5", md5sum(_passwd + x.get_string()));
+        req.add_member("md5", md5sum(_pass + x.get_string()));
 
         fs.resize(sizeof(header));
         req.str(fs);
