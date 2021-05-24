@@ -56,6 +56,11 @@ class Pool {
      */
     void push(void* e);
 
+    /**
+     * return size of the internal pool for the current thread.
+     */
+    size_t size() const;
+
   private:
     void* _p;
 };

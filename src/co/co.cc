@@ -225,6 +225,12 @@ class PoolImpl {
         }
     }
 
+    size_t size() const {
+        CHECK(gSched) << "must be called in coroutine..";
+        auto& v = _pools[gSched->id()];
+        return v != NULL ? v->size() : 0;
+    }
+
   private:
     // It is not safe to cleanup the pool from outside the Scheduler.
     // So we add a cleanup callback to the Scheduler. It will be called 
@@ -268,6 +274,10 @@ void* Pool::pop() {
 
 void Pool::push(void* p) {
     ((PoolImpl*)_p)->push(p);
+}
+
+size_t Pool::size() const {
+    return ((PoolImpl*)_p)->size();
 }
 
 } // co
