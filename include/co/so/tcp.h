@@ -147,17 +147,18 @@ class Client {
       #endif
     }
 
+    /**
+     * copy constructor 
+     *   - Copy ip, port, use_ssl from another Client. 
+     */
+    Client(const Client& c)
+        : _ip(c._ip), _port(c._port), _use_ssl(c._use_ssl),
+          _fd((sock_t)-1), _ssl(0), _ssl_ctx(0) {
+    }
+
     virtual ~Client() { this->disconnect(); }
 
-    Client()
-        : _fd((sock_t)-1), _ssl(0), _ssl_ctx(0) {
-    }
-
-    void copy_from(const Client& c) {
-        _ip = c._ip;
-        _port = c._port;
-        _use_ssl = c._use_ssl;
-    }
+    void operator=(const Client& c) = delete;
 
     virtual int recv(void* buf, int n, int ms=-1);
 
@@ -212,8 +213,6 @@ class Client {
     sock_t _fd;
     void* _ssl;
     void* _ssl_ctx;
-
-    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // tcp
