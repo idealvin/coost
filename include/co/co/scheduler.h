@@ -1,16 +1,15 @@
 #pragma once
 
-#include "../def.h"
+#include "sock.h"
+#include "epoll.h"
+#include "context.h"
+
 #include "../flag.h"
 #include "../log.h"
 #include "../time.h"
 #include "../closure.h"
 #include "../thread.h"
 #include "../fastream.h"
-
-#include "sock.h"
-#include "epoll.h"
-#include "context.h"
 
 #include <assert.h>
 #include <vector>

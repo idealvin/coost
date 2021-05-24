@@ -1,9 +1,8 @@
 #pragma once
 
 #include "closure.h"
-#include "co/sock.h"
 #include "co/hook.h"
-#include "co/epoll.h"
+#include "co/sock.h"
 #include "co/scheduler.h"
 #include "co/event.h"
 #include "co/mutex.h"
