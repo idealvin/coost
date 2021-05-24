@@ -63,7 +63,10 @@ class Server {
 class Client {
   public:
     Client(const char* ip, int port, bool use_ssl=false);
+    Client(const Client& c);
     ~Client();
+
+    void operator=(const Client& c) = delete;
 
     /**
      * set a pair of username and password to logon to the server 
@@ -89,8 +92,6 @@ class Client {
 
   private:
     void* _p;
-
-    DISALLOW_COPY_AND_ASSIGN(Client);
 };
 
 } // rpc

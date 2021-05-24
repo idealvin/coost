@@ -414,6 +414,10 @@ class ClientImpl {
         : _tcp_cli(ip, port, use_ssl) {
     }
 
+    ClientImpl(const ClientImpl& c)
+        : _tcp_cli(c._tcp_cli), _user(c._user), _passwd(c._passwd) {
+    }
+
     ~ClientImpl() = default;
 
     void call(const Json& req, Json& res);
