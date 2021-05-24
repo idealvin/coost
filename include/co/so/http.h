@@ -4,10 +4,6 @@
 #include <functional>
 #include <vector>
 
-#ifdef HAS_LIBCURL
-#include <curl/curl.h>
-#endif
-
 namespace http {
 
 /**
@@ -150,7 +146,7 @@ class Client {
     /**
      * get curl easy handle owned by this client
      */
-    CURL* easy_handle() const;
+    void* easy_handle() const;
 
     /**
      * perform a HTTP request

@@ -12,6 +12,10 @@
 #include <memory>
 #include <unordered_map>
 
+#ifdef HAS_LIBCURL
+#include <curl/curl.h>
+#endif
+
 DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
 DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
 DEF_uint32(http_timeout, 3000, "#2 send or recv timeout in ms for http client");
@@ -227,7 +231,7 @@ void Client::put(const char* url, const char* data, size_t size) {
     this->perform();
 }
 
-CURL* Client::easy_handle() const {
+void* Client::easy_handle() const {
     return _ctx->easy;
 }
 
