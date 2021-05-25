@@ -32,11 +32,7 @@ void close();
 namespace xx {
 
 void push_fatal_log(fastream* fs);
-void push_level_log(fastream* fs);
-
-void push_fatal_log(char* s, size_t n);
 void push_level_log(char* s, size_t n);
-
 
 extern __thread fastream* xxLog;
 

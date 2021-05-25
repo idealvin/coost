@@ -280,7 +280,6 @@ void LevelLogger::push_fatal_log(fastream* log) {
 }
 
 bool LevelLogger::open_log_file(int level) {
-    this->init_config();
     static fastring path_base = path::join(_config->log_dir, _config->log_file_name);
 
     fastring path(path_base.size() + 8);
