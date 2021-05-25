@@ -80,7 +80,7 @@ int accept(SSL* s, int ms) {
         r = SSL_accept(s);
         if (r == 1) return 1; // success
         if (r == 0) {
-            DLOG << "SSL_accept return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_accept return 0, error: " << SSL_get_error(s, 0);
             return 0; // ssl connection shut down
         }
 
@@ -92,7 +92,7 @@ int accept(SSL* s, int ms) {
             co::IoEvent ev(fd, co::EV_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_accept return " << r << ", error: " << e;
+            //DLOG << "SSL_accept return " << r << ", error: " << e;
             return r;
         }
     } while (true);
@@ -109,7 +109,7 @@ int connect(SSL* s, int ms) {
         r = SSL_connect(s);
         if (r == 1) return 1; // success
         if (r == 0) {
-            DLOG << "SSL_connect return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_connect return 0, error: " << SSL_get_error(s, 0);
             return 0; // ssl connection shut down
         }
 
@@ -121,7 +121,7 @@ int connect(SSL* s, int ms) {
             co::IoEvent ev(fd, co::EV_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_connect return " << r << ", error: " << e;
+            //DLOG << "SSL_connect return " << r << ", error: " << e;
             return r;
         }
     } while (true);
@@ -138,7 +138,7 @@ int recv(SSL* s, void* buf, int n, int ms) {
         r = SSL_read(s, buf, n);
         if (r > 0) return r; // success
         if (r == 0) {
-            DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
  
@@ -150,7 +150,7 @@ int recv(SSL* s, void* buf, int n, int ms) {
             co::IoEvent ev(fd, co::EV_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_read return " << r << ", error: " << e;
+            //DLOG << "SSL_read return " << r << ", error: " << e;
             return r;
         }
     } while (true);
@@ -170,7 +170,7 @@ int recvn(SSL* s, void* buf, int n, int ms) {
         r = SSL_read(s, p, remain);
         if (r == remain) return n; // success
         if (r == 0) {
-            DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
 
@@ -183,7 +183,7 @@ int recvn(SSL* s, void* buf, int n, int ms) {
                 co::IoEvent ev(fd, co::EV_write);
                 if (!ev.wait(ms)) return -1;
             } else {
-                DLOG << "SSL_read return " << r << ", error: " << e;
+                //DLOG << "SSL_read return " << r << ", error: " << e;
                 return r;
             }
         } else {
@@ -207,7 +207,7 @@ int send(SSL* s, const void* buf, int n, int ms) {
         r = SSL_write(s, p, remain);
         if (r == remain) return n; // success
         if (r == 0) {
-            DLOG << "SSL_write return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_write return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
 
@@ -220,7 +220,7 @@ int send(SSL* s, const void* buf, int n, int ms) {
                 co::IoEvent ev(fd, co::EV_write);
                 if (!ev.wait(ms)) return -1;
             } else {
-                DLOG << "SSL_write return " << r << ", error: " << e;
+                //DLOG << "SSL_write return " << r << ", error: " << e;
                 return r;
             }
         } else {

@@ -761,7 +761,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             _on_req(req, res);
             fastring s = res.str();
             r = conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
-            if (r != (int)s.size()) goto send_err;
+            if (r <= 0) goto send_err;
 
             s.resize(s.size() - res.body_size());
             HTTPLOG << "http send res: " << s;
