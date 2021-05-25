@@ -70,13 +70,12 @@ class Client {
 
     /**
      * set a pair of username and password to logon to the server 
-     *   - if user or pass is empty, nothing will be done. 
+     *   - Empty username or password will be ignored. 
      */
     void set_userpass(const char* user, const char* pass);
 
     /**
      * perform a rpc request
-     *   - Empty username or password will be ignored. 
      */
     void call(const Json& req, Json& res);
 

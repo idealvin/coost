@@ -180,7 +180,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r == -1)) {
-                if (co::error() != ETIMEDOUT) goto recv_err;
+                if (!co::timeout()) goto recv_err;
                 if (_conn_num > FLG_rpc_max_idle_conn) goto idle_err;
 
                 if (buf) { 
@@ -218,7 +218,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             set_header((void*)buf->data(), (int) buf->size() - sizeof(Header));
             
             r = conn->send(buf->data(), (int) buf->size(), FLG_rpc_send_timeout);
-            if (unlikely(r == -1)) goto send_err;
+            if (unlikely(r <= 0)) goto send_err;
 
             RPCLOG << "rpc send res: " << res;;
         } while (0);
@@ -230,7 +230,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     goto cleanup;
   idle_err:
     ELOG << "rpc close idle connection, connfd: " << conn->socket();
-    conn->close();
+    conn->reset();
     goto cleanup;
   magic_err:
     ELOG << "rpc recv error: bad magic number";
@@ -319,7 +319,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         set_header((void*)fs.data(), (int)fs.size() - sizeof(Header));
 
         r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r == -1)) goto send_err;
+        if (unlikely(r <= 0)) goto send_err;
 
         DLOG << "rpc send auth require: " << (fs.data() + sizeof(Header));
     } while (0);
@@ -367,7 +367,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
             set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
 
             r = conn->send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
-            if (unlikely(r == -1)) goto send_err;
+            if (unlikely(r <= 0)) goto send_err;
 
             DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
             return false;
@@ -382,7 +382,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
             set_header((void*)fs.data(), (int) fs.size() - sizeof(Header));
 
             r = conn->send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
-            if (unlikely(r == -1)) goto send_err;
+            if (unlikely(r <= 0)) goto send_err;
 
             DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
             return true;
@@ -496,7 +496,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         set_header((void*)_fs.data(), (int)_fs.size() - sizeof(Header));
 
         r = _tcp_cli.send(_fs.data(), (int)_fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r == -1)) goto send_err;
+        if (unlikely(r <= 0)) goto send_err;
 
         RPCLOG << "rpc send req: " << req;
     } while (0);
@@ -560,7 +560,7 @@ bool ClientImpl::auth() {
         set_header((void*)fs.data(), (int) fs.size() - sizeof(header));
 
         r = _tcp_cli.send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r == -1)) goto send_err;
+        if (unlikely(r <= 0)) goto send_err;
     } while (0);
 
     // recv the first response from server
@@ -600,7 +600,7 @@ bool ClientImpl::auth() {
         set_header((void*)fs.data(), (int) fs.size() - sizeof(header));
 
         r = _tcp_cli.send(fs.data(), (int) fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r == -1)) goto send_err;
+        if (unlikely(r <= 0)) goto send_err;
 
         DLOG << "rpc send auth answer: " << (fs.c_str() + sizeof(header));
     } while (0);
