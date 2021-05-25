@@ -11,6 +11,11 @@ bool static_log() {
 
 bool __ = static_log();
 
+int nested_log() {
+    DLOG << ">>>> nested log..";
+    return 123;
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
@@ -38,6 +43,7 @@ int main(int argc, char** argv) {
         WLOG << "This is WLOG (warning).. " << 23;
         ELOG << "This is ELOG (error).. " << 23;
         //FLOG << "This is FLOG (fatal).. " << 23;
+        LOG << "hello " << nested_log() << "  " << nested_log();
     }
 
     return 0;

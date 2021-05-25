@@ -34,6 +34,10 @@ namespace xx {
 void push_fatal_log(fastream* fs);
 void push_level_log(fastream* fs);
 
+void push_fatal_log(char* s, size_t n);
+void push_level_log(char* s, size_t n);
+
+
 extern __thread fastream* xxLog;
 
 enum LogLevel {
@@ -71,19 +75,24 @@ class LevelLogSaver {
   public:
     LevelLogSaver(const char* file, unsigned line, int level) {
         if (unlikely(xxLog == 0)) xxLog = new fastream(128);
-        xxLog->resize(log_time_t::total_size + 1); // make room for time
-        xxLog->front() = "DIWEF"[level];
+        _n = xxLog->size();
+        xxLog->resize(log_time_t::total_size + 1 + _n); // make room for time
+        (*xxLog)[_n] = "DIWEF"[level];
         (*xxLog) << ' ' << current_thread_id() << ' ' << file << ':' << line << ']' << ' ';
     }
 
     ~LevelLogSaver() {
         (*xxLog) << '\n';
-        push_level_log(xxLog);
+        push_level_log((char*)xxLog->data() + _n, xxLog->size() - _n);
+        xxLog->resize(_n);
     }
 
     fastream& fs() {
         return *xxLog;
     }
+
+  private:
+    size_t _n;
 };
 
 class FatalLogSaver {
