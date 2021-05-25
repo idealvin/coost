@@ -45,6 +45,7 @@ struct curl_ctx {
         : l(NULL), upload(NULL), upsize(0), s(-1), cs(-1), action(0), ms(0) {
         multi = curl_multi_init();
         easy = curl_easy_init();
+        memset(err, 0, sizeof(err));
     }
 
     ~curl_ctx() {
@@ -59,6 +60,7 @@ struct curl_ctx {
     fastream mutable_header;
     fastream body;
     std::vector<size_t> header_index;
+    char err[CURL_ERROR_SIZE];
 
     CURLM* multi;
     CURL* easy;
@@ -105,6 +107,8 @@ void init_easy_opts(CURL* e, curl_ctx* ctx) {
     curl_easy_setopt(e, CURLOPT_CLOSESOCKETFUNCTION, easy_closesocket_cb);
     curl_easy_setopt(e, CURLOPT_CLOSESOCKETDATA, (void*)ctx);
     curl_easy_setopt(e, CURLOPT_SOCKOPTFUNCTION, easy_sockopt_cb);
+
+    curl_easy_setopt(e, CURLOPT_ERRORBUFFER, ctx->err);
 }
 
 struct curl_global {
@@ -242,6 +246,7 @@ void Client::perform() {
     _ctx->header.clear();
     _ctx->body.clear();
     _ctx->header_index.clear();
+    _ctx->err[0] = '\0';
     curl_multi_add_handle(_ctx->multi, _ctx->easy);
     while (_ctx->action != 0) do_io();
     _ctx->mutable_header.clear();
@@ -254,7 +259,9 @@ int Client::response_code() const {
 }
 
 const char* Client::strerror() const {
-    return co::strerror();
+    if (_ctx->err[0]) return _ctx->err;
+    if (co::error() != 0) return co::strerror();
+    return "ok";
 }
 
 const char* Client::header(const char* key) {
