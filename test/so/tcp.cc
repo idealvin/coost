@@ -20,7 +20,7 @@ void on_connection(tcp::Connection* conn) {
             LOG << "server recv " << fastring(buf, r);
             LOG << "server send pong";
             r = conn->send("pong", 4);
-            if (r == -1) {
+            if (r <= 0) {
                 LOG << "server send error: " << conn->strerror();
                 conn->reset(3000);
                 break;
@@ -43,7 +43,7 @@ void client_fun() {
     while (true) {
         LOG << "client send ping";
         int r = c.send("ping", 4);
-        if (r == -1) {
+        if (r <= 0) {
             LOG << "client send error: " << c.strerror();
             break;
         }
@@ -84,7 +84,7 @@ void client_with_pool() {
     while (true) {
         LOG << "client send ping";
         int r = c->send("ping", 4);
-        if (r == -1) {
+        if (r <= 0) {
             LOG << "client send error: " << c->strerror();
             break;
         }

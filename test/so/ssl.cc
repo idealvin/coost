@@ -47,7 +47,7 @@ void on_connection(tcp::Connection* conn) {
         buf.append(msg);
 
         r = conn->send(buf.data(), (int)buf.size(), 3000);
-        if (r != (int)buf.size()) {
+        if (r <= 0) {
             ELOG << "server send error: " << conn->strerror();
             goto err;
         }
@@ -78,7 +78,7 @@ void client_fun() {
         buf.append(msg);
 
         int r = c.send(buf.data(), (int)buf.size(), 3000);
-        if (r != (int)buf.size()) {
+        if (r <= 0) {
             ELOG << "client send error: " << c.strerror();
             goto err;
         }
