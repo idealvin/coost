@@ -11,10 +11,28 @@ struct Connection {
     Connection(int sockfd) : _fd(sockfd) {}
     virtual ~Connection() { this->close(); }
 
+    /**
+     * recv using co::recv or ssl::recv
+     * 
+     * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
     virtual int recv(void* buf, int n, int ms=-1);
 
+    /**
+     * recv n bytes using co::recvn or ssl::recvn
+     * 
+     * @return  n on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
     virtual int recvn(void* buf, int n, int ms=-1);
 
+    /**
+     * send n bytes using co::send or ssl::send 
+     *   - If use SSL, this method may return 0 on error.
+     * 
+     * @return  n on success, <=0 on timeout or error.
+     */
     virtual int send(const void* buf, int n, int ms=-1);
 
     /**
@@ -26,6 +44,7 @@ struct Connection {
 
     /**
      * reset the connection
+     *   - Server may use this method instead of close() to avoid TIME_WAIT state.
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
@@ -59,6 +78,7 @@ class Server {
 
     /**
      * set a callback for handling a connection 
+     *   - The user MUST delete the Connection pointer when the connection was closed.
      * 
      * @param f  either a pointer to void f(tcp::Connection*), 
      *           or a reference of std::function<void(tcp::Connection*)>.
@@ -69,6 +89,7 @@ class Server {
 
     /**
      * set a callback for handling a connection 
+     *   - The user MUST delete the Connection pointer when the connection was closed.
      * 
      * @param f  a pointer to a method with a parameter of type tcp::Connection* in class T.
      * @param o  a pointer to an object of class T.
@@ -135,10 +156,28 @@ class Client {
 
     void operator=(const Client& c) = delete;
 
+    /**
+     * recv using co::recv or ssl::recv
+     * 
+     * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
     virtual int recv(void* buf, int n, int ms=-1);
 
+    /**
+     * recv n bytes using co::recvn or ssl::recvn
+     * 
+     * @return  n on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
     virtual int recvn(void* buf, int n, int ms=-1);
 
+    /**
+     * send n bytes using co::send or ssl::send 
+     *   - If use SSL, this method may return 0 on error.
+     * 
+     * @return  n on success, <=0 on timeout or error.
+     */
     virtual int send(const void* buf, int n, int ms=-1);
 
     /**
