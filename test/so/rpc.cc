@@ -1,5 +1,5 @@
-#include "hello_world.h"
-#include "hello_again.h"
+#include "rpc/hello_world.h"
+#include "rpc/hello_again.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/co.h"
@@ -12,6 +12,7 @@ DEF_string(userpass, "{\"bob\":\"nice\", \"alice\":\"nice\"}", "usernames and pa
 DEF_string(username, "alice", "username for rpc client");
 DEF_string(password, "nice", "password for rpc client");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
+DEF_int32(serv_port, 7788, "server port");
 DEF_bool(ping, false, "test rpc ping");
 DEF_int32(hb, 3000, "heartbeat");
 DEF_string(key, "", "private key file");
@@ -61,7 +62,8 @@ class HelloAgainImpl : public HelloAgain {
 // proto client
 std::unique_ptr<rpc::Client> proto;
 
-void client_fun() {
+// perform RPC request with rpc::Client
+void test_rpc_client() {
     // copy a client from proto, 
     // and we needn't set username & password again.
     rpc::Client c(*proto);
@@ -81,6 +83,20 @@ void client_fun() {
     }
 
     c.close();
+}
+
+// perform RPC request with HelloWorldClient
+std::unique_ptr<xx::HelloWorldClient> hello_world_proto;
+
+void test_client() {
+    xx::HelloWorldClient c(*hello_world_proto);
+    Json req = c.make_req_hello();
+    req.add_member("xxx", 123456);
+    Json res = c.perform(req);
+
+    req = c.make_req_world();
+    req.add_member("xxx", 123456);
+    res = c.perform(req);
 }
 
 co::Pool pool(
@@ -103,8 +119,11 @@ int main(int argc, char** argv) {
     FLG_cout = true;
 
     // initialize the proto client, other client can simply copy from it.
-    proto.reset(new rpc::Client(FLG_serv_ip.c_str(), 7788, FLG_ssl));
+    proto.reset(new rpc::Client(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));
     proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
+
+    hello_world_proto.reset(new xx::HelloWorldClient(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));
+    hello_world_proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
     FLG_password.safe_clear(); // clear the password
 
     rpc::Server serv;
@@ -120,8 +139,9 @@ int main(int argc, char** argv) {
             go(test_ping);
         } else {
             for (int i = 0; i < FLG_conn; ++i) {
-                go(&client_fun);
+                go(test_rpc_client);
             }
+            go(test_client);
         }
     }
 
