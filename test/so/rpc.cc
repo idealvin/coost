@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
         serv.add_userpass(FLG_userpass.c_str());
         serv.add_service(new xx::HelloWorldImpl);
         serv.add_service(new xx::HelloAgainImpl);
-        serv.start("0.0.0.0", 7788, FLG_key.c_str(), FLG_ca.c_str());
+        serv.start("0.0.0.0", FLG_serv_port, FLG_key.c_str(), FLG_ca.c_str());
     } else {
         if (FLG_ping) {
             go(test_ping);
