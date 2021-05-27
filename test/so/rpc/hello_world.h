@@ -29,14 +29,14 @@ class HelloWorld : public rpc::Service {
             return;
         }
 
-        auto it = _methods.find(hash64(method.get_string(), method.size()));
+        auto it = _methods.find(hash64(method.get_string(), method.string_size()));
         if (it == _methods.end()) {
             res.add_member("err", 404);
             res.add_member("errmsg", "method not found");
             return;
         }
 
-        (this->*it->second)(req, res);
+        (this->*(it->second))(req, res);
     }
 
     virtual void hello(const Json& req, Json& res) = 0;

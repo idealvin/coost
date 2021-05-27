@@ -68,14 +68,14 @@ void generate(
         fs << fastring(' ', 12) << "return;\n";
         fs << fastring(' ', 8) << "}\n\n";
 
-        fs << fastring(' ', 8) << "auto it = _methods.find(hash64(method.get_string(), method.size()));\n";
+        fs << fastring(' ', 8) << "auto it = _methods.find(hash64(method.get_string(), method.string_size()));\n";
         fs << fastring(' ', 8) << "if (it == _methods.end()) {\n";
         fs << fastring(' ', 12) << "res.add_member(\"err\", 404);\n";
         fs << fastring(' ', 12) << "res.add_member(\"errmsg\", \"method not found\");\n";
         fs << fastring(' ', 12) << "return;\n";
         fs << fastring(' ', 8) << "}\n\n";
 
-        fs << fastring(' ', 8) << "(this->*it->second)(req, res);\n";
+        fs << fastring(' ', 8) << "(this->*(it->second))(req, res);\n";
         fs << fastring(' ', 4) << "}\n\n";
     } while (0);
 
