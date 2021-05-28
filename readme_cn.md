@@ -325,4 +325,4 @@ The MIT license. `CO` 包含了一些其他项目的代码，可能使用了不�
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin at qq.com`.
-- [Donate](https://idealvin.github.io/donate/)
+- [Donate](https://www.yuque.com/idealvin/co/entqmb)

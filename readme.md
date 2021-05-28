@@ -324,4 +324,4 @@ The MIT license. `CO` contains codes from some other projects, which have their 
 
 ## Donate
 
-Goto the [Donate](https://idealvin.github.io/donate/) page.
+Goto the [Donate](https://www.yuque.com/idealvin/co/entqmb) page.
