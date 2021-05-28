@@ -29,7 +29,7 @@ end
 ---[[
 add_requires("zlib", {optional = true})
 add_requires("libcurl", {optional = true})
-add_requires("openssl", {optional = true})
+add_requires("openssl >=1.1.0", {optional = true})
 if has_package("libcurl") then
     add_defines("HAS_LIBCURL")
     add_packages("libcurl")
