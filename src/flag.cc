@@ -48,7 +48,7 @@ inline std::map<fastring, Flag>& gFlags() {
     return flags;
 }
 
-void flag_set_value(Flag* flag, const fastring& v) {
+fastring flag_set_value(Flag* flag, const fastring& v) {
     switch (flag->type) {
       case TYPE_string:
         *static_cast<fastring*>(flag->addr) = v;
@@ -72,8 +72,12 @@ void flag_set_value(Flag* flag, const fastring& v) {
         *static_cast<double*>(flag->addr) = str::to_double(v);
         break;
       default:
-        throw "unknown flag type";
+        return "unknown flag type";
     }
+
+    if (errno == 0) return fastring();
+    if (errno == ERANGE) return "out of range";
+    return "invalid number";
 }
 
 template<typename T>
@@ -107,7 +111,7 @@ fastring flag_get_value(const Flag* flag) {
       case TYPE_double:
         return str::from(*static_cast<double*>(flag->addr));
       default:
-        throw "unknown flag type";
+        return "unknown flag type";
     }
 }
 
@@ -143,12 +147,9 @@ fastring set_flag_value(const fastring& name, const fastring& value) {
     Flag* flag = find_flag(name);
     if (!flag) return "flag not defined: " + name;
 
-    try {
-        flag_set_value(flag, value);
-        return fastring();
-    } catch (const char* s) {
-        return fastring(s) + ": " + value;
-    }
+    fastring err = flag_set_value(flag, value);
+    if (!err.empty()) err.append(": ").append(value);
+    return err;
 }
 
 // set_bool_flags("abc"):  -abc -> true  or  -a, -b, -c -> true
