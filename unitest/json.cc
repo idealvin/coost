@@ -85,15 +85,15 @@ DEF_test(json) {
         EXPECT_EQ(s.str(), "\"hello world\"");
         EXPECT_EQ(s.pretty(), "\"hello world\"");
 
-        s = fastring(300, 'x').append('\n').append(299, 'x');
+        s = fastring(30, 'x').append('\n').append(500, 'x');
         EXPECT(s.is_string());
-        EXPECT_EQ(s.size(), 600);
-        EXPECT_EQ(s.str(), fastring("\"").append(300, 'x').append("\\n").append(299, 'x').append('"'));
-        EXPECT_EQ(s.dbg(), fastring("\"").append(300, 'x').append("\\n").append(211, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(s.size(), 531);
+        EXPECT_EQ(s.str(), fastring("\"").append(30, 'x').append("\\n").append(500, 'x').append('"'));
+        EXPECT_EQ(s.dbg(), fastring("\"").append(30, 'x').append("\\n").append(1, 'x').append(3, '.').append('"'));
 
         s = fastring(600, 'x');
         EXPECT_EQ(s.str(), fastring("\"").append(600, 'x').append('"'));
-        EXPECT_EQ(s.dbg(), fastring("\"").append(512, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(s.dbg(), fastring("\"").append(32, 'x').append(3, '.').append('"'));
 
         s = fastring("hello world");
         EXPECT(s.is_string());
