@@ -13,7 +13,7 @@ void on_connection(tcp::Connection* conn) {
         if (r == 0) {         /* client close the connection */
             conn->close();
             break;
-        } else if (r == -1) { /* error */
+        } else if (r < 0) { /* error */
             conn->reset(3000);
             break;
         } else {
@@ -49,7 +49,7 @@ void client_fun() {
         }
 
         r = c.recv(buf, 8);
-        if (r == -1) {
+        if (r < 0) {
             LOG << "client recv error: " << c.strerror();
             break;
         } else if (r == 0) {
@@ -90,7 +90,7 @@ void client_with_pool() {
         }
 
         r = c->recv(buf, 8);
-        if (r == -1) {
+        if (r < 0) {
             LOG << "client recv error: " << c->strerror();
             break;
         } else if (r == 0) {

@@ -179,7 +179,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             r = conn->recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
 
             if (unlikely(r == 0)) goto recv_zero_err;
-            if (unlikely(r == -1)) {
+            if (unlikely(r < 0)) {
                 if (!co::timeout()) goto recv_err;
                 if (_conn_num > FLG_rpc_max_idle_conn) goto idle_err;
 
@@ -200,7 +200,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             buf->resize(len);
             r = conn->recvn((char*)buf->data(), len, FLG_rpc_recv_timeout);
             if (unlikely(r == 0)) goto recv_zero_err;
-            if (unlikely(r == -1)) goto recv_err;
+            if (unlikely(r < 0)) goto recv_err;
 
             req = json::parse(buf->data(), buf->size());
             if (req.is_null()) goto json_parse_err;
@@ -286,7 +286,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
     do {
         r = conn->recvn(&header, sizeof(header), 7000);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;
 
         len = ntoh32(header.len);
@@ -295,7 +295,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         fs.resize(len);
         r = conn->recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
 
         req = json::parse(fs.data(), fs.size());
         if (req.is_null()) goto json_parse_err;
@@ -328,7 +328,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
     do {
         r = conn->recvn(&header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;
 
         len = ntoh32(header.len);
@@ -337,7 +337,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         fs.resize(len);
         r = conn->recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
 
         req = json::parse(fs.data(), fs.size());
         if (req.is_null()) goto json_parse_err;
@@ -505,7 +505,7 @@ void ClientImpl::call(const Json& req, Json& res) {
     do {
         r = _tcp_cli.recvn(&header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
         if (unlikely(header.magic != kMagic)) goto magic_err;
 
         len = ntoh32(header.len);
@@ -514,7 +514,7 @@ void ClientImpl::call(const Json& req, Json& res) {
         _fs.resize(len);
         r = _tcp_cli.recvn((char*) _fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
 
         res = json::parse(_fs.c_str(), _fs.size());
         if (res.is_null()) goto json_parse_err;
@@ -567,7 +567,7 @@ bool ClientImpl::auth() {
     do {
         r = _tcp_cli.recv(&header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;        
 
         len = ntoh32(header.len);
@@ -576,7 +576,7 @@ bool ClientImpl::auth() {
         fs.resize(len);
         r = _tcp_cli.recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
 
         res = json::parse(fs.data(), fs.size());
         if (res.is_null()) goto json_parse_err;
@@ -609,7 +609,7 @@ bool ClientImpl::auth() {
     do {
         r = _tcp_cli.recv(&header, sizeof(header), FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
         if (header.magic != kMagic) goto magic_err;        
 
         len = ntoh32(header.len);
@@ -618,7 +618,7 @@ bool ClientImpl::auth() {
         fs.resize(len);
         r = _tcp_cli.recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
         if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r == -1)) goto recv_err;
+        if (unlikely(r < 0)) goto recv_err;
 
         res = json::parse(fs.data(), fs.size());
         if (res.is_null()) goto json_parse_err;
