@@ -1,4 +1,5 @@
 #include "co/json.h"
+#include "co/flag.h"
 
 namespace json {
 
@@ -506,7 +507,7 @@ fastream& Json::_Json2str(fastream& fs, bool debug, uint32 index) const {
         const uint32 len = h->size;
         const bool trunc = debug && len > 512;
         const char* s = (const char*) _p8(h->index);
-        const char* e = trunc ? s + 512 : s + len;
+        const char* e = trunc ? s + 32 : s + len;
 
         char c;
         for (const char* p; (p = find_escapse(s, e, c)) < e;) {
