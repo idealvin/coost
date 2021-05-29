@@ -1,8 +1,8 @@
 ## Basic [(English)](readme.md)
 
-`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，并提供可选的 ssl, http 与 https 特性。
+co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台，它包含协程库、网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
 
-`CO` 包含协程库、网络库、日志库、命令行与配置文件解析库、单元测试框架、json 库等基本组件。
+co 遵循极简的设计理念，提供的接口都尽可能简单明了，用户可以轻松上手。co 尽量避免过度封装、引入过多的概念，以减轻用户的学习负担，如 co 提供的协程化的 socket API，与原生 socket API 形式上基本一致，熟悉 socket 编程的用户，几乎不需要增加新的学习成本，就能轻松用这些 API 写出高性能的网络程序。
 
 
 ## 参考文档
@@ -13,12 +13,12 @@
 
 ## 亮点功能
 
-### 协程(co)
+### 协程
 
 [co](https://github.com/idealvin/co/blob/master/include/co/co.h) 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，支持如下特性:
 - 多线程调度，默认线程数为系统 CPU 核数.
 - 协程共享栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
-- 系统 api hook (Linux & Mac).
+- 系统 API hook (Linux & Mac).
 - 协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
 - 协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
 - 协程池 [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
@@ -41,7 +41,7 @@
 
 ### 网络(so)
 
-[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个简单的基于 json 的 rpc 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
+[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个基于 JSON 的 RPC 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
 
 - 简单的静态 web server
   ```cpp
@@ -156,9 +156,9 @@
   ```
 
 
-### json
+### JSON
 
-[json](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 json 库。最新版本将 Json 对象构建到一块连续的内存上，几乎不需要内存分配操作，大大提高了 json 的解析速度，可以达到 GB 每秒。
+[JSON](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 JSON 库。最新版本将 JSON 对象构建到一块连续的内存上，从字符串解析 JSON 几乎不需要内存分配操作，大大提高了 parsing 速度，可以达到 GB 每秒。
 
 - 代码示例
   ```cpp
@@ -201,14 +201,14 @@
 
 - [co/gen](https://github.com/idealvin/co/tree/master/gen)  
 
-  代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
+  代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
 
 
 ## 构建
 
 ### xmake
 
-`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
+co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
 - 编译器
   - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -277,6 +277,7 @@
   ```sh
   # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
   xmake build gen
+  cp gen /usr/local/bin/
   gen hello_world.proto
   ```
 
@@ -310,7 +311,7 @@
 
 ## License
 
-The MIT license. `CO` 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+The MIT license. co 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
 
 ## 特别致谢

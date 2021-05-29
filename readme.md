@@ -1,8 +1,8 @@
 ## Basic [(中文)](readme_cn.md)
 
-`CO` is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It pursues simplicity and efficiency, and does not rely on third-party libraries such as [boost](https://www.boost.org/), and provides optional support for ssl, http and https with libcurl & openssl.
+co is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It contains a golang-style coroutine library, network library, log library, command line and configuration file parsing library, unit test framework, JSON library and other basic components.
 
-`CO` includes coroutine library, network library, log library, command line and configuration file parsing library, unit test framework, json library, etc.
+co follows a minimalist design concept, and the interfaces provided are as simple and clear as possible, and users can easily get started. co tries to avoid excessive encapsulation which may introduce too many concepts, to reduce the learning burden of users. For example, the coroutineized socket API provided by co is nearly the same in form as the native socket API. Users who are familiar with socket programming nearly need no more cost of learning, and can easily use these APIs to write high-performance network programs.
 
 
 ## Documents
@@ -157,9 +157,9 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
   ```
 
 
-### json
+### JSON
 
-[json](https://github.com/idealvin/co/blob/master/include/json.h) is an easy-to-use, high-performance json library. The latest version stores the Json object in a piece of contiguous memory, nearly no memory allocation is needed during pasing Json from a string, which greatly improves the parsing speed(GB per second).
+[JSON](https://github.com/idealvin/co/blob/master/include/json.h) is an easy-to-use, high-performance JSON library. The latest version stores the JSON object in a piece of contiguous memory, nearly no memory allocation is needed during pasing Json from a string, which greatly improves the parsing speed(GB per second).
 
 - Code example
   ```cpp
@@ -209,7 +209,7 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 ### xmake
 
-`CO` recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
+co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
 
 - Compiler
   - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
@@ -278,6 +278,7 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
   ```sh
   # It is recommended to put gen in the system directory (e.g. /usr/local/bin/).
   xmake build gen
+  cp gen /usr/local/bin/
   gen hello_world.proto
   ```
 
@@ -311,13 +312,13 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 ## License
 
-The MIT license. `CO` contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
+The MIT license. co contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
 
 
 ## Special thanks
 
 - The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
-- The English reference documents of CO are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
+- The English reference documents of co are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!
 
