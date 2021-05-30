@@ -15,7 +15,7 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
 
 ### Coroutine (co)
 
-[co](https://github.com/idealvin/co/blob/master/include/co/co.h) is a [golang-style](https://github.com/golang/go) C++ coroutine library with the following features:
+[co](https://github.com/idealvin/co/blob/master/include/co/co.h) is a [go-style](https://github.com/golang/go) C++ coroutine library with the following features:
 
 - Multi-thread scheduling, the default number of threads is the number of system CPU cores.
 - Coroutines share the thread stack (default size is 1MB), and the memory footprint is low, a single machine can easily create millions of coroutines.
@@ -27,16 +27,16 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
 
 - create coroutine with `go()`:
   ```cpp
-  void f() {
+  void ku() {
       LOG << "hello world";
   }
 
-  void g(int v) {
+  void gg(int v) {
       LOG << "hello "<< v;
   }
 
-  go(f);
-  go(g, 777);
+  go(ku);  // Goku
+  go(gg, 777);
   ```
 
 

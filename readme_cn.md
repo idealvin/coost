@@ -26,16 +26,16 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
 
 - 用 `go()` 创建协程:
   ```cpp
-  void f() {
+  void ku() {
       LOG << "hello world";
   }
 
-  void g(int v) {
+  void gg(int v) {
       LOG << "hello "<< v;
   }
 
-  go(f);
-  go(g, 777);
+  go(ku);  // 悟空
+  go(gg, 777);
   ```
 
 
