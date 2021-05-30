@@ -1,6 +1,6 @@
 ## Basic [(English)](readme.md)
 
-co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台，它包含协程库、网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
+co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
 
 co 遵循极简的设计理念，提供的接口都尽可能简单明了，用户可以轻松上手。co 尽量避免过度封装、引入过多的概念，以减轻用户的学习负担，如 co 提供的协程化的 socket API，与原生 socket API 形式上基本一致，熟悉 socket 编程的用户，几乎不需要增加新的学习成本，就能轻松用这些 API 写出高性能的网络程序。
 
@@ -223,6 +223,8 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   ```sh
   export XMAKE_ROOT=y
   ```
+
+  co 中的 SSL, HTTP 特性依赖于 openssl, libcurl，执行 xmake 构建命令时，xmake 会提示用户是否安装这些三方库，如果用户选择 y，xmake 默认自动从 github 上拉取这些三方库。国内从 github 上下载代码可能较慢，可以按[参考文档中的说明](https://www.yuque.com/idealvin/co/wos6kw#VSdZs)设置 github 镜像代理。
 
 - 快速上手
 
