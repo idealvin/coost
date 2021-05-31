@@ -9,15 +9,68 @@ on:
       - '*'
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  CI_mac:
+    runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: .
-      run: |
-        mkdir build && cd build
-        cmake ..
-        cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
-        make -j8
-        make install
+      - uses: actions/checkout@v2
+      - name: Install xmake
+        run: bash <(curl -fsSL https://xmake.io/shget.text)
+      - name: xmake update env & check xmake installed & compile libco & run unittest
+        run: |
+          source ~/.xmake/profile
+          xmake --version
+          xmake c -a
+          xmake -a
+          xmake run unitest -a
+      - name: cmake compile libco & run unittest
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+          make -j8
+          make install
+
+  # TODO: CI_ubuntu16
+  # ubuntu16 install openssl version is 1.1.0, compile error, `TLS_server_method()  TLS_client_method()`
+
+  CI_ubuntu18:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install xmake
+        run: bash <(curl -fsSL https://xmake.io/shget.text)
+      - name: xmake update env & check xmake installed & compile libco & run unittest
+        run: |
+          source ~/.xmake/profile
+          xmake --version
+          xmake c -a
+          xmake -a
+          xmake run unitest -a
+      - name: cmake compile libco & run unittest
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+          make -j8
+          make install
+
+  CI_ubuntu20:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install xmake
+        run: bash <(curl -fsSL https://xmake.io/shget.text)
+      - name: xmake update env & check xmake installed & compile libco & run unittest
+        run: |
+          source ~/.xmake/profile
+          xmake --version
+          xmake c -a
+          xmake -a
+          xmake run unitest -a
+      - name: cmake compile libco & run unittest
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+          make -j8
+          make install
