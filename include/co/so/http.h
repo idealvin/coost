@@ -328,8 +328,8 @@ class Server {
      */
     void on_req(std::function<void(const Req&, Res&)>&& f);
 
-    void on_req(void (*f)(const Req&, Res&)) {
-        on_req(std::bind(f, std::placeholders::_1, std::placeholders::_2));
+    void on_req(const std::function<void(const Req&, Res&)>& f) {
+        this->on_req(std::function<void(const Req&, Res&)>(f));
     }
 
     /**

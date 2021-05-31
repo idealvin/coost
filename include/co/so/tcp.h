@@ -87,8 +87,8 @@ class Server {
         _on_connection = std::move(f);
     }
 
-    void on_connection(void (*f)(Connection*)) {
-        this->on_connection(std::bind(f, std::placeholders::_1));
+    void on_connection(const std::function<void(Connection*)>& f) {
+        this->on_connection(std::function<void(Connection*)>(f));
     }
 
     /**
