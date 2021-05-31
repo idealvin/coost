@@ -395,7 +395,7 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
  */
 inline fastring ip_str(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
@@ -404,7 +404,7 @@ inline fastring ip_str(const struct sockaddr_in* addr) {
  */
 inline fastring ip_str(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     return fastring(s);
 }
 
@@ -415,7 +415,7 @@ inline fastring ip_str(const struct sockaddr_in6* addr) {
  */
 inline fastring to_string(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     const size_t n = strlen(s);
     fastring r(n + 8);
     r.append(s, n).append(':') << ntoh16(addr->sin_port);
@@ -429,7 +429,7 @@ inline fastring to_string(const struct sockaddr_in* addr) {
  */
 inline fastring to_string(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     const size_t n = strlen(s);
     fastring r(n + 8);
     r.append(s, n).append(':') << ntoh16(addr->sin6_port);

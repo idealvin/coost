@@ -87,6 +87,10 @@ class Server {
         _on_connection = std::move(f);
     }
 
+    void on_connection(void (*f)(Connection*)) {
+        this->on_connection(std::bind(f, std::placeholders::_1));
+    }
+
     /**
      * set a callback for handling a connection 
      *   - The user MUST delete the Connection pointer when the connection was closed.

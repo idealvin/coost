@@ -77,7 +77,7 @@ void client_fun() {
         buf.append(&header, sizeof(header));
         buf.append(msg);
 
-        int r = c.send(buf.data(), (int)buf.size(), 3000);
+        r = c.send(buf.data(), (int)buf.size(), 3000);
         if (r <= 0) {
             ELOG << "client send error: " << c.strerror();
             goto err;
