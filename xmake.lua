@@ -27,17 +27,18 @@ if is_plat("windows") then
 end
 
 ---[[
-add_requires("zlib", {optional = true})
-add_requires("libcurl", {optional = true})
+--add_requires("zlib", {optional = true})
 add_requires("openssl >=1.1.0", {optional = true})
+add_requires("libcurl", {optional = true, configs = {openssl = true, zlib = true}})
+
 if has_package("libcurl") then
     add_defines("HAS_LIBCURL")
     add_packages("libcurl")
 end
-if has_package("zlib") then
-    add_defines("HAS_ZLIB")
-    add_packages("zlib")
-end
+--if has_package("zlib") then
+--    add_defines("HAS_ZLIB")
+--    add_packages("zlib")
+--end
 if has_package("openssl") then
     add_defines("CO_SSL")
     add_defines("HAS_OPENSSL")

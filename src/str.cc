@@ -306,7 +306,7 @@ uint64 to_uint64(const char* s) {
         if (shift != 0) {
             if (x == 0) return 0;
             int64 absx = (int64)x;
-            if (absx < 0) absx = -x;
+            if (absx < 0) absx = -absx;
             if (absx > static_cast<int64>(MAX_UINT64 >> shift)) {
                 errno = ERANGE;
                 return 0;

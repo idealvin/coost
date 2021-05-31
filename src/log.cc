@@ -177,7 +177,7 @@ inline void LevelLogger::init_config() {
         auto& nlog = _config->max_log_size;
         nlog = FLG_max_log_size;
         if (nlog < 128) nlog = 128;
-        if (nlog >= (nbuf >> 1)) nlog = (nbuf >> 1) - 1;
+        if ((uint32)nlog >= (nbuf >> 1)) nlog = (int32)((nbuf >> 1) - 1);
 
         if (FLG_max_log_file_num <= 0) FLG_max_log_file_num = 8;
         if (FLG_max_log_file_size <= 0) FLG_max_log_file_size = 256 << 20;
