@@ -85,7 +85,8 @@ enum {
 
 struct Coroutine {
     explicit Coroutine(int i)
-        : id(i), state(S_init), ctx(0), stack(), it(null_timer_id), cb(0) {
+        : id(i), state(S_init), ctx(0), stack(), cb(0) {
+        set_null_timer_id(it);
     }
     ~Coroutine() = default;
 

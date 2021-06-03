@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 project(co)
 
 if(WIN32)
@@ -6,6 +6,7 @@ if(WIN32)
         message(FATAL_ERROR, "msvc required on windows")
     endif()
     enable_language(C CXX ASM_MASM)
+    add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
 else()
     enable_language(C CXX ASM)
 endif()
