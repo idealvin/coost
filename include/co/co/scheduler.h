@@ -41,6 +41,25 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
     return fs << *(void**)(&id);
 }
 
+inline void init_null_timer_id() {
+    memset((void*)&null_timer_id, 0, sizeof(null_timer_id));
+}
+
+inline bool is_null_timer_id(const timer_id_t& it) {
+    if (sizeof(null_timer_id) == sizeof(void*)) {
+        return *(void**)&it == *(void**)&null_timer_id;
+    }
+    return memcmp((void*)&it, (void*)&null_timer_id, sizeof(null_timer_id)) == 0;
+}
+
+inline void set_null_timer_id(timer_id_t& it) {
+    if (sizeof(null_timer_id) == sizeof(void*)) {
+        *(void**)&it = *(void**)&null_timer_id;
+    } else {
+        memcpy((void*)&it, (void*)&null_timer_id, sizeof(null_timer_id));
+    }
+}
+
 /**
  * coroutine state 
  *   - The state is used to implement co::Event.

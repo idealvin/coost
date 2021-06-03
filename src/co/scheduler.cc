@@ -57,18 +57,16 @@ void Scheduler::resume(Coroutine* co) {
     }
 
     if (co->ctx == 0) {
-        //assert(co->it == null_timer_id);
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
         SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
         from = tb_context_jump(co->ctx, _main_co);
     } else {
-        //if (co->it != null_timer_id) {
         // We can't compare co->it with null_timer_id directly, as it will cause 
         // a "debug assertion failed" error in dll debug mode on windows.
-        if (*(void**)&co->it != *(void**)&null_timer_id) {
+        if (!is_null_timer_id(co->it)) {
             SOLOG << "del timer: " << co->it;
             _timer_mgr.del_timer(co->it);
-            co->it = null_timer_id;
+            set_null_timer_id(co->it);
         }
         SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
         CHECK(_stack_top == (char*)co->ctx + co->stack.size());
@@ -176,7 +174,7 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
         if (co->state == S_init || atomic_swap(&co->state, S_init) == S_wait) {
-            co->it = null_timer_id;
+            set_null_timer_id(co->it);
             res.push_back(co);
         }
     }
@@ -222,7 +220,7 @@ inline bool& initialized() {
 SchedulerManager::SchedulerManager() {
     wsa_startup();
     init_hooks();
-    CHECK_EQ(sizeof(null_timer_id), sizeof(void*));
+    init_null_timer_id();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
