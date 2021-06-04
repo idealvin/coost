@@ -142,6 +142,52 @@ inline int coroutine_id() {
 }
 
 /**
+ * add a timer for the current coroutine
+ *   - The user MUST call yield() to suspend the coroutine after a timer was added.
+ *   - When the timer is timeout, the scheduler will resume the coroutine.
+ *
+ * @param ms  timeout in milliseconds.
+ */
+inline void add_timer(uint32 ms) {
+    xx::gSched->add_timer(ms);
+}
+
+/**
+ * add an IO timer for the current coroutine
+ *   - The user MUST call yield() to suspend the coroutine after a timer was added.
+ *   - It is the same as add_timer(), but may be faster.
+ *
+ * @param ms  timeout in milliseconds.
+ */
+inline void add_io_timer(uint32 ms) {
+    xx::gSched->add_io_timer(ms);
+}
+
+/**
+ * add an IO event on a socket to the epoll
+ *   - It MUST be called in a coroutine.
+ *   - Usually, a coroutine calls add_io_event() at first, and then calls
+ *     yield() to wait for an IO event. When the IO event is present, the
+ *     scheduler will resume the coroutine.
+ *
+ * @param fd  the socket.
+ * @param ev  an IO event, either EV_read or EV_write.
+ *
+ * @return    true on success, false on error.
+ */
+inline bool add_io_event(sock_t fd, io_event_t ev) {
+    return xx::gSched->add_io_event(fd, ev);
+}
+
+/**
+ * suspend the current coroutine 
+ *   - It MUST be called in a coroutine.
+ */
+inline void yield() {
+    xx::gSched->yield();
+}
+
+/**
  * sleep for milliseconds 
  *   - It is EXPECTED to be called in a coroutine. 
  * 
