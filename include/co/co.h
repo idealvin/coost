@@ -105,6 +105,18 @@ inline const std::vector<xx::Scheduler*>& all_schedulers() {
 }
 
 /**
+ * get next scheduler 
+ *   - It is useful when users want to create coroutines in the same scheduling thread. 
+ *   - Usage: 
+ *     auto s = co::next_scheduler();
+ *     s->add_new_task(new_closure(f));     // void f();
+ *     s->add_new_task(new_closure(g, 7));  // void g(int);
+ */
+inline xx::Scheduler* next_scheduler() {
+    return xx::scheduler_manager()->next_scheduler();
+}
+
+/**
  * get number of schedulers 
  *   - scheduler id is from 0 to scheduler_num() - 1. 
  *   - This function may be used to implement scheduler-local storage:  
