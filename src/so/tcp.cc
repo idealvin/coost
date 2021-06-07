@@ -243,6 +243,8 @@ int Client::recv(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recv(_fd, buf, n, ms);
   #ifdef CO_SSL
     return ssl::recv((SSL*)_ssl, buf, n, ms);
+  #else
+    return 0;
   #endif
 }
 
@@ -250,6 +252,8 @@ int Client::recvn(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recvn(_fd, buf, n, ms);
   #ifdef CO_SSL
     return ssl::recvn((SSL*)_ssl, buf, n, ms);
+  #else
+    return 0;
   #endif
 }
 
@@ -257,6 +261,8 @@ int Client::send(const void* buf, int n, int ms) {
     if (!_use_ssl) return co::send(_fd, buf, n, ms);
   #ifdef CO_SSL
     return ssl::send((SSL*)_ssl, buf, n, ms);
+  #else
+    return 0;
   #endif
 }
 
@@ -330,6 +336,8 @@ const char* Client::strerror() const {
     if (!_use_ssl) return co::strerror();
   #ifdef CO_SSL
     return ssl::strerror((SSL*)_ssl);
+  #else
+    return "";
   #endif
 }
 
