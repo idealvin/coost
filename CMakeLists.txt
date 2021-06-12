@@ -6,7 +6,6 @@ if(WIN32)
         message(FATAL_ERROR, "msvc required on windows")
     endif()
     enable_language(C CXX ASM_MASM)
-    add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
 else()
     enable_language(C CXX ASM)
 endif()
@@ -17,8 +16,6 @@ option(BUILD_SHARED_LIBS "Let us build static libs" OFF)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin)
-
-set(CMAKE_DEBUG_POSTFIX "d")
 
 include_directories(include)
 
