@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning (disable:4127)
+#endif
+
 #include "sock.h"
 #include "epoll.h"
 #include "context.h"
@@ -180,7 +184,7 @@ class TaskManager {
 class TimerManager {
   public:
     TimerManager() : _timer(), _it(_timer.end()) {}
-    ~TimerManager() = default;
+    ~TimerManager() {}
 
     timer_id_t add_timer(uint32 ms, Coroutine* co) {
         return _timer.insert(std::make_pair(now::ms() + ms, co));
@@ -207,7 +211,10 @@ class TimerManager {
 
   private:
     std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
-    std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
+    union {
+        std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
+        char buf[sizeof(null_timer_id)];
+    };
 };
 
 class Scheduler;
