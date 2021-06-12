@@ -155,7 +155,7 @@ std::ostream& operator<<(std::ostream&os, const Color& color) {
         os << color.s;
         return os;
     } else {
-        if (std_handle()) SetConsoleTextAttribute(std_handle(), color.i);
+        if (std_handle()) SetConsoleTextAttribute(std_handle(), (WORD)color.i);
         return os;
     }
 }

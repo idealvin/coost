@@ -13,12 +13,7 @@ LPFN_ACCEPTEX accept_ex = 0;
 LPFN_GETACCEPTEXSOCKADDRS get_accept_ex_addrs = 0;
 
 sock_t socket(int domain, int type, int protocol) {
-    sock_t fd;
-    if (type != SOCK_DGRAM) {
-        fd = WSASocketW(domain, type, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-    } else {
-        fd = WSASocketW(domain, SOCK_DGRAM, 0, 0, 0, WSA_FLAG_OVERLAPPED);
-    }
+    sock_t fd = WSASocketW(domain, type, protocol, 0, 0, WSA_FLAG_OVERLAPPED);
     if (fd != INVALID_SOCKET) co::set_nonblock(fd);
     return fd;
 }
@@ -107,7 +102,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 
   err:
     ::closesocket(connfd);
-    return -1;
+    return (sock_t)-1;
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
@@ -120,17 +115,17 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         union {
             struct sockaddr_in  v4;
             struct sockaddr_in6 v6;
-        } addr;
-        memset(&addr, 0, sizeof(addr));
+        } a;
+        memset(&a, 0, sizeof(a));
 
         if (addrlen == sizeof(sockaddr_in)) {
-            addr.v4.sin_family = AF_INET;
+            a.v4.sin_family = AF_INET;
         } else {
-            addr.v6.sin6_family = AF_INET6;
+            a.v6.sin6_family = AF_INET6;
         }
 
-        if (co::bind(fd, &addr, addrlen) != 0) {
-            ELOG << "connectex bind local addr failed..";
+        if (co::bind(fd, &a, addrlen) != 0) {
+            ELOG << "connectex bind local a failed..";
             return -1;
         }
     } while (0);
