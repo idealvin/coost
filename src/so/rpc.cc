@@ -220,7 +220,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             r = conn->send(buf->data(), (int) buf->size(), FLG_rpc_send_timeout);
             if (unlikely(r <= 0)) goto send_err;
 
-            RPCLOG << "rpc send res: " << res;;
+            RPCLOG << "rpc send res: " << res;
         } while (0);
     }
 
@@ -321,7 +321,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
         if (unlikely(r <= 0)) goto send_err;
 
-        DLOG << "rpc send auth require: " << (fs.data() + sizeof(Header));
+        DLOG << "rpc send auth require: " << (fs.c_str() + sizeof(Header));
     } while (0);
 
     // wait for the auth answer from the client
