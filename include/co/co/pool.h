@@ -7,6 +7,8 @@ namespace co {
 /**
  * a general pool for coroutine programming 
  *   - Pool is designed to be coroutine-safe, the user does not need to lock it. 
+ *   - Each thread holds its own pool, users SHOULD call pop() and push() in the 
+ *     same thread.
  *   - It stores void* pointers internally and it does not care about the actual 
  *     type of the pointer. 
  *   - It is usually used as a connection pool in network programming. 
