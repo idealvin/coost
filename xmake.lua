@@ -23,7 +23,6 @@ if is_plat("macosx", "linux") then
 end
 
 if is_plat("windows") then
-    add_defines("_ITERATOR_DEBUG_LEVEL=0")
     add_cxflags("-MD", "-EHsc")
 end
 
