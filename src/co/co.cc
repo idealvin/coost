@@ -30,7 +30,6 @@ void EventImpl::wait() {
     CHECK(gSched) << "must be called in coroutine..";
     Coroutine* co = gSched->running();
     if (co->s != gSched) co->s = gSched;
-    assert(co->it == null_timer_id);
 
     {
         ::MutexGuard g(_mtx);
