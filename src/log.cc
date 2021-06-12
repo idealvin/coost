@@ -349,16 +349,16 @@ LogTime::LogTime() {
     for (int i = 0; i < 1000; ++i) {
         char* p = (char*)(_tb1000 + i);
         p[0] = '.';
-        p[1] = '0' + i / 100;
-        p[2] = '0' + i % 100 / 10;
-        p[3] = '0' + i % 10;
+        p[1] = (char)('0' + i / 100);
+        p[2] = (char)('0' + i % 100 / 10);
+        p[3] = (char)('0' + i % 10);
     }
 
     _tb60 = (uint16*) malloc(sizeof(uint16) * 60);
     for (int i = 0; i < 60; ++i) {
         char* p = (char*)(_tb60 + i);
-        p[0] = '0' + i / 10;
-        p[1] = '0' + i % 10;
+        p[0] = (char)('0' + i / 10);
+        p[1] = (char)('0' + i % 10);
     }
 
     this->reset();

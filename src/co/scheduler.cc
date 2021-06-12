@@ -13,7 +13,7 @@ __thread Scheduler* gSched = 0;
 
 Scheduler::Scheduler(uint32 id, uint32 stack_size)
     : _id(id), _stack_size(stack_size), _stack(0), _stack_top(0), _running(0), 
-      _wait_ms(-1), _co_pool(), _stop(false), _timeout(false) {
+      _wait_ms((uint32)-1), _co_pool(), _stop(false), _timeout(false) {
     // we can not use a coroutine with id of 0 on linux.
     _main_co = _co_pool.pop();
 }
@@ -166,7 +166,7 @@ void Scheduler::loop() {
 }
 
 uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
-    if (_timer.empty()) return -1;
+    if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();
     auto it = _timer.begin();
@@ -184,7 +184,7 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
         _timer.erase(_timer.begin(), it);
     }
 
-    if (_timer.empty()) return -1;
+    if (_timer.empty()) return (uint32)-1;
     return (int) (_timer.begin()->first - now_ms);
 }
 
@@ -224,7 +224,7 @@ SchedulerManager::SchedulerManager() {
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
-    _n = -1;
+    _n = (uint32)-1;
     _r = static_cast<uint32>((1ULL << 32) % FLG_co_sched_num);
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
 
