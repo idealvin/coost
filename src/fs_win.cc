@@ -111,7 +111,7 @@ file::operator bool() const {
 
 const fastring& file::path() const {
     fctx* p = (fctx*) _p;
-    return p->path;
+    if (p) return p->path;
     static fastring kPath;
     return kPath;
 }
