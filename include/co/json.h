@@ -20,11 +20,9 @@ class JBlock {
         _h = (_Header*) malloc(sizeof(_Header) + cap * N);
         _h->cap = (uint32)cap;
         _h->size = 0;
-        _h->kv = 0;
     }
 
     ~JBlock() {
-        if (_h->kv != 0) delete _h->kv;
         free(_h);
     }
 
@@ -61,25 +59,11 @@ class JBlock {
         _h->size = m._h->size;
     }
 
-    bool indexed() const {
-        return _h->kv != 0;
-    }
-
-    uint32 find_index(uint32 key) {
-        auto it = _h->kv->find(key);
-        if (it != _h->kv->end()) return it->second;
-        return -1;
-    }
-
   private:
     friend class Json;
     struct _Header {
         uint32 cap;
         uint32 size;
-        union {
-            std::unordered_map<uint32, uint32>* kv;
-            uint64 dummy;
-        };
         uint64 p[];
     };
     _Header* _h;
