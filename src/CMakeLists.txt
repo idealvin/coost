@@ -27,7 +27,7 @@ endif()
 
 if(HAS_LIBCURL)
     link_directories(${CURL_LINK_LIBRARIES})
-    TARGET_LINK_LIBRARIES(co curl crypto ssl)
+    TARGET_LINK_LIBRARIES(co curl crypto ssl z)
 endif()
 
 install(

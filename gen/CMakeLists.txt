@@ -8,7 +8,7 @@ if(UNIX)
 endif()
 
 if(HAS_LIBCURL)
-    list(APPEND LIBS_TO_LINK curl crypto ssl pthread dl)
+    list(APPEND LIBS_TO_LINK curl crypto ssl z pthread dl)
 endif()
 
 target_link_libraries(gen
