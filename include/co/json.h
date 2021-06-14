@@ -59,6 +59,10 @@ class JBlock {
         _h->size = m._h->size;
     }
 
+    size_t memory_size() const {
+        return sizeof(_Header) + _h->cap * N;
+    }
+
   private:
     friend class Json;
     struct _Header {
@@ -86,6 +90,15 @@ struct Stack {
 
     uint32 pop() {
         return p[--size];
+    }
+
+    void reset() {
+        if (cap > 8192) {
+            free(p);
+            cap = 256;
+            p = (T*) malloc(sizeof(T) * cap);
+        }
+        size = 0;
     }
 
     uint32 cap;
@@ -116,8 +129,13 @@ class JAlloc {
     }
 
     void dealloc_jblock(void* p) {
-        ((JBlock*)&p)->clear();
-        _jb.push_back(p);
+        JBlock* jb = (JBlock*)&p;
+        if (jb->memory_size() < 8 * 1024 * 1024) {
+            jb->clear();
+            _jb.push_back(p);
+        } else {
+            free(p);
+        }
     }
 
     fastream& alloc_stream() { _fs.clear(); return _fs; }

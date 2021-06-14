@@ -221,11 +221,11 @@ bool Parser::parse(const char* b, const char* e) {
     if (b == 0) goto err;
 
   end:
-    s.size = 0;
+    s.reset();
     while (++b < e && is_white_space(*b));
     return b == e;
   err:
-    s.size = 0;
+    s.reset();
     return false;
 }
 
