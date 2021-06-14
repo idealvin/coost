@@ -10,6 +10,12 @@ DEF_test(json) {
         EXPECT(n.is_null());
         EXPECT_EQ(n.str(), "null");
         EXPECT_EQ(n.pretty(), "null");
+        EXPECT_EQ(n.get_bool(), false);
+        EXPECT_EQ(n.get_int(), 0);
+        EXPECT_EQ(fastring(n.get_string()), "");
+        EXPECT_EQ(n.string_size(), 0);
+        EXPECT_EQ(n.array_size(), 0);
+        EXPECT_EQ(n.object_size(), 0);
 
         n.safe_clear();
         EXPECT(n.is_null());
