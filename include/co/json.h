@@ -445,8 +445,7 @@ class Json {
 
     uint32 _string_size(uint32 index) const {
         _Header* h = (_Header*) _p8(index);
-        assert(h->type == kString);
-        return h->size;
+        return (h->type == kString) ? h->size : 0;
     }
 
     iterator _begin(uint32 index) const {
@@ -521,10 +520,10 @@ class Json {
     bool _is_array (uint32 i) const { return ((_Header*)_p8(i))->type == kArray; }
     bool _is_object(uint32 i) const { return ((_Header*)_p8(i))->type == kObject; }
 
-    bool _get_bool(uint32 i)     const { _Header* h = (_Header*)_p8(i); assert(h->type == kBool); return h->b; }
-    int64 _get_int64(uint32 i)   const { _Header* h = (_Header*)_p8(i); assert(h->type == kInt); return h->i; }
-    double _get_double(uint32 i) const { _Header* h = (_Header*)_p8(i); assert(h->type == kDouble); return h->d; }
-    S _get_string(uint32 i)      const { _Header* h = (_Header*)_p8(i); assert(h->type == kString); return (S)_p8(h->index); }
+    bool _get_bool(uint32 i)     const { _Header* h = (_Header*)_p8(i); return (h->type == kBool) ? h->b : false; }
+    int64 _get_int64(uint32 i)   const { _Header* h = (_Header*)_p8(i); return (h->type == kInt) ? h->i : 0; }
+    double _get_double(uint32 i) const { _Header* h = (_Header*)_p8(i); return (h->type == kDouble) ? h->d : 0.0; }
+    S _get_string(uint32 i)      const { _Header* h = (_Header*)_p8(i); return (h->type == kString) ? (S)_p8(h->index) : ""; }
 
     void _set_bool(bool x, uint32 i)     { (new (_p8(i)) _Header(kBool))->b = x; }
     void _set_int(int64 x, uint32 i)     { (new (_p8(i)) _Header(kInt))->i = x; }

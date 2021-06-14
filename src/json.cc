@@ -1,5 +1,4 @@
 #include "co/json.h"
-#include "co/flag.h"
 
 namespace json {
 
@@ -702,8 +701,7 @@ Value Json::_at(Key key, uint32 index) const {
 
 bool Json::_has_member(Key key, uint32 index) const {
     _Header* h = (_Header*) _p8(index);
-    if (h->type == kNull) return false;
-    assert(h->type == kObject);
+    if (h->type != kObject) return false;
 
     for (uint32 k = h->index; k != 0;) {
         xx::Queue* a = (xx::Queue*) _p8(k);
@@ -734,8 +732,7 @@ uint32 Json::_size(uint32 index) const {
 
 uint32 Json::_array_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
-    if (h->type == kNull) return 0;
-    assert(h->type == kArray);
+    if (h->type != kArray) return 0;
     uint32 n = 0;
     for (uint32 k = h->index; k != 0;) {
         xx::Queue* a = (xx::Queue*) _p8(k);
@@ -747,8 +744,7 @@ uint32 Json::_array_size(uint32 index) const {
 
 uint32 Json::_object_size(uint32 index) const {
     _Header* h = (_Header*) _p8(index);
-    if (h->type == kNull) return 0;
-    assert(h->type == kObject);
+    if (h->type != kObject) return 0;
     uint32 n = 0;
     for (uint32 k = h->index; k != 0;) {
         xx::Queue* a = (xx::Queue*) _p8(k);
