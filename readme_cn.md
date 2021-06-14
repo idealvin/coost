@@ -10,6 +10,17 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
 - [中文](https://www.yuque.com/idealvin/co)
 - [English](https://www.yuque.com/idealvin/co_en)
 
+## Docker编译
+
+```
+docker build -t co:v2.0.0 .
+docker run -itd -v $(pwd):/home/co/ co:v2.0.0
+docker exec -it ${CONTAINER_ID} bash #替换为真正的CONTAINER_ID
+# docker中执行以下命令
+cd /home/co && mkdir build && cd build
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg -DHAS_LIBCURL=ON
+make -j6
+```
 
 ## 亮点功能
 

@@ -24,6 +24,12 @@ if(WIN32)
     )
 endif()
 
+
+if(HAS_LIBCURL)
+    link_directories(${CURL_LINK_LIBRARIES})
+    TARGET_LINK_LIBRARIES(co curl crypto ssl z)
+endif()
+
 install(
     TARGETS co
     LIBRARY DESTINATION lib   # shared lib installed to   ${CMAKE_INSTALL_PREFIX}/lib
