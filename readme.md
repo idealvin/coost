@@ -10,17 +10,6 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
 - [English](https://www.yuque.com/idealvin/co_en)
 - [中文](https://www.yuque.com/idealvin/co)
 
-## Build from Docker
-
-```
-docker build -t co:v2.0.0 .
-docker run -itd -v $(pwd):/home/co/ co:v2.0.0
-docker exec -it ${CONTAINER_ID} bash #replace with true CONTAINER_ID
-# execute the following command in docker
-cd /home/co && mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg -DHAS_LIBCURL=ON
-make -j6
-```
 
 ## Highlights
 
@@ -319,6 +308,19 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
   make -j8
   make install
   ```
+
+### Build from Docker
+
+```
+docker build -t co:v2.0.0 .
+docker run -itd -v $(pwd):/home/co/ co:v2.0.0
+docker exec -it ${CONTAINER_ID} bash    #replace with true CONTAINER_ID
+
+# execute the following command in docker
+cd /home/co && mkdir build && cd build
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg -DHAS_LIBCURL=ON
+make -j8
+```
 
 
 ## License
