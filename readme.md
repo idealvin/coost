@@ -301,10 +301,25 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
 - You can use `BUILD_ALL` to compile all projects.
 - You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
 
+- Build libco and gen by default
   ```sh
   mkdir build && cd build
   cmake ..
+  make -j8
+  ```
+
+- Build all projects
+  ```sh
+  mkdir build && cd build
   cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+  make -j8
+  make install
+  ```
+
+- Build with libcurl & openssl (libcurl, zlib, openssl 1.1.0 or above required)
+  ```sh
+  mkdir build && cd build
+  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON -DCMAKE_INSTALL_PREFIX=pkg
   make -j8
   make install
   ```
@@ -318,7 +333,7 @@ docker exec -it ${CONTAINER_ID} bash    #replace with true CONTAINER_ID
 
 # execute the following command in docker
 cd /home/co && mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg -DHAS_LIBCURL=ON
+cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
 make -j8
 ```
 

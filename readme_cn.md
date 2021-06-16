@@ -302,13 +302,29 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 - 可以用 `BUILD_ALL` 指定编译所有项目.
 - 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
 
+- 默认构建 libco & gen
   ```sh
   mkdir build && cd build
   cmake ..
+  make -j8
+  ```
+
+- 构建所有项目
+  ```sh
+  mkdir build && cd build
   cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
   make -j8
   make install
   ```
+
+- 启用 libcurl & openssl (需要 libcurl, zlib, openssl 1.1.0 或以上版本)
+  ```sh
+  mkdir build && cd build
+  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON -DCMAKE_INSTALL_PREFIX=pkg
+  make -j8
+  make install
+  ```
+
 
 ## Docker 编译
 
@@ -319,7 +335,7 @@ docker exec -it ${CONTAINER_ID} bash   #替换为真正的CONTAINER_ID
 
 # docker中执行以下命令
 cd /home/co && mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg -DHAS_LIBCURL=ON
+cmake .. -DBUILD_ALL=ON -DHAS_LIBCURL=ON
 make -j8
 ```
 
