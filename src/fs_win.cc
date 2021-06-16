@@ -148,12 +148,23 @@ void file::seek(int64 off, int whence) {
 
 size_t file::read(void* s, size_t n) {
     fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
+    if (!p || p->fd == nullfd) return 0;
+
+    char* c = (char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
         DWORD r = 0;
-        if (ReadFile(p->fd, s, (DWORD)n, &r, 0) == TRUE) return r;
-        return 0;
+        DWORD toread = (DWORD)(remain < N ? remain : N);
+        if (ReadFile(p->fd, c, toread, &r, 0) == TRUE) {
+            remain -= r;
+            if (r < toread || remain == 0) return n - remain;
+            c += r;
+        } else {
+            return n - remain;
+        }
     }
-    return 0;
 }
 
 fastring file::read(size_t n) {
@@ -164,12 +175,23 @@ fastring file::read(size_t n) {
 
 size_t file::write(const void* s, size_t n) {
     fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
+    if (!p || p->fd == nullfd) return 0;
+
+    const char* c = (const char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
         DWORD r = 0;
-        if (WriteFile(p->fd, s, (DWORD)n, &r, 0) == TRUE) return r;
-        return 0;
+        DWORD towrite = (DWORD)(remain < N ? remain : N);
+        if (WriteFile(p->fd, c, towrite, &r, 0) == TRUE) {
+            remain -= r;
+            if (r < towrite || remain == 0) return n - remain;
+            c += r;
+        } else {
+            return n - remain;
+        }
     }
-    return 0;
 }
 
 #undef nullfd
