@@ -7,6 +7,7 @@ if(WIN32)
     endif()
     enable_language(C CXX ASM_MASM)
 else()
+    add_definitions(-D_FILE_OFFSET_BITS=64)
     enable_language(C CXX ASM)
 endif()
 
