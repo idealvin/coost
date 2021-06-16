@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <errno.h>
 
 namespace fs {
 
@@ -142,11 +143,25 @@ void file::seek(int64 off, int whence) {
 
 size_t file::read(void* s, size_t n) {
     fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        auto r = raw_read(p->fd, s, n);
-        return r < 0 ? 0 : (size_t)r;
+    if (!p || p->fd == nullfd) return 0;
+
+    char* c = (char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
+        size_t toread = (remain < N ? remain : N);
+        auto r = raw_read(p->fd, c, toread);
+        if (r > 0) {
+            remain -= (size_t)r;
+            if (remain == 0) return n;
+            c += (size_t)r;
+        } else if (r == 0) { /* end of file */
+            return n - remain;
+        } else {
+            if (errno != EINTR) return n - remain;
+        }
     }
-    return 0;
 }
 
 fastring file::read(size_t n) {
@@ -157,11 +172,23 @@ fastring file::read(size_t n) {
 
 size_t file::write(const void* s, size_t n) {
     fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        auto r = raw_write(p->fd, s, n);
-        return r < 0 ? 0 : (size_t)r;
+    if (!p || p->fd == nullfd) return 0;
+
+    const char* c = (const char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
+        size_t towrite = (remain < N ? remain : N);
+        auto r = raw_write(p->fd, c, towrite);
+        if (r >= 0) {
+            remain -= (size_t)r;
+            if (remain == 0) return n;
+            c += (size_t)r;
+        } else {
+            if (errno != EINTR) return n - remain;
+        }
     }
-    return 0;
 }
 
 #undef nullfd
