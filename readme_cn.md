@@ -234,6 +234,14 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
   ```
 
+- 使用 libcurl 与 openssl 构建
+
+  ```sh
+  xmake f --with_libcurl=true --with_openssl=true
+  xmake       # 默认构建 libco 与 gen
+  xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
+  ```
+
 - 构建 libco
 
   ```sh
@@ -258,20 +266,13 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录或子目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build flag             # 编译 flag.cc
-  xmake build log              # 编译 log.cc
-  xmake build json             # 编译 json.cc
-  xmake build rpc              # 编译 rpc.cc
-  xmake build easy             # 编译 so/easy.cc
+  xmake build flag             # 编译 test/flag.cc
+  xmake build log              # 编译 test/log.cc
   
   xmake r flag -xz             # 测试 flag 库
   xmake r log                  # 测试 log 库
   xmake r log -cout            # 终端也打印日志
   xmake r log -perf            # log 库性能测试
-  xmake r json                 # 测试 json
-  xmake r rpc                  # 启动 rpc server
-  xmake r rpc -c               # 启动 rpc client
-  xmake r easy -d xxx          # 启动 web server
   ```
 
 - 构建 gen
@@ -283,7 +284,7 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   gen hello_world.proto
   ```
 
-  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto)。
+  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto)。
 
 - 安装
 

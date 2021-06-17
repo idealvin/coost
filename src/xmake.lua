@@ -3,12 +3,9 @@ target("libco")
     set_basename("co")
     add_files("**.cc")
 
-    -- define CODBG to enable debug log for co
-    -- add_defines("CODBG")
-
-    if is_plat("macosx", "linux") then
-        add_files("co/context/context.S")
-    end
+    add_options("codbg")
+    add_options("with_openssl")
+    add_options("with_libcurl")
 
     if is_plat("windows") then
         add_files("**.cpp")
@@ -17,5 +14,7 @@ target("libco")
         else
             add_files("co/context/context_x86.asm")
         end
+    else
+        add_files("co/context/context.S")
     end
 

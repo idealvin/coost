@@ -233,6 +233,15 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
   xmake -a   # build all projects (libco, gen, co/test, co/unitest)
   ```
 
+- build with libcurl, openssl
+
+  Users may build with libcurl and openssl to enable the whole HTTP & SSL features.
+
+  ```sh
+  xmake f --with_libcurl=true --with_openssl=true
+  xmake -a
+  ```
+
 - build libco
 
   ```sh
@@ -257,20 +266,13 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
   [co/test](https://github.com/idealvin/co/tree/master/test) contains some test codes. You can easily add a source file like `xxx.cc` in the directory `co/test` or its subdirectories, and then run `xmake build xxx` to build it.
 
   ```sh
-  xmake build flag             # flag.cc
-  xmake build log              # log.cc
-  xmake build json             # json.cc
-  xmake build rpc              # rpc.cc
-  xmake build easy             # so/easy.cc
+  xmake build flag             # test/flag.cc
+  xmake build log              # test/log.cc
   
   xmake r flag -xz             # test flag
   xmake r log                  # test log
   xmake r log -cout            # also log to terminal
   xmake r log -perf            # performance test
-  xmake r json                 # test json
-  xmake r rpc                  # start rpc server
-  xmake r rpc -c               # start rpc client
-  xmake r easy -d xxx          # start web server
   ```
 
 - build gen
@@ -282,7 +284,7 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
   gen hello_world.proto
   ```
 
-  Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto).
+  Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto).
 
 - Installation
 
