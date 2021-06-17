@@ -1,12 +1,12 @@
 #ifndef _WIN32
 #include "co/thread.h"
+#include <errno.h>        // ETIMEDOUT
 
 #ifdef __linux__
 #include <unistd.h>       // for syscall()
 #include <sys/syscall.h>  // for SYS_xxx definitions
 #include <time.h>         // for clock_gettime
 #else
-#include <errno.h>        // ETIMEDOUT for mac
 #include <sys/time.h>     // for gettimeofday
 #endif
 
