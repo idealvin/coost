@@ -4,9 +4,13 @@ on:
   pull_request:
     branches:
       - master
+    paths:
+      - '!*.md'
   push:
     branches:
       - master
+    paths:
+      - '!*.md'
 
 jobs:
   build:
