@@ -1,5 +1,5 @@
 target("libco")
-    set_kind("static")
+    set_kind("$(kind)")
     set_basename("co")
     add_files("**.cc")
 

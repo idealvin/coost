@@ -16,7 +16,12 @@ set_symbols("debug")    -- dbg symbols
 
 -- if is_plat("macosx", "linux") then
 if is_plat("windows") then
-    add_cxflags("-MD", "-EHsc")
+    add_cxflags("-EHsc")
+    if is_mode("debug") then
+        set_runtimes("MTd")
+    else
+        set_runtimes("MT")
+    end
 else
     add_defines("_FILE_OFFSET_BITS=64")
     add_cxflags("-g3", "-Wno-narrowing", "-Wno-sign-compare", "-Wno-class-memaccess", "-Wno-strict-aliasing")
