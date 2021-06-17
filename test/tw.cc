@@ -20,7 +20,7 @@ int64 QS(const char* s, int64 n, const char* x, int64 m) {
     int64 j = 0;
     while (j <= n - m) {
         if (memcmp(x, s + j, m) == 0) return j;
-        int64 x = tbl[s[j + m]];
+        int64 x = tbl[(int)s[j + m]];
         if (x == 0) x = m + 1;
         j += x;
     }
@@ -305,6 +305,8 @@ int main(int argc, char** argv) {
     int64 v;
     size_t r;
     const char* t;
+    (void)v;
+
     def_case(v = QS(s, p));
     def_case(v = tw(s, p));
     def_case(r = ss.find(p));

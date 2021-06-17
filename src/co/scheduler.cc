@@ -206,8 +206,10 @@ void init_hooks() {
         CHECK(raw_kevent != 0);
   #endif
         ::close(-1);
-        ::read(-1, 0, 0);
-        ::write(-1, 0, 0);
+        auto r = ::read(-1, 0, 0);
+        auto w = ::write(-1, 0, 0);
+        (void)r;
+        (void)w;
     }
 }
 #endif

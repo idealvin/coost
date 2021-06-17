@@ -58,6 +58,7 @@ inline SSL_CTX* new_ctx(char c) {
         SSL_load_error_strings();
         return true;
     }();
+    (void)x;
     return SSL_CTX_new(c == 's' ? TLS_server_method(): TLS_client_method());
 }
 

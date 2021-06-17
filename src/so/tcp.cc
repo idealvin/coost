@@ -272,19 +272,19 @@ bool Client::connect(int ms) {
     fastring port = str::from(_port);
     struct addrinfo* info = 0;
     int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
-    if (r != 0) goto err;
+    if (r != 0) goto err_end;
 
     CHECK_NOTNULL(info);
     _fd = (int) co::tcp_socket(info->ai_family);
     if (_fd == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
-        goto err;
+        goto err_end;
     }
 
     r = co::connect(_fd, info->ai_addr, (int)info->ai_addrlen, ms);
     if (r == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
-        goto err;
+        goto err_end;
     }
 
     co::set_tcp_nodelay(_fd);
@@ -315,7 +315,6 @@ bool Client::connect(int ms) {
     ELOG << "ssl connect failed: " << ssl::strerror((SSL*)_ssl);
     goto err_end;
   #endif
-  err:
   err_end:
     this->disconnect();
     if (info) freeaddrinfo(info);
