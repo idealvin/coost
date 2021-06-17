@@ -1,5 +1,6 @@
 #include "co/unitest.h"
 #include "co/co.h"
+#include "co/time.h"
 
 namespace test {
 
@@ -104,17 +105,25 @@ DEF_test(co) {
         EXPECT_LE(t, 4);
 
         cos[2]->state = co::xx::S_ready;
-        sleep::ms(16);
-        t = mgr.check_timeout(timeout);
-        EXPECT_EQ(timeout.size(), 3);
-        EXPECT_LE(t, 50);
-        EXPECT_EQ(mgr.assert_it(x), true);
 
-        EXPECT_EQ(mgr.assert_empty(), false);
-        mgr.del_timer(x);
-        EXPECT_EQ(mgr.assert_it(y), true);
-        mgr.del_timer(y);
-        EXPECT_EQ(mgr.assert_empty(), true);
+        Timer timer;
+        sleep::ms(16);
+        auto e = timer.ms();
+        t = mgr.check_timeout(timeout);
+        EXPECT_GE(timeout.size(), 3);
+        if (e < 64) {
+            EXPECT_EQ(timeout.size(), 3);
+            EXPECT_LE(t, 50);
+            EXPECT_EQ(mgr.assert_it(x), true);
+            EXPECT_EQ(mgr.assert_empty(), false);
+            mgr.del_timer(x);
+            EXPECT_EQ(mgr.assert_it(y), true);
+            mgr.del_timer(y);
+            EXPECT_EQ(mgr.assert_empty(), true);
+        } else {
+            EXPECT_EQ(timeout.size(), 5);
+            EXPECT_EQ(mgr.assert_empty(), true);
+        }
 
         for (int i = 0; i < 8; ++i) {
             delete cos[i];
