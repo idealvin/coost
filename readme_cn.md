@@ -1,3 +1,32 @@
+<div align="center">
+  <div>
+    <a href="https://github.com/idealvin/co/blob/master/LICENSE.md">
+      <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="license" />
+    </a>
+    <a href="https://github.com/idealvin/co/releases">
+      <img src="https://img.shields.io/github/release/idealvin/co.svg?style=flat-square" alt="Github All Releases" />
+    </a>
+  </div>
+  <div>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AWindows">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/dev.svg?style=flat-square&logo=windows" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3ALinux">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/dev.svg?style=flat-square&logo=linux" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AmacOS">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/dev.svg?style=flat-square&logo=apple" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AAndroid">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/dev.svg?style=flat-square&logo=android" alt="github-ci" />
+    </a>
+  </div>
+
+  <div>
+  <span style="border-bottom: 3px double #ccc">A go-style C++ coroutine library and more.</span>
+  </div>
+</div>
+
 ## Basic [(English)](readme.md)
 
 co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
