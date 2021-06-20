@@ -8,7 +8,6 @@ DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutine
 namespace co {
 namespace xx {
 
-timer_id_t null_timer_id;
 __thread Scheduler* gSched = 0;
 
 Scheduler::Scheduler(uint32 id, uint32 stack_size)
@@ -16,6 +15,7 @@ Scheduler::Scheduler(uint32 id, uint32 stack_size)
       _wait_ms((uint32)-1), _co_pool(), _stop(false), _timeout(false) {
     // we can not use a coroutine with id of 0 on linux.
     _main_co = _co_pool.pop();
+    CHECK(is_null_timer_id(_main_co->it));
 }
 
 Scheduler::~Scheduler() {
@@ -35,7 +35,7 @@ void Scheduler::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
     gSched->running()->cb->run();
     gSched->recycle(gSched->running()); // recycle the current coroutine
-    tb_context_jump(from.ctx, 0);       // jump back to the from context
+    tb_context_jump(from.ctx, 0);                 // jump back to the from context
 }
 
 /*
@@ -222,7 +222,6 @@ inline bool& initialized() {
 SchedulerManager::SchedulerManager() {
     wsa_startup();
     init_hooks();
-    init_null_timer_id();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 

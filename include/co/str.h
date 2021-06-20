@@ -1,7 +1,7 @@
 #pragma once
 
+#include "err.h"
 #include "fastring.h"
-#include <errno.h>
 #include <string>
 #include <vector>
 #include <map>

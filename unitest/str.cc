@@ -1,5 +1,6 @@
 #include "co/unitest.h"
 #include "co/str.h"
+#include "co/err.h"
 
 namespace test {
 
@@ -107,30 +108,30 @@ DEF_test(str) {
 
         // convertion failed
         EXPECT_EQ(str::to_bool("xxx"), false);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_int32("-32g"), 0);
-        EXPECT_EQ(errno, ERANGE);
+        EXPECT_EQ(err::get(), ERANGE);
         EXPECT_EQ(str::to_int32("-3a2"), 0);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_int64("100000P"), 0);
-        EXPECT_EQ(errno, ERANGE);
+        EXPECT_EQ(err::get(), ERANGE);
         EXPECT_EQ(str::to_int64("1di8"), 0);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_uint32("32g"), 0);
-        EXPECT_EQ(errno, ERANGE);
+        EXPECT_EQ(err::get(), ERANGE);
         EXPECT_EQ(str::to_uint32("3g3"), 0);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_uint64("100000P"), 0);
-        EXPECT_EQ(errno, ERANGE);
+        EXPECT_EQ(err::get(), ERANGE);
         EXPECT_EQ(str::to_uint64("12d8"), 0);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_double("3.141d59"), 0);
-        EXPECT_EQ(errno, EINVAL);
+        EXPECT_EQ(err::get(), EINVAL);
 
         EXPECT_EQ(str::to_uint32("32"), 32);
     }

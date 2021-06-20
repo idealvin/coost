@@ -34,33 +34,33 @@ DEC_uint32(co_stack_size);
 namespace co {
 namespace xx {
 
-struct Coroutine;
-typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
-extern timer_id_t null_timer_id;
-
+class Coroutine;
 class Scheduler;
 extern __thread Scheduler* gSched;
+typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
+
+/**
+ * get scheduler of the current thread.
+ */
+inline Scheduler* scheduler() {
+    return gSched;
+}
 
 inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
     return fs << *(void**)(&id);
 }
 
-inline void init_null_timer_id() {
-    memset((void*)&null_timer_id, 0, sizeof(null_timer_id));
-}
-
 inline bool is_null_timer_id(const timer_id_t& it) {
-    if (sizeof(null_timer_id) == sizeof(void*)) {
-        return *(void**)&it == *(void**)&null_timer_id;
-    }
-    return memcmp((void*)&it, (void*)&null_timer_id, sizeof(null_timer_id)) == 0;
+    if (sizeof(timer_id_t) == sizeof(void*)) return *(void**)&it == 0;
+    static char buf[sizeof(timer_id_t)] = { 0 };
+    return memcmp((void*)&it, buf, sizeof(buf)) == 0;
 }
 
 inline void set_null_timer_id(timer_id_t& it) {
-    if (sizeof(null_timer_id) == sizeof(void*)) {
-        *(void**)&it = *(void**)&null_timer_id;
+    if (sizeof(timer_id_t) == sizeof(void*)) {
+        *(void**)&it = 0;
     } else {
-        memcpy((void*)&it, (void*)&null_timer_id, sizeof(null_timer_id));
+        memset((void*)&it, 0, sizeof(timer_id_t));
     }
 }
 
@@ -87,7 +87,8 @@ enum {
     S_ready = 2, // ready to resume
 };
 
-struct Coroutine {
+class Coroutine {
+  public:
     explicit Coroutine(int i)
         : id(i), state(S_init), ctx(0), stack(), cb(0) {
         set_null_timer_id(it);
@@ -124,7 +125,6 @@ class Copool {
         if (!_ids.empty()) {
             Coroutine* co = _pool[_ids.back()];
             assert(co->state == S_init);
-            //assert(co->it == null_timer_id);
             co->stack.clear();
             co->ctx = 0;
             _ids.pop_back();
@@ -210,14 +210,12 @@ class TimerManager {
     bool assert_it(const timer_id_t& it) const { return _it == it; }
 
   private:
-    std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
+    std::multimap<int64, Coroutine*> _timer;            // timed-wait tasks: <time_ms, co>
     union {
         std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
-        char buf[sizeof(null_timer_id)];
+        char buf[sizeof(timer_id_t)];
     };
 };
-
-class Scheduler;
 
 class SchedulerManager {
   public:

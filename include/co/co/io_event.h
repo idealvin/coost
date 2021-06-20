@@ -4,7 +4,6 @@
 #include "scheduler.h"
 
 namespace co {
-using xx::gSched;
 
 #ifdef _WIN32
 #ifdef _MSC_VER
@@ -22,7 +21,7 @@ class IoEvent {
     struct PerIoInfo {
         PerIoInfo() {
             memset(this, 0, sizeof(*this));
-            co = gSched->running();
+            co = xx::scheduler()->running();
         }
 
         WSAOVERLAPPED ol;
@@ -45,7 +44,7 @@ class IoEvent {
      */
     IoEvent(sock_t fd, int n=0)
         : _fd(fd), _ev(0) {
-        gSched->add_io_event(fd, EV_read);
+        xx::scheduler()->add_io_event(fd, EV_read);
         _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
     }
 
@@ -58,7 +57,7 @@ class IoEvent {
      */
     IoEvent(sock_t fd, io_event_t ev)
         : _fd(fd), _ev(ev) {
-        gSched->add_io_event(fd, ev);
+        xx::scheduler()->add_io_event(fd, ev);
         _info = new (malloc(sizeof(PerIoInfo))) PerIoInfo();
     }
 
@@ -114,7 +113,7 @@ class IoEvent {
     }
 
     ~IoEvent() {
-        if (_has_ev) gSched->del_io_event(_fd, _ev);
+        if (_has_ev) xx::scheduler()->del_io_event(_fd, _ev);
     }
 
     /**
@@ -129,21 +128,21 @@ class IoEvent {
      */
     bool wait(int ms=-1) {
         if (!_has_ev) {
-            _has_ev = gSched->add_io_event(_fd, _ev);
+            _has_ev = xx::scheduler()->add_io_event(_fd, _ev);
             if (!_has_ev) return false;
         }
 
         if (ms >= 0) {
-            gSched->add_io_timer(ms);
-            gSched->yield();
-            if (!gSched->timeout()) {
+            xx::scheduler()->add_io_timer(ms);
+            xx::scheduler()->yield();
+            if (!xx::scheduler()->timeout()) {
                 return true;
             } else {
                 errno = ETIMEDOUT;
                 return false;
             }
         } else {
-            gSched->yield();
+            xx::scheduler()->yield();
             return true;
         }
     }

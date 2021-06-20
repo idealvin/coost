@@ -15,12 +15,6 @@ namespace flag {
 std::vector<fastring> init(int argc, char** argv);
 
 namespace xx {
-typedef fastring string;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
 enum {
     TYPE_bool,
     TYPE_int32,
@@ -38,14 +32,7 @@ struct FlagSaver {
 } // namespace xx
 } // namespace flag
 
-#define _DECLARE_FLAG(type, name) \
-    namespace flag { \
-    namespace zz { \
-        using namespace ::flag::xx; \
-        extern type FLG_##name; \
-    } \
-    } \
-    using flag::zz::FLG_##name
+#define _DECLARE_FLAG(type, name) extern type FLG_##name
 
 // Declare a flag.
 // DEC_string(s);  ->  extern fastring FLG_s;
@@ -54,20 +41,14 @@ struct FlagSaver {
 #define DEC_int64(name)   _DECLARE_FLAG(int64, name)
 #define DEC_uint32(name)  _DECLARE_FLAG(uint32, name)
 #define DEC_uint64(name)  _DECLARE_FLAG(uint64, name)
-#define DEC_string(name)  _DECLARE_FLAG(string, name)
 #define DEC_double(name)  _DECLARE_FLAG(double, name)
+#define DEC_string(name)  extern fastring FLG_##name
 
 #define _DEFINE_FLAG(type, name, value, help) \
-    namespace flag { \
-    namespace zz { \
-        using namespace ::flag::xx; \
-        type FLG_##name = value; \
-        static ::flag::xx::FlagSaver _Sav_flag_##name( \
-            #type, #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_##type, &FLG_##name \
-        ); \
-    } \
-    } \
-    using flag::zz::FLG_##name
+    type FLG_##name = value; \
+    static ::flag::xx::FlagSaver _Sav_flag_##name( \
+        #type, #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_##type, &FLG_##name \
+    )
 
 // Define a flag.
 // DEF_int32(i, 23, "xxx");  ->  int32 FLG_i = 23
@@ -76,8 +57,13 @@ struct FlagSaver {
 #define DEF_int64(name, value, help)   _DEFINE_FLAG(int64, name, value, help)
 #define DEF_uint32(name, value, help)  _DEFINE_FLAG(uint32, name, value, help)
 #define DEF_uint64(name, value, help)  _DEFINE_FLAG(uint64, name, value, help)
-#define DEF_string(name, value, help)  _DEFINE_FLAG(string, name, value, help)
 #define DEF_double(name, value, help)  _DEFINE_FLAG(double, name, value, help)
+
+#define DEF_string(name, value, help) \
+    fastring FLG_##name = value; \
+    static ::flag::xx::FlagSaver _Sav_flag_##name( \
+        "string", #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_string, &FLG_##name \
+    )
 
 DEC_string(help);
 DEC_string(config);

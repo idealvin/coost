@@ -159,7 +159,7 @@ static void on_ssl_connection(ServerParam* p, sock_t fd) {
 
 void Server::start(const char* ip, int port, const char* key, const char* ca) {
     CHECK(_on_connection != NULL) << "connection callback not set..";
-    ServerParam* p = new ServerParam(ip, port, std::move(_on_connection));
+    ServerParam* p = new ServerParam(ip, port, std::move(*_on_connection));
 
     if (key && *key && ca && *ca) {
       #ifdef CO_SSL

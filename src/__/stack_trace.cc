@@ -1,6 +1,7 @@
 #ifndef _WIN32
-
 #include "co/__/stack_trace.h"
+
+#ifdef __linux__
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/fastream.h"
@@ -107,13 +108,10 @@ static void addr2line(const char* exe, const char* addr, char* buf, size_t len) 
         dup2(pipefd[1], STDOUT_FILENO);
         dup2(pipefd[1], STDERR_FILENO);
 
-      #ifdef __linux__
         int r = execlp("addr2line", "addr2line", addr, "-f", "-C", "-e", exe, (void*)0);
         abort_if(r == -1, "execlp addr2line failed");
-      #else
-        int r = execlp("atos", "atos", "-o", exe, addr, (void*)0);
-        abort_if(r == -1, "execlp atos failed");
-      #endif
+        //int r = execlp("atos", "atos", "-o", exe, addr, (void*)0);
+        //abort_if(r == -1, "execlp atos failed");
     }
 
     raw_close(pipefd[1]);
@@ -239,8 +237,22 @@ void StackTraceImpl::on_signal(int sig) {
 #undef abort_if
 }
 
+#else
+
+namespace {
+class StackTraceImpl : public StackTrace {
+  public:
+    StackTraceImpl() = default;
+    virtual ~StackTraceImpl() = default;
+
+    virtual void set_file(void* f) {}
+
+    virtual void set_callback(void (*cb)()) {}
+};
+}
+#endif
+
 StackTrace* new_stack_trace() {
     return new StackTraceImpl;
 }
-
 #endif

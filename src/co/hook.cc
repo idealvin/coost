@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 namespace co {
-using namespace co::xx;
 
 class HookInfo {
   public:
@@ -56,11 +55,11 @@ class Hook {
     ~Hook() = default;
 
     void erase(int fd) {
-        _hk[gSched->id()].erase(fd);
+        _hk[co::scheduler()->id()].erase(fd);
     }
 
     HookInfo on_close(int fd) {
-        auto& hk = _hk[gSched->id()];
+        auto& hk = _hk[co::scheduler()->id()];
         auto it = hk.find(fd);
         if (it == hk.end()) return HookInfo();
 
@@ -70,7 +69,7 @@ class Hook {
     }
 
     HookInfo on_shutdown(int fd, char c) {
-        auto& hk = _hk[gSched->id()];
+        auto& hk = _hk[co::scheduler()->id()];
         auto it = hk.find(fd);
         if (it == hk.end()) return HookInfo();
 
@@ -90,7 +89,7 @@ class Hook {
     }
 
     HookInfo get_hook_info(int fd) {
-        auto& hk = _hk[gSched->id()];
+        auto& hk = _hk[co::scheduler()->id()];
         auto it = hk.find(fd);
         if (it != hk.end()) return it->second;
 
@@ -168,20 +167,15 @@ inline co::Hook& gHook() {
     return hook;
 }
 
-using co::gSched;
-using co::EV_read;
-using co::EV_write;
-using co::IoEvent;
-
 inline struct hostent* gHostEnt() {
     static std::vector<struct hostent> ents(co::scheduler_num());
-    return &ents[gSched->id()];
+    return &ents[co::scheduler()->id()];
 }
 
 #ifdef __linux__
 inline co::Mutex& gDnsMutex() {
     static std::vector<co::Mutex> mtx(co::scheduler_num());
-    return mtx[gSched->id()];
+    return mtx[co::scheduler()->id()];
 }
 #else
 inline co::Mutex& gDnsMutex() {
@@ -251,7 +245,7 @@ char* strerror(int err) {
 
 int shutdown(int fd, int how) {
     init_hook(shutdown);
-    if (!gSched) return raw_api(shutdown)(fd, how);
+    if (!co::scheduler()) return raw_api(shutdown)(fd, how);
 
     char c = (how == SHUT_RD ? 'r' : (how == SHUT_WR ? 'w' : 'b'));
     auto hi = gHook().on_shutdown(fd, c);
@@ -261,7 +255,7 @@ int shutdown(int fd, int how) {
 
 int close(int fd) {
     init_hook(close);
-    if (!gSched) return raw_api(close)(fd);
+    if (!co::scheduler()) return raw_api(close)(fd);
 
     auto hi = gHook().on_close(fd);
     if (!hi.hookable()) return raw_api(close)(fd);
@@ -285,7 +279,7 @@ int __close(int fd) {
  */
 int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
     init_hook(connect);
-    if (!gSched) return raw_api(connect)(fd, addr, addrlen);
+    if (!co::scheduler()) return raw_api(connect)(fd, addr, addrlen);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(connect)(fd, addr, addrlen);
@@ -299,12 +293,12 @@ int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
 
 int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     init_hook(accept);
-    if (!gSched) return raw_api(accept)(fd, addr, addrlen);
+    if (!co::scheduler()) return raw_api(accept)(fd, addr, addrlen);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(accept)(fd, addr, addrlen);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do {
         int conn_fd = raw_api(accept)(fd, addr, addrlen);
         if (conn_fd != -1) return conn_fd;
@@ -319,133 +313,133 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
 
 ssize_t read(int fd, void* buf, size_t count) {
     init_hook(read);
-    if (!gSched) return raw_api(read)(fd, buf, count);
+    if (!co::scheduler()) return raw_api(read)(fd, buf, count);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(read)(fd, buf, count);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do_hook(raw_api(read)(fd, buf, count), ev, hi.recv_timeout());
 }
 
 ssize_t readv(int fd, const struct iovec* iov, int iovcnt) {
     init_hook(readv);
-    if (!gSched) return raw_api(readv)(fd, iov, iovcnt);
+    if (!co::scheduler()) return raw_api(readv)(fd, iov, iovcnt);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(readv)(fd, iov, iovcnt);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do_hook(raw_api(readv)(fd, iov, iovcnt), ev, hi.recv_timeout());
 }
 
 ssize_t recv(int fd, void* buf, size_t len, int flags) {
     init_hook(recv);
-    if (!gSched) return raw_api(recv)(fd, buf, len, flags);
+    if (!co::scheduler()) return raw_api(recv)(fd, buf, len, flags);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(recv)(fd, buf, len, flags);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do_hook(raw_api(recv)(fd, buf, len, flags), ev, hi.recv_timeout());
 }
 
 ssize_t recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr, socklen_t* addrlen) {
     init_hook(recvfrom);
-    if (!gSched) return raw_api(recvfrom)(fd, buf, len, flags, addr, addrlen);
+    if (!co::scheduler()) return raw_api(recvfrom)(fd, buf, len, flags, addr, addrlen);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(recvfrom)(fd, buf, len, flags, addr, addrlen);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do_hook(raw_api(recvfrom)(fd, buf, len, flags, addr, addrlen), ev, hi.recv_timeout());
 }
 
 ssize_t recvmsg(int fd, struct msghdr* msg, int flags) {
     init_hook(recvmsg);
-    if (!gSched) return raw_api(recvmsg)(fd, msg, flags);
+    if (!co::scheduler()) return raw_api(recvmsg)(fd, msg, flags);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(recvmsg)(fd, msg, flags);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do_hook(raw_api(recvmsg)(fd, msg, flags), ev, hi.recv_timeout());
 }
 
 ssize_t write(int fd, const void* buf, size_t count) {
     init_hook(write);
-    if (!gSched) return raw_api(write)(fd, buf, count);
+    if (!co::scheduler()) return raw_api(write)(fd, buf, count);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(write)(fd, buf, count);
 
-    IoEvent ev(fd, EV_write);
+    co::IoEvent ev(fd, co::EV_write);
     do_hook(raw_api(write)(fd, buf, count), ev, hi.send_timeout());
 }
 
 ssize_t writev(int fd, const struct iovec* iov, int iovcnt) {
     init_hook(writev);
-    if (!gSched) return raw_api(writev)(fd, iov, iovcnt);
+    if (!co::scheduler()) return raw_api(writev)(fd, iov, iovcnt);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(writev)(fd, iov, iovcnt);
 
-    IoEvent ev(fd, EV_write);
+    co::IoEvent ev(fd, co::EV_write);
     do_hook(raw_api(writev)(fd, iov, iovcnt), ev, hi.send_timeout());
 }
 
 ssize_t send(int fd, const void* buf, size_t len, int flags) {
     init_hook(send);
-    if (!gSched) return raw_api(send)(fd, buf, len, flags);
+    if (!co::scheduler()) return raw_api(send)(fd, buf, len, flags);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(send)(fd, buf, len, flags);
 
-    IoEvent ev(fd, EV_write);
+    co::IoEvent ev(fd, co::EV_write);
     do_hook(raw_api(send)(fd, buf, len, flags), ev, hi.send_timeout());
 }
 
 ssize_t sendto(int fd, const void* buf, size_t len, int flags, const struct sockaddr* addr, socklen_t addrlen) {
     init_hook(sendto);
-    if (!gSched) return raw_api(sendto)(fd, buf, len, flags, addr, addrlen);
+    if (!co::scheduler()) return raw_api(sendto)(fd, buf, len, flags, addr, addrlen);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(sendto)(fd, buf, len, flags, addr, addrlen);
 
-    IoEvent ev(fd, EV_write);
+    co::IoEvent ev(fd, co::EV_write);
     do_hook(raw_api(sendto)(fd, buf, len, flags, addr, addrlen), ev, hi.send_timeout());
 }
 
 ssize_t sendmsg(int fd, const struct msghdr* msg, int flags) {
     init_hook(sendmsg);
-    if (!gSched) return raw_api(sendmsg)(fd, msg, flags);
+    if (!co::scheduler()) return raw_api(sendmsg)(fd, msg, flags);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(sendmsg)(fd, msg, flags);
 
-    IoEvent ev(fd, EV_write);
+    co::IoEvent ev(fd, co::EV_write);
     do_hook(raw_api(sendmsg)(fd, msg, flags), ev, hi.send_timeout());
 }
 
 int poll(struct pollfd* fds, nfds_t nfds, int ms) {
     init_hook(poll);
-    if (!gSched || ms == 0) return raw_api(poll)(fds, nfds, ms);
+    if (!co::scheduler() || ms == 0) return raw_api(poll)(fds, nfds, ms);
 
     do {
         if (nfds == 1) {
             int fd = fds[0].fd;
             if (fds[0].events == POLLIN) {
-                if (!gSched->add_io_event(fd, EV_read)) break;
+                if (!co::scheduler()->add_io_event(fd, co::EV_read)) break;
             } else if (fds[0].events == POLLOUT) {
-                if (!gSched->add_io_event(fd, EV_write)) break;
+                if (!co::scheduler()->add_io_event(fd, co::EV_write)) break;
             } else {
                 break;
             }
 
-            if (ms > 0) gSched->add_timer(ms);
-            gSched->yield();
-            gSched->del_io_event(fd);
-            if (ms > 0 && gSched->timeout()) return 0;
+            if (ms > 0) co::scheduler()->add_timer(ms);
+            co::scheduler()->yield();
+            co::scheduler()->del_io_event(fd);
+            if (ms > 0 && co::scheduler()->timeout()) return 0;
 
             fds[0].revents = fds[0].events;
             return 1;
@@ -467,7 +461,7 @@ int __poll(struct pollfd* fds, nfds_t nfds, int ms) {
 
 int select(int nfds, fd_set* r, fd_set* w, fd_set* e, struct timeval* tv) {
     init_hook(select);
-    if (!gSched) return raw_api(select)(nfds, r, w, e, tv);
+    if (!co::scheduler()) return raw_api(select)(nfds, r, w, e, tv);
 
     int ms = -1;
     if (tv) ms = (int) (tv->tv_sec * 1000 + tv->tv_usec / 1000);
@@ -490,47 +484,47 @@ int select(int nfds, fd_set* r, fd_set* w, fd_set* e, struct timeval* tv) {
 
 unsigned int sleep(unsigned int n) {
     init_hook(sleep);
-    if (!gSched || n == 0) return raw_api(sleep)(n);
-    gSched->sleep(n * 1000);
+    if (!co::scheduler() || n == 0) return raw_api(sleep)(n);
+    co::scheduler()->sleep(n * 1000);
     return 0;
 }
 
 int usleep(useconds_t us) {
     init_hook(usleep);
-    if (!gSched || us < 1000) return raw_api(usleep)(us);
-    gSched->sleep(us / 1000);
+    if (!co::scheduler() || us < 1000) return raw_api(usleep)(us);
+    co::scheduler()->sleep(us / 1000);
     return 0;
 }
 
 int nanosleep(const struct timespec* req, struct timespec* rem) {
     init_hook(nanosleep);
-    if (!gSched) return raw_api(nanosleep)(req, rem);
+    if (!co::scheduler()) return raw_api(nanosleep)(req, rem);
 
     int ms = (int) (req->tv_sec * 1000 + req->tv_nsec / 1000000);
     if (ms < 1) return raw_api(nanosleep)(req, rem);
 
-    gSched->sleep(ms);
+    co::scheduler()->sleep(ms);
     return 0;
 }
 
 #ifdef __linux__
 int epoll_wait(int epfd, struct epoll_event* events, int n, int ms) {
     init_hook(epoll_wait);
-    if (!gSched || ms == 0) return raw_api(epoll_wait)(epfd, events, n, ms);
+    if (!co::scheduler() || ms == 0) return raw_api(epoll_wait)(epfd, events, n, ms);
 
-    IoEvent ev(epfd, EV_read);
+    co::IoEvent ev(epfd, co::EV_read);
     if (!ev.wait(ms)) return 0; // timeout
     return raw_api(epoll_wait)(epfd, events, n, 0);
 }
 
 int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
     init_hook(accept4);
-    if (!gSched) return raw_api(accept4)(fd, addr, addrlen, flags);
+    if (!co::scheduler()) return raw_api(accept4)(fd, addr, addrlen, flags);
 
     auto hi = gHook().get_hook_info(fd);
     if (!hi.hookable()) return raw_api(accept4)(fd, addr, addrlen, flags);
 
-    IoEvent ev(fd, EV_read);
+    co::IoEvent ev(fd, co::EV_read);
     do {
         int conn_fd = raw_api(accept4)(fd, addr, addrlen, flags);
         if (conn_fd != -1) return conn_fd;
@@ -549,7 +543,7 @@ int gethostbyname_r(
     struct hostent** res, int* err)
 {
     init_hook(gethostbyname_r);
-    if (!gSched) return raw_api(gethostbyname_r)(name, ret, buf, len, res, err);
+    if (!co::scheduler()) return raw_api(gethostbyname_r)(name, ret, buf, len, res, err);
     co::MutexGuard g(gDnsMutex());
     return raw_api(gethostbyname_r)(name, ret, buf, len, res, err);
 }
@@ -560,7 +554,7 @@ int gethostbyname2_r(
     struct hostent** res, int* err)
 {
     init_hook(gethostbyname2_r);
-    if (!gSched) return raw_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
+    if (!co::scheduler()) return raw_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
     co::MutexGuard g(gDnsMutex());
     return raw_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
 }
@@ -571,14 +565,14 @@ int gethostbyaddr_r(
     struct hostent** res, int* err)
 {
     init_hook(gethostbyaddr_r);
-    if (!gSched) return raw_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
+    if (!co::scheduler()) return raw_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
     co::MutexGuard g(gDnsMutex());
     return raw_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
 }
 
 struct hostent* gethostbyname(const char* name) {
     init_hook(gethostbyname);
-    if (!gSched) return raw_api(gethostbyname)(name);
+    if (!co::scheduler()) return raw_api(gethostbyname)(name);
     if (!name) return 0;
 
     fastream fs(1024);
@@ -603,7 +597,7 @@ struct hostent* gethostbyname(const char* name) {
 
 struct hostent* gethostbyname2(const char* name, int af) {
     init_hook(gethostbyname2);
-    if (!gSched) return raw_api(gethostbyname2)(name, af);
+    if (!co::scheduler()) return raw_api(gethostbyname2)(name, af);
     if (!name) return 0;
 
     fastream fs(1024);
@@ -628,7 +622,7 @@ struct hostent* gethostbyname2(const char* name, int af) {
 
 struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     init_hook(gethostbyaddr);
-    if (!gSched) return raw_api(gethostbyaddr)(addr, len, type);
+    if (!co::scheduler()) return raw_api(gethostbyaddr)(addr, len, type);
     if (!addr) return 0;
 
     fastream fs(1024);
@@ -654,20 +648,20 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
 #else
 int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, const struct timespec* ts) {
     init_hook(kevent);
-    if (!gSched || c) return raw_api(kevent)(kq, c, nc, e, ne, ts);
+    if (!co::scheduler() || c) return raw_api(kevent)(kq, c, nc, e, ne, ts);
 
     int ms = -1;
     if (ts) ms = ts->tv_sec * 1000 + ts->tv_nsec / 1000000;
     if (ms == 0) return raw_api(kevent)(kq, c, nc, e, ne, ts);
 
-    IoEvent ev(kq, EV_read);
+    co::IoEvent ev(kq, co::EV_read);
     if (!ev.wait(ms)) return 0; // timeout
     return raw_api(kevent)(kq, c, nc, e, ne, 0);
 }
 
 struct hostent* gethostbyname(const char* name) {
     init_hook(gethostbyname);
-    if (!gSched) return raw_api(gethostbyname)(name);
+    if (!co::scheduler()) return raw_api(gethostbyname)(name);
 
     co::MutexGuard g(gDnsMutex());
     struct hostent* r = raw_api(gethostbyname)(name);
@@ -680,7 +674,7 @@ struct hostent* gethostbyname(const char* name) {
 
 struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     init_hook(gethostbyaddr);
-    if (!gSched) return raw_api(gethostbyaddr)(addr, len, type);
+    if (!co::scheduler()) return raw_api(gethostbyaddr)(addr, len, type);
 
     co::MutexGuard g(gDnsMutex());
     struct hostent* r = raw_api(gethostbyaddr)(addr, len, type);

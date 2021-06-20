@@ -1,4 +1,4 @@
-name: Linux
+name: iPhoneOS
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macOS-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -24,10 +24,7 @@ jobs:
 
       - name: Tests
         run: |
-          xmake -a
-          xmake r unitest -a
-          xmake r flag -xy
-          xmake f -m debug
+          xmake f -p iphoneos
           xmake -a
           xmake r unitest -a
           xmake r flag -xy

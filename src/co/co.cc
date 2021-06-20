@@ -6,7 +6,7 @@
 #include <unordered_set>
 
 namespace co {
-using namespace co::xx;
+namespace xx {
 
 class EventImpl {
   public:
@@ -27,9 +27,10 @@ class EventImpl {
 };
 
 void EventImpl::wait() {
-    CHECK(gSched) << "must be called in coroutine..";
-    Coroutine* co = gSched->running();
-    if (co->s != gSched) co->s = gSched;
+    Scheduler* s = scheduler();
+    CHECK(s) << "must be called in coroutine..";
+    Coroutine* co = s->running();
+    if (co->s != s) co->s = s;
 
     {
         ::MutexGuard g(_mtx);
@@ -38,14 +39,15 @@ void EventImpl::wait() {
         _co_wait.insert(co);
     }
 
-    gSched->yield();
+    s->yield();
     co->state = S_init;
 }
 
 bool EventImpl::wait(unsigned int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    Coroutine* co = gSched->running();
-    if (co->s != gSched) co->s = gSched;
+    Scheduler* s = scheduler();
+    CHECK(s) << "must be called in coroutine..";
+    Coroutine* co = s->running();
+    if (co->s != s) co->s = s;
 
     {
         ::MutexGuard g(_mtx);
@@ -54,15 +56,15 @@ bool EventImpl::wait(unsigned int ms) {
         _co_wait.insert(co);
     }
 
-    gSched->add_timer(ms);
-    gSched->yield();
-    if (gSched->timeout()) {
+    s->add_timer(ms);
+    s->yield();
+    if (s->timeout()) {
         ::MutexGuard g(_mtx);
         _co_wait.erase(co);
     }
 
     co->state = S_init;
-    return !gSched->timeout();
+    return !s->timeout();
 }
 
 void EventImpl::signal() {
@@ -85,26 +87,6 @@ void EventImpl::signal() {
         }
     }
     _co_swap.clear();
-}
-
-Event::Event() {
-    _p = new EventImpl;
-}
-
-Event::~Event() {
-    delete (EventImpl*) _p;
-}
-
-void Event::wait() {
-    ((EventImpl*)_p)->wait();
-}
-
-bool Event::wait(unsigned int ms) {
-    return ((EventImpl*)_p)->wait(ms);
-}
-
-void Event::signal() {
-    ((EventImpl*)_p)->signal();
 }
 
 class MutexImpl {
@@ -130,17 +112,18 @@ inline bool MutexImpl::try_lock() {
 }
 
 inline void MutexImpl::lock() {
-    CHECK(gSched) << "must be called in coroutine..";
+    Scheduler* s = scheduler();
+    CHECK(s) << "must be called in coroutine..";
     _mtx.lock();
     if (!_lock) {
         _lock = true;
         _mtx.unlock();
     } else {
-        Coroutine* co = gSched->running();
-        if (co->s != gSched) co->s = gSched;
+        Coroutine* co = s->running();
+        if (co->s != s) co->s = s;
         _co_wait.push_back(co);
         _mtx.unlock();
-        gSched->yield();
+        s->yield();
     }
 }
 
@@ -157,39 +140,19 @@ inline void MutexImpl::unlock() {
     }
 }
 
-Mutex::Mutex() {
-    _p = new MutexImpl;
-}
-
-Mutex::~Mutex() {
-    delete (MutexImpl*) _p;
-}
-
-void Mutex::lock() {
-    ((MutexImpl*)_p)->lock();
-}
-
-void Mutex::unlock() {
-    ((MutexImpl*)_p)->unlock();
-}
-
-bool Mutex::try_lock() {
-    return ((MutexImpl*)_p)->try_lock();
-}
-
 class PoolImpl {
   public:
     typedef std::vector<void*> V;
 
     PoolImpl()
-        : _pools(xx::scheduler_num()), _maxcap((size_t)-1) {
+        : _pools(scheduler_num()), _maxcap((size_t)-1) {
     }
 
     // @ccb:  a create callback       []() { return (void*) new T; }
     // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
     // @cap:  max capacity for each pool
     PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(xx::scheduler_num()), _maxcap(cap) {
+        : _pools(scheduler_num()), _maxcap(cap) {
         _ccb = std::move(ccb);
         _dcb = std::move(dcb);
     }
@@ -197,8 +160,9 @@ class PoolImpl {
     ~PoolImpl() = default;
 
     void* pop() {
-        CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pools[gSched->id()];
+        Scheduler* s = scheduler();
+        CHECK(s) << "must be called in coroutine..";
+        auto& v = _pools[s->id()];
         if (v == NULL) v = this->create_pool();
 
         if (!v->empty()) {
@@ -213,8 +177,9 @@ class PoolImpl {
     void push(void* p) {
         if (!p) return; // ignore null pointer
 
-        CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pools[gSched->id()];
+        Scheduler* s = scheduler();
+        CHECK(s) << "must be called in coroutine..";
+        auto& v = _pools[s->id()];
         if (v == NULL) v = this->create_pool();
 
         if (!_dcb || v->size() < _maxcap) {
@@ -225,8 +190,9 @@ class PoolImpl {
     }
 
     size_t size() const {
-        CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pools[gSched->id()];
+        Scheduler* s = scheduler();
+        CHECK(s) << "must be called in coroutine..";
+        auto& v = _pools[s->id()];
         return v != NULL ? v->size() : 0;
     }
 
@@ -237,7 +203,7 @@ class PoolImpl {
     V* create_pool() {
         V* v = new V();
         v->reserve(1024);
-        gSched->add_cleanup_cb(std::bind(&PoolImpl::cleanup, v, _dcb));
+        scheduler()->add_cleanup_cb(std::bind(&PoolImpl::cleanup, v, _dcb));
         return v;
     }
 
@@ -255,28 +221,71 @@ class PoolImpl {
     size_t _maxcap;
 };
 
+} // xx
+
+Event::Event() {
+    _p = new xx::EventImpl;
+}
+
+Event::~Event() {
+    delete (xx::EventImpl*) _p;
+}
+
+void Event::wait() {
+    ((xx::EventImpl*)_p)->wait();
+}
+
+bool Event::wait(unsigned int ms) {
+    return ((xx::EventImpl*)_p)->wait(ms);
+}
+
+void Event::signal() {
+    ((xx::EventImpl*)_p)->signal();
+}
+
+
+Mutex::Mutex() {
+    _p = new xx::MutexImpl;
+}
+
+Mutex::~Mutex() {
+    delete (xx::MutexImpl*) _p;
+}
+
+void Mutex::lock() {
+    ((xx::MutexImpl*)_p)->lock();
+}
+
+void Mutex::unlock() {
+    ((xx::MutexImpl*)_p)->unlock();
+}
+
+bool Mutex::try_lock() {
+    return ((xx::MutexImpl*)_p)->try_lock();
+}
+
 Pool::Pool() {
-    _p = new PoolImpl;
+    _p = new xx::PoolImpl;
 }
 
 Pool::~Pool() {
-    delete (PoolImpl*) _p;
+    delete (xx::PoolImpl*) _p;
 }
 
 Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = new PoolImpl(std::move(ccb), std::move(dcb), cap);
+    _p = new xx::PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
 
 void* Pool::pop() {
-    return ((PoolImpl*)_p)->pop();
+    return ((xx::PoolImpl*)_p)->pop();
 }
 
 void Pool::push(void* p) {
-    ((PoolImpl*)_p)->push(p);
+    ((xx::PoolImpl*)_p)->push(p);
 }
 
 size_t Pool::size() const {
-    return ((PoolImpl*)_p)->size();
+    return ((xx::PoolImpl*)_p)->size();
 }
 
 } // co

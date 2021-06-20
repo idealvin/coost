@@ -5,7 +5,6 @@
 #include "co/co/io_event.h"
 
 namespace co {
-using xx::gSched;
 
 // We have hooked the global strerror(), it is thread-safe now. 
 // See more details in co/hook.cc.
@@ -31,24 +30,24 @@ sock_t socket(int domain, int type, int protocol) {
 #endif
 
 int close(sock_t fd, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    gSched->del_io_event(fd);
-    if (ms > 0) gSched->sleep(ms);
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
+    xx::scheduler()->del_io_event(fd);
+    if (ms > 0) xx::scheduler()->sleep(ms);
     int r;
     while ((r = raw_close(fd)) != 0 && errno == EINTR);
     return r;
 }
 
 int shutdown(sock_t fd, char c) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     if (c == 'r') {
-        gSched->del_io_event(fd, EV_read);
+        xx::scheduler()->del_io_event(fd, EV_read);
         return raw_shutdown(fd, SHUT_RD);
     } else if (c == 'w') {
-        gSched->del_io_event(fd, EV_write);
+        xx::scheduler()->del_io_event(fd, EV_write);
         return raw_shutdown(fd, SHUT_WR);
     } else {
-        gSched->del_io_event(fd);
+        xx::scheduler()->del_io_event(fd);
         return raw_shutdown(fd, SHUT_RDWR);
     }
 }
@@ -62,7 +61,7 @@ int listen(sock_t fd, int backlog) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
 
     do {
@@ -87,7 +86,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     do {
         int r = raw_connect(fd, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r == 0) return 0;
@@ -110,7 +109,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
 
     do {
@@ -149,7 +148,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
     do {
         int r = (int) raw_recvfrom(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
@@ -164,7 +163,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     const char* s = (const char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_write);
@@ -187,7 +186,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     const char* s = (const char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_write);

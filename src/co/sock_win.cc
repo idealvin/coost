@@ -6,7 +6,6 @@
 #include <ws2spi.h>
 
 namespace co {
-using xx::gSched;
 
 LPFN_CONNECTEX connect_ex = 0;
 LPFN_ACCEPTEX accept_ex = 0;
@@ -19,22 +18,22 @@ sock_t socket(int domain, int type, int protocol) {
 }
 
 int close(sock_t fd, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    gSched->del_io_event(fd);
-    if (ms > 0) gSched->sleep(ms);
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
+    xx::scheduler()->del_io_event(fd);
+    if (ms > 0) xx::scheduler()->sleep(ms);
     return ::closesocket(fd);
 }
 
 int shutdown(sock_t fd, char c) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     if (c == 'r') {
-        gSched->del_io_event(fd, EV_read);
+        xx::scheduler()->del_io_event(fd, EV_read);
         return ::shutdown(fd, SD_RECEIVE);
     } else if (c == 'w') {
-        gSched->del_io_event(fd, EV_write);
+        xx::scheduler()->del_io_event(fd, EV_write);
         return ::shutdown(fd, SD_SEND);
     } else {
-        gSched->del_io_event(fd);
+        xx::scheduler()->del_io_event(fd);
         return ::shutdown(fd, SD_BOTH);
     }
 }
@@ -50,7 +49,7 @@ int listen(sock_t fd, int backlog) {
 inline int find_address_family(sock_t fd) {
     static std::vector<std::unordered_map<sock_t, int>> kAf(xx::scheduler_num());
 
-    auto& map = kAf[gSched->id()];
+    auto& map = kAf[xx::scheduler()->id()];
     int& af = map[fd];
     if (af != 0) return af;
     {
@@ -64,7 +63,7 @@ inline int find_address_family(sock_t fd) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
 
     // We have to figure out the address family of the listening socket here.
     int af = find_address_family(fd);
@@ -106,7 +105,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
 
     // docs.microsoft.com/zh-cn/windows/win32/api/mswsock/nc-mswsock-lpfn_connectex
     // stackoverflow.com/questions/13598530/connectex-requires-the-socket-to-be-initially-bound-but-to-what
@@ -157,7 +156,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     IoEvent ev(fd, EV_read);
 
     do {
@@ -173,7 +172,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvn(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     char* s = (char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_read);
@@ -197,10 +196,10 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     int r;
     const int N = sizeof(sockaddr_in6) + 8;
-    const bool on_stack = gSched->on_stack(buf);
+    const bool on_stack = xx::scheduler()->on_stack(buf);
     char* s = 0;
 
     IoEvent ev(fd, on_stack ? N + n : N);
@@ -234,7 +233,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     const char* s = (const char*) buf;
     int remain = n;
     IoEvent ev(fd, EV_write);
@@ -257,9 +256,9 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    CHECK(xx::scheduler()) << "must be called in coroutine..";
     int r;
-    const bool on_stack = gSched->on_stack(buf);
+    const bool on_stack = xx::scheduler()->on_stack(buf);
 
     IoEvent ev(fd, on_stack ? n : 0);
     ev->buf.buf = (on_stack ? ev->s : (char*)buf);

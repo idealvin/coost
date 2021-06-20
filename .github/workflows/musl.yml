@@ -1,4 +1,4 @@
-name: Linux
+name: Cross (Musl)
 
 on:
   pull_request:
@@ -13,6 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        cross: [arm-linux-musleabi, aarch64-linux-musl]
 
     runs-on: ${{ matrix.os }}
 
@@ -22,12 +23,12 @@ jobs:
         with:
           xmake-version: branch@dev
 
+      - name: Installation
+        run: |
+          wget https://github.com/xmake-mirror/musl.cc/releases/download/20210202/${{ matrix.cross }}-cross.linux.tgz
+          tar -xvf ${{ matrix.cross }}-cross.linux.tgz
       - name: Tests
         run: |
+          xmake f -p cross --toolchain=muslcc --sdk=`pwd`/${{ matrix.cross }}-cross
           xmake -a
           xmake r unitest -a
-          xmake r flag -xy
-          xmake f -m debug
-          xmake -a
-          xmake r unitest -a
-          xmake r flag -xy

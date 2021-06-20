@@ -1,9 +1,5 @@
 target("libco")
     set_kind("$(kind)")
-    if is_plat("windows") and is_kind("shared") then 
-        add_rules("utils.symbols.export_all") 
-    end
-
     set_basename("co")
     add_files("**.cc")
 

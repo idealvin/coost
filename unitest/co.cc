@@ -5,8 +5,6 @@
 namespace test {
 
 DEF_test(co) {
-    EXPECT(co::xx::null_timer_id == co::xx::timer_id_t());
-
     DEF_case(sched.SchedManager) {
         int n = (int) FLG_co_sched_num;
         co::xx::Scheduler* s;

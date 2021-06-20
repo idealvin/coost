@@ -92,7 +92,7 @@ inline void go(F&& f, T* t, P&& p) {
  *          is not a scheduler thread.
  */
 inline xx::Scheduler* scheduler() {
-    return xx::gSched;
+    return xx::scheduler();
 }
 
 /**
@@ -161,7 +161,7 @@ inline int coroutine_id() {
  * @param ms  timeout in milliseconds.
  */
 inline void add_timer(uint32 ms) {
-    xx::gSched->add_timer(ms);
+    scheduler()->add_timer(ms);
 }
 
 /**
@@ -172,7 +172,7 @@ inline void add_timer(uint32 ms) {
  * @param ms  timeout in milliseconds.
  */
 inline void add_io_timer(uint32 ms) {
-    xx::gSched->add_io_timer(ms);
+    scheduler()->add_io_timer(ms);
 }
 
 /**
@@ -188,7 +188,7 @@ inline void add_io_timer(uint32 ms) {
  * @return    true on success, false on error.
  */
 inline bool add_io_event(sock_t fd, io_event_t ev) {
-    return xx::gSched->add_io_event(fd, ev);
+    return scheduler()->add_io_event(fd, ev);
 }
 
 /**
@@ -196,7 +196,7 @@ inline bool add_io_event(sock_t fd, io_event_t ev) {
  *   - It MUST be called in a coroutine.
  */
 inline void yield() {
-    xx::gSched->yield();
+    scheduler()->yield();
 }
 
 /**

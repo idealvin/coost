@@ -73,8 +73,10 @@ struct Connection {
  */
 class Server {
   public:
-    Server() = default;
-    virtual ~Server() = default;
+    Server() = default; // { _on_connection = NULL; }
+    virtual ~Server() = default; //{ if (_on_connection) delete _on_connection; }
+
+    typedef std::function<void(Connection*)> conn_cb;
 
     /**
      * set a callback for handling a connection 
@@ -83,12 +85,12 @@ class Server {
      * @param f  either a pointer to void f(tcp::Connection*), 
      *           or a reference of std::function<void(tcp::Connection*)>.
      */
-    void on_connection(std::function<void(Connection*)>&& f) {
-        _on_connection = std::move(f);
+    void on_connection(conn_cb&& f) {
+        _on_connection.reset(new conn_cb(std::move(f)));
     }
 
-    void on_connection(const std::function<void(Connection*)>& f) {
-        this->on_connection(std::function<void(Connection*)>(f));
+    void on_connection(const conn_cb& f) {
+        this->on_connection(conn_cb(f));
     }
 
     /**
@@ -100,7 +102,7 @@ class Server {
      */
     template<typename T>
     void on_connection(void (T::*f)(Connection*), T* o) {
-        _on_connection = std::bind(f, o, std::placeholders::_1);
+        _on_connection.reset(new conn_cb(std::bind(f, o, std::placeholders::_1)));
     }
 
     /**
@@ -119,7 +121,7 @@ class Server {
     virtual void start(const char* ip, int port, const char* key=NULL, const char* ca=NULL);
 
   private:
-    std::function<void(Connection*)> _on_connection;
+    std::shared_ptr<conn_cb> _on_connection;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };

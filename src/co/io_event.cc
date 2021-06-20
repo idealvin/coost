@@ -16,8 +16,8 @@ bool IoEvent::wait(int ms) {
                 if (err == WSAENOTCONN) { /* the socket is not connected yet */
                     int sec = 0, len = sizeof(sec);
                     while (true) {
-                        gSched->add_io_timer(16);
-                        gSched->yield();
+                        xx::scheduler()->add_io_timer(16);
+                        xx::scheduler()->yield();
                         if (ms >= 0 && ((ms -= 16) < 0)) {
                             co::set_last_error(ETIMEDOUT);
                             return false;
@@ -38,15 +38,15 @@ bool IoEvent::wait(int ms) {
     }
 
     if (ms >= 0) {
-        gSched->add_io_timer(ms);
-        gSched->yield();
-        if (!gSched->timeout()) return true;
+        xx::scheduler()->add_io_timer(ms);
+        xx::scheduler()->yield();
+        if (!xx::scheduler()->timeout()) return true;
         CancelIo((HANDLE)_fd);
         co::set_last_error(ETIMEDOUT);
         _info->co = 0;
         return false;
     } else {
-        gSched->yield();
+        xx::scheduler()->yield();
         return true;
     }
 }
