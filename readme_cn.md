@@ -9,16 +9,16 @@
   </div>
   <div>
     <a href="https://github.com/idealvin/co/actions?query=workflow%3AWindows">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/dev.svg?style=flat-square&logo=windows" alt="github-ci" />
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
     </a>
     <a href="https://github.com/idealvin/co/actions?query=workflow%3ALinux">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/dev.svg?style=flat-square&logo=linux" alt="github-ci" />
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
     </a>
     <a href="https://github.com/idealvin/co/actions?query=workflow%3AmacOS">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/dev.svg?style=flat-square&logo=apple" alt="github-ci" />
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
     </a>
     <a href="https://github.com/idealvin/co/actions?query=workflow%3AAndroid">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/dev.svg?style=flat-square&logo=android" alt="github-ci" />
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
     </a>
   </div>
 
