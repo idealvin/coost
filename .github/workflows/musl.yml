@@ -31,4 +31,3 @@ jobs:
         run: |
           xmake f -p cross --toolchain=muslcc --sdk=`pwd`/${{ matrix.cross }}-cross
           xmake -a
-          xmake r unitest -a

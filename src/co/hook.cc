@@ -172,17 +172,15 @@ inline struct hostent* gHostEnt() {
     return &ents[co::scheduler()->id()];
 }
 
-#ifdef __linux__
-inline co::Mutex& gDnsMutex() {
+inline co::Mutex& gDnsMutex_t() {
     static std::vector<co::Mutex> mtx(co::scheduler_num());
     return mtx[co::scheduler()->id()];
 }
-#else
-inline co::Mutex& gDnsMutex() {
+
+inline co::Mutex& gDnsMutex_g() {
     static co::Mutex mtx;
     return mtx;
 }
-#endif
 
 
 extern "C" {
@@ -544,7 +542,7 @@ int gethostbyname_r(
 {
     init_hook(gethostbyname_r);
     if (!co::scheduler()) return raw_api(gethostbyname_r)(name, ret, buf, len, res, err);
-    co::MutexGuard g(gDnsMutex());
+    co::MutexGuard g(gDnsMutex_t());
     return raw_api(gethostbyname_r)(name, ret, buf, len, res, err);
 }
 
@@ -555,7 +553,7 @@ int gethostbyname2_r(
 {
     init_hook(gethostbyname2_r);
     if (!co::scheduler()) return raw_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
-    co::MutexGuard g(gDnsMutex());
+    co::MutexGuard g(gDnsMutex_t());
     return raw_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
 }
 
@@ -566,35 +564,11 @@ int gethostbyaddr_r(
 {
     init_hook(gethostbyaddr_r);
     if (!co::scheduler()) return raw_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
-    co::MutexGuard g(gDnsMutex());
+    co::MutexGuard g(gDnsMutex_t());
     return raw_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
 }
 
-struct hostent* gethostbyname(const char* name) {
-    init_hook(gethostbyname);
-    if (!co::scheduler()) return raw_api(gethostbyname)(name);
-    if (!name) return 0;
-
-    fastream fs(1024);
-    struct hostent* ent = gHostEnt();
-    struct hostent* res = 0;
-    int* err = (int*) fs.data();
-
-    int r = -1;
-    while (true) {
-        r = gethostbyname_r(name, ent, (char*)(fs.data() + 8), fs.capacity() - 8, &res, err);
-        if (r == ERANGE && *err == NETDB_INTERNAL) {
-            fs.reserve(fs.capacity() << 1);
-            err = (int*) fs.data();
-        } else {
-            break;
-        }
-    }
-
-    if (r == 0 && ent == res) return res;
-    return 0;
-}
-
+#ifdef NETDB_INTERNAL
 struct hostent* gethostbyname2(const char* name, int af) {
     init_hook(gethostbyname2);
     if (!co::scheduler()) return raw_api(gethostbyname2)(name, af);
@@ -619,31 +593,7 @@ struct hostent* gethostbyname2(const char* name, int af) {
     if (r == 0 && ent == res) return res;
     return 0;
 }
-
-struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
-    init_hook(gethostbyaddr);
-    if (!co::scheduler()) return raw_api(gethostbyaddr)(addr, len, type);
-    if (!addr) return 0;
-
-    fastream fs(1024);
-    struct hostent* ent = gHostEnt();
-    struct hostent* res = 0;
-    int* err = (int*) fs.data();
-
-    int r = -1;
-    while (true) {
-        r = gethostbyaddr_r(addr, len, type, ent, (char*)(fs.data() + 8), fs.capacity() - 8, &res, err);
-        if (r == ERANGE && *err == NETDB_INTERNAL) {
-            fs.reserve(fs.capacity() << 1);
-            err = (int*) fs.data();
-        } else {
-            break;
-        }
-    }
-
-    if (r == 0 && ent == res) return res;
-    return 0;
-}
+#endif
 
 #else
 int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, const struct timespec* ts) {
@@ -658,12 +608,13 @@ int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, con
     if (!ev.wait(ms)) return 0; // timeout
     return raw_api(kevent)(kq, c, nc, e, ne, 0);
 }
+#endif
 
 struct hostent* gethostbyname(const char* name) {
     init_hook(gethostbyname);
     if (!co::scheduler()) return raw_api(gethostbyname)(name);
 
-    co::MutexGuard g(gDnsMutex());
+    co::MutexGuard g(gDnsMutex_g());
     struct hostent* r = raw_api(gethostbyname)(name);
     if (!r) return 0;
 
@@ -676,7 +627,7 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     init_hook(gethostbyaddr);
     if (!co::scheduler()) return raw_api(gethostbyaddr)(addr, len, type);
 
-    co::MutexGuard g(gDnsMutex());
+    co::MutexGuard g(gDnsMutex_g());
     struct hostent* r = raw_api(gethostbyaddr)(addr, len, type);
     if (!r) return 0;
 
@@ -684,7 +635,6 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     *ent = *r;
     return ent;
 }
-#endif
 
 static bool init_hooks();
 static bool _dummy = init_hooks();

@@ -28,7 +28,9 @@ else
     if is_plat("macosx") then
         add_cxflags("-fno-pie")
     end
-    add_syslinks("pthread", "dl")
+    if not is_plat("android") then
+        add_syslinks("pthread", "dl")
+    end
 end
 
 option("with_openssl")

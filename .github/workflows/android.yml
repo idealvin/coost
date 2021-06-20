@@ -30,4 +30,3 @@ jobs:
         run: |
           xmake f -p android --ndk=`pwd`/android-ndk-r21
           xmake -a
-          xmake r unitest -a
