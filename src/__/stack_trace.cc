@@ -1,7 +1,7 @@
 #ifndef _WIN32
 #include "co/__/stack_trace.h"
 
-#ifdef __linux__
+#if defined(__linux__) && defined(HAS_EXECINFO_H)
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/fastream.h"

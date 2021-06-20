@@ -6,6 +6,9 @@ target("libco")
     add_options("codbg")
     add_options("with_openssl")
     add_options("with_libcurl")
+    
+    includes("check_cincludes.lua")
+    check_cincludes("HAS_EXECINFO_H", "execinfo.h")
 
     if is_plat("windows") then
         add_files("**.cpp")
