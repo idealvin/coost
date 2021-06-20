@@ -3,6 +3,7 @@
 #include "co/fs.h"
 #include "co/co/hook.h"
 #include <assert.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -62,7 +63,10 @@ bool remove(const char* path, bool rf) {
     } else {
         fastring cmd(strlen(path) + 9);
         cmd.append("rm -rf \"").append(path).append('"');
-        return system(cmd.c_str()) != -1;
+        FILE* f = popen(cmd.c_str(), "w");
+        if (f == NULL) return false;
+        return pclose(f) != -1;
+        //return system(cmd.c_str()) != -1;
     }
 }
 
