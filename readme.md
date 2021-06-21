@@ -236,14 +236,17 @@ Why is it so fast? The first is that it is based on [fastream](https://github.co
 
 ## Building
 
-### xmake
-
-co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
+### Compilers required
 
 - Compiler
   - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
   - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
   - Windows: [vs2015+](https://visualstudio.microsoft.com/)
+
+
+### xmake
+
+co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
 
 - Install xmake
 
@@ -258,17 +261,15 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
 
   ```sh
   # All commands are executed in the root directory of co (the same below)
-  xmake      # build libco and gen by default
+  xmake      # build libco by default
   xmake -a   # build all projects (libco, gen, co/test, co/unitest)
   ```
 
-- build with libcurl, openssl
-
-  Users may build with libcurl and openssl to enable the whole HTTP & SSL features.
+- build with libcurl, openssl (enable HTTP/SSL features)
 
   ```sh
   xmake f --with_libcurl=true --with_openssl=true
-  xmake -a
+  xmake
   ```
 
 - build libco
@@ -276,6 +277,8 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
   ```sh
   xmake build libco     # build libco only
   xmake -b libco        # same as above
+  xmake -v -b libco     # same as above, but print more compiling info
+  xmake -vD -b libco    # same as above, but print more compiling info
   ```
 
 - build and run unitest code
@@ -315,24 +318,32 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
 
   Proto file format can refer to [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto).
 
-- Installation
+- Install libco
 
   ```sh
-  # Install header files, libco, gen by default.
+  # Install header files and libco by default.
   xmake install -o pkg         # package related files to the pkg directory
   xmake i -o pkg               # the same as above
   xmake install -o /usr/local  # install to the /usr/local directory
   ```
 
+- Install libco from xmake repo
+
+  ```sh
+  xrepo install -f "with_openssl=true,with_libcurl=true" co
+  ```
+
+
 ### cmake
 
 [izhengfan](https://github.com/izhengfan) helped provide cmake support:
-- By default, only `libco` and `gen` are build.
+- By default, only build `libco`.
 - The library files are in the `build/lib` directory, and the executable files are in the `build/bin` directory.
 - You can use `BUILD_ALL` to compile all projects.
 - You can use `CMAKE_INSTALL_PREFIX` to specify the installation directory.
+- cmake only provides simple options, if you need more complex configuration, please use xmake.
 
-- Build libco and gen by default
+- Build libco by default
   ```sh
   mkdir build && cd build
   cmake ..
@@ -350,10 +361,10 @@ co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool
 - Build with libcurl & openssl (libcurl, zlib, openssl 1.1.0 or above required)
   ```sh
   mkdir build && cd build
-  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON -DCMAKE_INSTALL_PREFIX=pkg
+  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
   make -j8
-  make install
   ```
+
 
 ### Build from Docker
 

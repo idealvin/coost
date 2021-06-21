@@ -29,7 +29,7 @@
 
 ## Basic [(English)](readme.md)
 
-co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
+co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
 
 co 遵循极简的设计理念，提供的接口都尽可能简单明了，用户可以轻松上手。co 尽量避免过度封装、引入过多的概念，以减轻用户的学习负担，如 co 提供的协程化的 socket API，与原生 socket API 形式上基本一致，熟悉 socket 编程的用户，几乎不需要增加新的学习成本，就能轻松用这些 API 写出高性能的网络程序。
 
@@ -235,14 +235,17 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
 
 ## 构建
 
-### xmake
-
-co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
+### 编译器要求
 
 - 编译器
   - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
   - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
   - Windows: [vs2015+](https://visualstudio.microsoft.com/)
+
+
+### xmake
+
+co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
 - 安装 xmake
 
@@ -253,22 +256,21 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   export XMAKE_ROOT=y
   ```
 
-  co 中的 SSL, HTTP 特性依赖于 openssl, libcurl，执行 xmake 构建命令时，xmake 会提示用户是否安装这些三方库，如果用户选择 y，xmake 默认自动从 github 上拉取这些三方库。国内从 github 上下载代码可能较慢，可以按[参考文档中的说明](https://www.yuque.com/idealvin/co/wos6kw#VSdZs)设置 github 镜像代理。
+  co 中的 HTTP/SSL 特性依赖于 libcurl 与 openssl，启用 HTTP/SSL 特性时，xmake 会自动安装所需要的三方库。xmake 可能从 github 上拉取三方库，国内 github 下载速度较慢，可以按[参考文档中的说明](https://www.yuque.com/idealvin/co/wos6kw#VSdZs)设置 github 镜像代理。
 
 - 快速上手
 
   ```sh
   # 所有命令都在 co 根目录执行，后面不再说明
-  xmake       # 默认构建 libco 与 gen
+  xmake       # 默认构建 libco
   xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
   ```
 
-- 使用 libcurl 与 openssl 构建
+- 使用 libcurl 与 openssl 构建(启用 HTTP/SSL 特性)
 
   ```sh
   xmake f --with_libcurl=true --with_openssl=true
-  xmake       # 默认构建 libco 与 gen
-  xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
+  xmake
   ```
 
 - 构建 libco
@@ -276,6 +278,8 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
   ```sh
   xmake build libco       # 仅构建 libco
   xmake -b libco          # 与上同
+  xmake -v -b libco       # 与上同, 另外打印详细的编译信息
+  xmake -vD -b libco      # 与上同, 打印更加详细的编译信息
   ```
 
 - 构建及运行 unitest 代码
@@ -315,24 +319,32 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
   `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto)。
 
-- 安装
+- 安装 libco
 
   ```sh
-  # 默认安装头文件、libco、gen
+  # 默认安装头文件、libco
   xmake install -o pkg          # 打包安装到 pkg 目录
   xmake i -o pkg                # 同上
   xmake install -o /usr/local   # 安装到 /usr/local 目录
   ```
 
+- 从 xmake repo 安装 libco
+
+  ```sh
+  xrepo install -f "with_openssl=true,with_libcurl=true" co
+  ```
+
+
 ### cmake
 
 [izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
-- 默认只编译 `libco` 与 `gen`.
-- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下.
-- 可以用 `BUILD_ALL` 指定编译所有项目.
-- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
+- 默认只编译 `libco`。
+- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下。
+- 可以用 `BUILD_ALL` 指定编译所有项目。
+- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录。
+- cmake 只提供简单的编译选项，若需要更复杂的配置，请使用 xmake。
 
-- 默认构建 libco & gen
+- 默认构建 libco
   ```sh
   mkdir build && cd build
   cmake ..
@@ -350,13 +362,12 @@ co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 - 启用 libcurl & openssl (需要 libcurl, zlib, openssl 1.1.0 或以上版本)
   ```sh
   mkdir build && cd build
-  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON -DCMAKE_INSTALL_PREFIX=pkg
+  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
   make -j8
-  make install
   ```
 
 
-## Docker 编译
+### Docker 编译
 
 ```
 docker build -t co:v2.0.0 .
