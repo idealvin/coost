@@ -122,12 +122,12 @@ class Epoll {
     }
 
     int wait(int ms) {
-        return raw_epoll_wait(_epoll_fd, _ev.data(), 1024, ms);
+        return raw_api(epoll_wait)(_epoll_fd, _ev.data(), 1024, ms);
     }
 
     void signal(char c = 'x') {
         if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
-            const int r = (int) raw_write(_pipe_fds[1], &c, 1);
+            const int r = (int) raw_api(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
     }
@@ -175,15 +175,15 @@ class Epoll {
     int wait(int ms) {
         if (ms >= 0) {
             struct timespec ts = { ms / 1000, ms % 1000 * 1000000 };
-            return raw_kevent(_epoll_fd, 0, 0, _ev.data(), 1024, &ts);
+            return raw_api(kevent)(_epoll_fd, 0, 0, _ev.data(), 1024, &ts);
         } else {
-            return raw_kevent(_epoll_fd, 0, 0, _ev.data(), 1024, 0);
+            return raw_api(kevent)(_epoll_fd, 0, 0, _ev.data(), 1024, 0);
         }
     }
 
     void signal(char c = 'x') {
         if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
-            const int r = (int) raw_write(_pipe_fds[1], &c, 1);
+            const int r = (int) raw_api(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
     }

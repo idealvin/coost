@@ -1,4 +1,4 @@
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(CO_DISABLE_HOOK)
 
 #include "co/co.h"
 #include <errno.h>
@@ -128,38 +128,6 @@ class Hook {
     }
 };
 
-class Error {
-  public:
-    Error() = default;
-    ~Error() = default;
-
-    struct T {
-        T() : err(4096) {}
-        fastream err;
-        std::unordered_map<int, uint32> pos;
-    };
-
-    const char* strerror(int e) {
-        if (_p == NULL) _p.reset(new T);
-        auto it = _p->pos.find(e);
-        if (it != _p->pos.end()) {
-            return _p->err.data() + it->second;
-        } else {
-            uint32 pos = (uint32) _p->err.size();
-            static ::Mutex mtx;
-            {
-                ::MutexGuard g(mtx);
-                _p->err.append(raw_strerror(e)).append('\0');
-            }
-            _p->pos[e] = pos;
-            return _p->err.data() + pos;
-        }
-    }
-
-  private:
-    thread_ptr<T> _p;
-};
-
 } // co
 
 inline co::Hook& gHook() {
@@ -185,7 +153,6 @@ inline co::Mutex& gDnsMutex_g() {
 
 extern "C" {
 
-def_raw_api(strerror);
 def_raw_api(close);
 def_raw_api(shutdown);
 def_raw_api(connect);
@@ -234,12 +201,6 @@ def_raw_api(kevent);
         } \
     } while (true)
 
-
-char* strerror(int err) {
-    init_hook(strerror);
-    static co::Error e;
-    return (char*) e.strerror(err);
-}
 
 int shutdown(int fd, int how) {
     init_hook(shutdown);
@@ -641,7 +602,6 @@ static bool _dummy = init_hooks();
 
 static bool init_hooks() {
     (void) _dummy;
-    init_hook(strerror);
     init_hook(close);
     init_hook(shutdown);
     init_hook(connect);

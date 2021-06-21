@@ -6,7 +6,7 @@ namespace co {
 void Epoll::handle_ev_pipe() {
     int32 dummy;
     while (true) {
-        int r = raw_read(_pipe_fds[0], &dummy, 4);
+        int r = raw_api(read)(_pipe_fds[0], &dummy, 4);
         if (r != -1) {
             if (r < 4) break;
             continue;
@@ -22,7 +22,7 @@ void Epoll::handle_ev_pipe() {
 
 inline void closesocket(int& fd) {
     if (fd != -1) {
-        while (raw_close(fd) != 0 && errno == EINTR);
+        while (raw_api(close)(fd) != 0 && errno == EINTR);
         fd = -1;
     }
 }
@@ -134,7 +134,7 @@ bool Epoll::add_event(int fd, io_event_t ev, void* p) {
     const int evfilt = (ev == EV_read ? EVFILT_READ : EVFILT_WRITE);
     EV_SET(&event, fd, evfilt, EV_ADD, 0, 0, p);
 
-    if (raw_kevent(_epoll_fd, &event, 1, 0, 0, 0) == 0) {
+    if (raw_api(kevent)(_epoll_fd, &event, 1, 0, 0, 0) == 0) {
         x |= ev;
         return true;
     } else {
@@ -154,7 +154,7 @@ void Epoll::del_event(int fd, io_event_t ev) {
     const int evfilt = (ev == EV_read ? EVFILT_READ : EVFILT_WRITE);
     EV_SET(&event, fd, evfilt, EV_DELETE, 0, 0, 0);
 
-    if (raw_kevent(_epoll_fd, &event, 1, 0, 0, 0) != 0) {
+    if (raw_api(kevent)(_epoll_fd, &event, 1, 0, 0, 0) != 0) {
         ELOG << "kqueue del event error: " << co::strerror() << ", fd: " << fd << ", ev: " << ev;
     }
 }
@@ -171,7 +171,7 @@ void Epoll::del_event(int fd) {
     if (ev & EV_read) EV_SET(&event[i++], fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
     if (ev & EV_write) EV_SET(&event[i++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, 0);
 
-    if (raw_kevent(_epoll_fd, event, i, 0, 0, 0) != 0) {
+    if (raw_api(kevent)(_epoll_fd, event, i, 0, 0, 0) != 0) {
         ELOG << "kqueue del event error: " << co::strerror() << ", fd: " << fd;
     }
 }

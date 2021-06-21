@@ -14,7 +14,6 @@ set_warnings("all")     -- -Wall
 set_symbols("debug")    -- dbg symbols
 
 
--- if is_plat("macosx", "linux") then
 if is_plat("windows") then
     add_cxflags("-EHsc")
     if is_mode("debug") then
@@ -31,6 +30,9 @@ else
     if not is_plat("android") then
         add_syslinks("pthread", "dl")
     end
+    if is_plat("android", "iphoneos") then
+        add_defines("CO_DISABLE_HOOK")
+    end
 end
 
 option("with_openssl")
@@ -46,6 +48,13 @@ option("with_libcurl")
     set_showmenu(true)
     set_description("build with libcurl, required by http::Client")
     add_defines("HAS_LIBCURL")
+option_end()
+
+option("disable_hook")
+    set_default(false)
+    set_showmenu(true)
+    set_description("disable hook for coroutine")
+    add_defines("CO_DISABLE_HOOK")
 option_end()
 
 option("codbg")

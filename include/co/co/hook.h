@@ -2,6 +2,15 @@
 
 #ifndef _WIN32
 
+// disable hook for ios and android
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__)
+#define CO_DISABLE_HOOK
+#endif
+
+#ifdef CO_DISABLE_HOOK
+#define raw_api(x) ::x
+
+#else
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,13 +27,8 @@
 
 extern "C" {
 
-/**
- * We have to hook some native APIs, as third-party network libraries may block our 
- * coroutine schedulers.
- */
-
-// strerror is hooked as it is not thread-safe. 
-typedef char* (*strerror_fp_t)(int);
+// We have to hook some native APIs, as third-party network libraries may block our 
+// coroutine schedulers.
 
 typedef int (*close_fp_t)(int);
 typedef int (*shutdown_fp_t)(int, int);
@@ -74,7 +78,6 @@ typedef int (*kevent_fp_t)(int, const struct kevent*, int, struct kevent*, int, 
  * Declare raw API function pointers. We can use these pointers to call 
  * the native API directly. The new name is raw_ + original name.
  */
-dec_raw_api(strerror);
 dec_raw_api(close);
 dec_raw_api(shutdown);
 dec_raw_api(connect);
@@ -110,4 +113,5 @@ dec_raw_api(kevent);
 
 } // "C"
 
-#endif
+#endif // #ifdef CO_DISABLE_HOOK
+#endif // #ifndef _WIN32

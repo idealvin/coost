@@ -6,6 +6,7 @@ target("libco")
     add_options("codbg")
     add_options("with_openssl")
     add_options("with_libcurl")
+    add_options("disable_hook")
     
     includes("check_cincludes.lua")
     check_cincludes("HAS_EXECINFO_H", "execinfo.h")

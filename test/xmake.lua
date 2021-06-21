@@ -18,4 +18,5 @@ target(test[1])
     add_files(test[2])
     add_options("with_openssl")
     add_options("with_libcurl")
+    add_options("disable_hook")
 end

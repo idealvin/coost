@@ -212,7 +212,7 @@ void LevelLogger::safe_stop() {
         ::Sleep(8);
       #else
         struct timeval tv = { 0, 8000 };
-        raw_select(0, 0, 0, 0, &tv);
+        raw_api(select)(0, 0, 0, 0, &tv);
       #endif
     }
 

@@ -6,7 +6,6 @@
 #include "co/fastream.h"
 #include "co/thread.h"
 
-
 namespace ssl {
 
 static int errcb(const char* p, size_t n, void* u) {

@@ -132,7 +132,7 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*) _p;
     if (!p || p->fd == nullfd) return;
-    raw_close(p->fd);
+    raw_api(close)(p->fd);
     p->fd = nullfd;
 }
 
@@ -155,7 +155,7 @@ size_t file::read(void* s, size_t n) {
 
     while (true) {
         size_t toread = (remain < N ? remain : N);
-        auto r = raw_read(p->fd, c, toread);
+        auto r = raw_api(read)(p->fd, c, toread);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -184,7 +184,7 @@ size_t file::write(const void* s, size_t n) {
 
     while (true) {
         size_t towrite = (remain < N ? remain : N);
-        auto r = raw_write(p->fd, c, towrite);
+        auto r = raw_api(write)(p->fd, c, towrite);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;

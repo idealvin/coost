@@ -196,21 +196,23 @@ inline void init_hooks() {}
 inline void wsa_startup() {}
 inline void wsa_cleanup() {}
 
-void init_hooks() {
-    if (raw_close == 0) {
-  #ifdef __linux__
+inline void init_hooks() {
+  #ifndef CO_DISABLE_HOOK
+    if (raw_api(close) == 0) {
+      #ifdef __linux__
         ::epoll_wait(-1, 0, 0, 0);
-        CHECK(raw_epoll_wait != 0);
-  #else
+        CHECK(raw_api(epoll_wait) != 0);
+      #else
         ::kevent(-1, 0, 0, 0, 0, 0);
-        CHECK(raw_kevent != 0);
-  #endif
+        CHECK(raw_api(kevent) != 0);
+      #endif
         ::close(-1);
         auto r = ::read(-1, 0, 0);
         auto w = ::write(-1, 0, 0);
         (void)r;
         (void)w;
     }
+  #endif
 }
 #endif
 
