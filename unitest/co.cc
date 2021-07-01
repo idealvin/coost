@@ -109,8 +109,7 @@ DEF_test(co) {
         auto e = timer.ms();
         t = mgr.check_timeout(timeout);
         EXPECT_GE(timeout.size(), 3);
-        if (e < 64) {
-            EXPECT_EQ(timeout.size(), 3);
+        if (timeout.size() == 3) {
             EXPECT_LE(t, 50);
             EXPECT_EQ(mgr.assert_it(x), true);
             EXPECT_EQ(mgr.assert_empty(), false);
@@ -118,8 +117,7 @@ DEF_test(co) {
             EXPECT_EQ(mgr.assert_it(y), true);
             mgr.del_timer(y);
             EXPECT_EQ(mgr.assert_empty(), true);
-        } else {
-            EXPECT_EQ(timeout.size(), 5);
+        } else if (timeout.size() == 5) {
             EXPECT_EQ(mgr.assert_empty(), true);
         }
 
