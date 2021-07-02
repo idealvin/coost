@@ -4,14 +4,14 @@
 
 template <typename F>
 struct _defer_class {
-    _defer_class(F&& f) : _f(std::move(f)) {}
+    _defer_class(F&& f) : _f(std::forward<F>(f)) {}
     ~_defer_class() { _f(); }
-    F _f;
+    typename std::remove_reference<F>::type _f;
 };
 
 template <typename F>
 inline _defer_class<F> _create_defer_class(F&& f) {
-    return _defer_class<F>(std::move(f));
+    return _defer_class<F>(std::forward<F>(f));
 }
 
 #define _defer_name_cat(x, n) x##n
