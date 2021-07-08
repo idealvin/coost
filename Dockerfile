@@ -2,8 +2,7 @@ ARG BASE_IMAGE=ubuntu:18.04
 FROM ${BASE_IMAGE}
 LABEL maintainer="qixuxiang<qixuxiang@outlook.com>"
 WORKDIR /home/co/
-RUN cp /etc/apt/sources.list /etc/apt/sources.list_bk
-
+RUN mv /etc/apt/sources.list /etc/apt/sources.list_bk
 RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse" >> /etc/apt/sources.list
 RUN echo "deb-src http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse" >> /etc/apt/sources.list
 RUN echo "deb http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse" >> /etc/apt/sources.list
