@@ -314,23 +314,23 @@ void Client::do_io() {
 
     if (_ctx->action == CURL_POLL_IN) {
         curl_ev = CURL_CSELECT_IN;
-        co::IoEvent ev(_ctx->s, co::EV_read);
+        co::IoEvent ev(_ctx->s, co::ev_read);
         r = ev.wait(_ctx->ms);
     } else if (_ctx->action == CURL_POLL_OUT) {
         curl_ev = CURL_CSELECT_OUT;
-        co::IoEvent ev(_ctx->s, co::EV_write);
+        co::IoEvent ev(_ctx->s, co::ev_write);
         r = ev.wait(_ctx->ms);
     } else {
         CHECK_EQ(_ctx->action, CURL_POLL_IN | CURL_POLL_OUT);
         curl_ev = CURL_CSELECT_IN | CURL_CSELECT_OUT;
         do {
             {
-                co::IoEvent ev(_ctx->s, co::EV_write);
+                co::IoEvent ev(_ctx->s, co::ev_write);
                 r = ev.wait(_ctx->ms);
                 if (!r) break;
             }
             {
-                co::IoEvent ev(_ctx->s, co::EV_read);
+                co::IoEvent ev(_ctx->s, co::ev_read);
                 r = ev.wait(_ctx->ms);
             }
         } while (0);
@@ -370,8 +370,9 @@ int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* 
         ctx->action = action;
         break;
       case CURL_POLL_REMOVE:
-        // delete io event if the socket was not created by the opensocket callback
-        if (s != ctx->cs) co::scheduler()->del_io_event(s);
+        // delete io event if the socket was not created by the opensocket callback.
+        // Now we have hooked close (closesocket) globally, no need to do this..
+        //if (s != ctx->cs) co::del_io_event(s);
         ctx->s = 0;
         ctx->action = 0;
         break;
