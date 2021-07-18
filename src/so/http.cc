@@ -442,6 +442,7 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_
     if (r == 0) return (ctx->cs = fd);
 
     ELOG << "connect to " << co::to_string(&addr->addr, addr->addrlen) << " failed: " << co::strerror();
+    memcpy(ctx->err, "connect timeout", 16);
     co::close(fd);
     return CURL_SOCKET_BAD;
 }
