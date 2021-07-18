@@ -177,22 +177,16 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     for (; it != _timer.end(); ++it) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
+        if (!is_null_timer_id(co->it)) set_null_timer_id(co->it);
       #ifdef _WIN32
         auto info = (IoEvent::PerIoInfo*) co->ioinfo;
-        if (info) {
-            if (atomic_compare_swap(&info->ios, 0, 2) == 0) { /* 2 for io_timeout */
-                set_null_timer_id(co->it);
-                res.push_back(co);
-            }
-        } else {
-            if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
-                set_null_timer_id(co->it);
-                res.push_back(co);
-            }
+        if (info) { /* 2 for io_timeout */
+            if (atomic_compare_swap(&info->ios, 0, 2) == 0) res.push_back(co);
+        } else if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
+            res.push_back(co);
         }
       #else
         if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
-            set_null_timer_id(co->it);
             res.push_back(co);
         }
       #endif
