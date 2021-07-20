@@ -1,13 +1,13 @@
-#if !defined(_WIN32) && !defined(_CO_DISABLE_HOOK)
-
+#ifndef _WIN32
 #include "hook.h"
+
+#ifndef _CO_DISABLE_HOOK
 #include "scheduler.h"
 #include "co/defer.h"
 #include "co/table.h"
 #include <stdarg.h>
 #include <errno.h>
 #include <dlfcn.h>
-#include <sys/ioctl.h>
 #include <vector>
 
 DEF_bool(hook_log, false, "enable log for hook if true");
@@ -122,7 +122,6 @@ _CO_DEF_RAW_API(dup);
 _CO_DEF_RAW_API(dup2);
 _CO_DEF_RAW_API(dup3);
 _CO_DEF_RAW_API(setsockopt);
-
 _CO_DEF_RAW_API(close);
 _CO_DEF_RAW_API(shutdown);
 _CO_DEF_RAW_API(connect);
@@ -884,4 +883,5 @@ static bool init_hooks() {
 #undef do_hook
 #undef init_hook
 
+#endif
 #endif

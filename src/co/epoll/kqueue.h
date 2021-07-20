@@ -29,9 +29,9 @@ class Kqueue {
     int wait(int ms) {
         if (ms >= 0) {
             struct timespec ts = { ms / 1000, ms % 1000 * 1000000 };
-            return CO_RAW_API(kevent)(_kq, 0, 0, _ev.data(), 1024, &ts);
+            return CO_RAW_API(kevent)(_kq, 0, 0, _ev, 1024, &ts);
         } else {
-            return CO_RAW_API(kevent)(_kq, 0, 0, _ev.data(), 1024, 0);
+            return CO_RAW_API(kevent)(_kq, 0, 0, _ev, 1024, 0);
         }
     }
 

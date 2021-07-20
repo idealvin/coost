@@ -306,6 +306,7 @@ void co_detach_hooks();
 #include <netdb.h>       // getaddrinfo, gethostby...
 #include <poll.h>
 #include <sys/select.h>
+#include <sys/ioctl.h>
 #ifdef __linux__
 #include <sys/epoll.h>   // epoll
 #else
@@ -322,7 +323,7 @@ typedef int (*socketpair_fp_t)(int, int, int, int[2]);
 typedef int (*pipe_fp_t)(int[2]);
 typedef int (*pipe2_fp_t)(int[2], int);
 typedef int (*fcntl_fp_t)(int, int, ... /* arg */);
-typedef int (*ioctl_fp_t)(int, unsigned long, ...);
+typedef decltype(ioctl)* ioctl_fp_t;
 typedef int (*dup_fp_t)(int);
 typedef int (*dup2_fp_t)(int, int);
 typedef int (*dup3_fp_t)(int, int, int);
