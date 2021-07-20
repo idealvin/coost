@@ -947,9 +947,7 @@ void set_nonblock(sock_t fd);
 /**
  * set option O_NONBLOCK on a socket 
  */
-inline void set_nonblock(sock_t fd) {
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-}
+void set_nonblock(sock_t fd);
 
 /**
  * set option FD_CLOEXEC on a socket 

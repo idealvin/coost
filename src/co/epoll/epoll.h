@@ -3,6 +3,7 @@
 
 #include "co/co.h"
 #include "co/log.h"
+#include "../hook.h"
 #include "../sock_ctx.h"
 #include <sys/epoll.h>
 
@@ -32,13 +33,13 @@ class Epoll {
     void del_event(int fd);
 
     int wait(int ms) {
-        return raw_api(epoll_wait)(_ep, _ev, 1024, ms);
+        return CO_RAW_API(epoll_wait)(_ep, _ev, 1024, ms);
     }
 
     // write one byte to the pipe to wake up the epoll.
     void signal(char c = 'x') {
         if (atomic_compare_swap(&_signaled, false, true) == false) {
-            const int r = (int) raw_api(write)(_pipe_fds[1], &c, 1);
+            const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
     }

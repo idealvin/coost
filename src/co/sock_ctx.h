@@ -7,31 +7,26 @@
 
 namespace co {
 
-#ifndef __linux__
+#if defined(_WIN32)
 
 class SockCtx {
   public:
-    SockCtx() : _x(0) {}
+    SockCtx() = delete;
 
-    bool has_event()    const { return _x; }
-    bool has_ev_read()  const { return _s.r; }
-    bool has_ev_write() const { return _s.w; }
+    bool has_event() const { return _x; }
 
-    void add_event() {
-        atomic_compare_swap(&_x, 0, (uint16)0x0101);
+    int add_event() {
+        return atomic_compare_swap(&_x, 0, (uint16)0x0101);
     }
 
-    void add_ev_read()  { _s.r = 1; }
-    void add_ev_write() { _s.w = 1; }
     void del_ev_read()  { _s.r = 0; }
     void del_ev_write() { _s.w = 0; }
     void del_event()    { _x = 0; }
 
-    // On windows, we use _x to save address family of the listening socket.
     void set_address_family(int x) { assert(x < 65536); _x = (uint16)x; }
     int get_address_family() const { return _x; }
 
-  private:
+private:
     union {
         struct {
             uint8 r;
@@ -41,11 +36,11 @@ class SockCtx {
     };
 };
 
-#else
+#elif defined(__linux__)
 
 class SockCtx {
   public:
-    SockCtx() = delete; //{ memset(this, 0, sizeof(*this)); }
+    SockCtx() = delete;
 
     // store id and scheduler id of the coroutine that performs read operation.
     void add_ev_read(int sched_id, int co_id) {
@@ -93,6 +88,36 @@ class SockCtx {
     };
     union { event_t _rev; uint64 _r64; };
     union { event_t _wev; uint64 _w64; };
+};
+
+#else
+
+class SockCtx {
+  public:
+    SockCtx() : _x(0) {}
+
+    bool has_event()    const { return _x; }
+    bool has_ev_read()  const { return _s.r; }
+    bool has_ev_write() const { return _s.w; }
+
+    void add_event() {
+        atomic_compare_swap(&_x, 0, (uint16)0x0101);
+    }
+
+    void add_ev_read()  { _s.r = 1; }
+    void add_ev_write() { _s.w = 1; }
+    void del_ev_read()  { _s.r = 0; }
+    void del_ev_write() { _s.w = 0; }
+    void del_event()    { _x = 0; }
+
+  private:
+    union {
+        struct {
+            uint8 r;
+            uint8 w;
+        } _s;
+        uint16 _x;
+    };
 };
 
 #endif

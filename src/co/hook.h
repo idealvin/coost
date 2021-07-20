@@ -2,26 +2,30 @@
 
 // disable hook for ios and android
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__)
-#define CO_DISABLE_HOOK
+#define _CO_DISABLE_HOOK
 #endif
 
-#ifdef CO_DISABLE_HOOK
+#ifdef _CO_DISABLE_HOOK
 #define CO_RAW_API(x) ::x
 #else
 
 // We have to hook some native APIs, as third-party network libraries may block the 
 // coroutine schedulers.
 #define CO_RAW_API(x)         co_raw_##x
-#define CO_DEC_RAW_API(x)     extern x##_fp_t CO_RAW_API(x)
+#define _CO_DEC_RAW_API(x)     extern x##_fp_t CO_RAW_API(x)
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h> // for inet_ntop...
 #include <MSWSock.h>
 
-#define CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = x
+#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = x
 
 extern "C" {
+
+typedef void (WINAPI* Sleep_fp_t)(
+    DWORD a0
+);
 
 typedef SOCKET (WINAPI* socket_fp_t)(
     int a0,
@@ -257,35 +261,36 @@ typedef BOOL(WINAPI* GetQueuedCompletionStatusEx_fp_t)(
     BOOL               a5
 );
 
-CO_DEC_RAW_API(socket);
-CO_DEC_RAW_API(WSASocketA);
-CO_DEC_RAW_API(WSASocketW);
-CO_DEC_RAW_API(closesocket);
-CO_DEC_RAW_API(shutdown);
-CO_DEC_RAW_API(setsockopt);
-CO_DEC_RAW_API(ioctlsocket);
-CO_DEC_RAW_API(WSAIoctl);
-CO_DEC_RAW_API(WSAAsyncSelect);
-CO_DEC_RAW_API(WSAEventSelect);
-CO_DEC_RAW_API(accept);
-CO_DEC_RAW_API(WSAAccept);
-CO_DEC_RAW_API(connect);
-CO_DEC_RAW_API(WSAConnect);
-CO_DEC_RAW_API(recv);
-CO_DEC_RAW_API(WSARecv);
-CO_DEC_RAW_API(recvfrom);
-CO_DEC_RAW_API(WSARecvFrom);
-CO_DEC_RAW_API(send);
-CO_DEC_RAW_API(WSASend);
-CO_DEC_RAW_API(sendto);
-CO_DEC_RAW_API(WSASendTo);
-CO_DEC_RAW_API(WSARecvMsg);
-CO_DEC_RAW_API(WSASendMsg);
-CO_DEC_RAW_API(select);
-CO_DEC_RAW_API(WSAPoll);
-CO_DEC_RAW_API(WSAWaitForMultipleEvents);
-CO_DEC_RAW_API(GetQueuedCompletionStatus);
-CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
+_CO_DEC_RAW_API(Sleep);
+_CO_DEC_RAW_API(socket);
+_CO_DEC_RAW_API(WSASocketA);
+_CO_DEC_RAW_API(WSASocketW);
+_CO_DEC_RAW_API(closesocket);
+_CO_DEC_RAW_API(shutdown);
+_CO_DEC_RAW_API(setsockopt);
+_CO_DEC_RAW_API(ioctlsocket);
+_CO_DEC_RAW_API(WSAIoctl);
+_CO_DEC_RAW_API(WSAAsyncSelect);
+_CO_DEC_RAW_API(WSAEventSelect);
+_CO_DEC_RAW_API(accept);
+_CO_DEC_RAW_API(WSAAccept);
+_CO_DEC_RAW_API(connect);
+_CO_DEC_RAW_API(WSAConnect);
+_CO_DEC_RAW_API(recv);
+_CO_DEC_RAW_API(WSARecv);
+_CO_DEC_RAW_API(recvfrom);
+_CO_DEC_RAW_API(WSARecvFrom);
+_CO_DEC_RAW_API(send);
+_CO_DEC_RAW_API(WSASend);
+_CO_DEC_RAW_API(sendto);
+_CO_DEC_RAW_API(WSASendTo);
+_CO_DEC_RAW_API(WSARecvMsg);
+_CO_DEC_RAW_API(WSASendMsg);
+_CO_DEC_RAW_API(select);
+_CO_DEC_RAW_API(WSAPoll);
+_CO_DEC_RAW_API(WSAWaitForMultipleEvents);
+_CO_DEC_RAW_API(GetQueuedCompletionStatus);
+_CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
 
 void co_attach_hooks();
 void co_detach_hooks();
@@ -308,9 +313,20 @@ void co_detach_hooks();
 #include <sys/event.h>   // kevent
 #endif
 
-#define CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = 0
+#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = 0
 
 extern "C" {
+
+typedef int (*socket_fp_t)(int, int, int);
+typedef int (*socketpair_fp_t)(int, int, int, int[2]);
+typedef int (*pipe_fp_t)(int[2]);
+typedef int (*pipe2_fp_t)(int[2], int);
+typedef int (*fcntl_fp_t)(int, int, ... /* arg */);
+typedef int (*ioctl_fp_t)(int, unsigned long, ...);
+typedef int (*dup_fp_t)(int);
+typedef int (*dup2_fp_t)(int, int);
+typedef int (*dup3_fp_t)(int, int, int);
+typedef int (*setsockopt_fp_t)(int, int, int, const void*, socklen_t);
 
 typedef int (*close_fp_t)(int);
 typedef int (*shutdown_fp_t)(int, int);
@@ -352,40 +368,51 @@ typedef int (*gethostbyaddr_r_fp_t)(const void*, socklen_t, int, struct hostent*
 typedef int (*kevent_fp_t)(int, const struct kevent*, int, struct kevent*, int, const struct timespec*);
 #endif
 
-CO_DEC_RAW_API(close);
-CO_DEC_RAW_API(shutdown);
-CO_DEC_RAW_API(connect);
-CO_DEC_RAW_API(accept);
-CO_DEC_RAW_API(read);
-CO_DEC_RAW_API(readv);
-CO_DEC_RAW_API(recv);
-CO_DEC_RAW_API(recvfrom);
-CO_DEC_RAW_API(recvmsg);
-CO_DEC_RAW_API(write);
-CO_DEC_RAW_API(writev);
-CO_DEC_RAW_API(send);
-CO_DEC_RAW_API(sendto);
-CO_DEC_RAW_API(sendmsg);
-CO_DEC_RAW_API(poll);
-CO_DEC_RAW_API(select);
-CO_DEC_RAW_API(sleep);
-CO_DEC_RAW_API(usleep);
-CO_DEC_RAW_API(nanosleep);
-CO_DEC_RAW_API(gethostbyname);
-CO_DEC_RAW_API(gethostbyaddr);
+_CO_DEC_RAW_API(socket);
+_CO_DEC_RAW_API(socketpair);
+_CO_DEC_RAW_API(pipe);
+_CO_DEC_RAW_API(pipe2);
+_CO_DEC_RAW_API(fcntl);
+_CO_DEC_RAW_API(ioctl);
+_CO_DEC_RAW_API(dup);
+_CO_DEC_RAW_API(dup2);
+_CO_DEC_RAW_API(dup3);
+_CO_DEC_RAW_API(setsockopt);
+
+_CO_DEC_RAW_API(close);
+_CO_DEC_RAW_API(shutdown);
+_CO_DEC_RAW_API(connect);
+_CO_DEC_RAW_API(accept);
+_CO_DEC_RAW_API(read);
+_CO_DEC_RAW_API(readv);
+_CO_DEC_RAW_API(recv);
+_CO_DEC_RAW_API(recvfrom);
+_CO_DEC_RAW_API(recvmsg);
+_CO_DEC_RAW_API(write);
+_CO_DEC_RAW_API(writev);
+_CO_DEC_RAW_API(send);
+_CO_DEC_RAW_API(sendto);
+_CO_DEC_RAW_API(sendmsg);
+_CO_DEC_RAW_API(poll);
+_CO_DEC_RAW_API(select);
+_CO_DEC_RAW_API(sleep);
+_CO_DEC_RAW_API(usleep);
+_CO_DEC_RAW_API(nanosleep);
+_CO_DEC_RAW_API(gethostbyname);
+_CO_DEC_RAW_API(gethostbyaddr);
 
 #ifdef __linux__
-CO_DEC_RAW_API(epoll_wait);
-CO_DEC_RAW_API(accept4);
-CO_DEC_RAW_API(gethostbyname2);
-CO_DEC_RAW_API(gethostbyname_r);
-CO_DEC_RAW_API(gethostbyname2_r);
-CO_DEC_RAW_API(gethostbyaddr_r);
+_CO_DEC_RAW_API(epoll_wait);
+_CO_DEC_RAW_API(accept4);
+_CO_DEC_RAW_API(gethostbyname2);
+_CO_DEC_RAW_API(gethostbyname_r);
+_CO_DEC_RAW_API(gethostbyname2_r);
+_CO_DEC_RAW_API(gethostbyaddr_r);
 #else
-CO_DEC_RAW_API(kevent);
+_CO_DEC_RAW_API(kevent);
 #endif
 
 } // "C"
 
 #endif // #ifdef _WIN32
-#endif // #ifdef CO_DISABLE_HOOK
+#endif // #ifdef _CO_DISABLE_HOOK

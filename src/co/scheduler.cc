@@ -1,5 +1,4 @@
 #include "scheduler.h"
-#include "hook.h"
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
@@ -14,18 +13,14 @@ SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
     : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num),
       _stack_size(stack_size), _stack(0), _stack_top(0),
       _running(0), _co_pool(), _stop(false), _timeout(false) {
-  #ifdef _WIN32
-    _epoll = new Epoll(sched_num);
-  #else
     _epoll = new Epoll(id);
-  #endif
     _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
 SchedulerImpl::~SchedulerImpl() {
     this->stop();
-    free(_stack);
     delete _epoll;
+    free(_stack);
 }
 
 void SchedulerImpl::stop() {
@@ -106,7 +101,6 @@ void SchedulerImpl::loop() {
             continue;
         }
 
-      #ifndef _WIN32
         for (int i = 0; i < n; ++i) {
             auto& ev = (*_epoll)[i];
             if (_epoll->is_ev_pipe(ev)) {
@@ -114,9 +108,22 @@ void SchedulerImpl::loop() {
                 continue;
             }
 
-          #ifdef __linux__
+          #if defined(_WIN32)
+            auto info = (IoEvent::PerIoInfo*) ev.lpOverlapped;
+            auto co = (Coroutine*) info->co;
+            if (atomic_compare_swap(&info->ios, 0, 1) == 0) {
+                info->n = ev.dwNumberOfBytesTransferred;
+                if (co->s == this) {
+                    this->resume(co);
+                } else {
+                    ((SchedulerImpl*)co->s)->add_ready_task(co);
+                }
+            } else {
+                free(info);
+            }
+          #elif defined(__linux__)
             int32 rco = 0, wco = 0;
-            auto& ctx = co::get_sock_ctx(_epoll.user_data(ev));
+            auto& ctx = co::get_sock_ctx(_epoll->user_data(ev));
             if ((ev.events & EPOLLIN)  || !(ev.events & EPOLLOUT)) rco = ctx.get_ev_read(this->id());
             if ((ev.events & EPOLLOUT) || !(ev.events & EPOLLIN))  wco = ctx.get_ev_write(this->id());
             if (rco) this->resume(_co_pool[rco]);
@@ -125,7 +132,6 @@ void SchedulerImpl::loop() {
             this->resume((Coroutine*)_epoll->user_data(ev));
           #endif
         }
-      #endif
 
         CO_DBG_LOG << "> check tasks ready to resume..";
         do {
@@ -204,29 +210,28 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
 #ifdef _WIN32
 extern void wsa_startup();
 extern void wsa_cleanup();
-inline void init_hooks() {}
-#else
-inline void wsa_startup() {}
-inline void wsa_cleanup() {}
 
-inline void init_hooks() {
-  #ifndef CO_DISABLE_HOOK
-    if (raw_api(close) == 0) {
-      #ifdef __linux__
-        ::epoll_wait(-1, 0, 0, 0);
-        CHECK(raw_api(epoll_wait) != 0);
-      #else
-        ::kevent(-1, 0, 0, 0, 0, 0);
-        CHECK(raw_api(kevent) != 0);
-      #endif
-        ::close(-1);
-        auto r = ::read(-1, 0, 0);
-        auto w = ::write(-1, 0, 0);
-        (void)r;
-        (void)w;
-    }
+#else
+inline void wsa_startup() {
+#ifndef _CO_DISABLE_HOOK
+    if (CO_RAW_API(close) == 0) ::close(-1);
+    if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+    CHECK(CO_RAW_API(close) != 0);
+    CHECK(CO_RAW_API(read) != 0);
+    CHECK(CO_RAW_API(write) != 0);
+
+  #ifdef __linux__
+    if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
+    CHECK(CO_RAW_API(epoll_wait) != 0);
+  #else
+    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
+    CHECK(CO_RAW_API(kevent) != 0);
   #endif
+#endif
 }
+
+inline void wsa_cleanup() {}
 #endif
 
 inline bool& initialized() {
@@ -236,7 +241,6 @@ inline bool& initialized() {
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
-    init_hooks();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 

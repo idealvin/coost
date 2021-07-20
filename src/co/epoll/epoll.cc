@@ -8,7 +8,7 @@ Epoll::Epoll(int sched_id) : _sched_id(sched_id), _signaled(false) {
     CHECK_NE(_ep, -1) << "epoll create error: " << co::strerror();
     co::set_cloexec(_ep);
 
-    CHECK_NE(::pipe(_pipe_fds), -1) << "create pipe error: " << co::strerror();
+    CHECK_NE(CO_RAW_API(pipe)(_pipe_fds), -1) << "create pipe error: " << co::strerror();
     co::set_cloexec(_pipe_fds[0]);
     co::set_cloexec(_pipe_fds[1]);
 
@@ -25,7 +25,7 @@ Epoll::~Epoll() {
 }
 
 bool Epoll::add_ev_read(int fd, int32 co_id) {
-    if (fd == -1) return false;
+    if (fd < 0) return false;
     auto& ctx = co::get_sock_ctx(fd);
     if (ctx.has_ev_read()) return true; // already exists
 
@@ -45,7 +45,7 @@ bool Epoll::add_ev_read(int fd, int32 co_id) {
 }
 
 bool Epoll::add_ev_write(int fd, int32 co_id) {
-    if (fd == -1) return false;
+    if (fd < 0) return false;
     auto& ctx = co::get_sock_ctx(fd);
     if (ctx.has_ev_write()) return true; // already exists
 
@@ -65,7 +65,7 @@ bool Epoll::add_ev_write(int fd, int32 co_id) {
 }
 
 void Epoll::del_ev_read(int fd) {
-    if (fd == -1) return;
+    if (fd < 0) return;
     auto& ctx = co::get_sock_ctx(fd);
     if (!ctx.has_ev_read()) return; // not exists
 
@@ -86,7 +86,7 @@ void Epoll::del_ev_read(int fd) {
 }
 
 void Epoll::del_ev_write(int fd) {
-    if (fd == -1) return;
+    if (fd < 0) return;
     auto& ctx = co::get_sock_ctx(fd);
     if (!ctx.has_ev_write()) return; // not exists
 
@@ -107,7 +107,7 @@ void Epoll::del_ev_write(int fd) {
 }
 
 void Epoll::del_event(int fd) {
-    if (fd == -1) return;
+    if (fd < 0) return;
     auto& ctx = co::get_sock_ctx(fd);
     if (ctx.has_event()) {
         ctx.del_event();
@@ -117,8 +117,8 @@ void Epoll::del_event(int fd) {
 }
 
 inline void closesocket(int& fd) {
-    if (fd != -1) {
-        while (raw_api(close)(fd) != 0 && errno == EINTR);
+    if (fd >= 0) {
+        while (CO_RAW_API(close)(fd) != 0 && errno == EINTR);
         fd = -1;
     }
 }
@@ -132,7 +132,7 @@ void Epoll::close() {
 void Epoll::handle_ev_pipe() {
     int32 dummy;
     while (true) {
-        int r = raw_api(read)(_pipe_fds[0], &dummy, 4);
+        int r = CO_RAW_API(read)(_pipe_fds[0], &dummy, 4);
         if (r != -1) {
             if (r < 4) break;
             continue;

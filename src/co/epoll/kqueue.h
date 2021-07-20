@@ -2,16 +2,16 @@
 
 #if !defined(_WIN32) && !defined(__linux__)
 #include "co/co.h"
+#include "../hook.h"
 #include "../sock_ctx.h"
 #include <time.h>
 #include <sys/event.h>
 
 namespace co {
 
-// close, read, write, kevent
 class Kqueue {
   public:
-    Kqueue(int i = 0);
+    Kqueue(int sched_id);
     ~Kqueue();
 
     bool add_ev_read(int fd, void* ud);
@@ -29,15 +29,15 @@ class Kqueue {
     int wait(int ms) {
         if (ms >= 0) {
             struct timespec ts = { ms / 1000, ms % 1000 * 1000000 };
-            return raw_api(kevent)(_kq, 0, 0, _ev.data(), 1024, &ts);
+            return CO_RAW_API(kevent)(_kq, 0, 0, _ev.data(), 1024, &ts);
         } else {
-            return raw_api(kevent)(_kq, 0, 0, _ev.data(), 1024, 0);
+            return CO_RAW_API(kevent)(_kq, 0, 0, _ev.data(), 1024, 0);
         }
     }
 
     void signal(char c = 'x') {
         if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
-            const int r = (int) raw_api(write)(_pipe_fds[1], &c, 1);
+            const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
     }
