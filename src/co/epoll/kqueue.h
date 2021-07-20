@@ -2,6 +2,7 @@
 
 #if !defined(_WIN32) && !defined(__linux__)
 #include "co/co.h"
+#include "co/log.h"
 #include "../hook.h"
 #include "../sock_ctx.h"
 #include <time.h>

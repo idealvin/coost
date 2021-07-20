@@ -316,6 +316,19 @@ void co_detach_hooks();
 
 #define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = 0
 
+namespace co {
+
+// deduce parameter type of ioctl
+template<typename T>
+struct ioctl_param;
+
+template<typename X, typename Y>
+struct ioctl_param<int(*)(X, Y, ...)> {
+    typedef Y type;
+};
+
+} // co
+
 extern "C" {
 
 typedef int (*socket_fp_t)(int, int, int);

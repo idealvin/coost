@@ -282,7 +282,7 @@ int fcntl(int fd, int cmd, ... /* arg */) {
     return r;
 }
 
-int ioctl(int fd, unsigned long request, ...) {
+int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     init_hook(ioctl);
     if (fd < 0) { errno = EBADF; return -1; }
 
