@@ -3,16 +3,19 @@ target("libco")
     set_basename("co")
     add_files("**.cc")
 
-    add_options("codbg")
     add_options("with_openssl")
     add_options("with_libcurl")
-    add_options("disable_hook")
     
     includes("check_cincludes.lua")
     check_cincludes("HAS_EXECINFO_H", "execinfo.h")
 
     if is_plat("windows") then
-        add_files("**.cpp")
+        add_files("__/StackWalker.cpp")
+        add_files("co/detours/creatwth.cpp")
+        add_files("co/detours/detours.cpp")
+        add_files("co/detours/image.cpp")
+        add_files("co/detours/modules.cpp")
+        add_files("co/detours/disasm.cpp")
         if is_arch("x64") then
             add_files("co/context/context_x64.asm")
         else

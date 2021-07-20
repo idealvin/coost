@@ -1,45 +1,45 @@
-#include "co/co/scheduler.h"
-#include "co/co/io_event.h"
+#include "scheduler.h"
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
 DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
+DEF_bool(co_debug_log, false, "#1 enable debug log for coroutine library");
 
 namespace co {
-namespace xx {
 
-__thread Scheduler* gSched = 0;
+__thread SchedulerImpl* gSched = 0;
 
-Scheduler::Scheduler(uint32 id, uint32 stack_size)
-    : _id(id), _stack_size(stack_size), _stack(0), _stack_top(0), _running(0), 
-      _wait_ms((uint32)-1), _co_pool(), _stop(false), _timeout(false) {
-    // we can not use a coroutine with id of 0 on linux.
-    _main_co = _co_pool.pop();
-    CHECK(is_null_timer_id(_main_co->it));
+SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
+    : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num),
+      _stack_size(stack_size), _stack(0), _stack_top(0),
+      _running(0), _co_pool(), _stop(false), _timeout(false) {
+    _epoll = new Epoll(id);
+    _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
-Scheduler::~Scheduler() {
+SchedulerImpl::~SchedulerImpl() {
     this->stop();
+    delete _epoll;
     free(_stack);
 }
 
-void Scheduler::stop() {
+void SchedulerImpl::stop() {
     if (atomic_swap(&_stop, true) == false) {
-        _epoll.signal();
+        _epoll->signal();
         _ev.wait();
-        _epoll.close();
     }
 }
 
-void Scheduler::main_func(tb_context_from_t from) {
+void SchedulerImpl::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
-    gSched->running()->cb->run();
-    gSched->recycle(gSched->running()); // recycle the current coroutine
-    tb_context_jump(from.ctx, 0);                 // jump back to the from context
+    gSched->running()->cb->run(); // run the coroutine function
+    gSched->recycle();            // recycle the current coroutine
+    tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 
 /*
  *  scheduler thread:
+ *
  *    resume(co) -> jump(co->ctx, main_co)
  *       ^             |
  *       |             v
@@ -48,7 +48,7 @@ void Scheduler::main_func(tb_context_from_t from) {
  *       |             v
  *       <-------- co->cb->run():  run on _stack
  */
-void Scheduler::resume(Coroutine* co) {
+void SchedulerImpl::resume(Coroutine* co) {
     tb_context_from_t from;
     _running = co;
     if (_stack == 0) {
@@ -57,39 +57,43 @@ void Scheduler::resume(Coroutine* co) {
     }
 
     if (co->ctx == 0) {
+        // resume new coroutine
         co->ctx = tb_context_make(_stack, _stack_size, main_func);
-        SOLOG << "resume new co: " << co->id << ", ctx: " << co->ctx;
-        from = tb_context_jump(co->ctx, _main_co);
+        CO_DBG_LOG << "resume new co: " << co << " id: " << co->id;
+        from = tb_context_jump(co->ctx, _main_co); // jump to main_func(from):  from.priv == _main_co
+
     } else {
-        // We can't compare co->it with null_timer_id directly, as it will cause 
-        // a "debug assertion failed" error in dll debug mode on windows.
+        // remove timer before resume the coroutine
         if (!is_null_timer_id(co->it)) {
-            SOLOG << "del timer: " << co->it;
+            CO_DBG_LOG << "del timer: " << co->it;
             _timer_mgr.del_timer(co->it);
             set_null_timer_id(co->it);
         }
-        SOLOG << "resume co: " <<  co->id << ", ctx: " << co->ctx << ", sd: " << co->stack.size();
+
+        // resume suspended coroutine
+        CO_DBG_LOG << "resume co: " << co << ", id: " <<  co->id << ", stack: " << co->stack.size();
         CHECK(_stack_top == (char*)co->ctx + co->stack.size());
         memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
-        from = tb_context_jump(co->ctx, _main_co);
+        from = tb_context_jump(co->ctx, _main_co); // jump back to where the user called yiled()
     }
 
+    // yiled() was called in coroutine, the scheduler will jump back to resume()
     if (from.priv) {
         assert(_running == from.priv);
         _running->ctx = from.ctx;   // update context for the coroutine
-        SOLOG << "yield co: " << _running->id << ", ctx: " << from.ctx 
-              << ", sd: " << (size_t)(_stack_top - (char*)from.ctx);
+        CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id
+                   << ", stack: " << (size_t)(_stack_top - (char*)from.ctx);
         this->save_stack(_running); // save stack data for the coroutine
     }
 }
 
-void Scheduler::loop() {
+void SchedulerImpl::loop() {
     gSched = this;
     std::vector<Closure*> new_tasks;
     std::vector<Coroutine*> ready_tasks;
 
     while (!_stop) {
-        int n = _epoll.wait(_wait_ms);
+        int n = _epoll->wait(_wait_ms);
         if (_stop) break;
 
         if (unlikely(n == -1)) {
@@ -97,37 +101,44 @@ void Scheduler::loop() {
             continue;
         }
 
-        SOLOG << "> epoll wait ret: " << n;
         for (int i = 0; i < n; ++i) {
-            auto& ev = _epoll[i];
-            if (_epoll.is_ev_pipe(ev)) {
-                _epoll.handle_ev_pipe();
+            auto& ev = (*_epoll)[i];
+            if (_epoll->is_ev_pipe(ev)) {
+                _epoll->handle_ev_pipe();
                 continue;
             }
 
           #if defined(_WIN32)
-            IoEvent::PerIoInfo* info = (IoEvent::PerIoInfo*) _epoll.user_data(ev);
-            if (info->co) {
+            auto info = (IoEvent::PerIoInfo*) ev.lpOverlapped;
+            auto co = (Coroutine*) info->co;
+            if (atomic_compare_swap(&info->ios, 0, 1) == 0) {
                 info->n = ev.dwNumberOfBytesTransferred;
-                this->resume((Coroutine*)info->co);
+                if (co->s == this) {
+                    this->resume(co);
+                } else {
+                    ((SchedulerImpl*)co->s)->add_ready_task(co);
+                }
             } else {
                 free(info);
             }
           #elif defined(__linux__)
-            uint64 ud = _epoll.user_data(ev);
-            if (ud >> 32) this->resume(_co_pool[ud >> 32]);
-            if ((uint32)ud) this->resume(_co_pool[(uint32)ud]);
+            int32 rco = 0, wco = 0;
+            auto& ctx = co::get_sock_ctx(_epoll->user_data(ev));
+            if ((ev.events & EPOLLIN)  || !(ev.events & EPOLLOUT)) rco = ctx.get_ev_read(this->id());
+            if ((ev.events & EPOLLOUT) || !(ev.events & EPOLLIN))  wco = ctx.get_ev_write(this->id());
+            if (rco) this->resume(_co_pool[rco]);
+            if (wco) this->resume(_co_pool[wco]);
           #else
-            this->resume((Coroutine*)_epoll.user_data(ev));
+            this->resume((Coroutine*)_epoll->user_data(ev));
           #endif
         }
 
-        SOLOG << "> check tasks ready to resume..";
+        CO_DBG_LOG << "> check tasks ready to resume..";
         do {
             _task_mgr.get_all_tasks(new_tasks, ready_tasks);
 
             if (!new_tasks.empty()) {
-                SOLOG << ">> resume new tasks, num: " << new_tasks.size();
+                CO_DBG_LOG << ">> resume new tasks, num: " << new_tasks.size();
                 for (size_t i = 0; i < new_tasks.size(); ++i) {
                     this->resume(this->new_coroutine(new_tasks[i]));
                 }
@@ -135,7 +146,7 @@ void Scheduler::loop() {
             }
 
             if (!ready_tasks.empty()) {
-                SOLOG << ">> resume ready tasks, num: " << ready_tasks.size();
+                CO_DBG_LOG << ">> resume ready tasks, num: " << ready_tasks.size();
                 for (size_t i = 0; i < ready_tasks.size(); ++i) {
                     this->resume(ready_tasks[i]);
                 }
@@ -143,12 +154,12 @@ void Scheduler::loop() {
             }
         } while (0);
 
-        SOLOG << "> check timedout tasks..";
+        CO_DBG_LOG << "> check timedout tasks..";
         do {
             _wait_ms = _timer_mgr.check_timeout(ready_tasks);
 
             if (!ready_tasks.empty()) {
-                SOLOG << ">> resume timedout tasks, num: " << ready_tasks.size();
+                CO_DBG_LOG << ">> resume timedout tasks, num: " << ready_tasks.size();
                 _timeout = true;
                 for (size_t i = 0; i < ready_tasks.size(); ++i) {
                     this->resume(ready_tasks[i]);
@@ -161,7 +172,6 @@ void Scheduler::loop() {
         if (_running) _running = 0;
     }
 
-    this->cleanup();
     _ev.signal();
 }
 
@@ -173,10 +183,19 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     for (; it != _timer.end(); ++it) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
-        if (co->state == S_init || atomic_swap(&co->state, S_init) == S_wait) {
-            set_null_timer_id(co->it);
+        if (!is_null_timer_id(co->it)) set_null_timer_id(co->it);
+      #ifdef _WIN32
+        auto info = (IoEvent::PerIoInfo*) co->ioinfo;
+        if (info) { /* 2 for io_timeout */
+            if (atomic_compare_swap(&info->ios, 0, 2) == 0) res.push_back(co);
+        } else if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
             res.push_back(co);
         }
+      #else
+        if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
+            res.push_back(co);
+        }
+      #endif
     }
 
     if (it != _timer.begin()) {
@@ -191,29 +210,28 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
 #ifdef _WIN32
 extern void wsa_startup();
 extern void wsa_cleanup();
-inline void init_hooks() {}
-#else
-inline void wsa_startup() {}
-inline void wsa_cleanup() {}
 
-inline void init_hooks() {
-  #ifndef CO_DISABLE_HOOK
-    if (raw_api(close) == 0) {
-      #ifdef __linux__
-        ::epoll_wait(-1, 0, 0, 0);
-        CHECK(raw_api(epoll_wait) != 0);
-      #else
-        ::kevent(-1, 0, 0, 0, 0, 0);
-        CHECK(raw_api(kevent) != 0);
-      #endif
-        ::close(-1);
-        auto r = ::read(-1, 0, 0);
-        auto w = ::write(-1, 0, 0);
-        (void)r;
-        (void)w;
-    }
+#else
+inline void wsa_startup() {
+#ifndef _CO_DISABLE_HOOK
+    if (CO_RAW_API(close) == 0) ::close(-1);
+    if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+    CHECK(CO_RAW_API(close) != 0);
+    CHECK(CO_RAW_API(read) != 0);
+    CHECK(CO_RAW_API(write) != 0);
+
+  #ifdef __linux__
+    if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
+    CHECK(CO_RAW_API(epoll_wait) != 0);
+  #else
+    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
+    CHECK(CO_RAW_API(kevent) != 0);
   #endif
+#endif
 }
+
+inline void wsa_cleanup() {}
 #endif
 
 inline bool& initialized() {
@@ -223,7 +241,6 @@ inline bool& initialized() {
 
 SchedulerManager::SchedulerManager() {
     wsa_startup();
-    init_hooks();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
@@ -232,7 +249,7 @@ SchedulerManager::SchedulerManager() {
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
 
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
-        Scheduler* s = new Scheduler(i, FLG_co_stack_size);
+        SchedulerImpl* s = new SchedulerImpl(i, FLG_co_sched_num, FLG_co_stack_size);
         s->start();
         _scheds.push_back(s);
     }
@@ -241,12 +258,32 @@ SchedulerManager::SchedulerManager() {
 }
 
 SchedulerManager::~SchedulerManager() {
-    for (size_t i = 0; i < _scheds.size(); ++i) delete _scheds[i];
+    for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
     wsa_cleanup();
 }
 
 void SchedulerManager::stop_all_schedulers() {
-    for (size_t i = 0; i < _scheds.size(); ++i) _scheds[i]->stop();
+    for (size_t i = 0; i < _scheds.size(); ++i) {
+        ((SchedulerImpl*)_scheds[i])->stop();
+    }
+}
+
+void Scheduler::go(Closure* cb) {
+    ((SchedulerImpl*)this)->add_new_task(cb);
+}
+
+void go(Closure* cb) {
+    ((SchedulerImpl*) scheduler_manager()->next_scheduler())->add_new_task(cb);
+}
+
+const std::vector<Scheduler*>& all_schedulers() {
+    return scheduler_manager()->all_schedulers();
+}
+
+Scheduler* scheduler() { return gSched; }
+
+Scheduler* next_scheduler() {
+    return scheduler_manager()->next_scheduler();
 }
 
 int scheduler_num() {
@@ -254,5 +291,28 @@ int scheduler_num() {
     return os::cpunum();
 }
 
-} // xx
+int scheduler_id() {
+    return gSched ? ((SchedulerImpl*)gSched)->id() : -1;
+}
+
+int coroutine_id() {
+    return (gSched && gSched->running()) ? gSched->running()->id : -1;
+}
+
+void del_io_event(sock_t fd) {
+    if (gSched) gSched->del_io_event(fd);
+}
+
+void sleep(uint32 ms) {
+    gSched ? gSched->sleep(ms) : sleep::ms(ms);
+}
+
+bool timeout() {
+    return gSched && gSched->timeout();
+}
+
+void stop() {
+    return scheduler_manager()->stop_all_schedulers();
+}
+
 } // co

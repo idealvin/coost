@@ -5,7 +5,6 @@
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/fastream.h"
-#include "co/co/hook.h"
 
 #include <unistd.h>
 #include <execinfo.h>
@@ -75,7 +74,7 @@ StackTraceImpl::~StackTraceImpl() {
 }
 
 inline void write_to_stderr(const char* s, size_t n) {
-    auto r = raw_api(write)(STDERR_FILENO, s, n);
+    auto r = ::write(STDERR_FILENO, s, n);
     (void)r;
 }
 
@@ -104,7 +103,7 @@ static void addr2line(const char* exe, const char* addr, char* buf, size_t len) 
 
     pid_t pid = fork();
     if (pid == 0) {
-        raw_api(close)(pipefd[0]);
+        ::close(pipefd[0]);
         dup2(pipefd[1], STDOUT_FILENO);
         dup2(pipefd[1], STDERR_FILENO);
 
@@ -114,11 +113,11 @@ static void addr2line(const char* exe, const char* addr, char* buf, size_t len) 
         //abort_if(r == -1, "execlp atos failed");
     }
 
-    raw_api(close)(pipefd[1]);
+    ::close(pipefd[1]);
     abort_if(waitpid(pid, NULL, 0) != pid, "waitpid failed");
 
-    ssize_t r = raw_api(read)(pipefd[0], buf, len - 1);
-    raw_api(close)(pipefd[0]);
+    ssize_t r = ::read(pipefd[0], buf, len - 1);
+    ::close(pipefd[0]);
     buf[r > 0 ? r : 0] = '\0';
 }
 

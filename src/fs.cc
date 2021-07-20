@@ -1,7 +1,6 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
-#include "co/co/hook.h"
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -132,7 +131,7 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*) _p;
     if (!p || p->fd == nullfd) return;
-    raw_api(close)(p->fd);
+    while (::close(p->fd) != 0 && errno == EINTR);
     p->fd = nullfd;
 }
 
@@ -155,7 +154,7 @@ size_t file::read(void* s, size_t n) {
 
     while (true) {
         size_t toread = (remain < N ? remain : N);
-        auto r = raw_api(read)(p->fd, c, toread);
+        auto r = ::read(p->fd, c, toread);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -184,7 +183,7 @@ size_t file::write(const void* s, size_t n) {
 
     while (true) {
         size_t towrite = (remain < N ? remain : N);
-        auto r = raw_api(write)(p->fd, c, towrite);
+        auto r = ::write(p->fd, c, towrite);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;

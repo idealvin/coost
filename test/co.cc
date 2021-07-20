@@ -42,6 +42,12 @@ int main(int argc, char** argv) {
     log::init();
     FLG_cout = true;
 
+    // print scheduler pointers
+    auto& s = co::all_schedulers();
+    for (size_t i = 0; i < s.size(); ++i) {
+        COUT << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
+    }
+
     for (int i = 0; i < 8; ++i) go(f1);
     go(f2);
 

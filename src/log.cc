@@ -5,7 +5,7 @@
 #include "co/path.h"
 #include "co/time.h"
 #include "co/__/stack_trace.h"
-#include "co/co/hook.h"
+#include "./co/hook.h"
 
 #include <time.h>
 #include <string>
@@ -26,6 +26,7 @@ DEF_uint32(max_log_file_num, 8, "#0 max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 32MB");
 DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
+DEC_bool(disable_hook_sleep);
 
 namespace ___ {
 namespace log {
@@ -209,10 +210,12 @@ void LevelLogger::safe_stop() {
 
     while (_stop != 2) {
       #ifdef _WIN32
+        FLG_disable_hook_sleep = true;
         ::Sleep(8);
       #else
         struct timeval tv = { 0, 8000 };
-        raw_api(select)(0, 0, 0, 0, &tv);
+        if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
+        CO_RAW_API(select)(0, 0, 0, 0, &tv);
       #endif
     }
 
