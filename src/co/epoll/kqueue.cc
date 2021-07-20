@@ -3,7 +3,7 @@
 
 namespace co {
 
-Kqueue::Kqueue() : _signaled(0) {
+Kqueue::Kqueue(int sched_id) : _signaled(0) {
     _kq = kqueue();
     CHECK_NE(_kq, -1) << "kqueue create error: " << co::strerror();
     CHECK_NE(CO_RAW_API(pipe)(_pipe_fds), -1) << "create pipe error: " << co::strerror();
@@ -12,6 +12,7 @@ Kqueue::Kqueue() : _signaled(0) {
     co::set_nonblock(_pipe_fds[0]);
     CHECK(this->add_ev_read(_pipe_fds[0], (void*)0));
     _ev = (struct kevent*) calloc(1024, sizeof(struct kevent));
+    (void) sched_id;
 }
 
 Kqueue::~Kqueue() {
