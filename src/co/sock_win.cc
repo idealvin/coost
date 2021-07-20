@@ -1,6 +1,5 @@
 #ifdef _WIN32
 
-#include "hook.h"
 #include "scheduler.h"
 #include <ws2spi.h>
 
@@ -22,20 +21,20 @@ sock_t socket(int domain, int type, int protocol) {
     if (fd != INVALID_SOCKET) {
         unsigned long mode = 1;
         CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
-        set_skip_iocp_on_success(fd); 
+        set_skip_iocp_on_success(fd);
     }
     return fd;
 }
 
 int close(sock_t fd, int ms) {
-    if (fd == (sock_t)-1) return 0;
+    if (fd == (sock_t)-1) return CO_RAW_API(closesocket)(fd);
     co::get_sock_ctx(fd).del_event();
     if (ms > 0 && gSched) gSched->sleep(ms);
     return CO_RAW_API(closesocket)(fd);
 }
 
 int shutdown(sock_t fd, char c) {
-    if (fd == (sock_t)-1) return 0;
+    if (fd == (sock_t)-1) return CO_RAW_API(shutdown)(fd, SD_BOTH);
     auto& ctx = co::get_sock_ctx(fd);
     if (c == 'r') {
         ctx.del_ev_read();

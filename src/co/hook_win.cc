@@ -11,6 +11,7 @@
 #include <Mswsock.h>
 
 DEF_bool(hook_log, false, "enable log for hook if true");
+DEF_bool(disable_hook_sleep, false, "disable hook sleep if true");
 
 #define HOOKLOG DLOG_IF(FLG_hook_log)
 
@@ -106,33 +107,34 @@ inline co::Hook& gHook() {
 
 extern "C" {
 
-CO_DEF_RAW_API(socket);
-CO_DEF_RAW_API(WSASocketA);
-CO_DEF_RAW_API(WSASocketW);
-CO_DEF_RAW_API(closesocket);
-CO_DEF_RAW_API(shutdown);
-CO_DEF_RAW_API(setsockopt);
-CO_DEF_RAW_API(ioctlsocket);
-CO_DEF_RAW_API(WSAIoctl);
-CO_DEF_RAW_API(WSAAsyncSelect);
-CO_DEF_RAW_API(WSAEventSelect);
-CO_DEF_RAW_API(accept);
-CO_DEF_RAW_API(WSAAccept);
-CO_DEF_RAW_API(connect);
-CO_DEF_RAW_API(WSAConnect);
-CO_DEF_RAW_API(recv);
-CO_DEF_RAW_API(WSARecv);
-CO_DEF_RAW_API(recvfrom);
-CO_DEF_RAW_API(WSARecvFrom);
-CO_DEF_RAW_API(send);
-CO_DEF_RAW_API(WSASend);
-CO_DEF_RAW_API(sendto);
-CO_DEF_RAW_API(WSASendTo);
-CO_DEF_RAW_API(select);
-CO_DEF_RAW_API(WSAPoll);
-CO_DEF_RAW_API(WSAWaitForMultipleEvents);
-CO_DEF_RAW_API(GetQueuedCompletionStatus);
-CO_DEF_RAW_API(GetQueuedCompletionStatusEx);
+_CO_DEF_RAW_API(Sleep);
+_CO_DEF_RAW_API(socket);
+_CO_DEF_RAW_API(WSASocketA);
+_CO_DEF_RAW_API(WSASocketW);
+_CO_DEF_RAW_API(closesocket);
+_CO_DEF_RAW_API(shutdown);
+_CO_DEF_RAW_API(setsockopt);
+_CO_DEF_RAW_API(ioctlsocket);
+_CO_DEF_RAW_API(WSAIoctl);
+_CO_DEF_RAW_API(WSAAsyncSelect);
+_CO_DEF_RAW_API(WSAEventSelect);
+_CO_DEF_RAW_API(accept);
+_CO_DEF_RAW_API(WSAAccept);
+_CO_DEF_RAW_API(connect);
+_CO_DEF_RAW_API(WSAConnect);
+_CO_DEF_RAW_API(recv);
+_CO_DEF_RAW_API(WSARecv);
+_CO_DEF_RAW_API(recvfrom);
+_CO_DEF_RAW_API(WSARecvFrom);
+_CO_DEF_RAW_API(send);
+_CO_DEF_RAW_API(WSASend);
+_CO_DEF_RAW_API(sendto);
+_CO_DEF_RAW_API(WSASendTo);
+_CO_DEF_RAW_API(select);
+_CO_DEF_RAW_API(WSAPoll);
+_CO_DEF_RAW_API(WSAWaitForMultipleEvents);
+_CO_DEF_RAW_API(GetQueuedCompletionStatus);
+_CO_DEF_RAW_API(GetQueuedCompletionStatusEx);
 
 static WSARecvMsg_fp_t get_WSARecvMsg_fp();
 static WSASendMsg_fp_t get_WSASendMsg_fp();
@@ -151,7 +153,15 @@ inline void set_skip_iocp(sock_t s, co::HookCtx& ctx) {
     }
 }
 
-SOCKET WSAAPI hook_socket(
+void WINAPI hook_Sleep(
+    DWORD a0
+) {
+    HOOKLOG << "hook_Sleep: " << a0;
+    if (!co::gSched || FLG_disable_hook_sleep) return CO_RAW_API(Sleep)(a0);
+    co::gSched->sleep(a0);
+}
+
+SOCKET WINAPI hook_socket(
     int a0,
     int a1,
     int a2
@@ -203,7 +213,7 @@ SOCKET WINAPI hook_WSASocketW(
 int WINAPI hook_closesocket(
     SOCKET s
 ) {
-    if (s == INVALID_SOCKET) return 0;
+    if (s == INVALID_SOCKET) return CO_RAW_API(closesocket)(s);
     gHook().get_hook_ctx(s).clear();
     HOOKLOG << "hook_closesocket, sock: " << s;
     return co::close(s);
@@ -214,7 +224,7 @@ int WINAPI hook_shutdown(
     int a1
 ) {
     HOOKLOG << "hook_shutdown, sock: " << a0 << ", " << a1;
-    if (a0 == INVALID_SOCKET) return 0;
+    if (a0 == INVALID_SOCKET) return CO_RAW_API(shutdown)(a0, a1);
 
     auto& ctx = gHook().get_hook_ctx(a0);
     if (a1 == SD_RECEIVE) {
@@ -1016,12 +1026,16 @@ int WINAPI hook_select(
 ) {
     if (!co::gSched || (!a1 && !a2 && !a3)) return CO_RAW_API(select)(a0, a1, a2, a3, a4);
 
-    uint32 t = a4 ? (uint32)(a4->tv_sec * 1000 + a4->tv_usec / 1000) : (uint32)-1;
-    if (t == 0) return CO_RAW_API(select)(a0, a1, a2, a3, a4);
+    uint32 t = (uint32)-1;
+    if (a4) {
+        const int64 us = (int64)a4->tv_sec * 1000000 + a4->tv_usec;
+        t = (us == 0 ? 0 : (us >= 1000 ? (uint32)(us / 1000) : 1));
+    }
+    HOOKLOG << "hook_select, nfds: " << a0 << ", ms: " << (int)t;
 
     int r;
     uint32 ms = 16;
-    timeval tv = { 0, 0 };
+    struct timeval tv = { 0, 0 };
     while (true) {
         r = CO_RAW_API(select)(a0, a1, a2, a3, &tv);
         if (r != 0 || t == 0) return r;
@@ -1036,6 +1050,7 @@ int WINAPI hook_WSAPoll(
     ULONG a1,
     INT a2
 ) {
+    HOOKLOG << "hook_WSAPoll, ms: " << a2;
     if (!co::gSched || a2 == 0) return CO_RAW_API(WSAPoll)(a0, a1, a2);
 
     int r;
@@ -1181,6 +1196,7 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 void co_attach_hooks() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
+    attach_hook(Sleep);
     //attach_hook(socket);
     attach_hook(WSASocketA);
     attach_hook(WSASocketW);
@@ -1216,6 +1232,7 @@ void co_attach_hooks() {
 void co_detach_hooks() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
+    detach_hook(Sleep);
     //detach_hook(socket);
     detach_hook(WSASocketA);
     detach_hook(WSASocketW);
