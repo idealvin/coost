@@ -209,6 +209,16 @@ enum io_event_t {
  */
 bool add_io_event(sock_t fd, io_event_t ev);
 
+/**
+ * delete an IO event from epoll
+ *   - It MUST be called in a coroutine.
+ */
+void del_io_event(sock_t fd, io_event_t ev);
+
+/**
+ * remove all events on the socket 
+ *   - It MUST be called in a coroutine.
+ */
 void del_io_event(sock_t fd);
 
 /**

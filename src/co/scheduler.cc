@@ -299,8 +299,29 @@ int coroutine_id() {
     return (gSched && gSched->running()) ? gSched->running()->id : -1;
 }
 
+void add_timer(uint32 ms) {
+    CHECK(gSched) << "MUST be called in coroutine..";
+    gSched->add_timer(ms);
+}
+
+bool add_io_event(sock_t fd, io_event_t ev) {
+    CHECK(gSched) << "MUST be called in coroutine..";
+    return gSched->add_io_event(fd, ev);
+}
+
+void del_io_event(sock_t fd, io_event_t ev) {
+    CHECK(gSched) << "MUST be called in coroutine..";
+    return gSched->del_io_event(fd, ev);
+}
+
 void del_io_event(sock_t fd) {
-    if (gSched) gSched->del_io_event(fd);
+    CHECK(gSched) << "MUST be called in coroutine..";
+    gSched->del_io_event(fd);
+}
+
+void yield() {
+    CHECK(gSched) << "MUST be called in coroutine..";
+    gSched->yield();
 }
 
 void sleep(uint32 ms) {
@@ -309,6 +330,11 @@ void sleep(uint32 ms) {
 
 bool timeout() {
     return gSched && gSched->timeout();
+}
+
+bool on_stack(const void* p) {
+    CHECK(gSched) << "MUST be called in coroutine..";
+    return gSched->on_stack(p);
 }
 
 void stop() {
