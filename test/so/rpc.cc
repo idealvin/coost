@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
     FLG_cout = true;
+    FLG_ssl = !FLG_key.empty() && !FLG_ca.empty();
 
     // initialize the proto client, other client can simply copy from it.
     proto.reset(new rpc::Client(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));

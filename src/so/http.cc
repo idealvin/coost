@@ -371,8 +371,8 @@ int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* 
         break;
       case CURL_POLL_REMOVE:
         // delete io event if the socket was not created by the opensocket callback.
-        // Now we have hooked close (closesocket) globally, no need to do this..
-        //if (s != ctx->cs) co::del_io_event(s);
+        // Now we have hooked close (closesocket) globally, MAYBE no need to do this..
+        if (s != ctx->cs) co::del_io_event(s);
         ctx->s = 0;
         ctx->action = 0;
         break;
@@ -455,6 +455,35 @@ int easy_closesocket_cb(void* userp, curl_socket_t fd) {
 int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose) {
     return CURL_SOCKOPT_ALREADY_CONNECTED;
 }
+
+#else
+Client::Client(const char*) {
+    CHECK(false)
+        << "To use http::Client, please build libco with libcurl as follow: \n"
+        << "xmake f --with_libcurl=true\n"
+        << "xmake -v";
+}
+
+Client::~Client() {}
+void Client::add_header(const char*, const char*) {}
+void Client::add_header(const char*, int) {}
+void Client::remove_header(const char*) {}
+void Client::get(const char*) {}
+void Client::head(const char*) {}
+void Client::post(const char*, const char*, size_t) {}
+void Client::put(const char*, const char*, size_t) {}
+void Client::del(const char*, const char*, size_t) {}
+void Client::set_url(const char*) {}
+void* Client::easy_handle() const { return 0; }
+void Client::perform() {}
+int Client::response_code() const { return 0; }
+const char* Client::strerror() const { return ""; }
+const char* Client::header(const char* key) { return ""; }
+const char* Client::header() const { return ""; }
+const char* Client::body() const { return ""; }
+size_t Client::body_size() const { return 0; }
+void Client::close() {}
+
 #endif // http::Client
 
 

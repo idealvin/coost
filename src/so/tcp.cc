@@ -42,9 +42,8 @@ const char* Connection::strerror() const {
     return co::strerror();
 }
 
-#ifdef CO_SSL
 struct SSLConnection : public tcp::Connection {
-    SSLConnection(SSL* ssl) : tcp::Connection(ssl::get_fd(ssl)), s(ssl) {}
+    SSLConnection(ssl::S* ssl) : tcp::Connection(ssl::get_fd(ssl)), s(ssl) {}
     virtual ~SSLConnection() { this->close(); };
 
     virtual int recv(void* buf, int n, int ms=-1) {
@@ -82,9 +81,8 @@ struct SSLConnection : public tcp::Connection {
         return ssl::strerror(s);
     }
 
-    SSL* s;
+    ssl::S* s;
 };
-#endif
 
 struct ServerParam {
     ServerParam(const char* ip, int port, std::function<void(Connection*)>&& on_connection)
@@ -93,9 +91,7 @@ struct ServerParam {
     }
 
     ~ServerParam() {
-      #ifdef CO_SSL
-        if (ssl_ctx) ssl::free_ctx((SSL_CTX*)ssl_ctx);
-      #endif
+        if (ssl_ctx) ssl::free_ctx((ssl::C*)ssl_ctx);
     }
 
     fastring ip;
@@ -128,12 +124,11 @@ static void on_tcp_connection(ServerParam* p, sock_t fd) {
     p->on_connection(new tcp::Connection((int)fd));
 }
 
-#ifdef CO_SSL
 static void on_ssl_connection(ServerParam* p, sock_t fd) {
     co::set_tcp_keepalive(fd);
     co::set_tcp_nodelay(fd);
 
-    SSL* s = ssl::new_ssl((SSL_CTX*)p->ssl_ctx);
+    ssl::S* s = ssl::new_ssl((ssl::C*)p->ssl_ctx);
     if (s == NULL) goto new_ssl_err;
     if (ssl::set_fd(s, (int)fd) != 1) goto set_fd_err;
     if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
@@ -155,14 +150,12 @@ static void on_ssl_connection(ServerParam* p, sock_t fd) {
     co::close(fd, 1000);
     return;
 }
-#endif
 
 void Server::start(const char* ip, int port, const char* key, const char* ca) {
     CHECK(_on_connection != NULL) << "connection callback not set..";
     ServerParam* p = new ServerParam(ip, port, std::move(*_on_connection));
 
     if (key && *key && ca && *ca) {
-      #ifdef CO_SSL
         auto ctx = ssl::new_server_ctx();
         p->ssl_ctx = ctx;
         CHECK(ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
@@ -179,9 +172,6 @@ void Server::start(const char* ip, int port, const char* key, const char* ca) {
 
         p->on_conn_fd = std::bind(on_ssl_connection, p, std::placeholders::_1);
         go(server_loop, (void*)p);
-      #else
-        CHECK(false) << "openssl must be installed..";
-      #endif
     } else {
         p->on_conn_fd = std::bind(on_tcp_connection, p, std::placeholders::_1);
         go(server_loop, (void*)p);
@@ -234,36 +224,21 @@ void server_loop(void* arg) {
 Client::Client(const char* ip, int port, bool use_ssl)
     : _ip((ip && *ip) ? ip : "127.0.0.1"), _port((uint16)port),
       _use_ssl(use_ssl), _fd(-1), _ssl(0), _ssl_ctx(0) {
-  #ifndef CO_SSL
-    CHECK(!use_ssl) << "openssl must be installed..";
-  #endif
 }
 
 int Client::recv(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recv(_fd, buf, n, ms);
-  #ifdef CO_SSL
-    return ssl::recv((SSL*)_ssl, buf, n, ms);
-  #else
-    return 0;
-  #endif
+    return ssl::recv((ssl::S*)_ssl, buf, n, ms);
 }
 
 int Client::recvn(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recvn(_fd, buf, n, ms);
-  #ifdef CO_SSL
-    return ssl::recvn((SSL*)_ssl, buf, n, ms);
-  #else
-    return 0;
-  #endif
+    return ssl::recvn((ssl::S*)_ssl, buf, n, ms);
 }
 
 int Client::send(const void* buf, int n, int ms) {
     if (!_use_ssl) return co::send(_fd, buf, n, ms);
-  #ifdef CO_SSL
-    return ssl::send((SSL*)_ssl, buf, n, ms);
-  #else
-    return 0;
-  #endif
+    return ssl::send((ssl::S*)_ssl, buf, n, ms);
 }
 
 bool Client::connect(int ms) {
@@ -289,19 +264,16 @@ bool Client::connect(int ms) {
 
     co::set_tcp_nodelay(_fd);
 
-  #ifdef CO_SSL
     if (_use_ssl) {
         if ((_ssl_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
-        if ((_ssl = ssl::new_ssl((SSL_CTX*)_ssl_ctx)) == NULL) goto new_ssl_err;
-        if (ssl::set_fd((SSL*)_ssl, _fd) != 1) goto set_fd_err;
-        if (ssl::connect((SSL*)_ssl, ms) != 1) goto connect_err;
+        if ((_ssl = ssl::new_ssl((ssl::C*)_ssl_ctx)) == NULL) goto new_ssl_err;
+        if (ssl::set_fd((ssl::S*)_ssl, _fd) != 1) goto set_fd_err;
+        if (ssl::connect((ssl::S*)_ssl, ms) != 1) goto connect_err;
     }
-  #endif
 
     if (info) freeaddrinfo(info);
     return true;
 
-  #ifdef CO_SSL
   new_ctx_err:
     ELOG << "ssl connect new client contex error: " << ssl::strerror();
     goto err_end;
@@ -309,12 +281,11 @@ bool Client::connect(int ms) {
     ELOG << "ssl connect new SSL failed: " << ssl::strerror();
     goto err_end;
   set_fd_err:
-    ELOG << "ssl connect set fd (" << _fd << ") failed: " << ssl::strerror((SSL*)_ssl);
+    ELOG << "ssl connect set fd (" << _fd << ") failed: " << ssl::strerror((ssl::S*)_ssl);
     goto err_end;
   connect_err:
-    ELOG << "ssl connect failed: " << ssl::strerror((SSL*)_ssl);
+    ELOG << "ssl connect failed: " << ssl::strerror((ssl::S*)_ssl);
     goto err_end;
-  #endif
   err_end:
     this->disconnect();
     if (info) freeaddrinfo(info);
@@ -323,21 +294,15 @@ bool Client::connect(int ms) {
 
 void Client::disconnect() {
     if (this->connected()) {
-      #ifdef CO_SSL
-        if (_ssl) { ssl::free_ssl((SSL*)_ssl); _ssl = 0; }
-        if (_ssl_ctx) { ssl::free_ctx((SSL_CTX*)_ssl_ctx); _ssl_ctx = 0; }
-      #endif
+        if (_ssl) { ssl::free_ssl((ssl::S*)_ssl); _ssl = 0; }
+        if (_ssl_ctx) { ssl::free_ctx((ssl::C*)_ssl_ctx); _ssl_ctx = 0; }
         co::close(_fd); _fd = -1;
     }
 }
 
 const char* Client::strerror() const {
     if (!_use_ssl) return co::strerror();
-  #ifdef CO_SSL
-    return ssl::strerror((SSL*)_ssl);
-  #else
-    return "";
-  #endif
+    return ssl::strerror((ssl::S*)_ssl);
 }
 
 } // tcp

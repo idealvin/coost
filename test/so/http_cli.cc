@@ -1,6 +1,5 @@
 #include "co/all.h"
 
-#ifdef HAS_LIBCURL
 DEF_string(s, "https://github.com", "server url");
 DEF_string(m, "", "method, GET, POST, DELETE, PUT");
 DEF_string(url, "", "url of http request");
@@ -9,8 +8,6 @@ SyncEvent ev;
 
 void fa() {
     http::Client c(FLG_s.c_str());
-    //http headers can be added here before the request was performed.
-    //c.add_header("hello", "world");
 
     int r;
     LOG << "get /";
@@ -72,9 +69,3 @@ int main(int argc, char** argv) {
     ev.wait();
     return 0;
 }
-#else
-int main(int argc, char** argv) {
-    COUT << "libcurl required..";
-    return 0;
-}
-#endif
