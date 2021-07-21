@@ -52,15 +52,14 @@ option("with_libcurl")
     add_defines("HAS_LIBCURL")
 option_end()
 
+
 if has_config("with_libcurl") then
     add_requires("openssl >=1.1.0")
     add_requires("libcurl", {configs = {openssl = true, zlib = true}})
-    add_packages("libcurl")
-    add_packages("openssl")
 elseif has_config("with_openssl") then
     add_requires("openssl >=1.1.0")
-    add_packages("openssl")
-end
+end 
+
 
 -- include dir
 add_includedirs("include")

@@ -5,9 +5,13 @@ target("libco")
 
     add_options("with_openssl")
     add_options("with_libcurl")
-    
-    includes("check_cincludes.lua")
-    check_cincludes("HAS_EXECINFO_H", "execinfo.h")
+
+    if has_config("with_libcurl") then
+        add_packages("libcurl")
+        add_packages("openssl")
+    elseif has_config("with_openssl") then
+        add_packages("openssl")
+    end 
 
     if is_plat("windows") then
         add_files("__/StackWalker.cpp")
@@ -22,6 +26,8 @@ target("libco")
             add_files("co/context/context_x86.asm")
         end
     else
+        includes("check_cincludes.lua")
+        check_cincludes("HAS_EXECINFO_H", "execinfo.h")
         add_files("co/context/context.S")
     end
 

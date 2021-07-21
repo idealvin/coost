@@ -16,6 +16,4 @@ target(test[1])
     set_default(false)
     add_deps("libco")
     add_files(test[2])
-    add_options("with_openssl")
-    add_options("with_libcurl")
 end
