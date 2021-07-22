@@ -218,6 +218,30 @@ class PoolImpl {
     size_t _maxcap;
 };
 
+class WaitGroupImpl {
+  public:
+    WaitGroupImpl();
+    ~WaitGroupImpl();
+
+    void add(uint32 n) {
+        atomic_add(&_n, n);
+    }
+
+    void done() {
+        if (atomic_dec(&_n) == 0) {
+
+        }
+    }
+
+    void wait() {
+        
+    }
+
+  private:
+    uint32 _n;
+
+};
+
 Event::Event() {
     _p = new EventImpl;
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../json.h"
-#include "co/hash.h"
+#include "../hash.h"
 #include <unordered_map>
 
 namespace rpc {

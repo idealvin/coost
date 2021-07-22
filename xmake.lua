@@ -33,7 +33,7 @@ else
         add_syslinks("pthread", "dl")
     end
     if is_plat("android", "iphoneos") then
-        add_defines("CO_DISABLE_HOOK")
+        add_defines("_CO_DISABLE_HOOK")
     end
 end
 

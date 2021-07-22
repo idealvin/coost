@@ -604,6 +604,7 @@ class IoEvent {
     PerIoInfo* _info;
     char* _to;
     int _nb_tcp; // for non-blocking tcp socket
+    DISALLOW_COPY_AND_ASSIGN(IoEvent);
 };
 
 #else
@@ -641,8 +642,37 @@ class IoEvent {
     sock_t _fd;
     io_event_t _ev;
     bool _has_ev;
+    DISALLOW_COPY_AND_ASSIGN(IoEvent);
 };
 #endif
+
+class WaitGroup {
+  public:
+    WaitGroup();
+    ~WaitGroup();
+    WaitGroup(WaitGroup&& wg) : _p(wg._p) { wg._p = 0; }
+
+    /**
+     * increase WaitGroup counter by n
+     * 
+     * @param n  1 by default.
+     */
+    void add(uint32 n=1);
+
+    /**
+     * decrease WaitGroup counter by 1
+     */
+    void done();
+
+    /**
+     * blocks until the counter becomes 0
+     */
+    void wait();
+
+  private:
+    void* _p;
+    DISALLOW_COPY_AND_ASSIGN(WaitGroup);
+};
 
 /** 
  * create a socket suitable for coroutine programing

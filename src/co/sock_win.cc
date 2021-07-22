@@ -2,6 +2,7 @@
 
 #include "scheduler.h"
 #include <ws2spi.h>
+#include <unordered_map>
 
 namespace co {
 

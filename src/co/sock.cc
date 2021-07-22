@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "scheduler.h"
+#include <unordered_map>
 
 namespace co {
 

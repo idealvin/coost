@@ -8,5 +8,9 @@ int main(int argc, char** argv) {
         COUT << "error: " << i << "  str: " << co::strerror(i);
     }
 
+    for (int i = 10060; i < 10100; ++i) {
+        COUT << "error: " << i << "  str: " << co::strerror(i);
+    }
+
     return 0;
 }
