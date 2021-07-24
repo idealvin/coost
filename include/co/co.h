@@ -2,6 +2,8 @@
 
 #include "def.h"
 #include "closure.h"
+#include "flag.h"
+#include "log.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"
@@ -81,6 +83,28 @@ template<typename F, typename T, typename P>
 inline void go(F&& f, T* t, P&& p) {
     go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
 }
+
+/**
+ * define main function
+ *   - DEF_main can be used to ensure code in main function also runs in coroutine. 
+ */
+#define DEF_main(argc, argv) \
+int _co_main(int argc, char** argv); \
+int main(int argc, char** argv) { \
+    flag::init(argc, argv); \
+    log::init(); \
+    int r; \
+    co::WaitGroup wg; \
+    wg.add(); \
+    go([&](){ \
+        r = _co_main(argc, argv); \
+        wg.done(); \
+    }); \
+    wg.wait(); \
+    return r; \
+} \
+int _co_main(int argc, char** argv)
+
 
 class Scheduler {
   public:
