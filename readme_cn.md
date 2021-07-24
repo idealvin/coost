@@ -46,8 +46,8 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
 
 [co](https://github.com/idealvin/co/blob/master/include/co/co.h) 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，支持如下特性:
 - 多线程调度，默认线程数为系统 CPU 核数.
-- 协程共享栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
-- 系统 API hook (Linux & Mac).
+- 共享栈，同一线程中的协程共用一个栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
+- 系统 API hook，可以在直接在协程中以同步的方式使用三方网络库.
 - 协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
 - 协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
 - 协程池 [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
@@ -65,8 +65,10 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
 
   go(ku);  // 悟空
   go(gg, 777);
+  go([](){
+      LOG << "hello go";
+  });
   ```
-
 
 ### 网络(so)
 
@@ -129,6 +131,41 @@ co 遵循极简的设计理念，提供的接口都尽可能简单明了，用�
   LOG << "response code: " << c.response_code();
   ```
 
+### 支持 golang 中的一些特性
+
+#### defer
+
+```cpp
+#include "co/defer.h"
+#include <iostream>
+
+void f(int x, int y) { std::cout << (x + y) << std::endl; }
+
+int main(int argc, char** argv) {
+    int x = 1, y = 2;
+    defer(f(3, 4); f(4, 3));
+    defer(f(x, y));
+    return 0;
+}
+```
+
+#### waitgroup
+
+```cpp
+#include "co/co.h"
+
+co::WaitGroup wg;
+
+for (int i = 0; i < 8; ++i) {
+    wg.add();
+    go([&]() {
+        // do ...
+        wg.done();
+    });
+}
+
+wg.wait();
+```
 
 ### 日志库(log)
 

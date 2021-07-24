@@ -48,7 +48,7 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
 
 - Multi-thread scheduling, the default number of threads is the number of system CPU cores.
 - Coroutines share the thread stack (default size is 1MB), and the memory footprint is low, a single machine can easily create millions of coroutines.
-- System api hook (Linux & Mac).
+- System api hook. It is easy to use third-party network libraries in coroutines.
 - Coroutine lock [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
 - Coroutine synchronization event [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
 - Coroutine Pool [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
@@ -66,6 +66,9 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
 
   go(ku);  // Goku
   go(gg, 777);
+  go([](){
+      LOG << "hello go";
+  });
   ```
 
 
@@ -129,6 +132,43 @@ co follows a minimalist design concept, and the interfaces provided are as simpl
   c.post("/hello", "data xxx");
   LOG << "response code: "<< c.response_code();
   ```
+
+
+### Some features from golang
+
+#### defer
+
+```cpp
+#include "co/defer.h"
+#include <iostream>
+
+void f(int x, int y) { std::cout << (x + y) << std::endl; }
+
+int main(int argc, char** argv) {
+    int x = 1, y = 2;
+    defer(f(3, 4); f(4, 3));
+    defer(f(x, y));
+    return 0;
+}
+```
+
+#### waitgroup
+
+```cpp
+#include "co/co.h"
+
+co::WaitGroup wg;
+
+for (int i = 0; i < 8; ++i) {
+    wg.add();
+    go([&]() {
+        // do ...
+        wg.done();
+    });
+}
+
+wg.wait();
+```
 
 
 ### Log library (log)
