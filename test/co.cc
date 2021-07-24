@@ -22,16 +22,6 @@ void f1() {
     pool.push(p);
 }
 
-void f2() {
-    bool r = ev.wait(50);
-    LOG << "f2() r: " << r;
-}
-
-void f3() {
-    LOG << "f3()";
-    ev.signal();
-}
-
 void f() {
     co::sleep(32);
     LOG << "s: " << co::scheduler_id() << " c: " << co::coroutine_id();
@@ -49,11 +39,20 @@ int main(int argc, char** argv) {
     }
 
     for (int i = 0; i < 8; ++i) go(f1);
-    go(f2);
+    go([&]() {
+        bool r = ev.wait(50);
+        LOG << "f2() r: " << r;
+    });
 
     sleep::ms(100);
-    go(f3);
-
+    go([&]() {
+        LOG << "f3()";
+        ev.signal();
+    });
+    
+    LOG << "co::Event wait in non-coroutine beg: " << now::ms();
+    ev.wait(200);
+    LOG << "co::Event wait in non-coroutine end: " << now::ms();
     sleep::ms(200);
 
     LOG << "v: " << v;

@@ -6,10 +6,8 @@ namespace co {
 
 class EventImpl {
   public:
-    EventImpl() : _signaled(false) {}
-    ~EventImpl() = default;
-
-    void wait();
+    EventImpl() : _counter(0), _signaled(false), _has_cond(false) {}
+    ~EventImpl() { co::xx::cond_destroy(&_cond); }
 
     bool wait(uint32 ms);
 
@@ -17,61 +15,68 @@ class EventImpl {
 
   private:
     ::Mutex _mtx;
+    co::xx::cond_t _cond;
     std::unordered_set<Coroutine*> _co_wait;
     std::unordered_set<Coroutine*> _co_swap;
+    int _counter;
     bool _signaled;
+    bool _has_cond;
 };
-
-void EventImpl::wait() {
-    auto s = gSched;
-    CHECK(s) << "must be called in coroutine..";
-    Coroutine* co = s->running();
-    if (co->s != s) co->s = s;
-
-    {
-        ::MutexGuard g(_mtx);
-        if (_signaled) { _signaled = false; return; }
-        co->state = st_wait;
-        _co_wait.insert(co);
-    }
-
-    s->yield();
-    co->state = st_init;
-}
 
 bool EventImpl::wait(uint32 ms) {
     auto s = gSched;
-    CHECK(s) << "must be called in coroutine..";
-    Coroutine* co = s->running();
-    if (co->s != s) co->s = s;
+    if (s) { /* in coroutine */
+        Coroutine* co = s->running();
+        if (co->s != s) co->s = s;
+        {
+            ::MutexGuard g(_mtx);
+            if (_signaled) { if (_counter == 0) _signaled = false; return true; }
+            co->state = st_wait;
+            _co_wait.insert(co);
+        }
 
-    {
+        if (ms != (uint32)-1) s->add_timer(ms);
+        s->yield();
+        if (s->timeout()) {
+            ::MutexGuard g(_mtx);
+            _co_wait.erase(co);
+        }
+
+        co->state = st_init;
+        return !s->timeout();
+
+    } else { /* not in coroutine */
         ::MutexGuard g(_mtx);
-        if (_signaled) { _signaled = false; return true; }
-        co->state = st_wait;
-        _co_wait.insert(co);
+        if (!_signaled) {
+            ++_counter;
+            if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+            bool r = true;
+            if (ms == (uint32)-1) {
+                co::xx::cond_wait(&_cond, _mtx.mutex());
+            } else {
+                r = co::xx::cond_wait(&_cond, _mtx.mutex(), ms);
+            }
+            --_counter;
+            if (!r) return false;
+            assert(_signaled);
+        }
+        if (_counter == 0) _signaled = false;
+        return true;
     }
-
-    s->add_timer(ms);
-    s->yield();
-    if (s->timeout()) {
-        ::MutexGuard g(_mtx);
-        _co_wait.erase(co);
-    }
-
-    co->state = st_init;
-    return !s->timeout();
 }
 
 void EventImpl::signal() {
     {
         ::MutexGuard g(_mtx);
-        if (!_co_wait.empty()) {
-            _co_wait.swap(_co_swap);
-        } else {
-            if (!_signaled) _signaled = true;
-            return;
+        if (!_co_wait.empty()) _co_wait.swap(_co_swap);
+        if (!_signaled) {
+            _signaled = true;
+            if (_counter > 0) {
+                if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+                co::xx::cond_notify(&_cond);
+            }
         }
+        if (_co_swap.empty()) return;
     }
 
     // Using atomic operation here, as check_timeout() in the Scheduler 
@@ -218,40 +223,12 @@ class PoolImpl {
     size_t _maxcap;
 };
 
-class WaitGroupImpl {
-  public:
-    WaitGroupImpl();
-    ~WaitGroupImpl();
-
-    void add(uint32 n) {
-        atomic_add(&_n, n);
-    }
-
-    void done() {
-        if (atomic_dec(&_n) == 0) {
-
-        }
-    }
-
-    void wait() {
-        
-    }
-
-  private:
-    uint32 _n;
-
-};
-
 Event::Event() {
     _p = new EventImpl;
 }
 
 Event::~Event() {
     delete (EventImpl*) _p;
-}
-
-void Event::wait() {
-    ((EventImpl*)_p)->wait();
 }
 
 bool Event::wait(uint32 ms) {

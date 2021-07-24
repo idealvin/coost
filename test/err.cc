@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
         COUT << "error: " << i << "  str: " << co::strerror(i);
     }
 
-    for (int i = 10060; i < 10100; ++i) {
+    for (int i = 10060; i < 10063; ++i) {
         COUT << "error: " << i << "  str: " << co::strerror(i);
     }
 
