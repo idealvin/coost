@@ -30,22 +30,18 @@ inline bool cond_wait(cond_t* c, mutex_t* m, uint32 ms) { return SleepConditionV
 inline void cond_notify(cond_t* c)                      { WakeAllConditionVariable(c); }
 
 typedef HANDLE thread_t;
-typedef DWORD (WINAPI *thread_func_t)(void*);
-inline uint32 thread_id() { return GetCurrentThreadId(); }
+typedef DWORD (WINAPI *thread_fun_t)(void*);
+#define _CO_DEF_THREAD_FUN(f, p) static DWORD WINAPI f(void* p)
+inline uint32 thread_id()                                      { return GetCurrentThreadId(); }
+inline void thread_start(thread_t* t, thread_fun_t f, void* p) { *t = CreateThread(0, 0, f, p, 0, 0); assert(*t); }
+inline void thread_join(thread_t t)                            { WaitForSingleObject(t, INFINITE); CloseHandle(t); }
+inline void thread_detach(thread_t t)                          { CloseHandle(t); }
 
-inline void thread_create(thread_t* t, thread_func_t f, void* p) {
-    *t = CreateThread(0, 0, f, p, 0, 0);
-    assert(*t != NULL);
-}
-
-inline void thread_join(thread_t t)   { WaitForSingleObject(t, INFINITE); CloseHandle(t); }
-inline void thread_detach(thread_t t) { CloseHandle(t); }
-
-typedef DWORD tls_key_t;
-inline void tls_key_create(tls_key_t* k) { *k = TlsAlloc(); assert(*k != TLS_OUT_OF_INDEXES); }
-inline void tls_key_delete(tls_key_t k) { TlsFree(k); }
-inline void* tls_get_value(tls_key_t k) { return TlsGetValue(k); }
-inline void tls_set_value(tls_key_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); }
+typedef DWORD tls_t;
+inline void tls_init(tls_t* k)        { *k = TlsAlloc(); assert(*k != TLS_OUT_OF_INDEXES); }
+inline void tls_destroy(tls_t k)      { TlsFree(k); }
+inline void* tls_get(tls_t k)         { return TlsGetValue(k); }
+inline void tls_set(tls_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); }
 
 } // xx
 } // co
@@ -56,6 +52,7 @@ inline void tls_set_value(tls_key_t k, void* v) { BOOL r = TlsSetValue(k, v); as
 namespace co {
 namespace xx {
 
+// mutex
 typedef pthread_mutex_t mutex_t;
 inline void mutex_init(mutex_t* m)     { int r = pthread_mutex_init(m, 0); assert(r == 0); }
 inline void mutex_destroy(mutex_t* m)  { int r = pthread_mutex_destroy(m); assert(r == 0); }
@@ -71,22 +68,18 @@ inline void cond_wait(cond_t* c, mutex_t* m) { pthread_cond_wait(c, m); }
 inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
 
 typedef pthread_t thread_t;
-typedef void* (*thread_func_t)(void*);
+typedef void* (*thread_fun_t)(void*);
+#define _CO_DEF_THREAD_FUN(f, p) static void* f(void* p)
 uint32 thread_id();
+inline void thread_start(thread_t* t, thread_fun_t f, void* p) { int r = pthread_create(t, 0, f, p); assert(r == 0); }
+inline void thread_join(thread_t t)                            { pthread_join(t, 0); }
+inline void thread_detach(thread_t t)                          { pthread_detach(t); }
 
-inline void thread_create(thread_t* t, thread_func_t f, void* p) {
-    int r = pthread_create(t, 0, f, p);
-    assert(r == 0);
-}
-
-inline void thread_join(thread_t t)   { pthread_join(t, 0); }
-inline void thread_detach(thread_t t) { pthread_detach(t); }
-
-typedef pthread_key_t tls_key_t;
-inline void tls_key_create(tls_key_t* k)        { int r = pthread_key_create(k, 0); assert(r == 0); }
-inline void tls_key_delete(tls_key_t k)         { int r = pthread_key_delete(k); assert(r == 0); }
-inline void* tls_get_value(tls_key_t k)         { return pthread_getspecific(k); }
-inline void tls_set_value(tls_key_t k, void* v) { int r = pthread_setspecific(k, v); assert(r == 0); }
+typedef pthread_key_t tls_t;
+inline void tls_init(tls_t* k)        { int r = pthread_key_create(k, 0); assert(r == 0); }
+inline void tls_destroy(tls_t k)      { int r = pthread_key_delete(k); assert(r == 0); }
+inline void* tls_get(tls_t k)         { return pthread_getspecific(k); }
+inline void tls_set(tls_t k, void* v) { int r = pthread_setspecific(k, v); assert(r == 0); }
 
 } // xx
 } // co
@@ -202,6 +195,7 @@ class SyncEvent {
 };
 
 // starts a thread:
+//   Thread x([]() {...});               // lambda
 //   Thread x(f);                        // void f();
 //   Thread x(f, p);                     // void f(void*);  void* p;
 //   Thread x(&T::f, &t);                // void T::f();  T t;
@@ -214,23 +208,23 @@ class Thread {
   public:
     // @cb is not saved in this thread object, but passed directly to the
     // thread function, so it can run independently from the thread object.
-    explicit Thread(Closure* cb) : _t(0) {
-        co::xx::thread_create(&_t, &Thread::_thread_fun, (void*)cb);
+    explicit Thread(co::Closure* cb) : _t(0) {
+        co::xx::thread_start(&_t, &Thread::_thread_fun, (void*)cb);
     }
 
     template<typename F>
     explicit Thread(F&& f)
-        : Thread(new_closure(std::forward<F>(f))) {
+        : Thread(co::new_closure(std::forward<F>(f))) {
     }
 
     template<typename F, typename P>
     Thread(F&& f, P&& p)
-        : Thread(new_closure(std::forward<F>(f), std::forward<P>(p))) {
+        : Thread(co::new_closure(std::forward<F>(f), std::forward<P>(p))) {
     }
 
     template<typename F, typename T, typename P>
     Thread(F&& f, T* t, P&& p)
-        : Thread(new_closure(std::forward<F>(f), t, std::forward<P>(p))) {
+        : Thread(co::new_closure(std::forward<F>(f), t, std::forward<P>(p))) {
     }
 
     ~Thread() {
@@ -252,19 +246,11 @@ class Thread {
     co::xx::thread_t _t;
     DISALLOW_COPY_AND_ASSIGN(Thread);
 
-  #ifdef _WIN32
-    static DWORD WINAPI _thread_fun(void* p) {
-        Closure* cb = (Closure*) p;
+    _CO_DEF_THREAD_FUN(_thread_fun, p) {
+        co::Closure* cb = (co::Closure*) p;
         if (cb) cb->run();
         return 0;
     }
-  #else
-    static void* _thread_fun(void* p) {
-        Closure* cb = (Closure*) p;
-        if (cb) cb->run();
-        return 0;
-    }
-  #endif
 };
 
 inline uint32 current_thread_id() {
@@ -277,26 +263,26 @@ inline uint32 current_thread_id() {
 // It is easy to use, just like the std::unique_ptr.
 //   thread_ptr<T> pt;
 //   if (!pt) pt.reset(new T);
-template <typename T>
+template <typename T, typename D=std::default_delete<T>>
 class thread_ptr {
   public:
     thread_ptr() {
-        co::xx::tls_key_create(&_key);
+        co::xx::tls_init(&_key);
     }
 
     ~thread_ptr() {
-        co::xx::tls_key_delete(_key);
+        co::xx::tls_destroy(_key);
     }
 
     T* get() const {
-        return (T*) co::xx::tls_get_value(_key);
+        return (T*) co::xx::tls_get(_key);
     }
 
     void reset(T* p = 0) {
         T* o = this->get();
         if (o != p) {
-            delete o;
-            co::xx::tls_set_value(_key, p);
+            if (o) D()(o);
+            co::xx::tls_set(_key, p);
         }
     }
 
@@ -306,7 +292,7 @@ class thread_ptr {
 
     T* release() {
         T* o = this->get();
-        co::xx::tls_set_value(_key, 0);
+        co::xx::tls_set(_key, 0);
         return o;
     }
 
@@ -337,6 +323,6 @@ class thread_ptr {
     }
 
   private:
-    co::xx::tls_key_t _key;
+    co::xx::tls_t _key;
     DISALLOW_COPY_AND_ASSIGN(thread_ptr);
 };
