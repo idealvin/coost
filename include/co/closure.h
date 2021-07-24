@@ -3,6 +3,8 @@
 #include <functional>
 #include <type_traits>
 
+namespace co {
+
 class Closure {
   public:
     Closure() = default;
@@ -121,7 +123,7 @@ class Method1 : public Closure {
 } // xx
 
 /**
- * @param f  reference of std::function<void()>
+ * @param f  any runnable object, as long as we can call f().
  */
 template<typename F>
 inline Closure* new_closure(F&& f) {
@@ -129,8 +131,7 @@ inline Closure* new_closure(F&& f) {
 }
 
 /**
- * @param f  a pointer to either void f() or std::function<void()>. 
- *           The function object f points to MUST be valid when Closure::run() is running. 
+ * @param f  pointer to any runnable object, as long as we can call (*f)().
  */
 template<typename F>
 inline Closure* new_closure(F* f) {
@@ -140,7 +141,7 @@ inline Closure* new_closure(F* f) {
 /**
  * function with a single parameter 
  *
- * @param f  reference of std::function<void(P)>.
+ * @param f  any runnable object, as long as we can call f(p).
  * @param p  parameter of f.
  */
 template<typename F, typename P>
@@ -151,9 +152,8 @@ inline Closure* new_closure(F&& f, P&& p) {
 /**
  * function with a single parameter 
  *
- * @param f  a pointer to either void f(P) or std::function<void(P)>. 
- *           The function object f points to MUST be valid when Closure::run() is running. 
- * @param p  parameter of f.
+ * @param f  any runnable object, as long as we can call (*f)(p).
+ * @param p  parameter.
  */
 template<typename F, typename P>
 inline Closure* new_closure(F* f, P&& p) {
@@ -185,3 +185,5 @@ template<typename F, typename T, typename P>
 inline Closure* new_closure(F&& f, T* o, P&& p) {
     return new xx::Method1<F, T, P>(std::forward<F>(f), o, std::forward<P>(p));
 }
+
+} // co
