@@ -296,7 +296,7 @@ int scheduler_id() {
 }
 
 int coroutine_id() {
-    return (gSched && gSched->running()) ? gSched->running()->id : -1;
+    return (gSched && gSched->running()) ? gSched->coroutine_id() : -1;
 }
 
 void add_timer(uint32 ms) {
