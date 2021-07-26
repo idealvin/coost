@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../def.h"
+#include "../atomic.h"
 
 namespace co {
 
@@ -14,14 +15,23 @@ class Event {
     Event();
     ~Event();
 
-    Event(Event&& e) : _p(e._p) { e._p = 0; }
+    Event(Event&& e) : _p(e._p) {
+        e._p = 0;
+    }
+
+    // copy constructor, allow co::Event to be captured by value in lambda.
+    Event(const Event& e) : _p(e._p) {
+        atomic_inc(_p);
+    }
+
+    void operator=(const Event&) = delete;
 
     /**
      * wait for a signal
      *   - It blocks until a signal was present.
      *   - It can be called from anywhere since co 2.0.1.
      */
-    void wait() {
+    void wait() const {
         (void) this->wait((uint32)-1);
     }
 
@@ -34,18 +44,17 @@ class Event {
      *
      * @return    true if a signal was present before timeout, otherwise false
      */
-    bool wait(uint32 ms);
+    bool wait(uint32 ms) const ;
 
     /**
      * generate a signal on this event
      *   - It can be called from anywhere.
      *   - When a signal was present, all the waiting coroutines will be waken up.
      */
-    void signal();
+    void signal() const;
 
   private:
-    void* _p;
-    DISALLOW_COPY_AND_ASSIGN(Event);
+    uint32* _p;
 };
 
 } // co

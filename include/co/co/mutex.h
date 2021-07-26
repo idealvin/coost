@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../def.h"
+#include "../atomic.h"
 
 namespace co {
 
@@ -15,6 +16,12 @@ class Mutex {
     ~Mutex();
 
     Mutex(Mutex&& m) : _p(m._p) { m._p = 0; }
+
+    Mutex(const Mutex& m) : _p(m._p) {
+        atomic_inc(_p);
+    }
+
+    void operator=(const Mutex&) = delete;
 
     /**
      * acquire the lock
@@ -39,8 +46,7 @@ class Mutex {
     bool try_lock();
 
   private:
-    void* _p;
-    DISALLOW_COPY_AND_ASSIGN(Mutex);
+    uint32* _p;
 };
 
 /**

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../def.h"
+#include "../atomic.h"
 #include <functional>
 
 namespace co {
@@ -8,11 +9,12 @@ namespace co {
 /**
  * a general pool for coroutine programming
  *   - Pool is designed to be coroutine-safe, users do not need to lock it.
- *   - Each thread holds its own pool, users SHOULD call pop() and push() in the
- *     same thread.
  *   - It stores void* pointers internally and it does not care about the actual
  *     type of the pointer.
  *   - It is usually used as a connection pool in network programming.
+ * 
+ *   - NOTE: Each thread holds its own pool, users SHOULD call pop() and push() 
+ *     in the same thread.
  */
 class Pool {
   public:
@@ -38,32 +40,44 @@ class Pool {
 
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
+    Pool(const Pool& p) : _p(p._p) {
+        atomic_inc(_p);
+    }
+
+    void operator=(const Pool&) = delete;
+
     /**
-     * pop an element from the pool
+     * pop an element from the pool of the current thread 
      *   - It MUST be called in a coroutine.
      *   - If the pool is not empty, the element at the back will be popped, otherwise
      *     ccb is used to create a new element if ccb is not NULL.
      *
-     * @return  a pointer to an element, or NULL if the pool is empty and the ccb is NULL.
+     * @return  a pointer to an element, or NULL if pool is empty and ccb is NULL.
      */
-    void* pop();
+    void* pop() const;
 
     /**
-     * push an element to the pool
+     * push an element to the pool of the current thread 
      *   - It MUST be called in a coroutine.
      *
-     * @param e  a pointer to an element, it will be ignored if it is NULL.
+     * @param e  a pointer to an element, NULL pointers will be ignored.
      */
-    void push(void* e);
+    void push(void* e) const;
 
     /**
-     * return size of the internal pool for the current thread.
+     * clear pools of all threads 
+     *   - dcb will be used to destroy elements in the pools if dcb is not NULL. 
+     */
+    void clear() const;
+
+    /**
+     * return pool size of the current thread 
+     *   - It MUST be called in a coroutine.
      */
     size_t size() const;
 
   private:
-    void* _p;
-    DISALLOW_COPY_AND_ASSIGN(Pool);
+    uint32* _p;
 };
 
 /**

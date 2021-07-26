@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include <new>
 #include <deque>
 #include <unordered_set>
 
@@ -18,7 +19,7 @@ class EventImpl {
     co::xx::cond_t _cond;
     std::unordered_set<Coroutine*> _co_wait;
     std::unordered_set<Coroutine*> _co_swap;
-    int _counter;
+    uint32 _counter;
     bool _signaled;
     bool _has_cond;
 };
@@ -90,6 +91,56 @@ void EventImpl::signal() {
     _co_swap.clear();
 }
 
+// memory: |4(refn)|4|EventImpl|
+Event::Event() {
+    _p = (uint32*) malloc(sizeof(EventImpl) + 8);
+    _p[0] = 1;
+    new (_p + 2) EventImpl;
+}
+
+Event::~Event() {
+    if (_p && atomic_dec(_p) == 0) {
+        ((EventImpl*)(_p + 2))->~EventImpl();
+        free(_p);
+    }
+}
+
+bool Event::wait(uint32 ms) const {
+    return ((EventImpl*)(_p + 2))->wait(ms);
+}
+
+void Event::signal() const {
+    ((EventImpl*)(_p + 2))->signal();
+}
+
+// memory: |4(refn)|4(counter)|EventImpl|
+WaitGroup::WaitGroup() {
+    _p = (uint32*) malloc(sizeof(EventImpl) + 8);
+    _p[0] = 1; // refn
+    _p[1] = 0; // counter
+    new (_p + 2) EventImpl;
+}
+
+WaitGroup::~WaitGroup() {
+    if (_p && atomic_dec(_p) == 0) {
+        ((EventImpl*)(_p + 2))->~EventImpl();
+        free(_p);
+    }
+}
+
+void WaitGroup::add(uint32 n) const {
+    atomic_add(_p + 1, n);
+}
+
+void WaitGroup::done() const {
+    CHECK_GT(*(_p + 1), 0);
+    if (atomic_dec(_p + 1) == 0) ((EventImpl*)(_p + 2))->signal();
+}
+
+void WaitGroup::wait() const {
+    ((EventImpl*)(_p + 2))->wait((uint32)-1);
+}
+
 class MutexImpl {
   public:
     MutexImpl() : _lock(false) {}
@@ -141,6 +192,32 @@ inline void MutexImpl::unlock() {
     }
 }
 
+// memory: |4(refn)|4|MutexImpl|
+Mutex::Mutex() {
+    _p = (uint32*) malloc(sizeof(MutexImpl) + 8);
+    _p[0] = 1; // refn
+    new (_p + 2) MutexImpl;
+}
+
+Mutex::~Mutex() {
+    if (_p && atomic_dec(_p) == 0) {
+        ((MutexImpl*)(_p + 2))->~MutexImpl();
+        free(_p);
+    }
+}
+
+void Mutex::lock() {
+    ((MutexImpl*)(_p + 2))->lock();
+}
+
+void Mutex::unlock() {
+    ((MutexImpl*)(_p + 2))->unlock();
+}
+
+bool Mutex::try_lock() {
+    return ((MutexImpl*)(_p + 2))->try_lock();
+}
+
 class PoolImpl {
   public:
     typedef std::vector<void*> V;
@@ -160,60 +237,23 @@ class PoolImpl {
 
     ~PoolImpl() = default;
 
-    void* pop() {
-        auto s = gSched;
-        CHECK(s) << "must be called in coroutine..";
-        auto& v = _pools[s->id()];
-        if (v == NULL) v = this->create_pool();
+    void* pop();
 
-        if (!v->empty()) {
-            void* p = v->back();
-            v->pop_back();
-            return p;
-        } else {
-            return _ccb ? _ccb() : 0;
-        }
-    }
+    void push(void* p);
 
-    void push(void* p) {
-        if (!p) return; // ignore null pointer
-
-        auto s = gSched;
-        CHECK(s) << "must be called in coroutine..";
-        auto& v = _pools[s->id()];
-        if (v == NULL) v = this->create_pool();
-
-        if (!_dcb || v->size() < _maxcap) {
-            v->push_back(p);
-        } else {
-            _dcb(p);
-        }
-    }
+    void clear();
 
     size_t size() const {
-        auto s = gSched;
-        CHECK(s) << "must be called in coroutine..";
-        auto& v = _pools[s->id()];
+        CHECK(gSched) << "must be called in coroutine..";
+        auto& v = _pools[gSched->id()];
         return v != NULL ? v->size() : 0;
     }
 
   private:
-    // It is not safe to cleanup the pool from outside the Scheduler.
-    // So we add a cleanup callback to the Scheduler. It will be called 
-    // at the end of Scheduler::loop().
-    // TODO: remove cleanup()
-    V* create_pool() {
+    V* new_pool() {
         V* v = new V();
         v->reserve(1024);
-        //scheduler()->add_cleanup_cb(std::bind(&PoolImpl::cleanup, v, _dcb));
         return v;
-    }
-
-    static void cleanup(V* v, const std::function<void(void*)>& dcb) {
-        if (dcb) {
-            for (size_t i = 0; i < v->size(); ++i) dcb((*v)[i]);
-        }
-        delete v;
     }
 
   private:
@@ -223,65 +263,83 @@ class PoolImpl {
     size_t _maxcap;
 };
 
-Event::Event() {
-    _p = new EventImpl;
+inline void* PoolImpl::pop() {
+    CHECK(gSched) << "must be called in coroutine..";
+    auto& v = _pools[gSched->id()];
+    if (v == NULL) v = this->new_pool();
+    if (!v->empty()) {
+        void* p = v->back();
+        v->pop_back();
+        return p;
+    } else {
+        return _ccb ? _ccb() : 0;
+    }
 }
 
-Event::~Event() {
-    delete (EventImpl*) _p;
+inline void PoolImpl::push(void* p) {
+    if (!p) return; // ignore null pointer
+    CHECK(gSched) << "must be called in coroutine..";
+    auto& v = _pools[gSched->id()];
+    if (v == NULL) v = this->new_pool();
+    if (v->size() < _maxcap || !_dcb) {
+        v->push_back(p);
+    } else {
+        _dcb(p);
+    }
 }
 
-bool Event::wait(uint32 ms) {
-    return ((EventImpl*)_p)->wait(ms);
-}
-
-void Event::signal() {
-    ((EventImpl*)_p)->signal();
-}
-
-
-Mutex::Mutex() {
-    _p = new MutexImpl;
-}
-
-Mutex::~Mutex() {
-    delete (MutexImpl*) _p;
-}
-
-void Mutex::lock() {
-    ((MutexImpl*)_p)->lock();
-}
-
-void Mutex::unlock() {
-    ((MutexImpl*)_p)->unlock();
-}
-
-bool Mutex::try_lock() {
-    return ((MutexImpl*)_p)->try_lock();
+void PoolImpl::clear() {
+    auto& s = co::all_schedulers();
+    WaitGroup wg;
+    wg.add((uint32)s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        s[i]->go([this, wg]() {
+            auto& v = this->_pools[gSched->id()];
+            if (v != NULL) {
+                if (this->_dcb) {
+                    for (size_t k = 0; k < v->size(); ++k) this->_dcb((*v)[k]);
+                }
+                v->clear();
+            }
+            wg.done();
+        });
+    }
+    wg.wait();
 }
 
 Pool::Pool() {
-    _p = new PoolImpl;
+    _p = (uint32*) malloc(sizeof(PoolImpl) + 8);
+    _p[0] = 1;
+    new (_p + 2) PoolImpl;
 }
 
 Pool::~Pool() {
-    delete (PoolImpl*) _p;
+    if (_p && atomic_dec(_p) == 0) {
+        ((PoolImpl*)(_p + 2))->~PoolImpl();
+        free(_p);
+    }
 }
 
 Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = new PoolImpl(std::move(ccb), std::move(dcb), cap);
+    _p = (uint32*) malloc(sizeof(PoolImpl) + 8);
+    _p[0] = 1;
+    new (_p + 2) PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
 
-void* Pool::pop() {
-    return ((PoolImpl*)_p)->pop();
+void* Pool::pop() const {
+    return ((PoolImpl*)(_p + 2))->pop();
 }
 
-void Pool::push(void* p) {
-    ((PoolImpl*)_p)->push(p);
+void Pool::push(void* p) const {
+    ((PoolImpl*)(_p + 2))->push(p);
+}
+
+void Pool::clear() const {
+    ((PoolImpl*)(_p + 2))->clear();
 }
 
 size_t Pool::size() const {
-    return ((PoolImpl*)_p)->size();
+    return ((PoolImpl*)(_p + 2))->size();
 }
 
 } // co
