@@ -223,19 +223,15 @@ class PoolImpl {
     typedef std::vector<void*> V;
 
     PoolImpl()
-        : _pools(scheduler_num()), _maxcap((size_t)-1) {
+        : _pools(co::scheduler_num()), _maxcap((size_t)-1) {
     }
 
-    // @ccb:  a create callback       []() { return (void*) new T; }
-    // @dcb:  a destroy callback      [](void* p) { delete (T*)p; }
-    // @cap:  max capacity for each pool
     PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(scheduler_num()), _maxcap(cap) {
-        _ccb = std::move(ccb);
-        _dcb = std::move(dcb);
+        : _pools(co::scheduler_num()), _maxcap(cap), 
+          _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
     }
 
-    ~PoolImpl() = default;
+    ~PoolImpl() { this->clear(); }
 
     void* pop();
 
@@ -243,24 +239,15 @@ class PoolImpl {
 
     void clear();
 
-    size_t size() const {
-        CHECK(gSched) << "must be called in coroutine..";
-        auto& v = _pools[gSched->id()];
-        return v != NULL ? v->size() : 0;
-    }
-
-  private:
-    V* new_pool() {
-        V* v = new V();
-        v->reserve(1024);
-        return v;
-    }
+    size_t size() const;
 
   private:
     std::vector<V*> _pools;
     std::function<void*()> _ccb;
     std::function<void(void*)> _dcb;
     size_t _maxcap;
+
+    V* new_pool() { V* v = new V(); v->reserve(1024); return v; }
 };
 
 inline void* PoolImpl::pop() {
@@ -288,25 +275,34 @@ inline void PoolImpl::push(void* p) {
     }
 }
 
+// Create n coroutines to clear all the pools, n is number of schedulers.
+// clear() blocks untils all the coroutines are done.
 void PoolImpl::clear() {
-    auto& s = co::all_schedulers();
+    auto& scheds = co::all_schedulers();
     WaitGroup wg;
-    wg.add((uint32)s.size());
-    for (size_t i = 0; i < s.size(); ++i) {
-        s[i]->go([this, wg]() {
+    wg.add((uint32)scheds.size());
+
+    for (auto& s : scheds) {
+        s->go([this, wg]() {
             auto& v = this->_pools[gSched->id()];
             if (v != NULL) {
-                if (this->_dcb) {
-                    for (size_t k = 0; k < v->size(); ++k) this->_dcb((*v)[k]);
-                }
-                v->clear();
+                if (this->_dcb) for (auto& e : *v) this->_dcb(e);
+                delete v; v = NULL;
             }
             wg.done();
         });
     }
+
     wg.wait();
 }
 
+inline size_t PoolImpl::size() const {
+    CHECK(gSched) << "must be called in coroutine..";
+    auto& v = _pools[gSched->id()];
+    return v ? v->size() : 0;
+}
+
+// memory: |4(refn)|4|PoolImpl|
 Pool::Pool() {
     _p = (uint32*) malloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;

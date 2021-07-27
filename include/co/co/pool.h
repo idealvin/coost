@@ -2,6 +2,7 @@
 
 #include "../def.h"
 #include "../atomic.h"
+#include <memory>
 #include <functional>
 
 namespace co {
@@ -18,10 +19,7 @@ namespace co {
  */
 class Pool {
   public:
-    /**
-     * the default constructor
-     *   - In this case, ccb and dcb will be NULL.
-     */
+    // default constructor without ccb and dcb 
     Pool();
     ~Pool();
 
@@ -49,32 +47,33 @@ class Pool {
     /**
      * pop an element from the pool of the current thread 
      *   - It MUST be called in a coroutine.
-     *   - If the pool is not empty, the element at the back will be popped, otherwise
-     *     ccb is used to create a new element if ccb is not NULL.
+     *   - If the pool is empty and ccb is set, ccb() will be called to create a new element.
      *
-     * @return  a pointer to an element, or NULL if pool is empty and ccb is NULL.
+     * @return  a pointer to an element, or NULL if pool is empty and ccb is not set.
      */
     void* pop() const;
 
     /**
      * push an element to the pool of the current thread 
      *   - It MUST be called in a coroutine.
+     *   - Users SHOULD call push() and pop() in the same thread.
      *
      * @param e  a pointer to an element, NULL pointers will be ignored.
      */
     void push(void* e) const;
 
     /**
-     * clear pools of all threads 
-     *   - dcb will be used to destroy elements in the pools if dcb is not NULL. 
-     */
-    void clear() const;
-
-    /**
      * return pool size of the current thread 
      *   - It MUST be called in a coroutine.
      */
     size_t size() const;
+
+    /**
+     * clear pools of all threads 
+     *   - It can be called from any where. 
+     *   - If dcb is set, dcb() will be called to destroy elements in the pools. 
+     */
+    void clear() const;
 
   private:
     uint32* _p;
@@ -96,14 +95,14 @@ class Pool {
  *     co::PoolGuard<T> g(pool);
  *     g->hello();
  */
-template<typename T>
+template<typename T, typename D=std::default_delete<T>>
 class PoolGuard {
   public:
-    explicit PoolGuard(Pool& pool) : _pool(pool) {
+    explicit PoolGuard(const Pool& pool) : _pool(pool) {
         _p = (T*)_pool.pop();
     }
 
-    explicit PoolGuard(Pool* pool) : _pool(*pool) {
+    explicit PoolGuard(const Pool* pool) : _pool(*pool) {
         _p = (T*)_pool.pop();
     }
 
@@ -137,7 +136,7 @@ class PoolGuard {
      *           default: NULL.
      */
     void reset(T* p = 0) {
-        if (_p != p) { delete _p; _p = p; }
+        if (_p != p) { if (_p) D()(_p); _p = p; }
     }
 
     /**
@@ -148,7 +147,7 @@ class PoolGuard {
     void operator=(T* p) { this->reset(p); }
 
   private:
-    Pool& _pool;
+    const Pool& _pool;
     T* _p;
     DISALLOW_COPY_AND_ASSIGN(PoolGuard);
 };
