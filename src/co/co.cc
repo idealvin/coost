@@ -206,15 +206,15 @@ Mutex::~Mutex() {
     }
 }
 
-void Mutex::lock() {
+void Mutex::lock() const {
     ((MutexImpl*)(_p + 2))->lock();
 }
 
-void Mutex::unlock() {
+void Mutex::unlock() const {
     ((MutexImpl*)(_p + 2))->unlock();
 }
 
-bool Mutex::try_lock() {
+bool Mutex::try_lock() const {
     return ((MutexImpl*)(_p + 2))->try_lock();
 }
 

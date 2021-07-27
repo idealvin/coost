@@ -28,13 +28,13 @@ class Mutex {
      *   - It MUST be called in a coroutine.
      *   - It will block until the lock was acquired by the calling coroutine.
      */
-    void lock();
+    void lock() const;
 
     /**
      * release the lock
      *   - It SHOULD be called in the coroutine that holds the lock.
      */
-    void unlock();
+    void unlock() const;
 
     /**
      * try to acquire the lock
@@ -43,7 +43,7 @@ class Mutex {
      *
      * @return  true if the lock was acquired by the calling coroutine, otherwise false
      */
-    bool try_lock();
+    bool try_lock() const;
 
   private:
     uint32* _p;
@@ -56,11 +56,11 @@ class Mutex {
  */
 class MutexGuard {
   public:
-    explicit MutexGuard(co::Mutex& lock) : _lock(lock) {
+    explicit MutexGuard(const co::Mutex& lock) : _lock(lock) {
         _lock.lock();
     }
 
-    explicit MutexGuard(co::Mutex* lock) : _lock(*lock) {
+    explicit MutexGuard(const co::Mutex* lock) : _lock(*lock) {
         _lock.lock();
     }
 
@@ -69,7 +69,7 @@ class MutexGuard {
     }
 
   private:
-    co::Mutex& _lock;
+    const co::Mutex& _lock;
     DISALLOW_COPY_AND_ASSIGN(MutexGuard);
 };
 

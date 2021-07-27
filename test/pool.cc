@@ -40,7 +40,7 @@ DEF_main(argc, argv) {
                 p.push(s);
                 LOG << "size: " << p.size();
                 wg.done();
-                });
+            });
         }
         wg.wait();
         LOG << "test pop/push end.. \n";
@@ -57,7 +57,7 @@ DEF_main(argc, argv) {
                 }
                 LOG << "size: " << p.size();
                 wg.done();
-                });
+            });
         }
         wg.wait();
         LOG << "test PoolGuard end.. \n";
