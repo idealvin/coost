@@ -54,22 +54,23 @@ typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
  *             ^       co::Event::signal()    |
  *         st_ready <------------------------ v
  */
-enum {
+enum co_state_t : uint8 {
     st_init = 0,     // initial state
     st_wait = 1,     // wait for an event
     st_ready = 2,    // ready to resume
+    st_timeout = 4,  // timeout
 };
 
 struct Coroutine {
     Coroutine() = delete;
     ~Coroutine() { stack.~fastream(); }
 
-    int id;            // coroutine id
-    int state;         // coroutine state
+    uint32 id;         // coroutine id
+    uint8 sid;         // stack id
+    uint8 state;       // coroutine state
+    uint16 _00_;       // reserved
+    void* waitx;       // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
-  #ifdef _WIN32
-    void* ioinfo;      // PerIoInfo for windows
-  #endif
 
     // for saving stack data for this coroutine
     union { fastream stack; char _dummy1[sizeof(fastream)]; };
@@ -79,8 +80,14 @@ struct Coroutine {
     // be used to store the Scheduler pointer.
     union {
         Closure* cb;   // coroutine function
-        Scheduler* s;  // scheduler this coroutines runs in
+        Scheduler* s;  // scheduler this coroutine runs in
     };
+};
+
+// header of wait info
+struct waitx_t {
+    Coroutine* co;
+    union { uint8 state; void* dummy; };
 };
 
 // pool of Coroutine, using index as the coroutine id.
@@ -377,6 +384,11 @@ class SchedulerManager {
 inline SchedulerManager* scheduler_manager() {
     static SchedulerManager kSchedMgr;
     return &kSchedMgr;
+}
+
+inline bool& stopped() {
+    static bool kStopped = true;
+    return kStopped;
 }
 
 extern __thread SchedulerImpl* gSched;

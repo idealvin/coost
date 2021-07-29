@@ -23,14 +23,16 @@ enum io_event_t {
 class IoEvent {
   public:
     struct PerIoInfo {
+        // co::waitx_t:  {co, state}
+        void* co;        // Coroutine
+        union {
+            uint8 state; // co_state_t
+            void* dummy;
+        };
+
         WSAOVERLAPPED ol;
-        void* co;     // user data, pointer to a coroutine
         DWORD n;      // bytes transfered
         DWORD flags;  // flags for WSARecv, WSARecvFrom
-        union {
-            void* _;
-            int ios;  // io state:  io_done: 1, io_timeout: 2
-        };
         WSABUF buf;   // buffer for WSARecv, WSARecvFrom, WSASend, WSASendTo
         char s[];     // extra buffer allocated
     };

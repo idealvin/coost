@@ -12,7 +12,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev)
     s->add_io_event(fd, ev); // add socket to IOCP
     _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo));
     _info->co = (void*) s->running();
-    s->running()->ioinfo = _info;
+    s->running()->waitx = _info;
 }
 
 IoEvent::IoEvent(sock_t fd, int n)
@@ -21,7 +21,7 @@ IoEvent::IoEvent(sock_t fd, int n)
     s->add_io_event(fd, ev_read); // add socket to IOCP
     _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo) + n);
     _info->co = (void*) s->running();
-    s->running()->ioinfo = _info;
+    s->running()->waitx = _info;
 }
 
 IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
@@ -44,7 +44,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
             memcpy(_info->buf.buf, buf, size);
         }
     }
-    s->running()->ioinfo = _info;
+    s->running()->waitx = _info;
 }
 
 IoEvent::~IoEvent() {
@@ -54,7 +54,7 @@ IoEvent::~IoEvent() {
     } else if (_nb_tcp == nb_tcp_conn) {
         free(_info);
     }
-    gSched->running()->ioinfo = 0;
+    gSched->running()->waitx = 0;
 }
 
 bool IoEvent::wait(uint32 ms) {
@@ -98,7 +98,7 @@ bool IoEvent::wait(uint32 ms) {
     {
         // as no IO operation was posted to IOCP, remove ioinfo from coroutine.
         _nb_tcp = nb_tcp_conn;
-        gSched->running()->ioinfo = 0;
+        gSched->running()->waitx = 0;
 
         // check whether the socket is connected or not every 16 ms.
         uint32 t = 16;

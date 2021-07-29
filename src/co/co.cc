@@ -133,7 +133,7 @@ void WaitGroup::add(uint32 n) const {
 }
 
 void WaitGroup::done() const {
-    CHECK_GT(*(_p + 1), 0);
+    CHECK_GT(*(_p + 1), (uint32)0);
     if (atomic_dec(_p + 1) == 0) ((EventImpl*)(_p + 2))->signal();
 }
 
@@ -278,22 +278,31 @@ inline void PoolImpl::push(void* p) {
 // Create n coroutines to clear all the pools, n is number of schedulers.
 // clear() blocks untils all the coroutines are done.
 void PoolImpl::clear() {
-    auto& scheds = co::all_schedulers();
-    WaitGroup wg;
-    wg.add((uint32)scheds.size());
+    if (!co::stopped()) {
+        auto& scheds = co::all_schedulers();
+        WaitGroup wg;
+        wg.add((uint32)scheds.size());
 
-    for (auto& s : scheds) {
-        s->go([this, wg]() {
-            auto& v = this->_pools[gSched->id()];
+        for (auto& s : scheds) {
+            s->go([this, wg]() {
+                auto& v = this->_pools[gSched->id()];
+                if (v != NULL) {
+                    if (this->_dcb) for (auto& e : *v) this->_dcb(e);
+                    delete v; v = NULL;
+                }
+                wg.done();
+            });
+        }
+
+        wg.wait();
+    } else {
+        for (auto& v : _pools) {
             if (v != NULL) {
                 if (this->_dcb) for (auto& e : *v) this->_dcb(e);
                 delete v; v = NULL;
             }
-            wg.done();
-        });
+        }
     }
-
-    wg.wait();
 }
 
 inline size_t PoolImpl::size() const {
@@ -337,5 +346,198 @@ void Pool::clear() const {
 size_t Pool::size() const {
     return ((PoolImpl*)(_p + 2))->size();
 }
+
+namespace xx {
+
+class PipeImpl {
+  public:
+    PipeImpl(uint32 buf_size, uint32 blk_size, uint32 ms)
+        : _buf_size(buf_size), _blk_size(blk_size), 
+          _rx(0), _wx(0), _ms(ms), _full(false) {
+        _buf = (char*) malloc(_buf_size);
+    }
+
+    ~PipeImpl() {
+        free(_buf);
+    }
+
+    void read(void* p);
+    void write(const void* p);
+
+    struct waitx {
+        co::Coroutine* co;
+        union {
+            uint8 state;
+            void* dummy;
+        };
+        void* buf;
+    };
+
+    waitx* create_waitx(co::Coroutine* co, void* buf) {
+        waitx* w;
+        const bool on_stack = gSched->on_stack(buf);
+        if (on_stack) {
+            w = (waitx*) malloc(sizeof(waitx) + _blk_size);
+            w->buf = (char*)w + sizeof(waitx);
+        } else {
+            w = (waitx*) malloc(sizeof(waitx));
+            w->buf = buf;
+        }
+        w->co = co;
+        w->state = st_init;
+        return w;
+    }
+
+  private:
+    ::Mutex _m;
+    std::deque<waitx*> _wq;
+    char* _buf;       // buffer
+    uint32 _buf_size; // buffer size
+    uint32 _blk_size; // block size
+    uint32 _rx;       // read pos
+    uint32 _wx;       // write pos
+    uint32 _ms;       // timeout in milliseconds
+    bool _full;       // 0: not full, 1: full
+};
+
+void PipeImpl::read(void* p) {
+    auto s = gSched;
+    CHECK(s) << "must be called in coroutine..";
+
+    _m.lock();
+    if (_rx != _wx) { /* buffer is neither empty nor full */
+        assert(!_full);
+        assert(_wq.empty());
+        memcpy(p, _buf + _rx, _blk_size);
+        _rx += _blk_size;
+        if (_rx == _buf_size) _rx = 0;
+        _m.unlock();
+
+    } else {
+        if (!_full) { /* buffer is empty */
+            auto co = s->running();
+            waitx* w = this->create_waitx(co, p);
+            _wq.push_back(w);
+            _m.unlock();
+
+            if (co->s != s) co->s = s;
+            co->waitx = w;
+
+            if (_ms != (uint32)-1) s->add_timer(_ms);
+            s->yield();
+
+            if (!s->timeout()) {
+                if (w->buf != p) memcpy(p, w->buf, _blk_size);
+                free(w);
+            }
+
+            co->waitx = 0;
+
+        } else { /* buffer is full */
+            memcpy(p, _buf + _rx, _blk_size);
+            _rx += _blk_size;
+            if (_rx == _buf_size) _rx = 0;
+
+            while (!_wq.empty()) {
+                waitx* w = _wq.front(); // wait for write
+                _wq.pop_front();
+
+                if (atomic_compare_swap(&w->state, st_init, st_ready) == st_init) {
+                    memcpy(_buf + _wx, w->buf, _blk_size);
+                    _wx += _blk_size;
+                    if (_wx == _buf_size) _wx = 0;
+                    _m.unlock();
+
+                    ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
+                    return;
+
+                } else { /* timeout */
+                    free(w);
+                }
+            }
+
+            _full = false;
+            _m.unlock();
+        }
+    }
+}
+
+void PipeImpl::write(const void* p) {
+    auto s = gSched;
+    CHECK(s) << "must be called in coroutine..";
+
+    _m.lock();
+    if (_rx != _wx) { /* buffer is neither empty nor full */
+        assert(!_full);
+        assert(_wq.empty());
+        memcpy(_buf + _wx, p, _blk_size);
+        _wx += _blk_size;
+        if (_wx == _buf_size) _wx = 0;
+        if (_rx == _wx) _full = true;
+        _m.unlock();
+
+    } else {
+        if (!_full) { /* buffer is empty */
+            while (!_wq.empty()) {
+                waitx* w = _wq.front(); // wait for read
+                _wq.pop_front();
+
+                if (atomic_compare_swap(&w->state, st_init, st_ready) == st_init) {
+                    _m.unlock();
+                    memcpy(w->buf, p, _blk_size);
+                    ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
+                    return;
+                } else { /* timeout */
+                    free(w);
+                }
+            }
+
+            memcpy(_buf + _wx, p, _blk_size);
+            _wx += _blk_size;
+            if (_wx == _buf_size) _wx = 0;
+            if (_rx == _wx) _full = true;
+            _m.unlock();
+
+        } else { /* buffer is full */
+            auto co = s->running();
+            waitx* w = this->create_waitx(co, (void*)p);
+            if (w->buf != p) memcpy(w->buf, p, _blk_size);
+            _wq.push_back(w);
+            _m.unlock();
+
+            if (co->s != s) co->s = s;
+            co->waitx = w;
+
+            if (_ms != (uint32)-1) s->add_timer(_ms);
+            s->yield();
+
+            if (!s->timeout()) free(w);
+            co->waitx = 0;
+        }
+    }
+}
+
+Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
+    _p = (uint32*) malloc(sizeof(PipeImpl) + 8);
+    _p[0] = 1;
+    new (_p + 2) PipeImpl(buf_size, blk_size, ms);
+}
+
+Pipe::~Pipe() {
+    if (_p && atomic_dec(_p) == 0) {
+        ((PipeImpl*)(_p + 2))->~PipeImpl();
+        free(_p);
+    }
+}
+
+void Pipe::read(void* p) const {
+    ((PipeImpl*)(_p + 2))->read(p);
+}
+
+void Pipe::write(const void* p) const {
+    ((PipeImpl*)(_p + 2))->write(p);
+}
+
+} // xx
 
 } // co

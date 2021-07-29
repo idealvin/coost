@@ -8,6 +8,7 @@
 #include "./co/event.h"
 #include "./co/mutex.h"
 #include "./co/pool.h"
+#include "./co/chan.h"
 #include "./co/io_event.h"
 #include "./co/wait_group.h"
 #include <vector>

@@ -109,9 +109,9 @@ void SchedulerImpl::loop() {
             }
 
           #if defined(_WIN32)
-            auto info = (IoEvent::PerIoInfo*) ev.lpOverlapped;
+            auto info = (IoEvent::PerIoInfo*) ((void**)ev.lpOverlapped - 2);
             auto co = (Coroutine*) info->co;
-            if (atomic_compare_swap(&info->ios, 0, 1) == 0) {
+            if (atomic_compare_swap(&info->state, st_init, st_ready) == st_init) {
                 info->n = ev.dwNumberOfBytesTransferred;
                 if (co->s == this) {
                     this->resume(co);
@@ -184,18 +184,16 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
         if (!is_null_timer_id(co->it)) set_null_timer_id(co->it);
-      #ifdef _WIN32
-        auto info = (IoEvent::PerIoInfo*) co->ioinfo;
-        if (info) { /* 2 for io_timeout */
-            if (atomic_compare_swap(&info->ios, 0, 2) == 0) res.push_back(co);
-        } else if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
-            res.push_back(co);
+        if (!co->waitx) {
+            if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
+                res.push_back(co);
+            }
+        } else {
+            auto waitx = (co::waitx_t*) co->waitx;
+            if (atomic_compare_swap(&waitx->state, st_init, st_timeout) == st_init) {
+                res.push_back(co);
+            }
         }
-      #else
-        if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
-            res.push_back(co);
-        }
-      #endif
     }
 
     if (it != _timer.begin()) {
@@ -254,18 +252,22 @@ SchedulerManager::SchedulerManager() {
         _scheds.push_back(s);
     }
 
+    stopped() = false;
     initialized() = true;
 }
 
 SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
     wsa_cleanup();
+    stopped() = true;
+    initialized() = false;
 }
 
 void SchedulerManager::stop_all_schedulers() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
+    stopped() = true;
 }
 
 void Scheduler::go(Closure* cb) {
