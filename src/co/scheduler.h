@@ -66,8 +66,9 @@ struct Coroutine {
     ~Coroutine() { stack.~fastream(); }
 
     uint32 id;         // coroutine id
-    uint8 sid;         // stack id
     uint8 state;       // coroutine state
+    uint8 sid;         // stack id
+    uint8 owns_stack;  // thi
     uint16 _00_;       // reserved
     void* waitx;       // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
@@ -113,6 +114,7 @@ class Copool {
         } else {
             auto& co = _tb[_id];
             co.id = _id++;
+            co.sid = (uint8)(co.id & 7);
             return &co;
         }
     }
@@ -213,6 +215,12 @@ class TimerManager {
     };
 };
 
+struct Stack {
+    char* p;       // stack pointer 
+    char* top;     // stack top
+    Coroutine* co; // coroutine owns this stack
+};
+
 /**
  * coroutine scheduler 
  *   - A scheduler will loop in a single thread.
@@ -235,8 +243,8 @@ class SchedulerImpl : public co::Scheduler {
 
     // check whether a pointer is on the stack of the coroutine
     bool on_stack(const void* p) const {
-        assert(_stack_top == _stack + _stack_size);
-        return (_stack <= (char*)p) && ((char*)p < _stack_top);
+        Stack* const s =  &_stack[_running->sid];
+        return (s->p <= (char*)p) && ((char*)p < s->top);
     }
 
     // resume a coroutine
@@ -326,7 +334,7 @@ class SchedulerImpl : public co::Scheduler {
     // save stack for the coroutine
     void save_stack(Coroutine* co) {
         co->stack.clear();
-        co->stack.append(co->ctx, _stack_top - (char*)co->ctx);
+        co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
     }
 
     // pop a Coroutine from the pool
@@ -342,8 +350,7 @@ class SchedulerImpl : public co::Scheduler {
     uint32 _id;          // scheduler id
     uint32 _sched_num;   // scheduler num
     uint32 _stack_size;  // size of stack
-    char* _stack;        // stack shared by coroutines in this scheduler
-    char* _stack_top;    // stack top, equal to _stack + _stack_size
+    Stack* _stack;       // pointer to stack list
     Coroutine* _main_co; // save the main context
     Coroutine* _running; // the current running coroutine
 

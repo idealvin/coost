@@ -10,10 +10,11 @@ namespace co {
 __thread SchedulerImpl* gSched = 0;
 
 SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
-    : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num),
-      _stack_size(stack_size), _stack(0), _stack_top(0),
-      _running(0), _co_pool(), _stop(false), _timeout(false) {
+    : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num), 
+      _stack_size(stack_size), _running(0), _co_pool(), 
+      _stop(false), _timeout(false) {
     _epoll = new Epoll(id);
+    _stack = (Stack*) calloc(8, sizeof(Stack));
     _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
@@ -50,15 +51,18 @@ void SchedulerImpl::main_func(tb_context_from_t from) {
  */
 void SchedulerImpl::resume(Coroutine* co) {
     tb_context_from_t from;
+    Stack* s = &_stack[co->sid];
     _running = co;
-    if (_stack == 0) {
-        _stack = (char*) malloc(_stack_size);
-        _stack_top = _stack + _stack_size;
+    if (s->p == 0) {
+        s->p = (char*) malloc(_stack_size);
+        s->top = s->p + _stack_size;
+        s->co = co;
     }
 
     if (co->ctx == 0) {
         // resume new coroutine
-        co->ctx = tb_context_make(_stack, _stack_size, main_func);
+        if (s->co != co) { this->save_stack(s->co); s->co = co; }
+        co->ctx = tb_context_make(s->p, _stack_size, main_func);
         CO_DBG_LOG << "resume new co: " << co << " id: " << co->id;
         from = tb_context_jump(co->ctx, _main_co); // jump to main_func(from):  from.priv == _main_co
 
@@ -72,8 +76,12 @@ void SchedulerImpl::resume(Coroutine* co) {
 
         // resume suspended coroutine
         CO_DBG_LOG << "resume co: " << co << ", id: " <<  co->id << ", stack: " << co->stack.size();
-        CHECK(_stack_top == (char*)co->ctx + co->stack.size());
-        memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
+        if (s->co != co) {
+            this->save_stack(s->co);
+            CHECK(s->top == (char*)co->ctx + co->stack.size());
+            memcpy(co->ctx, co->stack.data(), co->stack.size()); // restore stack data
+            s->co = co;
+        }
         from = tb_context_jump(co->ctx, _main_co); // jump back to where the user called yiled()
     }
 
@@ -81,9 +89,7 @@ void SchedulerImpl::resume(Coroutine* co) {
     if (from.priv) {
         assert(_running == from.priv);
         _running->ctx = from.ctx;   // update context for the coroutine
-        CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id
-                   << ", stack: " << (size_t)(_stack_top - (char*)from.ctx);
-        this->save_stack(_running); // save stack data for the coroutine
+        CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id;
     }
 }
 
