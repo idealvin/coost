@@ -68,7 +68,6 @@ struct Coroutine {
     uint32 id;         // coroutine id
     uint8 state;       // coroutine state
     uint8 sid;         // stack id
-    uint8 owns_stack;  // thi
     uint16 _00_;       // reserved
     void* waitx;       // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
