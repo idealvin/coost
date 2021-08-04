@@ -2,16 +2,14 @@
 #include "co/log.h"
 #include "co/time.h"
 
-int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
+DEF_main(argc, argv) {
     FLG_cout = true;
 
     co::WaitGroup wg;
+    wg.add(8);
 
     for (int i = 0; i < 8; ++i) {
-        wg.add();
-        go([&]() {
+        go([wg]() {
             LOG << "co: " << co::coroutine_id();
             wg.done();
         });
