@@ -20,7 +20,7 @@
   xmake r log_bm -t 8
   ```
 
-- results(test on windows)
+- results on Windows
 
   | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
   | ------ | ------ | ------ | ------ |
@@ -28,6 +28,16 @@
   | 2 | 1000000 | 0.202246 | 0.565262 |
   | 4 | 1000000 | 0.330694 | 0.722709 |
   | 8 | 1000000 | 0.386760 | 1.322471 |
+
+- results on Linux (tested on Windows Linux subsystem)
+
+  | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
+  | ------ | ------ | ------ | ------ |
+  | 1 | 1000000 | 0.096445 | 2.006087 |
+  | 2 | 1000000 | 0.142160 | 3.276006 |
+  | 4 | 1000000 | 0.181407 | 4.339714 |
+  | 8 | 1000000 | 0.303968 | 4.700860 |
+
 
 
 ### json benchmark
