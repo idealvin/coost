@@ -4,10 +4,6 @@
 #include <functional>
 #include <vector>
 
-#ifdef HAS_LIBCURL
-#include <curl/curl.h>
-#endif
-
 namespace http {
 
 /**
@@ -18,7 +14,6 @@ namespace http {
  * ===========================================================================
  */
 
-#ifdef HAS_LIBCURL
 struct curl_ctx;
 
 /**
@@ -137,7 +132,7 @@ class Client {
      * @param url  This url will appear in the request line, it MUST begins with '/'.
      */
     void del(const char* url) {
-      return this->del(url, "", 0);
+        return this->del(url, "", 0);
     }
 
     /**
@@ -150,7 +145,7 @@ class Client {
     /**
      * get curl easy handle owned by this client
      */
-    CURL* easy_handle() const;
+    void* easy_handle() const;
 
     /**
      * perform a HTTP request
@@ -223,7 +218,6 @@ class Client {
   private:
     curl_ctx* _ctx;
 };
-#endif
 
 
 /**
@@ -248,6 +242,7 @@ class Req {
     ~Req() = default;
 
     Version version()        const { return (Version)_version; }
+    Method method()          const { return (Method)_method; }
     bool is_method_get()     const { return _method == kGet; }
     bool is_method_head()    const { return _method == kHead; }
     bool is_method_post()    const { return _method == kPost; }
@@ -331,6 +326,10 @@ class Server {
      *           a reference of std::function<void(const Req&, Res&)>
      */
     void on_req(std::function<void(const Req&, Res&)>&& f);
+
+    void on_req(const std::function<void(const Req&, Res&)>& f) {
+        this->on_req(std::function<void(const Req&, Res&)>(f));
+    }
 
     /**
      * set a callback for handling http request 

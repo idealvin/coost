@@ -1,0 +1,33 @@
+name: Cross (Musl)
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        cross: [arm-linux-musleabi, aarch64-linux-musl]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: branch@dev
+
+      - name: Installation
+        run: |
+          wget https://github.com/xmake-mirror/musl.cc/releases/download/20210202/${{ matrix.cross }}-cross.linux.tgz
+          tar -xvf ${{ matrix.cross }}-cross.linux.tgz
+      - name: Tests
+        run: |
+          xmake f -p cross --toolchain=muslcc --sdk=`pwd`/${{ matrix.cross }}-cross
+          xmake -a

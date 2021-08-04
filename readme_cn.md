@@ -1,24 +1,53 @@
+<div align="center">
+  <div>
+    <a href="https://github.com/idealvin/co/blob/master/LICENSE.md">
+      <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="license" />
+    </a>
+    <a href="https://github.com/idealvin/co/releases">
+      <img src="https://img.shields.io/github/release/idealvin/co.svg?style=flat-square" alt="Github All Releases" />
+    </a>
+  </div>
+  <div>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AWindows">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3ALinux">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AmacOS">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
+    </a>
+    <a href="https://github.com/idealvin/co/actions?query=workflow%3AAndroid">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
+    </a>
+  </div>
+
+  <div>
+  <span style="border-bottom: 3px double #ccc">A go-style C++ coroutine library and more.</span>
+  </div>
+</div>
+
 ## Basic [(English)](readme.md)
 
-`CO` 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 平台。`CO` 追求极简、高效，不依赖于 [boost](https://www.boost.org/) 等三方库，并提供可选的 ssl, http 与 https 特性。
+co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
 
-`CO` 包含协程库、网络库、日志库、命令行与配置文件解析库、单元测试框架、json 库等基本组件。
+co 遵循极简的设计理念，提供的接口都尽可能简单明了，用户可以轻松上手。co 尽量避免过度封装、引入过多的概念，以减轻用户的学习负担，如 co 提供的协程化的 socket API，与原生 socket API 形式上基本一致，熟悉 socket 编程的用户，几乎不需要增加新的学习成本，就能轻松用这些 API 写出高性能的网络程序。
 
 
 ## 参考文档
 
-- [中文](https://idealvin.gitee.io/coding/2020/07/co/)
-- [English](https://idealvin.gitee.io/coding/2020/07/co_en/)
+- [中文](https://www.yuque.com/idealvin/co)
+- [English](https://www.yuque.com/idealvin/co_en)
 
 
 ## 亮点功能
 
-### 协程(co)
+### 协程
 
 [co](https://github.com/idealvin/co/blob/master/include/co/co.h) 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，支持如下特性:
 - 多线程调度，默认线程数为系统 CPU 核数.
-- 协程共享栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
-- 系统 api hook (Linux & Mac).
+- 共享栈，同一线程中的协程共用一个栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
+- 系统 API hook，可以在直接在协程中以同步的方式使用三方网络库.
 - 协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
 - 协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
 - 协程池 [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
@@ -26,22 +55,24 @@
 
 - 用 `go()` 创建协程:
   ```cpp
-  void f() {
+  void ku() {
       LOG << "hello world";
   }
 
-  void g(int v) {
+  void gg(int v) {
       LOG << "hello "<< v;
   }
 
-  go(f);
-  go(g, 777);
+  go(ku);  // 悟空
+  go(gg, 777);
+  go([](){
+      LOG << "hello go";
+  });
   ```
-
 
 ### 网络(so)
 
-[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个简单的基于 json 的 rpc 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
+[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个基于 JSON 的 RPC 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
 
 - 简单的静态 web server
   ```cpp
@@ -100,6 +131,41 @@
   LOG << "response code: " << c.response_code();
   ```
 
+### 支持 golang 中的一些特性
+
+#### defer
+
+```cpp
+#include "co/defer.h"
+#include <iostream>
+
+void f(int x, int y) { std::cout << (x + y) << std::endl; }
+
+int main(int argc, char** argv) {
+    int x = 1, y = 2;
+    defer(f(3, 4); f(4, 3));
+    defer(f(x, y));
+    return 0;
+}
+```
+
+#### waitgroup
+
+```cpp
+#include "co/co.h"
+
+co::WaitGroup wg;
+
+for (int i = 0; i < 8; ++i) {
+    wg.add();
+    go([&]() {
+        // do ...
+        wg.done();
+    });
+}
+
+wg.wait();
+```
 
 ### 日志库(log)
 
@@ -156,9 +222,9 @@
   ```
 
 
-### json
+### JSON
 
-[json](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 json 库。最新版本将 Json 对象构建到一块连续的内存上，几乎不需要内存分配操作，大大提高了 json 的解析速度，可以达到 GB 每秒。
+[JSON](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 JSON 库。最新版本将 JSON 对象构建到一块连续的内存上，从字符串解析 JSON 几乎不需要内存分配操作，大大提高了 parsing 速度，可以达到 GB 每秒。
 
 - 代码示例
   ```cpp
@@ -201,19 +267,22 @@
 
 - [co/gen](https://github.com/idealvin/co/tree/master/gen)  
 
-  代码生成工具，根据 proto 文件，自动生成 rpc 框架代码。
+  代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
 
 
 ## 构建
 
-### xmake
-
-`CO` 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
+### 编译器要求
 
 - 编译器
   - Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
   - Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
   - Windows: [vs2015+](https://visualstudio.microsoft.com/)
+
+
+### xmake
+
+co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
 - 安装 xmake
 
@@ -224,12 +293,21 @@
   export XMAKE_ROOT=y
   ```
 
+  co 中的 HTTP/SSL 特性依赖于 libcurl 与 openssl，启用 HTTP/SSL 特性时，xmake 会自动安装所需要的三方库。xmake 可能从 github 上拉取三方库，国内 github 下载速度较慢，可以按[参考文档中的说明](https://www.yuque.com/idealvin/co/wos6kw#VSdZs)设置 github 镜像代理。
+
 - 快速上手
 
   ```sh
   # 所有命令都在 co 根目录执行，后面不再说明
-  xmake       # 默认构建 libco 与 gen
+  xmake       # 默认构建 libco
   xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
+  ```
+
+- 使用 libcurl 与 openssl 构建(启用 HTTP/SSL 特性)
+
+  ```sh
+  xmake f --with_libcurl=true --with_openssl=true
+  xmake
   ```
 
 - 构建 libco
@@ -237,6 +315,8 @@
   ```sh
   xmake build libco       # 仅构建 libco
   xmake -b libco          # 与上同
+  xmake -v -b libco       # 与上同, 另外打印详细的编译信息
+  xmake -vD -b libco      # 与上同, 打印更加详细的编译信息
   ```
 
 - 构建及运行 unitest 代码
@@ -256,22 +336,13 @@
   [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录或子目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
 
   ```sh
-  xmake build flag             # 编译 flag.cc
-  xmake build log              # 编译 log.cc
-  xmake build json             # 编译 json.cc
-  xmake build rapidjson        # 编译 rapidjson.cc
-  xmake build rpc              # 编译 rpc.cc
-  xmake build easy             # 编译 so/easy.cc
+  xmake build flag             # 编译 test/flag.cc
+  xmake build log              # 编译 test/log.cc
   
   xmake r flag -xz             # 测试 flag 库
   xmake r log                  # 测试 log 库
   xmake r log -cout            # 终端也打印日志
   xmake r log -perf            # log 库性能测试
-  xmake r json                 # 测试 json
-  xmake r rapidjson            # 测试 rapidjson
-  xmake r rpc                  # 启动 rpc server
-  xmake r rpc -c               # 启动 rpc client
-  xmake r easy -d xxx          # 启动 web server
   ```
 
 - 构建 gen
@@ -279,40 +350,77 @@
   ```sh
   # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
   xmake build gen
+  cp gen /usr/local/bin/
   gen hello_world.proto
   ```
 
-  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/__/rpc/hello_world.proto)。
+  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto)。
 
-- 安装
+- 安装 libco
 
   ```sh
-  # 默认安装头文件、libco、gen
+  # 默认安装头文件、libco
   xmake install -o pkg          # 打包安装到 pkg 目录
   xmake i -o pkg                # 同上
   xmake install -o /usr/local   # 安装到 /usr/local 目录
   ```
 
+- 从 xmake repo 安装 libco
+
+  ```sh
+  xrepo install -f "with_openssl=true,with_libcurl=true" co
+  ```
+
+
 ### cmake
 
 [izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
-- 默认只编译 `libco` 与 `gen`.
-- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下.
-- 可以用 `BUILD_ALL` 指定编译所有项目.
-- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录.
+- 默认只编译 `libco`。
+- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下。
+- 可以用 `BUILD_ALL` 指定编译所有项目。
+- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录。
+- cmake 只提供简单的编译选项，若需要更复杂的配置，请使用 xmake。
 
+- 默认构建 libco
   ```sh
   mkdir build && cd build
   cmake ..
+  make -j8
+  ```
+
+- 构建所有项目
+  ```sh
+  mkdir build && cd build
   cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
   make -j8
   make install
   ```
 
+- 启用 libcurl & openssl (需要 libcurl, zlib, openssl 1.1.0 或以上版本)
+  ```sh
+  mkdir build && cd build
+  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
+  make -j8
+  ```
+
+
+### Docker 编译
+
+```
+docker build -t co:v2.0.0 .
+docker run -itd -v $(pwd):/home/co/ co:v2.0.0
+docker exec -it ${CONTAINER_ID} bash   #替换为真正的CONTAINER_ID
+
+# docker中执行以下命令
+cd /home/co && mkdir build && cd build
+cmake .. -DBUILD_ALL=ON -DHAS_LIBCURL=ON
+make -j8
+```
+
 
 ## License
 
-The MIT license. `CO` 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+The MIT license. co 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
 
 
 ## 特别致谢
@@ -327,4 +435,4 @@ The MIT license. `CO` 包含了一些其他项目的代码，可能使用了不�
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin at qq.com`.
-- [Donate](https://idealvin.github.io/donate/)
+- [Donate](https://www.yuque.com/idealvin/co/entqmb)

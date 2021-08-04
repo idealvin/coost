@@ -1,49 +1,60 @@
 #pragma once
 
+#include "../def.h"
+#include "../atomic.h"
+
 namespace co {
 
 /**
- * co::Event is for communications between coroutines 
- *   - It is similar to SyncEvent for threads. 
- *   - The user SHOULD use co::Event in coroutine environments only. 
+ * co::Event is for communications between coroutines
+ *   - It is similar to SyncEvent for threads.
+ *   - It can be used anywhere since co 2.0.1.
  */
 class Event {
   public:
     Event();
     ~Event();
 
-    Event(Event&& e) : _p(e._p) { e._p = 0; }
+    Event(Event&& e) : _p(e._p) {
+        e._p = 0;
+    }
 
-    Event(const Event&) = delete;
+    // copy constructor, allow co::Event to be captured by value in lambda.
+    Event(const Event& e) : _p(e._p) {
+        atomic_inc(_p);
+    }
+
     void operator=(const Event&) = delete;
 
     /**
-     * wait for a signal 
-     *   - It MUST be called in a coroutine. 
-     *   - wait() blocks until a signal was present. 
+     * wait for a signal
+     *   - It blocks until a signal was present.
+     *   - It can be called from anywhere since co 2.0.1.
      */
-    void wait();
+    void wait() const {
+        (void) this->wait((uint32)-1);
+    }
 
     /**
-     * wait for a signal with a timeout 
-     *   - It MUST be called in a coroutine. 
-     *   - It blocks until a signal was present or timeout. 
-     * 
-     * @param ms  timeout in milliseconds
-     * 
+     * wait for a signal with a timeout
+     *   - It blocks until a signal was present or timeout.
+     *   - It can be called from anywhere since co 2.0.1.
+     *
+     * @param ms  timeout in milliseconds, if ms is -1, never timed out.
+     *
      * @return    true if a signal was present before timeout, otherwise false
      */
-    bool wait(unsigned int ms);
+    bool wait(uint32 ms) const ;
 
     /**
-     * generate a signal on this event 
-     *   - It is not necessary to call signal() in a coroutine, though usually it is. 
-     *   - When a signal was present, all the waiting coroutines will be waken up. 
+     * generate a signal on this event
+     *   - It can be called from anywhere.
+     *   - When a signal was present, all the waiting coroutines will be waken up.
      */
-    void signal();
+    void signal() const;
 
   private:
-    void* _p;
+    uint32* _p;
 };
 
 } // co

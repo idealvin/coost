@@ -5,7 +5,7 @@
 #include "co/path.h"
 #include "co/time.h"
 #include "co/__/stack_trace.h"
-#include "co/co/hook.h"
+#include "./co/hook.h"
 
 #include <time.h>
 #include <string>
@@ -20,11 +20,13 @@
 DEF_string(log_dir, "logs", "#0 log dir, will be created if not exists");
 DEF_string(log_file_name, "", "#0 name of log file, using exename if empty");
 DEF_int32(min_log_level, 0, "#0 write logs at or above this level, 0-4 (debug|info|warning|error|fatal)");
+DEF_int32(max_log_size, 4096, "#0 max size of a single log");
 DEF_int64(max_log_file_size, 256 << 20, "#0 max size of log file, default: 256MB");
 DEF_uint32(max_log_file_num, 8, "#0 max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 32MB");
 DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
+DEC_bool(disable_hook_sleep);
 
 namespace ___ {
 namespace log {
@@ -39,11 +41,11 @@ void on_failure();
 void on_signal(int sig);
 
 inline void install_signal_handler() {
-    os::set_sig_handler(SIGINT, xx::on_signal);
-    os::set_sig_handler(SIGTERM, xx::on_signal);
+    os::signal(SIGINT, xx::on_signal);
+    os::signal(SIGTERM, xx::on_signal);
   #ifndef _WIN32
-    os::set_sig_handler(SIGQUIT, xx::on_signal);
-    os::set_sig_handler(SIGPIPE, SIG_IGN);
+    os::signal(SIGQUIT, xx::on_signal);
+    os::signal(SIGPIPE, SIG_IGN);
   #endif
 }
 
@@ -70,10 +72,11 @@ class LogTime {
 };
 
 struct Config {
-    Config() : max_log_buffer_size(32 << 20) {}
+    Config() : max_log_buffer_size(32 << 20), max_log_size(4096) {}
     fastring log_dir;
     fastring log_file_name;
     uint32 max_log_buffer_size;
+    int32 max_log_size;
 };
 
 class LevelLogger {
@@ -81,16 +84,20 @@ class LevelLogger {
     LevelLogger();
     ~LevelLogger() { this->stop(); }
 
-    void push(fastream* log) {
-        if (unlikely(log->size() >= (_config->max_log_buffer_size >> 1))) {
-            log->resize((_config->max_log_buffer_size >> 1) - 8);
-            log->append("......\n");
+    void push(char* s, size_t n) {
+        if (unlikely(n > _config->max_log_size)) {
+            n = _config->max_log_size;
+            char* const p = s + n - 4;
+            p[0] = '.';
+            p[1] = '.';
+            p[2] = '.';
+            p[3] = '\n';
         }
         {
             MutexGuard g(_log_mutex);
-            memcpy((char*)(log->data() + 1), _t.data, _t.total_size);
+            memcpy(s + 1, _t.data, _t.total_size); // log time
 
-            if (unlikely(_fs->size() + log->size() >= _config->max_log_buffer_size)) {
+            if (unlikely(_fs->size() + n >= _config->max_log_buffer_size)) {
                 const char* p = strchr(_fs->data() + (_fs->size() >> 1) + 7, '\n');
                 const size_t len = _fs->data() + _fs->size() - p - 1;
                 memcpy((char*)(_fs->data()), "......\n", 7);
@@ -98,7 +105,7 @@ class LevelLogger {
                 _fs->resize(len + 7);
             }
 
-            _fs->append(log->data(), log->size());
+            _fs->append(s, n);
             if (_fs->size() > (_fs->capacity() >> 1)) _log_event.signal();
         }
     }
@@ -163,8 +170,15 @@ inline void LevelLogger::init_config() {
             _config->log_file_name = os::exename();
             _config->log_file_name.remove_tail(".exe");
         }
-        _config->max_log_buffer_size = FLG_max_log_buffer_size;
-        if (_config->max_log_buffer_size < (1 << 20)) _config->max_log_buffer_size = (1 << 20);
+
+        auto& nbuf = _config->max_log_buffer_size;
+        nbuf = FLG_max_log_buffer_size;
+        if (nbuf < (1 << 20)) nbuf = (1 << 20);
+
+        auto& nlog = _config->max_log_size;
+        nlog = FLG_max_log_size;
+        if (nlog < 128) nlog = 128;
+        if ((uint32)nlog >= (nbuf >> 1)) nlog = (int32)((nbuf >> 1) - 1);
 
         if (FLG_max_log_file_num <= 0) FLG_max_log_file_num = 8;
         if (FLG_max_log_file_size <= 0) FLG_max_log_file_size = 256 << 20;
@@ -196,10 +210,12 @@ void LevelLogger::safe_stop() {
 
     while (_stop != 2) {
       #ifdef _WIN32
+        FLG_disable_hook_sleep = true;
         ::Sleep(8);
       #else
         struct timeval tv = { 0, 8000 };
-        raw_select(0, 0, 0, 0, &tv);
+        if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
+        CO_RAW_API(select)(0, 0, 0, 0, &tv);
       #endif
     }
 
@@ -267,7 +283,6 @@ void LevelLogger::push_fatal_log(fastream* log) {
 }
 
 bool LevelLogger::open_log_file(int level) {
-    this->init_config();
     static fastring path_base = path::join(_config->log_dir, _config->log_file_name);
 
     fastring path(path_base.size() + 8);
@@ -318,7 +333,7 @@ void on_failure() {
 
 void on_signal(int sig) {
     level_logger()->safe_stop();
-    os::set_sig_handler(sig, SIG_DFL);
+    os::signal(sig, SIG_DFL);
     raise(sig);
 }
 
@@ -326,8 +341,8 @@ void push_fatal_log(fastream* fs) {
     level_logger()->push_fatal_log(fs);
 }
 
-void push_level_log(fastream* fs) {
-    level_logger()->push(fs);
+void push_level_log(char* s, size_t n) {
+    level_logger()->push(s, n);
 }
 
 LogTime::LogTime() {
@@ -337,16 +352,16 @@ LogTime::LogTime() {
     for (int i = 0; i < 1000; ++i) {
         char* p = (char*)(_tb1000 + i);
         p[0] = '.';
-        p[1] = '0' + i / 100;
-        p[2] = '0' + i % 100 / 10;
-        p[3] = '0' + i % 10;
+        p[1] = (char)('0' + i / 100);
+        p[2] = (char)('0' + i % 100 / 10);
+        p[3] = (char)('0' + i % 10);
     }
 
     _tb60 = (uint16*) malloc(sizeof(uint16) * 60);
     for (int i = 0; i < 60; ++i) {
         char* p = (char*)(_tb60 + i);
-        p[0] = '0' + i / 10;
-        p[1] = '0' + i % 10;
+        p[0] = (char)('0' + i / 10);
+        p[1] = (char)('0' + i % 10);
     }
 
     this->reset();

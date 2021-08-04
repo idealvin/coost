@@ -90,6 +90,11 @@ class stream {
         _size = 0;
     }
 
+    void safe_clear() {
+        memset(_p, 0, _size);
+        _size = 0;
+    }
+
     void resize(size_t n) {
         this->reserve(n);
         _size = n;

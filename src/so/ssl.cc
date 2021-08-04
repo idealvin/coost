@@ -1,12 +1,11 @@
 #ifdef CO_SSL
-
 #include "co/so/ssl.h"
 #include "co/co.h"
 #include "co/log.h"
 #include "co/fastream.h"
 #include "co/thread.h"
-
-DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 namespace ssl {
 
@@ -16,7 +15,7 @@ static int errcb(const char* p, size_t n, void* u) {
     return 0;
 }
 
-const char* strerror(SSL* s) {
+const char* strerror(S* s) {
     static thread_ptr<fastream> fs;
     if (fs == NULL) fs.reset(new fastream(256));
     fs->clear();
@@ -26,7 +25,7 @@ const char* strerror(SSL* s) {
     } else if (co::error() != 0) {
         fs->append(co::strerror());
     } else if (s) {
-        int e = ssl::get_error(s, 0);
+        int e = SSL_get_error((SSL*)s, 0);
         (*fs) << "ssl error: " << e;
     } else {
         fs->append("success");
@@ -35,33 +34,76 @@ const char* strerror(SSL* s) {
     return fs->c_str();
 }
 
-int shutdown(SSL* s, int ms) {
+C* new_ctx(char c) {
+    static bool x = []() {
+        (void) SSL_library_init();
+        OpenSSL_add_all_algorithms();
+        SSL_load_error_strings();
+        return true;
+    }();
+    (void)x;
+    return (C*) SSL_CTX_new(c == 's' ? TLS_server_method(): TLS_client_method());
+}
+
+void free_ctx(C* c) {
+    SSL_CTX_free((SSL_CTX*)c);
+}
+
+void* new_ssl(C* c) {
+    return (void*) SSL_new((SSL_CTX*)c);
+}
+
+void free_ssl(S* s) {
+    SSL_free((SSL*)s);
+}
+
+int set_fd(S* s, int fd) {
+    return SSL_set_fd((SSL*)s, fd);
+}
+
+int get_fd(const S* s) {
+    return SSL_get_fd((const SSL*)s);
+}
+
+int use_private_key_file(C* c, const char* path) {
+    return SSL_CTX_use_PrivateKey_file((SSL_CTX*)c, path, SSL_FILETYPE_PEM);
+}
+
+int use_certificate_file(C* c, const char* path) {
+    return SSL_CTX_use_certificate_file((SSL_CTX*)c, path, SSL_FILETYPE_PEM);
+}
+
+int check_private_key(const C* c) {
+    return SSL_CTX_check_private_key((const SSL_CTX*)c);
+}
+
+int shutdown(S* s, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = ssl::get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     // openssl says SSL_shutdown must not be called on error SSL_ERROR_SYSCALL 
     // and SSL_ERROR_SSL, see more details here:
     //   https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
-    e = SSL_get_error(s, 0);
+    e = SSL_get_error((SSL*)s, 0);
     if (e == SSL_ERROR_SYSCALL || e == SSL_ERROR_SSL) return -1;
 
     do {
         ERR_clear_error();
-        r = SSL_shutdown(s);
+        r = SSL_shutdown((SSL*)s);
         if (r == 1) return 1; // success
         if (r == 0) {
             DLOG << "SSL_shutdown return 0, call again..";
             continue;
         }
 
-        e = SSL_get_error(s, r);
+        e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::EV_read);
+            co::IoEvent ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::EV_write);
+            co::IoEvent ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
             DLOG << "SSL_shutdown return " << r << ", error: " << e;
@@ -70,97 +112,97 @@ int shutdown(SSL* s, int ms) {
     } while (true);
 }
 
-int accept(SSL* s, int ms) {
+int accept(S* s, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = ssl::get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     do {
         ERR_clear_error();
-        r = SSL_accept(s);
+        r = SSL_accept((SSL*)s);
         if (r == 1) return 1; // success
         if (r == 0) {
-            DLOG << "SSL_accept return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_accept return 0, error: " << SSL_get_error(s, 0);
             return 0; // ssl connection shut down
         }
 
-        e = SSL_get_error(s, r);
+        e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::EV_read);
+            co::IoEvent ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::EV_write);
+            co::IoEvent ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_accept return " << r << ", error: " << e;
+            //DLOG << "SSL_accept return " << r << ", error: " << e;
             return r;
         }
     } while (true);
 }
 
-int connect(SSL* s, int ms) {
+int connect(S* s, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = SSL_get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     do {
         ERR_clear_error();
-        r = SSL_connect(s);
+        r = SSL_connect((SSL*)s);
         if (r == 1) return 1; // success
         if (r == 0) {
-            DLOG << "SSL_connect return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_connect return 0, error: " << SSL_get_error(s, 0);
             return 0; // ssl connection shut down
         }
 
-        e = SSL_get_error(s, r);
+        e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::EV_read);
+            co::IoEvent ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::EV_write);
+            co::IoEvent ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_connect return " << r << ", error: " << e;
+            //DLOG << "SSL_connect return " << r << ", error: " << e;
             return r;
         }
     } while (true);
 }
 
-int recv(SSL* s, void* buf, int n, int ms) {
+int recv(S* s, void* buf, int n, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = SSL_get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     do {
         ERR_clear_error();
-        r = SSL_read(s, buf, n);
+        r = SSL_read((SSL*)s, buf, n);
         if (r > 0) return r; // success
         if (r == 0) {
-            DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
  
-        e = SSL_get_error(s, r);
+        e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::EV_read);
+            co::IoEvent ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::EV_write);
+            co::IoEvent ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
-            DLOG << "SSL_read return " << r << ", error: " << e;
+            //DLOG << "SSL_read return " << r << ", error: " << e;
             return r;
         }
     } while (true);
 }
 
-int recvn(SSL* s, void* buf, int n, int ms) {
+int recvn(S* s, void* buf, int n, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = SSL_get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     char* p = (char*) buf;
@@ -168,23 +210,23 @@ int recvn(SSL* s, void* buf, int n, int ms) {
 
     do {
         ERR_clear_error();
-        r = SSL_read(s, p, remain);
+        r = SSL_read((SSL*)s, p, remain);
         if (r == remain) return n; // success
         if (r == 0) {
-            DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_read return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
 
         if (r < 0) {
-            e = SSL_get_error(s, r);
+            e = SSL_get_error((SSL*)s, r);
             if (e == SSL_ERROR_WANT_READ) {
-                co::IoEvent ev(fd, co::EV_read);
+                co::IoEvent ev(fd, co::ev_read);
                 if (!ev.wait(ms)) return -1;
             } else if (e == SSL_ERROR_WANT_WRITE) {
-                co::IoEvent ev(fd, co::EV_write);
+                co::IoEvent ev(fd, co::ev_write);
                 if (!ev.wait(ms)) return -1;
             } else {
-                DLOG << "SSL_read return " << r << ", error: " << e;
+                //DLOG << "SSL_read return " << r << ", error: " << e;
                 return r;
             }
         } else {
@@ -194,10 +236,10 @@ int recvn(SSL* s, void* buf, int n, int ms) {
     } while (true);
 }
 
-int send(SSL* s, const void* buf, int n, int ms) {
+int send(S* s, const void* buf, int n, int ms) {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     int r, e;
-    int fd = SSL_get_fd(s);
+    int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
 
     const char* p = (const char*) buf;
@@ -205,23 +247,23 @@ int send(SSL* s, const void* buf, int n, int ms) {
 
     do {
         ERR_clear_error();
-        r = SSL_write(s, p, remain);
+        r = SSL_write((SSL*)s, p, remain);
         if (r == remain) return n; // success
         if (r == 0) {
-            DLOG << "SSL_write return 0, error: " << SSL_get_error(s, 0);
+            //DLOG << "SSL_write return 0, error: " << SSL_get_error(s, 0);
             return 0;
         }
 
         if (r < 0) {
-            e = SSL_get_error(s, r);
+            e = SSL_get_error((SSL*)s, r);
             if (e == SSL_ERROR_WANT_READ) {
-                co::IoEvent ev(fd, co::EV_read);
+                co::IoEvent ev(fd, co::ev_read);
                 if (!ev.wait(ms)) return -1;
             } else if (e == SSL_ERROR_WANT_WRITE) {
-                co::IoEvent ev(fd, co::EV_write);
+                co::IoEvent ev(fd, co::ev_write);
                 if (!ev.wait(ms)) return -1;
             } else {
-                DLOG << "SSL_write return " << r << ", error: " << e;
+                //DLOG << "SSL_write return " << r << ", error: " << e;
                 return r;
             }
         } else {
@@ -231,99 +273,42 @@ int send(SSL* s, const void* buf, int n, int ms) {
     } while (true);
 }
 
-Server::Server() : _ctx(0) {}
-Server::~Server() { ssl::free_ctx(_ctx); }
+bool timeout() { return co::timeout(); }
 
-void Server::start(const char* ip, int port, const char* key, const char* ca) {
-    _ctx = ssl::new_server_ctx();
-    CHECK(_ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
-    CHECK_NOTNULL(key) << "private key file must be set..";
-    CHECK_NOTNULL(ca) << "certificate file must be set..";
+} // ssl
 
-    int r;
-    r = ssl::use_private_key_file(_ctx, key);
-    CHECK_EQ(r, 1) << "ssl use private key file (" << key << ") error: " << ssl::strerror();
+#else
 
-    r = ssl::use_certificate_file(_ctx, ca);
-    CHECK_EQ(r, 1) << "ssl use certificate file (" << ca << ") error: " << ssl::strerror();
+#include "co/so/ssl.h"
+#include "co/log.h"
 
-    r = ssl::check_private_key(_ctx);
-    CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
+namespace ssl {
 
-    _tcp_serv.on_connection(&Server::on_tcp_connection, this);
-    _tcp_serv.start(ip, port);
+const char* strerror(S* s) { return 0; }
+
+C* new_ctx(char c) {
+    CHECK(false)
+        << "To use SSL features, please build libco with openssl 1.1+ as follow: \n"
+        << "xmake f --with_openssl=true\n"
+        << "xmake -v";
+    return 0;
 }
 
-void Server::on_tcp_connection(sock_t fd) {
-    co::set_tcp_keepalive(fd);
-    co::set_tcp_nodelay(fd);
-
-    SSL* s = ssl::new_ssl(_ctx);
-    if (s == NULL) goto new_ssl_err;
-
-    if (ssl::set_fd(s, (int)fd) != 1) goto set_fd_err;
-    if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
-
-    _on_ssl_connection(s);
-    return;
-
-  new_ssl_err:
-    ELOG << "new SSL failed: " << ssl::strerror();
-    goto err_end;
-  set_fd_err:
-    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror(s);
-    goto err_end;
-  accept_err:
-    ELOG << "ssl accept failed: " << ssl::strerror(s);
-    goto err_end;
-  err_end:
-    if (s) ssl::free_ssl(s);
-    co::close(fd, 1000);
-    return;
-}
-
-Client::Client(const char* serv_ip, int serv_port)
-    : _tcp_cli(serv_ip, serv_port), _ctx(0), _ssl(0) {
-}
-
-bool Client::connect(int ms) {
-    if (this->connected()) return true;
-    if (!_tcp_cli.connect(ms)) return false;
-    if ((_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
-    if ((_ssl = ssl::new_ssl(_ctx)) == NULL) goto new_ssl_err;
-    if (ssl::set_fd(_ssl, (int)_tcp_cli.fd()) != 1) goto set_fd_err;
-    if (ssl::connect(_ssl, ms) != 1) goto connect_err;
-    return true;
-  
-  new_ctx_err:
-    ELOG << "ssl connect new client contex error: " << ssl::strerror();
-    goto err_end;
-  new_ssl_err:
-    ELOG << "ssl connect new SSL failed: " << ssl::strerror();
-    goto err_end;
-  set_fd_err:
-    ELOG << "ssl connect set fd (" << _tcp_cli.fd() << ") failed: " << ssl::strerror(_ssl);
-    goto err_end;
-  connect_err:
-    ELOG << "ssl connect failed: " << ssl::strerror();
-    goto err_end;
-  err_end:
-    if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
-    if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-    _tcp_cli.disconnect();
-    return false;
-}
-
-/**
- * NOTE: close the underlying TCP connection directly here..
- */
-void Client::disconnect() {
-    if (this->connected()) {
-        if (_ssl) { ssl::free_ssl(_ssl); _ssl = 0; } 
-        if (_ctx) { ssl::free_ctx(_ctx); _ctx = 0; }
-        _tcp_cli.disconnect();
-    }
-}
+void free_ctx(C*) {}
+S* new_ssl(C*) { return 0; }
+void free_ssl(S*) {}
+int set_fd(S*, int) { return 0; }
+int get_fd(const S*) { return 0; }
+int use_private_key_file(C*, const char*) { return 0; }
+int use_certificate_file(C*, const char*) { return 0; }
+int check_private_key(const C*) { return 0; }
+int shutdown(S*, int) { return 0; }
+int accept(S*, int) { return 0; }
+int connect(S*, int) { return 0; }
+int recv(S*, void*, int, int) { return 0; }
+int recvn(S*, void*, int, int) { return 0; }
+int send(S*, const void*, int, int) { return 0; }
+bool timeout() { return false; }
 
 } // ssl
 

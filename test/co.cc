@@ -11,7 +11,7 @@ int n = 0;
 
 void f1() {
     ev.wait();
-    CLOG << "f1()";
+    LOG << "f1()";
     {
         co::MutexGuard g(mtx);
         ++v;
@@ -22,30 +22,44 @@ void f1() {
     pool.push(p);
 }
 
-void f2() {
-    bool r = ev.wait(50);
-    CLOG << "f2() r: " << r;
-}
-
-void f3() {
-    CLOG << "f3()";
-    ev.signal();
+void f() {
+    co::sleep(32);
+    LOG << "s: " << co::scheduler_id() << " c: " << co::coroutine_id();
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+    FLG_cout = true;
+
+    // print scheduler pointers
+    auto& s = co::all_schedulers();
+    for (size_t i = 0; i < s.size(); ++i) {
+        COUT << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
+    }
 
     for (int i = 0; i < 8; ++i) go(f1);
-    go(f2);
+    go([&]() {
+        bool r = ev.wait(50);
+        LOG << "f2() r: " << r;
+    });
 
     sleep::ms(100);
-    go(f3);
-
+    go([&]() {
+        LOG << "f3()";
+        ev.signal();
+    });
+    
+    LOG << "co::Event wait in non-coroutine beg: " << now::ms();
+    ev.wait(200);
+    LOG << "co::Event wait in non-coroutine end: " << now::ms();
     sleep::ms(200);
 
-    CLOG << "v: " << v;
-    CLOG << "n: " << n;
+    LOG << "v: " << v;
+    LOG << "n: " << n;
 
+    for (int i = 0; i < 32; ++i) go(f);
+
+    sleep::ms(300);
     return 0;
 }

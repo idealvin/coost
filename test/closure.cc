@@ -1,7 +1,7 @@
 #include "co/all.h"
 
 template <class F, typename P>
-class X : public Closure {
+class X : public co::Closure {
   public:
     X(F f, P&& p)
         : _f(f), _p(std::forward<P>(p)) {
@@ -51,7 +51,7 @@ void funcb(const Y* v) {
 }
 
 template <class F, typename T>
-inline Closure* create_closure(F f, T&& t) {
+inline co::Closure* create_closure(F f, T&& t) {
     return new X<F, T>(f, std::forward<T>(t));
 }
 
@@ -59,20 +59,20 @@ void test() {
     Y* s = new Y(777);
     const Y* cs = new Y(888);
 
-    Closure* c = create_closure(funca, *s);
-    Closure* cc = create_closure(funca, *cs);
-    Closure* rc = create_closure(funca, Y(666));
+    co::Closure* c = create_closure(funca, *s);
+    co::Closure* cc = create_closure(funca, *cs);
+    co::Closure* rc = create_closure(funca, Y(666));
 
-    Closure* bc = create_closure(funcb, s);
-    Closure* bcc = create_closure(funcb, cs);
+    co::Closure* bc = create_closure(funcb, s);
+    co::Closure* bcc = create_closure(funcb, cs);
 
-    // bc, bcc stores pointer of Y, we must not delete Y before Closure::run() is called.
+    // bc, bcc stores pointer of Y, we must not delete Y before co::Closure::run() is called.
     bc->run();
     bcc->run();
     delete bc;
     delete bcc;
 
-    // c, cc, rc stores a copy of Y, we can delete Y before Closure::run() is called. 
+    // c, cc, rc stores a copy of Y, we can delete Y before co::Closure::run() is called. 
     delete s;
     delete cs;
     c->run();
@@ -96,22 +96,22 @@ void test_new_closure() {
         COUT << "xxxxx: " << v;
     };
 
-    Closure* c = new_closure(&f, 3);
+    co::Closure* c = co::new_closure(&f, 3);
     c->run();
 
-    Closure* e = new_closure(f, 5);
+    co::Closure* e = co::new_closure(f, 5);
     e->run();
 
-    Closure* o0 = new_closure(f0);
+    co::Closure* o0 = co::new_closure(f0);
     o0->run();
 
-    Closure* o1 = new_closure(f1, 7);
+    co::Closure* o1 = co::new_closure(f1, 7);
     o1->run();
 
-    Closure* o2 = new_closure(std::bind(f, 9));
+    co::Closure* o2 = co::new_closure(std::bind(f, 9));
     o2->run();
 
-    Closure* o3 = new_closure(std::bind(f, std::placeholders::_1), 999);
+    co::Closure* o3 = co::new_closure(std::bind(f, std::placeholders::_1), 999);
     o3->run();
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "err.h"
 #include "fastring.h"
 #include <string>
 #include <vector>
@@ -61,7 +62,7 @@ fastring strip(const fastring& s, const fastring& c, char d='b');
 
 /**
  * convert string to built-in types 
- *   - An exception of type const char* will be thrown if any error occured. 
+ *   - Returns 0 if the conversion failed, and the errno will be ERANGE or EINVAL.
  */
 bool to_bool(const char* s);
 int32 to_int32(const char* s);

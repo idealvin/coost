@@ -1,5 +1,4 @@
 #include "co/str.h"
-#include <errno.h>
 #include <math.h>
 #include <algorithm>
 
@@ -218,24 +217,27 @@ fastring strip(const fastring& s, const fastring& c, char d) {
 bool to_bool(const char* s) {
     if (strcmp(s, "false") == 0 || strcmp(s, "0") == 0) return false;
     if (strcmp(s, "true") == 0 || strcmp(s, "1") == 0) return true;
-    throw "invalid value for bool";
+    err::set(EINVAL);
+    return false;
 }
 
 int32 to_int32(const char* s) {
     int64 x = to_int64(s);
-    if (x > MAX_INT32 || x < MIN_INT32) {
-        throw "out of range for int32";
+    if (unlikely(x > MAX_INT32 || x < MIN_INT32)) {
+        err::set(ERANGE);
+        return 0;
     }
-    return (int32) x;
+    return (int32)x;
 }
 
 uint32 to_uint32(const char* s) {
     int64 x = (int64) to_uint64(s);
     int64 absx = x < 0 ? -x : x;
-    if (absx > MAX_UINT32) {
-        throw "out of range for uint32";
+    if (unlikely(absx > MAX_UINT32)) {
+        err::set(ERANGE);
+        return 0;
     }
-    return (uint32) x;
+    return (uint32)x;
 }
 
 inline int _Shift(char c) {
@@ -264,12 +266,9 @@ int64 to_int64(const char* s) {
     if (!*s) return 0;
 
     char* end = 0;
+    err::set(0);
     int64 x = strtoll(s, &end, 0);
-
-    if (errno == ERANGE && (x == MIN_INT64 || x == MAX_INT64)) {
-        errno = 0;
-        throw "out of range for int64";
-    }
+    if (err::get() != 0) return 0;
 
     size_t n = strlen(s);
     if (end == s + n) return x;
@@ -278,63 +277,56 @@ int64 to_int64(const char* s) {
         int shift = _Shift(s[n - 1]);
         if (shift != 0) {
             if (x == 0) return 0;
-
             if (x < (MIN_INT64 >> shift) || x > (MAX_INT64 >> shift)) {
-                throw "out of range for int64";
+                err::set(ERANGE);
+                return 0;
             }
-
             return x << shift;
         }
     }
 
-    throw "invalid value for integer";
+    err::set(EINVAL);
+    return 0;
 }
 
 uint64 to_uint64(const char* s) {
     if (!*s) return 0;
 
     char* end = 0;
-    int64 x = (int64) strtoull(s, &end, 0);
-
-    if (errno == ERANGE && static_cast<uint64>(x) == MAX_UINT64) {
-        errno = 0;
-        throw "out of range for uint64";
-    }
+    err::set(0);
+    uint64 x = strtoull(s, &end, 0);
+    if (err::get() != 0) return 0;
 
     size_t n = strlen(s);
-    if (end == s + n) return (uint64) x;
+    if (end == s + n) return x;
 
     if (end == s + n - 1) {
         int shift = _Shift(s[n - 1]);
         if (shift != 0) {
             if (x == 0) return 0;
-
-            int64 absx = x < 0 ? -x : x;
+            int64 absx = (int64)x;
+            if (absx < 0) absx = -absx;
             if (absx > static_cast<int64>(MAX_UINT64 >> shift)) {
-                throw "out of range for uint64";
+                err::set(ERANGE);
+                return 0;
             }
-
-            return static_cast<uint64>(x << shift);
+            return x << shift;
         }
     }
 
-    throw "invalid value for integer";
+    err::set(EINVAL);
+    return 0;
 }
 
 double to_double(const char* s) {
     char* end = 0;
+    err::set(0);
     double x = strtod(s, &end);
+    if (err::get() != 0) return 0;
 
-    if (errno == ERANGE && (x == HUGE_VAL || x == -HUGE_VAL)) {
-        errno = 0;
-        throw "out of range for double";
-    }
-
-    if (end != s + strlen(s)) {
-        throw "invalid value for double";
-    }
-
-    return x;
+    if (end == s + strlen(s)) return x;
+    err::set(EINVAL);
+    return 0;
 }
 
 } // namespace str

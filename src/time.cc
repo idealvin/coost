@@ -45,10 +45,9 @@ fastring str(const char* fm) {
     struct tm t;
     localtime_r(&x, &t);
 
-    fastring s(32); // 32 is big enough in most cases
-    const size_t r = strftime((char*)s.data(), 32, fm, &t);
-    s.resize(r);
-    return s;
+    char buf[256];
+    const size_t r = strftime(buf, sizeof(buf), fm, &t);
+    return fastring(buf, r);
 }
 
 } // now
@@ -72,15 +71,18 @@ int64 us() {
 namespace ___ {
 namespace sleep {
 
-void ms(unsigned int ms) {
+void ms(uint32 n) {
     struct timespec ts;
-    ts.tv_sec = ms / 1000;
-    ts.tv_nsec = ms % 1000 * 1000000;
+    ts.tv_sec = n / 1000;
+    ts.tv_nsec = n % 1000 * 1000000;
     while (nanosleep(&ts, &ts) == -1 && errno == EINTR);
 }
 
-void sec(unsigned int s) {
-    return sleep::ms(s * 1000);
+void sec(uint32 n) {
+    struct timespec ts;
+    ts.tv_sec = n;
+    ts.tv_nsec = 0;
+    while (nanosleep(&ts, &ts) == -1 && errno == EINTR);
 }
 
 } // sleep

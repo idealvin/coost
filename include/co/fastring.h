@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning (disable:4706)
+#endif
+
 #include "fast.h"
 #include "hash/murmur_hash.h"
 #include <string>

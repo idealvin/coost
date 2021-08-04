@@ -1,11 +1,9 @@
 #pragma once
 
-#ifdef CO_SSL
-#include "tcp.h"
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 namespace ssl {
+
+typedef void S; // SSL
+typedef void C; // SSL_CTX
 
 /**
  * get ssl error message 
@@ -22,28 +20,7 @@ namespace ssl {
  * 
  * @return   a pointer to the error message.
  */
-const char* strerror(SSL* s=0);
-
-/**
- * wrapper for ERR_peek_error 
- *   - Peek the earliest error code from the thread's error queue without modifying it.
- * 
- * @return  an error code or 0 if there is no error in the queue.
- */
-inline unsigned long peek_error() { return ERR_peek_error(); }
-
-/**
- * wrapper for SSL_get_error 
- *   - obtain result code for TLS/SSL I/O operation such as: 
- *     SSL_connect(), SSL_accept(), SSL_do_handshake(), SSL_read() or SSL_write()
- * 
- * @param s  a pointer to a SSL.
- * @param r  the return value of a TLS/SSL I/O function.
- * 
- * @return   a result code, see details here:
- *           https://www.openssl.org/docs/man1.1.0/man3/SSL_get_error.html
- */
-inline int get_error(SSL* s, int r) { return SSL_get_error(s, r); }
+const char* strerror(S* s=0);
 
 /**
  * create a SSL_CTX
@@ -52,34 +29,28 @@ inline int get_error(SSL* s, int r) { return SSL_get_error(s, r); }
  * 
  * @return   a pointer to SSL_CTX on success, NULL on error.
  */
-inline SSL_CTX* new_ctx(char c) {
-    static bool x = []() {
-        (void) SSL_library_init();
-        OpenSSL_add_all_algorithms();
-        SSL_load_error_strings();
-        return true;
-    }();
-    return SSL_CTX_new(c == 's' ? TLS_server_method(): TLS_client_method());
-}
+C* new_ctx(char c);
 
 /**
  * create a SSL_CTX for server
  * 
  * @return  a pointer to SSL_CTX on success, NULL on error.
  */
-inline SSL_CTX* new_server_ctx() { return new_ctx('s'); }
+inline C* new_server_ctx() { return new_ctx('s'); }
 
 /**
  * create a SSL_CTX for client
  * 
  * @return  a pointer to SSL_CTX on success, NULL on error.
  */
-inline SSL_CTX* new_client_ctx() { return new_ctx('c'); }
+inline C* new_client_ctx() { return new_ctx('c'); }
 
 /**
  * wrapper for SSL_CTX_free
+ * 
+ * @param c  a pointer to SSL_CTX
  */
-inline void free_ctx(SSL_CTX* c) { SSL_CTX_free(c); }
+void free_ctx(C* c);
 
 /**
  * wrapper for SSL_new
@@ -89,12 +60,14 @@ inline void free_ctx(SSL_CTX* c) { SSL_CTX_free(c); }
  * 
  * @return   a pointer to SSL on success, NULL on error.
  */
-inline SSL* new_ssl(SSL_CTX* c) { return SSL_new(c); }
+S* new_ssl(C* c);
 
 /**
  * wrapper for SSL_free 
+ * 
+ * @param s  a pointer to SSL
  */
-inline void free_ssl(SSL* s) { SSL_free(s); }
+void free_ssl(S* s);
 
 /**
  * wrapper for SSL_set_fd 
@@ -105,7 +78,7 @@ inline void free_ssl(SSL* s) { SSL_free(s); }
  * 
  * @return    1 on success, 0 on error.
  */
-inline int set_fd(SSL* s, int fd) { return SSL_set_fd(s, fd); }
+int set_fd(S* s, int fd);
 
 /**
  * wrapper for SSL_get_fd 
@@ -115,7 +88,7 @@ inline int set_fd(SSL* s, int fd) { return SSL_set_fd(s, fd); }
  * 
  * @return   a socket fd >= 0 on success, or -1 on error.
  */
-inline int get_fd(const SSL* s) { return SSL_get_fd(s); }
+int get_fd(const S* s);
 
 /**
  * wrapper for SSL_CTX_use_PrivateKey_file 
@@ -125,9 +98,7 @@ inline int get_fd(const SSL* s) { return SSL_get_fd(s); }
  * 
  * @return      1 on success, otherwise failed.
  */
-inline int use_private_key_file(SSL_CTX* c, const char* path) {
-    return SSL_CTX_use_PrivateKey_file(c, path, SSL_FILETYPE_PEM);
-}
+int use_private_key_file(C* c, const char* path);
 
 /**
  * wrapper for SSL_CTX_use_certificate_file 
@@ -137,9 +108,7 @@ inline int use_private_key_file(SSL_CTX* c, const char* path) {
  * 
  * @return      1 on success, otherwise failed.
  */
-inline int use_certificate_file(SSL_CTX* c, const char* path) {
-    return SSL_CTX_use_certificate_file(c, path, SSL_FILETYPE_PEM);
-}
+int use_certificate_file(C* c, const char* path);
 
 /**
  * wrapper for SSL_CTX_check_private_key 
@@ -149,9 +118,7 @@ inline int use_certificate_file(SSL_CTX* c, const char* path) {
  * 
  * @return   1 on success, otherwise failed.
  */
-inline int check_private_key(const SSL_CTX* c) {
-    return SSL_CTX_check_private_key(c);
-}
+int check_private_key(const C* c);
 
 /**
  * shutdown a ssl connection 
@@ -171,7 +138,7 @@ inline int check_private_key(const SSL_CTX* c) {
  * @return    1 on success, 
  *           <0 on any error, call ssl::strerror() to get the error message. 
  */
-int shutdown(SSL* s, int ms=3000);
+int shutdown(S* s, int ms=3000);
 
 /**
  * wait for a TLS/SSL client to initiate a handshake 
@@ -184,7 +151,7 @@ int shutdown(SSL* s, int ms=3000);
  * @return    1 on success, a TLS/SSL connection has been established. 
  *          <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int accept(SSL* s, int ms=-1);
+int accept(S* s, int ms=-1);
 
 /**
  * initiate the handshake with a TLS/SSL server
@@ -197,7 +164,7 @@ int accept(SSL* s, int ms=-1);
  * @return    1 on success, a TLS/SSL connection has been established. 
  *          <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int connect(SSL* s, int ms=-1);
+int connect(S* s, int ms=-1);
 
 /**
  * recv data from a TLS/SSL connection 
@@ -212,7 +179,7 @@ int connect(SSL* s, int ms=-1);
  * @return    >0  bytes recieved. 
  *           <=0  an error occured, call ssl::strerror() to get the error message. 
  */
-int recv(SSL* s, void* buf, int n, int ms=-1);
+int recv(S* s, void* buf, int n, int ms=-1);
 
 /**
  * recv n bytes from a TLS/SSL connection 
@@ -228,7 +195,7 @@ int recv(SSL* s, void* buf, int n, int ms=-1);
  * @return     n on success (all n bytes has been recieved). 
  *           <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int recvn(SSL* s, void* buf, int n, int ms=-1);
+int recvn(S* s, void* buf, int n, int ms=-1);
 
 /**
  * send data on a TLS/SSL connection 
@@ -244,7 +211,7 @@ int recvn(SSL* s, void* buf, int n, int ms=-1);
  * @return     n on success (all n bytes has been sent out), 
  *           <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int send(SSL* s, const void* buf, int n, int ms=-1);
+int send(S* s, const void* buf, int n, int ms=-1);
 
 /**
  * check whether a previous API call has timed out 
@@ -253,160 +220,6 @@ int send(SSL* s, const void* buf, int n, int ms=-1);
  * 
  * @return  true if timed out, otherwise false.
  */
-inline bool timeout() { return co::timeout(); }
-
-/**
- * ssl server based on coroutine 
- *   - It is designed to work with TCP. 
- */
-class Server {
-  public:
-    Server();
-    ~Server();
-
-    /**
-     * set a callback for handling a ssl connection 
-     *   - The user MUST call ssl::free_ssl() to free the SSL when the connection was closed.
-     * 
-     * @param f  either a pointer to void f(SSL*), or a reference of std::function<void(SSL*)>.
-     */
-    void on_connection(std::function<void(SSL*)>&& f) {
-        _on_ssl_connection = std::move(f);
-    }
-
-    /**
-     * set a callback for handling a ssl connection 
-     *   - The user MUST call ssl::free_ssl() to free the SSL when the connection was closed.
-     * 
-     * @param f  pointer to a method with a parameter of type SSL* in class T.
-     * @param o  pointer to an object of class T.
-     */
-    template<typename T>
-    void on_connection(void (T::*f)(SSL*), T* o) {
-        _on_ssl_connection = std::bind(f, o, std::placeholders::_1);
-    }
-
-    /**
-     * start the ssl server 
-     *   - The server will loop in a coroutine, and it will not block the calling thread. 
-     *   - The user MUST call on_connection() to set a connection callback before start() 
-     *     was called. 
-     * 
-     * @param ip    server ip, either an ipv4 or ipv6 address. 
-     *              if ip is NULL or empty, "0.0.0.0" will be used by default.
-     * @param port  server port.
-     * @param key   path of private key file.
-     * @param ca    path of certificate file.
-     */
-    void start(const char* ip, int port, const char* key, const char* ca);
-
-  private:
-    tcp::Server _tcp_serv;
-    SSL_CTX* _ctx;
-    std::function<void(SSL*)> _on_ssl_connection;
-
-    void on_tcp_connection(sock_t fd);
-
-    DISALLOW_COPY_AND_ASSIGN(Server);
-};
-
-/**
- * ssl client based on coroutine 
- *   - It is designed to work with TCP. 
- */
-class Client {
-  public:
-    Client(const char* serv_ip, int serv_port);
-    ~Client() { this->disconnect(); }
-
-    int recv(void* buf, int n, int ms=-1) {
-        return ssl::recv(_ssl, buf, n, ms);
-    }
-
-    int recvn(void* buf, int n, int ms=-1) {
-        return ssl::recvn(_ssl, buf, n, ms);
-    }
-
-    int send(const void* buf, int n, int ms=-1) {
-        return ssl::send(_ssl, buf, n, ms);
-    }
-
-    bool connected() const { return _ssl != NULL; }
-
-    /**
-     * connect to the ssl server 
-     *   - It MUST be called in the thread that performed the I/O operation. 
-     *
-     * @param ms  timeout in milliseconds
-     */
-    bool connect(int ms);
-
-    /**
-     * close the connection 
-     *   - It MUST be called in the thread that performed the I/O operation. 
-     *   - The underlying tcp connection will also be closed. 
-     */
-    void disconnect();
-
-    SSL* ssl() const { return _ssl; }
-
-  private:
-    tcp::Client _tcp_cli;
-    SSL_CTX* _ctx;
-    SSL* _ssl;
-
-    DISALLOW_COPY_AND_ASSIGN(Client);
-};
-
-struct Connection : public tcp::Connection {
-    Connection(SSL* ssl) : tcp::Connection(ssl::get_fd(ssl)), s(ssl) {}
-    virtual ~Connection() = default;
-
-    virtual int recv(void* buf, int n, int ms) {
-        return ssl::recv(s, buf, n, ms);
-    }
-
-    virtual int recvn(void* buf, int n, int ms) {
-        return ssl::recvn(s, buf, n, ms);
-    }
-
-    virtual int send(const void* buf, int n, int ms) {
-        return ssl::send(s, buf, n, ms);
-    }
-
-    /**
-     * close the connection
-     *
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
-    virtual int close(int ms=0) {
-        ssl::shutdown(s);
-        ssl::free_ssl(s);
-        return tcp::Connection::close(ms);
-    }
-
-    /**
-     * reset the connection
-     *
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
-    virtual int reset(int ms=0) {
-        ssl::free_ssl(s);
-        return tcp::Connection::reset(ms);
-    }
-
-    /**
-     * get error message of the last I/O operation 
-     *   - If an error occured in send() or recv(), the user can call this method 
-     *     to get the error message. 
-     */
-    virtual const char* strerror() const {
-        return ssl::strerror(s);
-    }
-
-    SSL* s;
-};
+bool timeout();
 
 } // ssl
-
-#endif

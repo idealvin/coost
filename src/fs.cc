@@ -1,12 +1,14 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
-#include "co/co/hook.h"
+#include "./co/hook.h"
 #include <assert.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <errno.h>
 
 namespace fs {
 
@@ -61,7 +63,10 @@ bool remove(const char* path, bool rf) {
     } else {
         fastring cmd(strlen(path) + 9);
         cmd.append("rm -rf \"").append(path).append('"');
-        return system(cmd.c_str()) != -1;
+        FILE* f = popen(cmd.c_str(), "w");
+        if (f == NULL) return false;
+        return pclose(f) != -1;
+        //return system(cmd.c_str()) != -1;
     }
 }
 
@@ -111,13 +116,15 @@ file::operator bool() const {
 
 const fastring& file::path() const {
     fctx* p = (fctx*) _p;
-    return p->path;
+    if (p) return p->path;
+    static fastring kPath;
+    return kPath;
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
     fctx* p = (fctx*) _p;
-    if (!p) _p = p = new fctx;
+    if (!p) _p = (p = new fctx);
     p->path = path;
     return (p->fd = xx::open(path, mode)) != nullfd;
 }
@@ -125,19 +132,40 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*) _p;
     if (!p || p->fd == nullfd) return;
-    raw_close(p->fd);
+    while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
     p->fd = nullfd;
 }
 
 void file::seek(int64 off, int whence) {
     static int seekfrom[3] = { SEEK_SET, SEEK_CUR, SEEK_END };
-    whence = seekfrom[whence];
-    ::lseek(((fctx*)_p)->fd, off, whence);
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        whence = seekfrom[whence];
+        ::lseek(p->fd, off, whence);
+    }
 }
 
 size_t file::read(void* s, size_t n) {
-    int64 r = raw_read(((fctx*)_p)->fd, s, n);
-    return r < 0 ? 0 : (size_t)r;
+    fctx* p = (fctx*)_p;
+    if (!p || p->fd == nullfd) return 0;
+
+    char* c = (char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
+        size_t toread = (remain < N ? remain : N);
+        auto r = CO_RAW_API(read)(p->fd, c, toread);
+        if (r > 0) {
+            remain -= (size_t)r;
+            if (remain == 0) return n;
+            c += (size_t)r;
+        } else if (r == 0) { /* end of file */
+            return n - remain;
+        } else {
+            if (errno != EINTR) return n - remain;
+        }
+    }
 }
 
 fastring file::read(size_t n) {
@@ -147,8 +175,24 @@ fastring file::read(size_t n) {
 }
 
 size_t file::write(const void* s, size_t n) {
-    int64 r = raw_write(((fctx*)_p)->fd, s, n);
-    return r < 0 ? 0 : (size_t)r;
+    fctx* p = (fctx*)_p;
+    if (!p || p->fd == nullfd) return 0;
+
+    const char* c = (const char*)s;
+    size_t remain = n;
+    const size_t N = 1u << 30; // 1G
+
+    while (true) {
+        size_t towrite = (remain < N ? remain : N);
+        auto r = CO_RAW_API(write)(p->fd, c, towrite);
+        if (r >= 0) {
+            remain -= (size_t)r;
+            if (remain == 0) return n;
+            c += (size_t)r;
+        } else {
+            if (errno != EINTR) return n - remain;
+        }
+    }
 }
 
 #undef nullfd

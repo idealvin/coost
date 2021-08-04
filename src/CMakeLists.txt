@@ -1,5 +1,11 @@
 file(GLOB_RECURSE CC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
+include(CheckIncludeFiles)
+check_include_files(execinfo.h HAS_EXECINFO)
+if(HAS_EXECINFO)
+    add_definitions(-DHAS_EXECINFO_H)
+endif()
+
 if(UNIX)
     add_library(co
         ${CC_FILES}
@@ -8,8 +14,6 @@ if(UNIX)
 endif()
 
 if(WIN32)
-    file(GLOB_RECURSE CPP_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-
     set(ASM_FILES co/context/context_x86.asm)
     if(${CMAKE_SIZEOF_VOID_P} EQUAL 8)
         set(ASM_FILES co/context/context_x64.asm)
@@ -19,8 +23,13 @@ if(WIN32)
 
     add_library(co
         ${CC_FILES}
-        ${CPP_FILES}
         ${ASM_FILES}
+        __/StackWalker.cpp
+        co/detours/creatwth.cpp
+        co/detours/detours.cpp
+        co/detours/image.cpp
+        co/detours/modules.cpp
+        co/detours/disasm.cpp
     )
 endif()
 

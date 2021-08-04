@@ -15,23 +15,24 @@ void udp_server_fun() {
     char buf[4];
     char pong[4]; memcpy(pong, "pong", 4);
 
+    LOG << "server start";
     while (true) {
         len = sizeof(cli);
         int r = co::recvfrom(fd, buf, 4, &cli, &len);
         if (r >= 0) {
-            COUT << "server recv " << fastring(buf, r) << " from "
+            LOG << "server recv " << fastring(buf, r) << " from "
                  << co::ip_str(&cli) << ':' << ntoh16(cli.sin_port);
 
             //r = co::sendto(fd, "pong", 4, &cli, len);
             r = co::sendto(fd, pong, 4, &cli, len);
             if (r == -1) {
-                COUT << "server sendto error: " << co::strerror();
+                LOG << "server sendto error: " << co::strerror();
                 break;
             } else {
-                COUT << "server send pong ok";
+                LOG << "server send pong ok";
             }
         } else {
-            COUT << "server recvfrom error: " << co::strerror();
+            LOG << "server recvfrom error: " << co::strerror();
             break;
         }
     }
@@ -52,16 +53,16 @@ void udp_client_fun() {
         //int r = co::sendto(fd, "ping", 4, &addr, sizeof(addr));
         int r = co::sendto(fd, ping, 4, &addr, sizeof(addr));
         if (r == -1) {
-            COUT << "client sendto error: " << co::strerror();
+            LOG << "client sendto error: " << co::strerror();
             break;
         } else {
-            COUT << "client send ping ok";
+            LOG << "client send ping ok";
             r = co::recvfrom(fd, buf, 4, NULL, NULL);
             if (r == -1) {
-                COUT << "client recvform error: " << co::strerror();
+                LOG << "client recvform error: " << co::strerror();
                 break;
             } else {
-                COUT << "client recv " << fastring(buf, r) << '\n';
+                LOG << "client recv " << fastring(buf, r) << '\n';
                 co::sleep(3000);
             }
         }
@@ -73,6 +74,7 @@ void udp_client_fun() {
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+    FLG_cout = true;
 
     go(udp_server_fun);
     sleep::ms(32);

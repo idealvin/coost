@@ -1,10 +1,13 @@
 #pragma once
 
 #include "sock.h"
-#include "scheduler.h"
 
 namespace co {
-using xx::gSched;
+
+enum io_event_t {
+    ev_read = 1,
+    ev_write = 2,
+};
 
 #ifdef _WIN32
 #ifdef _MSC_VER
@@ -14,62 +17,79 @@ using xx::gSched;
 /**
  * IoEvent is for waiting an IO event on a socket 
  *   - It MUST be used in a coroutine. 
- *   - The socket MUST be non-blocking and overlapped on windows.
- *   - On windows, we MUST add a socket to IOCP before we call APIs like WSARecv. 
+ *   - This is different from IoEvent for linux & mac. Windows users should be 
+ *     careful. See details in the comments below.
  */
 class IoEvent {
   public:
     struct PerIoInfo {
-        PerIoInfo() {
-            memset(this, 0, sizeof(*this));
-            co = gSched->running();
-        }
+        // co::waitx_t:  {co, state}
+        void* co;        // Coroutine
+        union {
+            uint8 state; // co_state_t
+            void* dummy;
+        };
 
         WSAOVERLAPPED ol;
-        void* co;     // user data, pointer to a coroutine
         DWORD n;      // bytes transfered
         DWORD flags;  // flags for WSARecv, WSARecvFrom
-        uint32 sn;    // serial number
         WSABUF buf;   // buffer for WSARecv, WSARecvFrom, WSASend, WSASendTo
         char s[];     // extra buffer allocated
     };
+    
+    static const int nb_tcp_recv = 1; // recv on non-blocking tcp socket
+    static const int nb_tcp_send = 2; // send on non-blocking tcp socket
+    static const int nb_tcp_conn = 4; // connect on non-blocking tcp socket
 
     /**
-     * the constructor 
-     *   - In this case, no IO event is specified. The user MUST post an IO task 
-     *     to IOCP manually before the wait() is called.
+     * the constructor with IO event on a non-blocking TCP socket 
+     *   - This case works for non-blocking TCP sockets only.
+     *   - eg.
+     *     co::IoEvent ev(fd, co::ev_read);
+     *     do {
+     *         int r = ::recv(fd, buf, n, 0);
+     *         if (r != -1) return r;
+     *         if (co::error() == WSAEWOULDBLOCK) {
+     *             if (!ev.wait(ms)) return -1;
+     *         } else {
+     *             return -1;
+     *         }
+     *     } while (true);
+     * 
+     * @param fd  a TCP socket, it MUST be non-blocking and overlapped.
+     * @param ev  the IO event, either ev_read or ev_write.
+     */
+    IoEvent(sock_t fd, io_event_t ev);
+
+    /**
+     * the constructor without any IO event 
+     *   - This case works for any overlapped sockets.
      *   - If n > 0, an extra n-byte buffer will be allocated with the PerIoInfo, 
-     *     the user can use IoEvent->s to access the extra buffer later. 
+     *     and users can use IoEvent->s to access the extra buffer. 
+     *   - eg.
+     *     IoEvent ev(fd, n);   // alloc extra n bytes for recv
+     *     ev->buf.buf = ev->s; // extra buffer
+     *     ev->buf.len = n;     // buffer size
+     *     int r = WSARecv(fd, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
+     *     if (r == 0) {
+     *         if (!can_skip_iocp_on_success) ev.wait();
+     *     } else if (co::error() == WSA_IO_PENDING) {
+     *         if (!ev.wait(ms)) return -1;
+     *     } else {
+     *         return -1;
+     *     }
+     *     memcpy(user_buf, ev->s, ev->n); // copy data into user buffer
+     *     return (int) ev->n;             // return bytes transfered
      * 
-     * @param fd  the socket.
-     * @param n   extra bytes to be allocated for PerIoInfo.
+     * @param fd  an overlapped socket, support both TCP and UDP, and it is not 
+     *            necessary to be non-blocking.
+     * @param n   extra bytes to be allocated with PerIoInfo.
      */
-    IoEvent(sock_t fd, int n=0)
-        : _fd(fd), _ev(0) {
-        gSched->add_io_event(fd, EV_read);
-        _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
-    }
+    IoEvent(sock_t fd, int n=0);
 
-    /**
-     * the constructor 
-     *   - In this case, an IO task will be added to IOCP at the beginning of wait(). 
-     * 
-     * @param fd  the socket.
-     * @param ev  the IO event, either EV_read or EV_write.
-     * @param n   extra bytes to be allocated for PerIoInfo.
-     */
-    IoEvent(sock_t fd, io_event_t ev, int n=0)
-        : _fd(fd), _ev(ev) {
-        gSched->add_io_event(fd, ev);
-        _info = new (malloc(sizeof(PerIoInfo) + n)) PerIoInfo();
-    }
+    IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n = 0);
 
-    ~IoEvent() {
-        if (_info->co) {
-            _info->~PerIoInfo();
-            free(_info);
-        }
-    }
+    ~IoEvent();
 
     PerIoInfo* operator->() const {
         return _info;
@@ -77,48 +97,26 @@ class IoEvent {
 
     /**
      * wait for an IO event on a socket 
-     *   - If _ev is EV_read or EV_write, WSARecv or WSASend will be called to 
-     *     post an IO task to IOCP. As the buffer in PerIoInfo is NULL, no data 
-     *     will be copied by IOCP. We just need IOCP to notify us that the socket 
-     *     is readable or writable.
-     *   - The errno will be set to ETIMEDOUT on timeout. The user can call 
-     *     co::error() to get the errno later. 
+     *   - If the first constructor was used, no data will be transfered by IOCP. 
+     *     wait() blocks until the socket is readable or writable, or timeout, or 
+     *     any error occured.
+     *   - If the second constructor was used, users MUST firstly create an IoEvent, 
+     *     and call WSARecv, WSASend or other APIs to post an IO operation to IOCP, 
+     *     and then call wait() to wait for the operation to be done.
      * 
-     * @param ms  timeout in milliseconds, if ms < 0, it will never timeout. 
-     *            default: -1. 
+     * @param ms  timeout in milliseconds, default: -1, never timeout. 
      * 
-     * @return    true if an IO event is present, or false on timeout or error.
+     * @return    true if an IO event is present or the IO operation was done, 
+     *            or false on timeout or error.
      */
-    bool wait(int ms=-1) {
-        if (_ev == EV_read) {
-            const int r = WSARecv(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
-            if (r == -1 && co::error() != WSA_IO_PENDING) return false;
-        } else if (_ev == EV_write) {
-            const int r = WSASend(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
-            if (r == -1 && co::error() != WSA_IO_PENDING) return false;
-        }
-
-        if (ms >= 0) {
-            gSched->add_io_timer(ms);
-            gSched->yield();
-            if (!gSched->timeout()) {
-                return true;
-            } else {
-                CancelIo((HANDLE)_fd);
-                WSASetLastError(ETIMEDOUT);
-                _info->co = 0;
-                return false;
-            }
-        } else {
-            gSched->yield();
-            return true; 
-        }
-    }
+    bool wait(uint32 ms=(uint32)-1);
 
   private:
     sock_t _fd;
-    int _ev;
     PerIoInfo* _info;
+    char* _to;
+    int _nb_tcp; // for non-blocking tcp socket
+    DISALLOW_COPY_AND_ASSIGN(IoEvent);
 };
 
 #else
@@ -132,52 +130,31 @@ class IoEvent {
     /**
      * the constructor 
      * 
-     * @param fd  the socket.
-     * @param ev  the IO event, either EV_read or EV_write.
+     * @param fd  a non-blocking socket.
+     * @param ev  the IO event, either ev_read or ev_write.
      */
     IoEvent(sock_t fd, io_event_t ev)
         : _fd(fd), _ev(ev), _has_ev(false) {
     }
 
-    ~IoEvent() {
-        if (_has_ev) gSched->del_io_event(_fd, _ev);
-    }
+    // remove IO event from epoll or kqueue.
+    ~IoEvent();
 
     /**
      * wait for an IO event on a socket 
-     *   - The errno will be set to ETIMEDOUT on timeout. The user can call 
-     *     co::error() to get the errno later. 
+     *   - wait() blocks until the IO event is present, or timeout, or any error occured. 
      * 
-     * @param ms  timeout in milliseconds, if ms < 0, it will never timeout. 
-     *            default: -1. 
+     * @param ms  timeout in milliseconds, default: -1, never timeout. 
      * 
      * @return    true if an IO event is present, or false on timeout or error.
      */
-    bool wait(int ms=-1) {
-        if (!_has_ev) {
-            _has_ev = gSched->add_io_event(_fd, _ev);
-            if (!_has_ev) return false;
-        }
-
-        if (ms >= 0) {
-            gSched->add_io_timer(ms);
-            gSched->yield();
-            if (!gSched->timeout()) {
-                return true;
-            } else {
-                errno = ETIMEDOUT;
-                return false;
-            }
-        } else {
-            gSched->yield();
-            return true;
-        }
-    }
+    bool wait(uint32 ms=(uint32)-1);
 
   private:
     sock_t _fd;
     io_event_t _ev;
     bool _has_ev;
+    DISALLOW_COPY_AND_ASSIGN(IoEvent);
 };
 #endif
 

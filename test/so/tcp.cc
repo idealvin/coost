@@ -2,28 +2,27 @@
 
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
+DEF_int32(client_num, 1, "client num");
 
-void on_connection(sock_t fd) {
-    co::set_tcp_keepalive(fd);
-    co::set_tcp_nodelay(fd);
-
+void on_connection(tcp::Connection* conn) {
+    std::unique_ptr<tcp::Connection> c(conn);
     char buf[8] = { 0 };
 
     while (true) {
-        int r = co::recv(fd, buf, 8);
+        int r = conn->recv(buf, 8);
         if (r == 0) {         /* client close the connection */
-            co::close(fd);
+            conn->close();
             break;
-        } else if (r == -1) { /* error */
-            co::reset_tcp_socket(fd, 3000);
+        } else if (r < 0) { /* error */
+            conn->reset(3000);
             break;
         } else {
-            COUT << "server recv " << fastring(buf, r);
-            COUT << "server send pong";
-            r = co::send(fd, "pong", 4);
-            if (r == -1) {
-                COUT << "server send error: " << co::strerror();
-                co::reset_tcp_socket(fd, 3000);
+            LOG << "server recv " << fastring(buf, r);
+            LOG << "server send pong";
+            r = conn->send("pong", 4);
+            if (r <= 0) {
+                LOG << "server send error: " << conn->strerror();
+                conn->reset(3000);
                 break;
             }
         }
@@ -32,30 +31,32 @@ void on_connection(sock_t fd) {
 
 void client_fun() {
     tcp::Client c(FLG_ip.c_str(), FLG_port);
+
     if (!c.connect(3000)) {
-        COUT << "failed to connect to server " << FLG_ip << ':' << FLG_port;
+        LOG << "failed to connect to server " << FLG_ip << ':' << FLG_port
+            << " error: " << c.strerror();
         return;
     }
 
     char buf[8] = { 0 };
 
     while (true) {
-        COUT << "client send ping";
+        LOG << "client send ping";
         int r = c.send("ping", 4);
-        if (r == -1) {
-            COUT << "client send error: " << co::strerror();
+        if (r <= 0) {
+            LOG << "client send error: " << c.strerror();
             break;
         }
 
         r = c.recv(buf, 8);
-        if (r == -1) {
-            COUT << "client recv error: " << co::strerror();
+        if (r < 0) {
+            LOG << "client recv error: " << c.strerror();
             break;
         } else if (r == 0) {
-            COUT << "server close the connection";
+            LOG << "server close the connection";
             break;
         } else {
-            COUT << "client recv " << fastring(buf, r) << '\n';
+            LOG << "client recv " << fastring(buf, r) << '\n';
             co::sleep(3000);
         }
     }
@@ -63,15 +64,63 @@ void client_fun() {
     c.disconnect();
 }
 
+co::Pool gPool(
+    []() { return (void*) new tcp::Client(FLG_ip.c_str(), FLG_port); },
+    [](void* p) { delete (tcp::Client*) p; }
+);
+
+// we don't need to close the connection manually with co::Pool.
+void client_with_pool() {
+    co::PoolGuard<tcp::Client> c(gPool);
+
+    if (!c->connect(3000)) {
+        LOG << "failed to connect to server " << FLG_ip << ':' << FLG_port
+            << " error: " << c->strerror();
+        return;
+    }
+
+    char buf[8] = { 0 };
+
+    while (true) {
+        LOG << "client send ping";
+        int r = c->send("ping", 4);
+        if (r <= 0) {
+            LOG << "client send error: " << c->strerror();
+            break;
+        }
+
+        r = c->recv(buf, 8);
+        if (r < 0) {
+            LOG << "client recv error: " << c->strerror();
+            break;
+        } else if (r == 0) {
+            LOG << "server close the connection";
+            break;
+        } else {
+            LOG << "client recv " << fastring(buf, r) << '\n';
+            co::sleep(3000);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
+    log::init();
+    FLG_cout = true;
 
     tcp::Server s;
     s.on_connection(on_connection);
     s.start(FLG_ip.c_str(), FLG_port);
 
     sleep::ms(32);
-    go(client_fun);
+
+    if (FLG_client_num > 1) {
+        for (int i = 0; i < FLG_client_num; ++i) {
+            go(client_with_pool);
+        }
+    } else {
+        go(client_fun);
+    }
 
     while (true) sleep::sec(1024);
 

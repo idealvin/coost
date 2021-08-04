@@ -1,14 +1,106 @@
+#include "co/co.h"
 #include "co/so/tcp.h"
+#include "co/so/ssl.h"
 #include "co/log.h"
 #include "co/str.h"
 
+DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
+
 namespace tcp {
 
+int Connection::recv(void* buf, int n, int ms) {
+    return co::recv(_fd, buf, n, ms);
+}
+
+int Connection::recvn(void* buf, int n, int ms) {
+    return co::recvn(_fd, buf, n, ms);
+}
+
+int Connection::send(const void* buf, int n, int ms) {
+    return co::send(_fd, buf, n, ms);
+}
+
+int Connection::close(int ms) {
+    if (_fd != -1) {
+        int r = co::close(_fd, ms);
+        _fd = -1;
+        return r;
+    }
+    return 0;
+}
+
+int Connection::reset(int ms) {
+    if (_fd != -1) {
+        int r = co::reset_tcp_socket(_fd, ms);
+        _fd = -1;
+        return r;
+    }
+    return 0;
+}
+
+const char* Connection::strerror() const {
+    return co::strerror();
+}
+
+struct SSLConnection : public tcp::Connection {
+    SSLConnection(ssl::S* ssl) : tcp::Connection(ssl::get_fd(ssl)), s(ssl) {}
+    virtual ~SSLConnection() { this->close(); };
+
+    virtual int recv(void* buf, int n, int ms=-1) {
+        return ssl::recv(s, buf, n, ms);
+    }
+
+    virtual int recvn(void* buf, int n, int ms=-1) {
+        return ssl::recvn(s, buf, n, ms);
+    }
+
+    virtual int send(const void* buf, int n, int ms=-1) {
+        return ssl::send(s, buf, n, ms);
+    }
+
+    virtual int close(int ms=0) {
+        if (s) {
+            ssl::shutdown(s);
+            ssl::free_ssl(s);
+            s = 0;
+            return tcp::Connection::close(ms);
+        }
+        return 0;
+    }
+
+    virtual int reset(int ms=0) {
+        if (s) {
+            ssl::free_ssl(s);
+            s = 0;
+            return tcp::Connection::reset(ms);
+        }
+        return 0;
+    }
+
+    virtual const char* strerror() const {
+        return ssl::strerror(s);
+    }
+
+    ssl::S* s;
+};
+
 struct ServerParam {
+    ServerParam(const char* ip, int port, std::function<void(Connection*)>&& on_connection)
+        : ip((ip && *ip) ? ip : "0.0.0.0"), port(str::from(port)), 
+          on_connection(std::move(on_connection)), ssl_ctx(0) {
+    }
+
+    ~ServerParam() {
+        if (ssl_ctx) ssl::free_ctx((ssl::C*)ssl_ctx);
+    }
+
     fastring ip;
     fastring port;
     sock_t fd;
     sock_t connfd;
+    std::function<void(Connection*)> on_connection;
+    std::function<void(sock_t)> on_conn_fd;
+    void* ssl_ctx; // SSL_CTX
 
     // use union here to support both ipv4 and ipv6
     union {
@@ -18,15 +110,75 @@ struct ServerParam {
     int addrlen;
 };
 
-void Server::start(const char* ip, int port) {
-    CHECK(_on_connection != NULL) << "connection callback not set..";
-    ServerParam* p = new ServerParam();
-    p->ip = ((ip && *ip) ? ip : "0.0.0.0");
-    p->port = str::from(port);
-    go(&Server::loop, this, (void*)p);
+/**
+ * the server loop 
+ *   - It listens on a port and waits for connections. 
+ *   - When a connection is accepted, it will start a new coroutine and call 
+ *     the connection callback to handle the connection. 
+ */
+static void server_loop(void* p);
+
+static void on_tcp_connection(ServerParam* p, sock_t fd) {
+    co::set_tcp_keepalive(fd);
+    co::set_tcp_nodelay(fd);
+    p->on_connection(new tcp::Connection((int)fd));
 }
 
-void Server::loop(void* arg) {
+static void on_ssl_connection(ServerParam* p, sock_t fd) {
+    co::set_tcp_keepalive(fd);
+    co::set_tcp_nodelay(fd);
+
+    ssl::S* s = ssl::new_ssl((ssl::C*)p->ssl_ctx);
+    if (s == NULL) goto new_ssl_err;
+    if (ssl::set_fd(s, (int)fd) != 1) goto set_fd_err;
+    if (ssl::accept(s, FLG_ssl_handshake_timeout) <= 0) goto accept_err;
+
+    p->on_connection(new SSLConnection(s));
+    return;
+
+  new_ssl_err:
+    ELOG << "new SSL failed: " << ssl::strerror();
+    goto err_end;
+  set_fd_err:
+    ELOG << "ssl set fd (" << fd << ") failed: " << ssl::strerror(s);
+    goto err_end;
+  accept_err:
+    ELOG << "ssl accept failed: " << ssl::strerror(s);
+    goto err_end;
+  err_end:
+    if (s) ssl::free_ssl(s);
+    co::close(fd, 1000);
+    return;
+}
+
+void Server::start(const char* ip, int port, const char* key, const char* ca) {
+    CHECK(_on_connection != NULL) << "connection callback not set..";
+    ServerParam* p = new ServerParam(ip, port, std::move(*_on_connection));
+
+    if (key && *key && ca && *ca) {
+        auto ctx = ssl::new_server_ctx();
+        p->ssl_ctx = ctx;
+        CHECK(ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
+
+        int r;
+        r = ssl::use_private_key_file(ctx, key);
+        CHECK_EQ(r, 1) << "ssl use private key file (" << key << ") error: " << ssl::strerror();
+
+        r = ssl::use_certificate_file(ctx, ca);
+        CHECK_EQ(r, 1) << "ssl use certificate file (" << ca << ") error: " << ssl::strerror();
+
+        r = ssl::check_private_key(ctx);
+        CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
+
+        p->on_conn_fd = std::bind(on_ssl_connection, p, std::placeholders::_1);
+        go(server_loop, (void*)p);
+    } else {
+        p->on_conn_fd = std::bind(on_tcp_connection, p, std::placeholders::_1);
+        go(server_loop, (void*)p);
+    }
+}
+
+void server_loop(void* arg) {
     std::unique_ptr<ServerParam> p((ServerParam*)arg);
 
     do {
@@ -54,19 +206,39 @@ void Server::loop(void* arg) {
         freeaddrinfo(info);
     } while (0);
 
-    LOG << "server_" << p->fd << " start: " << p->ip << ':' << p->port;
+    LOG << "server " << p->fd << " start: " << p->ip << ':' << p->port;
     while (true) {
         p->addrlen = sizeof(p->addr);
         p->connfd = co::accept(p->fd, &p->addr, &p->addrlen);
         if (unlikely(p->connfd == (sock_t)-1)) {
-            WLOG << "server_" << p->fd << " accept error: " << co::strerror();
+            WLOG << "server " << p->fd << " accept error: " << co::strerror();
             continue;
         }
 
-        DLOG << "server_" << p->fd << " accept new connection: "
+        DLOG << "server " << p->fd << " accept new connection: "
              << co::to_string(&p->addr, p->addrlen) << ", connfd: " << p->connfd;
-        go(&_on_connection, p->connfd);
+        go(&p->on_conn_fd, p->connfd);
     }
+}
+
+Client::Client(const char* ip, int port, bool use_ssl)
+    : _ip((ip && *ip) ? ip : "127.0.0.1"), _port((uint16)port),
+      _use_ssl(use_ssl), _fd(-1), _ssl(0), _ssl_ctx(0) {
+}
+
+int Client::recv(void* buf, int n, int ms) {
+    if (!_use_ssl) return co::recv(_fd, buf, n, ms);
+    return ssl::recv((ssl::S*)_ssl, buf, n, ms);
+}
+
+int Client::recvn(void* buf, int n, int ms) {
+    if (!_use_ssl) return co::recvn(_fd, buf, n, ms);
+    return ssl::recvn((ssl::S*)_ssl, buf, n, ms);
+}
+
+int Client::send(const void* buf, int n, int ms) {
+    if (!_use_ssl) return co::send(_fd, buf, n, ms);
+    return ssl::send((ssl::S*)_ssl, buf, n, ms);
 }
 
 bool Client::connect(int ms) {
@@ -75,41 +247,62 @@ bool Client::connect(int ms) {
     fastring port = str::from(_port);
     struct addrinfo* info = 0;
     int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
-    CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
-    CHECK(info != NULL);
+    if (r != 0) goto err_end;
 
-    _fd = co::tcp_socket(info->ai_family);
-    if (_fd == (sock_t)-1) {
+    CHECK_NOTNULL(info);
+    _fd = (int) co::tcp_socket(info->ai_family);
+    if (_fd == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
-        goto err;
+        goto err_end;
     }
 
     r = co::connect(_fd, info->ai_addr, (int)info->ai_addrlen, ms);
     if (r == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
-        goto err;
+        goto err_end;
     }
 
-    _sched_id = co::scheduler_id();
     co::set_tcp_nodelay(_fd);
-    freeaddrinfo(info);
+
+    if (_use_ssl) {
+        if ((_ssl_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
+        if ((_ssl = ssl::new_ssl((ssl::C*)_ssl_ctx)) == NULL) goto new_ssl_err;
+        if (ssl::set_fd((ssl::S*)_ssl, _fd) != 1) goto set_fd_err;
+        if (ssl::connect((ssl::S*)_ssl, ms) != 1) goto connect_err;
+    }
+
+    if (info) freeaddrinfo(info);
     return true;
 
-  err:
-    if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
-    if (_sched_id != -1) { _sched_id = -1; }
-    freeaddrinfo(info);
+  new_ctx_err:
+    ELOG << "ssl connect new client contex error: " << ssl::strerror();
+    goto err_end;
+  new_ssl_err:
+    ELOG << "ssl connect new SSL failed: " << ssl::strerror();
+    goto err_end;
+  set_fd_err:
+    ELOG << "ssl connect set fd (" << _fd << ") failed: " << ssl::strerror((ssl::S*)_ssl);
+    goto err_end;
+  connect_err:
+    ELOG << "ssl connect failed: " << ssl::strerror((ssl::S*)_ssl);
+    goto err_end;
+  err_end:
+    this->disconnect();
+    if (info) freeaddrinfo(info);
     return false;
 }
 
 void Client::disconnect() {
     if (this->connected()) {
-        if (_fd != (sock_t)-1) { co::close(_fd); _fd = (sock_t)-1; }
-        if (_sched_id != -1) {
-            CHECK_EQ(_sched_id, co::scheduler_id());
-            _sched_id = -1;
-        }
+        if (_ssl) { ssl::free_ssl((ssl::S*)_ssl); _ssl = 0; }
+        if (_ssl_ctx) { ssl::free_ctx((ssl::C*)_ssl_ctx); _ssl_ctx = 0; }
+        co::close(_fd); _fd = -1;
     }
+}
+
+const char* Client::strerror() const {
+    if (!_use_ssl) return co::strerror();
+    return ssl::strerror((ssl::S*)_ssl);
 }
 
 } // tcp

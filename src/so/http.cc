@@ -1,6 +1,6 @@
 #include "co/so/http.h"
 #include "co/so/tcp.h"
-#include "co/so/ssl.h"
+#include "co/co.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -12,6 +12,10 @@
 #include "co/lru_map.h"
 #include <memory>
 #include <unordered_map>
+
+#ifdef HAS_LIBCURL
+#include <curl/curl.h>
+#endif
 
 DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
 DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
@@ -38,9 +42,10 @@ namespace http {
 #ifdef HAS_LIBCURL
 struct curl_ctx {
     curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), s(-1), action(0), ms(0) {
+        : l(NULL), upload(NULL), upsize(0), s(-1), cs(-1), action(0), ms(0) {
         multi = curl_multi_init();
         easy = curl_easy_init();
+        memset(err, 0, sizeof(err));
     }
 
     ~curl_ctx() {
@@ -55,6 +60,7 @@ struct curl_ctx {
     fastream mutable_header;
     fastream body;
     std::vector<size_t> header_index;
+    char err[CURL_ERROR_SIZE];
 
     CURLM* multi;
     CURL* easy;
@@ -62,6 +68,7 @@ struct curl_ctx {
     const char* upload; // for PUT, data to upload
     size_t upsize;      // for PUT, size of the data to upload
     curl_socket_t s;
+    curl_socket_t cs;
     int action;
     int ms;
 };
@@ -100,6 +107,8 @@ void init_easy_opts(CURL* e, curl_ctx* ctx) {
     curl_easy_setopt(e, CURLOPT_CLOSESOCKETFUNCTION, easy_closesocket_cb);
     curl_easy_setopt(e, CURLOPT_CLOSESOCKETDATA, (void*)ctx);
     curl_easy_setopt(e, CURLOPT_SOCKOPTFUNCTION, easy_sockopt_cb);
+
+    curl_easy_setopt(e, CURLOPT_ERRORBUFFER, ctx->err);
 }
 
 struct curl_global {
@@ -227,7 +236,7 @@ void Client::put(const char* url, const char* data, size_t size) {
     this->perform();
 }
 
-CURL* Client::easy_handle() const {
+void* Client::easy_handle() const {
     return _ctx->easy;
 }
 
@@ -237,6 +246,7 @@ void Client::perform() {
     _ctx->header.clear();
     _ctx->body.clear();
     _ctx->header_index.clear();
+    _ctx->err[0] = '\0';
     curl_multi_add_handle(_ctx->multi, _ctx->easy);
     while (_ctx->action != 0) do_io();
     _ctx->mutable_header.clear();
@@ -249,7 +259,9 @@ int Client::response_code() const {
 }
 
 const char* Client::strerror() const {
-    return co::strerror();
+    if (_ctx->err[0]) return _ctx->err;
+    if (co::error() != 0) return co::strerror();
+    return "ok";
 }
 
 const char* Client::header(const char* key) {
@@ -302,23 +314,23 @@ void Client::do_io() {
 
     if (_ctx->action == CURL_POLL_IN) {
         curl_ev = CURL_CSELECT_IN;
-        co::IoEvent ev(_ctx->s, co::EV_read);
+        co::IoEvent ev(_ctx->s, co::ev_read);
         r = ev.wait(_ctx->ms);
     } else if (_ctx->action == CURL_POLL_OUT) {
         curl_ev = CURL_CSELECT_OUT;
-        co::IoEvent ev(_ctx->s, co::EV_write);
+        co::IoEvent ev(_ctx->s, co::ev_write);
         r = ev.wait(_ctx->ms);
     } else {
         CHECK_EQ(_ctx->action, CURL_POLL_IN | CURL_POLL_OUT);
         curl_ev = CURL_CSELECT_IN | CURL_CSELECT_OUT;
         do {
             {
-                co::IoEvent ev(_ctx->s, co::EV_write);
+                co::IoEvent ev(_ctx->s, co::ev_write);
                 r = ev.wait(_ctx->ms);
                 if (!r) break;
             }
             {
-                co::IoEvent ev(_ctx->s, co::EV_read);
+                co::IoEvent ev(_ctx->s, co::ev_read);
                 r = ev.wait(_ctx->ms);
             }
         } while (0);
@@ -358,7 +370,9 @@ int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* 
         ctx->action = action;
         break;
       case CURL_POLL_REMOVE:
-        co::scheduler()->del_io_event(s);
+        // delete io event if the socket was not created by the opensocket callback.
+        // Now we have hooked close (closesocket) globally, MAYBE no need to do this..
+        if (s != ctx->cs) co::del_io_event(s);
         ctx->s = 0;
         ctx->action = 0;
         break;
@@ -425,9 +439,10 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_
     }
 
     const int r = co::connect(fd, &addr->addr, addr->addrlen, FLG_http_conn_timeout);
-    if (r == 0) return fd;
+    if (r == 0) return (ctx->cs = fd);
 
     ELOG << "connect to " << co::to_string(&addr->addr, addr->addrlen) << " failed: " << co::strerror();
+    memcpy(ctx->err, "connect timeout", 16);
     co::close(fd);
     return CURL_SOCKET_BAD;
 }
@@ -440,6 +455,35 @@ int easy_closesocket_cb(void* userp, curl_socket_t fd) {
 int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose) {
     return CURL_SOCKOPT_ALREADY_CONNECTED;
 }
+
+#else
+Client::Client(const char*) {
+    CHECK(false)
+        << "To use http::Client, please build libco with libcurl as follow: \n"
+        << "xmake f --with_libcurl=true\n"
+        << "xmake -v";
+}
+
+Client::~Client() {}
+void Client::add_header(const char*, const char*) {}
+void Client::add_header(const char*, int) {}
+void Client::remove_header(const char*) {}
+void Client::get(const char*) {}
+void Client::head(const char*) {}
+void Client::post(const char*, const char*, size_t) {}
+void Client::put(const char*, const char*, size_t) {}
+void Client::del(const char*, const char*, size_t) {}
+void Client::set_url(const char*) {}
+void* Client::easy_handle() const { return 0; }
+void Client::perform() {}
+int Client::response_code() const { return 0; }
+const char* Client::strerror() const { return ""; }
+const char* Client::header(const char* key) { return ""; }
+const char* Client::header() const { return ""; }
+const char* Client::body() const { return ""; }
+size_t Client::body_size() const { return 0; }
+void Client::close() {}
+
 #endif // http::Client
 
 
@@ -514,7 +558,7 @@ inline const char* status_str(int n) {
 class ServerImpl {
   public:
     ServerImpl();
-    ~ServerImpl();
+    ~ServerImpl() = default;
 
     void on_req(std::function<void(const Req&, Res&)>&& f) {
         _on_req = std::move(f);
@@ -525,23 +569,10 @@ class ServerImpl {
   private:
     void on_connection(tcp::Connection* conn);
 
-    void on_tcp_connection(sock_t s) {
-        co::set_tcp_keepalive(s);
-        co::set_tcp_nodelay(s);
-        this->on_connection(new tcp::Connection(s));
-    }
-
-  #ifdef CO_SSL
-    void on_ssl_connection(SSL* s) {
-        this->on_connection(new ssl::Connection(s));
-    }
-  #endif
-
   private:
     co::Pool _buffer; // buffer for recieving http data
     uint32 _conn_num;
-    bool _enable_ssl;
-    void* _serv;
+    std::unique_ptr<tcp::Server> _serv;
     std::function<void(const Req&, Res&)> _on_req;
 };
 
@@ -569,38 +600,14 @@ ServerImpl::ServerImpl()
     : _buffer(
           []() { return (void*) new fastring(4096); },
           [](void* p) { delete (fastring*)p; }
-      ), _conn_num(0), _enable_ssl(false), _serv(0) {
-}
-
-ServerImpl::~ServerImpl() {
-    if (_enable_ssl) {
-      #ifdef CO_SSL
-        delete (ssl::Server*)_serv;
-      #endif
-    } else {
-        delete (tcp::Server*)_serv;
-    }
+      ), _conn_num(0) {
 }
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
-    if (key && *key && ca && *ca) {
-      #ifdef CO_SSL
-        CHECK(_on_req != NULL) << "req callback must be set..";
-        _enable_ssl = true;
-        ssl::Server* s = new ssl::Server();
-        s->on_connection(&ServerImpl::on_ssl_connection, this);
-        s->start(ip, port, key, ca);
-        _serv = s;
-      #else
-        CHECK(false) << "openssl required by https..";
-      #endif
-    } else {
-        CHECK(_on_req != NULL) << "req callback must be set..";
-        tcp::Server* s = new tcp::Server();
-        s->on_connection(&ServerImpl::on_tcp_connection, this);
-        s->start(ip, port);
-        _serv = s;
-    }
+    CHECK(_on_req != NULL) << "req callback must be set..";
+    _serv.reset(new tcp::Server());
+    _serv->on_connection(&ServerImpl::on_connection, this);
+    _serv->start(ip, port, key, ca);
 }
 
 static inline int hex2int(char c) {
@@ -785,7 +792,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             _on_req(req, res);
             fastring s = res.str();
             r = conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
-            if (r != (int)s.size()) goto send_err;
+            if (r <= 0) goto send_err;
 
             s.resize(s.size() - res.body_size());
             HTTPLOG << "http send res: " << s;
@@ -806,11 +813,11 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "http client close the connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
+    LOG << "http client close the connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
     conn->close();
     goto cleanup;
   idle_err:
-    LOG << "http close idle connection: " << co::peer(conn->fd) << ", connfd: " << conn->fd;
+    LOG << "http close idle connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
     conn->reset();
     goto cleanup;
   header_too_long_err:

@@ -4,6 +4,7 @@
 #include "atomic.h"
 #include "byte_order.h"
 #include "closure.h"
+#include "defer.h"
 
 #include "fast.h"
 #include "fastring.h"
@@ -21,6 +22,7 @@
 #include "lru_map.h"
 #include "hash.h"
 #include "path.h"
+#include "table.h"
 
 #include "fs.h"
 #include "os.h"

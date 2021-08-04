@@ -1,62 +1,127 @@
 #pragma once
 
-#include "../co.h"
+#include "../def.h"
+#include "../fastring.h"
+#include <functional>
+#include <memory>
 
 namespace tcp {
+
+struct Connection {
+    Connection(int sockfd) : _fd(sockfd) {}
+    virtual ~Connection() { this->close(); }
+
+    /**
+     * recv using co::recv or ssl::recv
+     * 
+     * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
+    virtual int recv(void* buf, int n, int ms=-1);
+
+    /**
+     * recv n bytes using co::recvn or ssl::recvn
+     * 
+     * @return  n on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
+    virtual int recvn(void* buf, int n, int ms=-1);
+
+    /**
+     * send n bytes using co::send or ssl::send 
+     *   - If use SSL, this method may return 0 on error.
+     * 
+     * @return  n on success, <=0 on timeout or error.
+     */
+    virtual int send(const void* buf, int n, int ms=-1);
+
+    /**
+     * close the connection
+     *
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int close(int ms = 0);
+
+    /**
+     * reset the connection
+     *   - Server may use this method instead of close() to avoid TIME_WAIT state.
+     *
+     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
+     */
+    virtual int reset(int ms = 0);
+
+    /**
+     * get error message of the last I/O operation
+     *   - If an error occured in send() or recv(), the user can call this method
+     *     to get the error message.
+     */
+    virtual const char* strerror() const;
+
+    int socket() const {
+        return _fd;
+    }
+
+  private:
+    int _fd;
+};
 
 /**
  * TCP server based on coroutine 
  *   - Support both ipv4 and ipv6. 
+ *   - Support ssl (openssl required).
  *   - One coroutine per connection. 
  */
 class Server {
   public:
-    Server() = default;
-    ~Server() = default;
+    Server() = default; // { _on_connection = NULL; }
+    virtual ~Server() = default; //{ if (_on_connection) delete _on_connection; }
 
-    /**
-     * start the server
-     *   - The server will loop in a coroutine, and it will not block the calling thread. 
-     *   - The user MUST call on_connection() to set a connection callback before start() 
-     *     was called. 
-     * 
-     * @param ip    either an ipv4 or ipv6 address. 
-     *              if ip is NULL or empty, "0.0.0.0" will be used by default. 
-     * @param port  the listening port. 
-     */
-    void start(const char* ip, int port);
+    typedef std::function<void(Connection*)> conn_cb;
 
     /**
      * set a callback for handling a connection 
+     *   - The user MUST delete the Connection pointer when the connection was closed.
      * 
-     * @param f  either a pointer to void f(sock_t), 
-     *           or a reference of std::function<void(sock_t)>.
+     * @param f  either a pointer to void f(tcp::Connection*), 
+     *           or a reference of std::function<void(tcp::Connection*)>.
      */
-    void on_connection(std::function<void(sock_t)>&& f) {
-        _on_connection = std::move(f);
+    void on_connection(conn_cb&& f) {
+        _on_connection.reset(new conn_cb(std::move(f)));
+    }
+
+    void on_connection(const conn_cb& f) {
+        this->on_connection(conn_cb(f));
     }
 
     /**
      * set a callback for handling a connection 
+     *   - The user MUST delete the Connection pointer when the connection was closed.
      * 
-     * @param f  a pointer to a method with a parameter of type sock_t in class T.
+     * @param f  a pointer to a method with a parameter of type tcp::Connection* in class T.
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_connection(void (T::*f)(sock_t), T* o) {
-        _on_connection = std::bind(f, o, std::placeholders::_1);
+    void on_connection(void (T::*f)(Connection*), T* o) {
+        _on_connection.reset(new conn_cb(std::bind(f, o, std::placeholders::_1)));
     }
 
-  private:
-    std::function<void(sock_t)> _on_connection;
-
     /**
-     * the server loop 
-     *   - It listens on a port and waits for connections. 
-     *   - When a connection is accepted, it will start a new coroutine and call 
-     *     the connection callback to handle the connection. 
+     * start the server
+     *   - The server will loop in a coroutine, and it will not block the calling thread.
+     *   - The user MUST call on_connection() to set a connection callback before start()
+     *     was called.
+     *   - By default, key and ca are NULL, and ssl is disabled.
+     *
+     * @param ip    server ip, either an ipv4 or ipv6 address.
+     *              if ip is NULL or empty, "0.0.0.0" will be used by default.
+     * @param port  server port.
+     * @param key   path of ssl private key file.
+     * @param ca    path of ssl certificate file.
      */
-    void loop(void* p);
+    virtual void start(const char* ip, int port, const char* key=NULL, const char* ca=NULL);
+
+  private:
+    std::shared_ptr<conn_cb> _on_connection;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
@@ -64,6 +129,7 @@ class Server {
 /**
  * TCP client based on coroutine 
  *   - Support both ipv4 and ipv6. 
+ *   - Support ssl (openssl required).
  *   - One client corresponds to one connection. 
  * 
  *   - It MUST be used in a coroutine. 
@@ -76,34 +142,55 @@ class Server {
 class Client {
   public:
     /**
-     * @param ip    a domain name, or either an ipv4 or ipv6 address of the server. 
-     *              if ip is NULL or empty, "127.0.0.1" will be used by default. 
-     * @param port  the server port. 
+     * @param ip       a domain name, or either an ipv4 or ipv6 address of the server. 
+     *                 if ip is NULL or empty, "127.0.0.1" will be used by default. 
+     * @param port     the server port. 
+     * @param use_ssl  use ssl if it is true.
      */
-    Client(const char* ip, int port)
-        : _ip((ip && *ip) ? ip : "127.0.0.1"), _port(port),
-          _sched_id(-1), _fd((sock_t)-1) {
+    Client(const char* ip, int port, bool use_ssl=false);
+
+    /**
+     * copy constructor 
+     *   - Copy ip, port, use_ssl from another Client. 
+     */
+    Client(const Client& c)
+        : _ip(c._ip), _port(c._port), _use_ssl(c._use_ssl),
+          _fd(-1), _ssl(0), _ssl_ctx(0) {
     }
 
-    ~Client() { this->disconnect(); }
+    virtual ~Client() { this->close(); }
 
-    int recv(void* buf, int n, int ms=-1) {
-        return co::recv(_fd, buf, n, ms);
-    }
+    void operator=(const Client& c) = delete;
 
-    int recvn(void* buf, int n, int ms=-1) {
-        return co::recvn(_fd, buf, n, ms);
-    }
+    /**
+     * recv using co::recv or ssl::recv
+     * 
+     * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
+    virtual int recv(void* buf, int n, int ms=-1);
 
-    int send(const void* buf, int n, int ms=-1) {
-        return co::send(_fd, buf, n, ms);
-    }
+    /**
+     * recv n bytes using co::recvn or ssl::recvn
+     * 
+     * @return  n on success, -1 on timeout or error, 0 will be returned if the 
+     *          peer closed the connection.
+     */
+    virtual int recvn(void* buf, int n, int ms=-1);
+
+    /**
+     * send n bytes using co::send or ssl::send 
+     *   - If use SSL, this method may return 0 on error.
+     * 
+     * @return  n on success, <=0 on timeout or error.
+     */
+    virtual int send(const void* buf, int n, int ms=-1);
 
     /**
      * check whether the connection has been established 
      */
-    bool connected() const {
-        return _fd != (sock_t)-1;
+    virtual bool connected() const {
+        return (_use_ssl && _ssl != NULL) || (_fd != -1);
     }
 
     /**
@@ -114,72 +201,36 @@ class Client {
      * 
      * @return    true on success, false on timeout or error.
      */
-    bool connect(int ms);
+    virtual bool connect(int ms);
 
     /**
      * close the connection 
      *   - It MUST be called in the thread that performed the IO operation. 
      */
-    void disconnect();
+    virtual void disconnect();
+
+    /**
+     * the same as disconnect 
+     */
+    void close() { this->disconnect(); }
+
+    /**
+     * get error string
+     */
+    virtual const char* strerror() const;
 
     /**
      * get the socket fd 
      */
-    sock_t fd() const { return _fd; }
+    int socket() const { return _fd; }
 
   protected:
     fastring _ip;
-    uint32 _port;
-    int _sched_id;  // id of scheduler where this client runs in
-    sock_t _fd;
-
-    DISALLOW_COPY_AND_ASSIGN(Client);
-};
-
-struct Connection {
-    Connection(sock_t s) : fd(s) {}
-    virtual ~Connection() = default;
-
-    virtual int recv(void* buf, int n, int ms) {
-        return co::recv(fd, buf, n, ms);
-    }
-
-    virtual int recvn(void* buf, int n, int ms) {
-        return co::recvn(fd, buf, n, ms);
-    }
-
-    virtual int send(const void* buf, int n, int ms) {
-        return co::send(fd, buf, n, ms);
-    }
-
-    /**
-     * close the connection 
-     *
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
-    virtual int close(int ms=0) {
-        return co::close(fd, ms);
-    }
-
-    /**
-     * reset the connection 
-     * 
-     * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
-     */
-    virtual int reset(int ms=0) {
-        return co::reset_tcp_socket(fd, ms);
-    }
-
-    /**
-     * get error message of the last I/O operation 
-     *   - If an error occured in send() or recv(), the user can call this method 
-     *     to get the error message. 
-     */
-    virtual const char* strerror() const {
-        return co::strerror();
-    }
-
-    sock_t fd;
+    uint16 _port;
+    bool _use_ssl;
+    int _fd;
+    void* _ssl;
+    void* _ssl_ctx;
 };
 
 } // tcp

@@ -78,7 +78,7 @@ const int kOptions =
 StackTraceImpl::StackTraceImpl() : StackWalker(kOptions) {
     kParam = new Param;
     kParam->p = this;
-    os::set_sig_handler(SIGABRT, &StackTraceImpl::on_signal);
+    os::signal(SIGABRT, &StackTraceImpl::on_signal);
 
     // Signal handler for SIGSEGV and SIGFPE installed in main thread
     // does not work for other threads. SetUnhandledExceptionFilter()
@@ -87,7 +87,7 @@ StackTraceImpl::StackTraceImpl() : StackWalker(kOptions) {
 }
 
 StackTraceImpl::~StackTraceImpl() {
-    os::set_sig_handler(SIGABRT, SIG_DFL);
+    os::signal(SIGABRT, SIG_DFL);
     RemoveVectoredContinueHandler(kParam->h);
     delete kParam;
 }

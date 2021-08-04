@@ -86,8 +86,6 @@ size_t fastring::rfind(const char* sub) const {
         if (j < x) return npos;
         j -= x;
     }
-
-    return npos;
 }
 
 size_t fastring::find_last_of(const char* s, size_t pos) const {

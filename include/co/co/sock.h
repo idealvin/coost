@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../def.h"
-#include "../byte_order.h"
 #include "../fastring.h"
+#include "../byte_order.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -28,6 +27,22 @@ typedef int sock_t;
 
 namespace co {
 
+#ifdef _WIN32
+inline int  error()          { return WSAGetLastError(); }
+inline void set_error(int e) { WSASetLastError(e); }
+#else
+inline int  error()          { return errno; }
+inline void set_error(int e) { errno = e; }
+#endif
+
+// get string of a error number (thread-safe)
+const char* strerror(int e);
+
+// get string of the current error number (thread-safe)
+inline const char* strerror() {
+    return co::strerror(co::error());
+}
+
 /** 
  * create a socket suitable for coroutine programing
  * 
@@ -43,8 +58,7 @@ sock_t socket(int domain, int type, int proto);
 /**
  * create a TCP socket suitable for coroutine programing
  * 
- * @param domain  address family, AF_INET, AF_INET6, etc.
- *                default: AF_INET.
+ * @param domain  address family, AF_INET or AF_INET6 (AF_INET by deault).
  * 
  * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
@@ -56,8 +70,7 @@ inline sock_t tcp_socket(int domain=AF_INET) {
 /**
  * create a UDP socket suitable for coroutine programing
  * 
- * @param domain  address family, AF_INET, AF_INET6, etc.
- *                default: AF_INET.
+ * @param domain  address family, AF_INET or AF_INET6 (AF_INET by deault).
  * 
  * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
@@ -68,9 +81,15 @@ inline sock_t udp_socket(int domain=AF_INET) {
 
 /**
  * close a socket 
- *   - A socket MUST be closed in the same thread that performed the I/O operation, 
- *     usually, in the coroutine where the user called recv(), send(), etc. 
- *   - EINTR has been handled internally. The user need not consider about it. 
+ *   - In co 2.0.0 or before, a socket MUST be closed in the same thread that performed 
+ *     the I/O operation. Since co 2.0.1, a socket can be closed anywhere.
+ *   - EINTR has been handled internally. Users need not consider about it. 
+ * 
+ *   - NOTE: On Linux, if reference count of a socket is not zero when it was closed, 
+ *     events will not be removed from epoll, which may cause a bug. That may happen 
+ *     when users duplicated a socket by dup or dup2 and closed one of them. At this 
+ *     case, users MUST close the socket in the I/O thread, and events will be removed 
+ *     from epoll by the scheduler then.
  *     
  * @param fd  a non-blocking (also overlapped on windows) socket.
  * @param ms  if ms > 0, the socket will be closed ms milliseconds later. 
@@ -82,8 +101,7 @@ int close(sock_t fd, int ms=0);
 
 /**
  * shutdown a socket 
- *   - Like the close(), shutdown() MUST be called in the same thread that performed 
- *     the I/O operation. 
+ *   - It is better to call shutdown() in the same thread that performed the I/O operation. 
  * 
  * @param fd  a non-blocking (also overlapped on windows) socket.
  * @param c   'r' for SHUT_RD, 'w' for SHUT_WR, 'b' for SHUT_RDWR. 
@@ -118,7 +136,7 @@ int listen(sock_t fd, int backlog=1024);
 /**
  * accept a connection on a socket 
  *   - It MUST be called in a coroutine. 
- *   - accept() blocks until a connection was present or any error occured. 
+ *   - It blocks until a connection was present or any error occured. 
  * 
  * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
@@ -133,14 +151,13 @@ sock_t accept(sock_t fd, void* addr, int* addrlen);
 /**
  * connect to an address 
  *   - It MUST be called in a coroutine. 
- *   - connect() blocks until the connection was done or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
+ *   - It blocks until the connection was done or timeout, or any error occured. 
+ *   - Users can call co::error() to get the errno, and call co::timeout() to check whether it has timed out. 
  * 
  * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
  * @param addrlen  size of the structure pointed to by addr.
- * @param ms       timeout in milliseconds, if ms < 0, it will never time out. 
+ * @param ms       timeout in milliseconds, if ms < 0, never timed out. 
  *                 default: -1.
  * 
  * @return         0 on success, -1 on timeout or error.
@@ -336,19 +353,13 @@ inline int reset_tcp_socket(sock_t fd, int ms=0) {
 /**
  * set option O_NONBLOCK on a socket 
  */
-inline void set_nonblock(sock_t fd) {
-   unsigned long mode = 1;
-   if (ioctlsocket(fd, FIONBIO, &mode) != 0) {
-       printf("set nonblock failed\n");
-   }
-}
+void set_nonblock(sock_t fd);
+
 #else
 /**
  * set option O_NONBLOCK on a socket 
  */
-inline void set_nonblock(sock_t fd) {
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-}
+void set_nonblock(sock_t fd);
 
 /**
  * set option FD_CLOEXEC on a socket 
@@ -395,7 +406,7 @@ inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
  */
 inline fastring ip_str(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
@@ -404,7 +415,7 @@ inline fastring ip_str(const struct sockaddr_in* addr) {
  */
 inline fastring ip_str(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     return fastring(s);
 }
 
@@ -415,9 +426,11 @@ inline fastring ip_str(const struct sockaddr_in6* addr) {
  */
 inline fastring to_string(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET, &addr->sin_addr, s, sizeof(s));
+    inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     const size_t n = strlen(s);
-    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin_port));
+    fastring r(n + 8);
+    r.append(s, n).append(':') << ntoh16(addr->sin_port);
+    return r;
 }
 
 /**
@@ -427,9 +440,11 @@ inline fastring to_string(const struct sockaddr_in* addr) {
  */
 inline fastring to_string(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET6, &addr->sin6_addr, s, sizeof(s));
+    inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     const size_t n = strlen(s);
-    return std::move(fastring(n + 8).append(s, n).append(':') << ntoh16(addr->sin6_port));
+    fastring r(n + 8);
+    r.append(s, n).append(':') << ntoh16(addr->sin6_port);
+    return r;
 }
 
 /**
@@ -460,42 +475,6 @@ inline fastring peer(sock_t fd) {
         if (addrlen == sizeof(addr.v6)) return co::to_string(&addr.v6);
     }
     return fastring();
-}
-
-#ifdef _WIN32
-/**
- * get the last error number
- */
-inline int error() { return WSAGetLastError(); }
-
-/**
- * set the last error number
- */
-inline void set_last_error(int err) { WSASetLastError(err); }
-#else
-/**
- * get the last error number
- */
-inline int error() { return errno; }
-
-/**
- * set the last error number
- */
-inline void set_last_error(int err) { errno = err; }
-#endif
-
-/**
- * get string of a error number 
- *   - It is thread-safe. 
- */
-const char* strerror(int err);
-
-/**
- * get string of the current error number 
- *   - It is thread-safe. 
- */
-inline const char* strerror() {
-    return co::strerror(co::error());
 }
 
 } // co

@@ -12,13 +12,13 @@ namespace unitest {
 
 void run_all_tests();
 
-void push_failed_msg(const fastring& test_name, const fastring& case_name,
+void push_failed_msg(const fastring& test_name, const fastring& case_name, 
                      const char* file, int line, const fastring& msg);
 
 class Test {
   public:
-    Test() {}
-    virtual ~Test() {}
+    Test() = default;
+    virtual ~Test() = default;
 
     virtual void run() = 0;
     virtual bool enabled() = 0;

@@ -8,21 +8,21 @@ service HelloWorld {
 
 // param
 hello.req {
+    "service": "xx.HelloWorld",
     "method": "hello"
 }
 
 hello.res {
-    "method": "hello",
     "err": 200,
-    "errmsg": "200 ok"
+    "errmsg": "ok"
 }
 
 world.req {
+    "service": "xx.HelloWorld",
     "method": "world"
 }
 
 world.res {
-    "method": "world",
     "err": 200,
-    "errmsg": "200 ok"
+    "errmsg": "ok"
 }

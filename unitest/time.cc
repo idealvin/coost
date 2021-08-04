@@ -21,22 +21,8 @@ DEF_test(time) {
 
     DEF_case(str) {
         fastring ymdhms = now::str("%Y%m%d%H%M%S");
-        fastring S = now::str("%S");
-        fastring M = now::str("%M");
-        fastring H = now::str("%H");
         fastring ymd = now::str("%Y%m%d");
-        fastring d = now::str("%d");
-        fastring m = now::str("%m");
-        fastring y = now::str("%Y");
-
-        EXPECT_NE(y, fastring());
-        EXPECT_NE(m, fastring());
-        EXPECT_NE(d, fastring());
-        EXPECT_NE(H, fastring());
-        EXPECT_NE(M, fastring());
-        EXPECT_NE(S, fastring());
-        EXPECT_EQ(ymdhms, y + m + d + H + M + S);
-        EXPECT_EQ(ymd, y + m + d);
+        EXPECT(ymdhms.starts_with(ymd));
     }
 
     DEF_case(sleep) {

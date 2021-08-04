@@ -38,9 +38,9 @@ int64 us();
 namespace ___ {
 namespace sleep {
 
-void ms(unsigned int n);
+void ms(uint32 n);
 
-void sec(unsigned int n);
+void sec(uint32 n);
 
 } // sleep
 } // ___

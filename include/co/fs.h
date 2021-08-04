@@ -120,7 +120,11 @@ class file {
     void operator=(const file& x) = delete;
     void operator=(file&& x) = delete;
 
-    operator bool() const;
+    explicit operator bool() const;
+    
+    bool operator!() const {
+        return !(bool)(*this);
+    }
 
     const fastring& path() const;
 
@@ -141,11 +145,11 @@ class file {
 
     void seek(int64 off, int whence=seek_beg);
 
-    size_t read(void* buf, size_t size);
+    size_t read(void* buf, size_t n);
 
-    fastring read(size_t size);
+    fastring read(size_t n);
 
-    size_t write(const void* buf, size_t size);
+    size_t write(const void* s, size_t n);
 
     size_t write(const char* s) {
         return this->write(s, strlen(s));
@@ -172,19 +176,18 @@ class file {
 //   'w': write        created if not exists, truncated if exists
 class fstream {
   public:
-    explicit fstream(size_t cap=8192)
-        : _s(cap) {
-    }
+    fstream() : _s(8192) {}
+    explicit fstream(size_t cap) : _s(cap) {}
 
-    explicit fstream(const char* path, char mode, size_t cap=8192)
+    fstream(const char* path, char mode, size_t cap=8192)
         : _s(cap), _f(path, mode == 'w' ? 'w' : 'a') {
     }
 
-    explicit fstream(const fastring& path, char mode, size_t cap=8192)
+    fstream(const fastring& path, char mode, size_t cap=8192)
         : fstream(path.c_str(), mode, cap) {
     }
 
-    explicit fstream(const std::string& path, char mode, size_t cap=8192)
+    fstream(const std::string& path, char mode, size_t cap=8192)
         : fstream(path.c_str(), mode, cap) {
     }
 
@@ -196,8 +199,12 @@ class fstream {
         this->close();
     }
 
-    operator bool() const {
-        return _f;
+    explicit operator bool() const {
+        return (bool)_f;
+    }
+
+    bool operator!() const {
+        return !(bool)_f;
     }
 
     bool open(const char* path, char mode) {
@@ -223,10 +230,8 @@ class fstream {
     }
 
     void close() {
-        if (_f) {
-            this->flush();
-            _f.close();
-        }
+        this->flush();
+        _f.close();
     }
 
     // n <= cap - szie         ->   append

@@ -37,6 +37,10 @@
 
 #include "co/hash/md5.h"
 
+#ifdef _MSC_VER
+#pragma warning (disable:4244)
+#endif
+
 /*
  * The basic MD5 functions.
  *
