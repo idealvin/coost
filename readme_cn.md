@@ -23,7 +23,7 @@
   </div>
 
   <div>
-  <span style="border-bottom: 3px double #ccc">A go-style C++ coroutine library and more.</span>
+  <span style="border-bottom: 3px double #ccc">A go-style coroutine library in C++11 and more.</span>
   </div>
 </div>
 

@@ -40,7 +40,7 @@ class Chan {
      * @param cap  max capacity of the queue, 1 by default.
      * @param ms   default timeout in milliseconds, -1 by default.
      */
-    Chan(uint32 cap=1, uint32 ms=(uint32)-1)
+    explicit Chan(uint32 cap=1, uint32 ms=(uint32)-1)
         : _p(cap * sizeof(T), sizeof(T), ms) {
     }
 
