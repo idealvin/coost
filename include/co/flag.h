@@ -14,6 +14,9 @@ namespace flag {
 // Return non-flag elements.
 std::vector<fastring> init(int argc, char** argv);
 
+// Initialize with a config file.
+void init(const fastring& path);
+
 namespace xx {
 enum {
     TYPE_bool,

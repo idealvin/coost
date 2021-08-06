@@ -525,4 +525,8 @@ std::vector<fastring> init(int argc, char** argv) {
     return v;
 }
 
+void init(const fastring& path) {
+    xx::parse_config(path);
+}
+
 } // namespace flag
