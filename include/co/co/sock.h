@@ -88,8 +88,8 @@ inline sock_t udp_socket(int domain=AF_INET) {
  *   - NOTE: On Linux, if reference count of a socket is not zero when it was closed, 
  *     events will not be removed from epoll, which may cause a bug. That may happen 
  *     when users duplicated a socket by dup or dup2 and closed one of them. At this 
- *     case, users MUST close the socket in the I/O thread, and events will be removed 
- *     from epoll by the scheduler then.
+ *     case, users MUST close the socket in the thread performed the I/O operation, 
+ *     and events will be removed from epoll by the scheduler then.
  *     
  * @param fd  a non-blocking (also overlapped on windows) socket.
  * @param ms  if ms > 0, the socket will be closed ms milliseconds later. 

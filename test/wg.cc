@@ -1,6 +1,4 @@
 #include "co/co.h"
-#include "co/log.h"
-#include "co/time.h"
 
 DEF_main(argc, argv) {
     FLG_cout = true;
@@ -16,7 +14,5 @@ DEF_main(argc, argv) {
     }
 
     wg.wait();
-    LOG << "wg wait end..";
-
     return 0;
 }
