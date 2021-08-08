@@ -22,7 +22,7 @@ sock_t socket(int domain, int type, int protocol) {
     if (fd != INVALID_SOCKET) {
         unsigned long mode = 1;
         CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
-        set_skip_iocp_on_success(fd);
+        if (type != SOCK_STREAM) set_skip_iocp_on_success(fd);
     }
     return fd;
 }
@@ -100,7 +100,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     // https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-acceptex
     r = co::setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, &fd, sizeof(fd));
     if (r != 0) {
-        ELOG << "acceptex set SO_UPDATE_ACCEPT_CONTEXT failed..";
+        ELOG << "acceptex set SO_UPDATE_ACCEPT_CONTEXT error: " << co::strerror();
         goto err;
     }
 
@@ -110,7 +110,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
         *addrlen = peer_len;
     }
 
-    //set_skip_iocp_on_success(connfd);
+    set_skip_iocp_on_success(connfd);
     return connfd;
 
   err:
@@ -143,7 +143,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 
     r = co::setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
     if (r != 0) {
-        ELOG << "connectex set SO_UPDATE_ACCEPT_CONTEXT failed..";
+        ELOG << "connectex set SO_UPDATE_CONNECT_CONTEXT error: " << co::strerror();
         return -1;
     }
 
@@ -152,7 +152,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     r = co::getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, &seconds, &len);
     if (r == 0) {
         if (seconds == -1) return -1; // not connected
-        //set_skip_iocp_on_success(fd);
+        set_skip_iocp_on_success(fd);
         return 0;
     } else {
         ELOG << "connectex getsockopt(SO_CONNECT_TIME) failed..";
