@@ -27,224 +27,355 @@
   </div>
 </div>
 
+
 ## Basic [(English)](readme.md)
 
-co 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它包含 golang 风格的协程库、基于协程的网络库、日志库、命令行与配置文件解析库、单元测试框架、JSON 库等基本组件。
+CO 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它实现了类似 golang 的协程、基于协程的网络编程框架、命令行参数与配置文件解析库、高性能日志库、单元测试框架、JSON 库等一系列高质量的基础组件。
 
-co 遵循极简的设计理念，提供的接口都尽可能简单明了，用户可以轻松上手。co 尽量避免过度封装、引入过多的概念，以减轻用户的学习负担，如 co 提供的协程化的 socket API，与原生 socket API 形式上基本一致，熟悉 socket 编程的用户，几乎不需要增加新的学习成本，就能轻松用这些 API 写出高性能的网络程序。
+
+
+
+## 赞助
+
+见 [Sponsor](https://idealvin.github.io/cn/about/sponsor/) 页面。
+
+
 
 
 ## 参考文档
 
-- [中文](https://www.yuque.com/idealvin/co)
-- [English](https://www.yuque.com/idealvin/co_en)
+- 中文: [github](https://idealvin.github.io/cn/about/co/) [gitee](https://idealvin.gitee.io/cn/about/co/)
+- English: [github](https://idealvin.github.io/en/about/co/) [gitee](https://idealvin.gitee.io/en/about/co/)
 
 
-## 亮点功能
+
+
+## 核心组件
+
 
 ### 协程
 
-[co](https://github.com/idealvin/co/blob/master/include/co/co.h) 是一个 [golang](https://github.com/golang/go) 风格的 C++ 协程库，支持如下特性:
-- 多线程调度，默认线程数为系统 CPU 核数.
-- 共享栈，同一线程中的协程共用一个栈(默认大小为 1MB)，内存占用低，单机可轻松创建数百万协程.
-- 系统 API hook，可以在直接在协程中以同步的方式使用三方网络库.
-- 协程锁 [co::Mutex](https://github.com/idealvin/co/blob/master/include/co/co/mutex.h).
-- 协程同步事件 [co::Event](https://github.com/idealvin/co/blob/master/include/co/co/event.h).
-- 协程池 [co::Pool](https://github.com/idealvin/co/blob/master/include/co/co/pool.h).
-- 协程化的 [socket API](https://github.com/idealvin/co/blob/master/include/co/co/sock.h).
+CO 实现了类似 [golang](https://github.com/golang/go) 的协程，它有如下特性：
 
-- 用 `go()` 创建协程:
-  ```cpp
-  void ku() {
-      LOG << "hello world";
-  }
+- 多线程调度，默认线程数为系统 CPU 核数。
+- 共享栈，同一线程中的协程共用若干个栈(大小默认为 1MB)，内存占用低，Linux 上的测试显示 1000 万协程只用了 2.8G 内存(仅供参考)。
+- 各协程之间为平级关系，可以在任何地方(包括在协程中)创建新的协程。
+- 支持系统 API hook (Windows/Linux/Mac)，可以直接在协程中使用三方网络库。
+- 协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)。
+- 协程同步事件 [co::Event](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent)。
+- 协程锁 [co::Mutex](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E9%94%81comutex)。
+- 协程池 [co::Pool](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E6%B1%A0copool)。
+- channel [co::Chan](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
+- waitgroup [co::WaitGroup](https://idealvin.github.io/cn/co/coroutine/#waitgroupcowaitgroup)。
 
-  void gg(int v) {
-      LOG << "hello "<< v;
-  }
 
-  go(ku);  // 悟空
-  go(gg, 777);
-  go([](){
-      LOG << "hello go";
-  });
-  ```
-
-### 网络(so)
-
-[so](https://github.com/idealvin/co/blob/master/include/co/so) 是基于协程的 C++ 网络库，提供一般的兼容 ipv6 的 TCP 框架，并实现了一个基于 JSON 的 RPC 框架，另外还支持可选的 HTTP, HTTPS 与 SSL (需要 libcurl 与 openssl)。
-
-- 简单的静态 web server
-  ```cpp
-  #include "co/flag.h"
-  #include "co/log.h"
-  #include "co/so.h"
-
-  DEF_string(d, ".", "root dir"); // 指定 web server 根目录
-
-  int main(int argc, char** argv) {
-      flag::init(argc, argv);
-      log::init();
-
-      so::easy(FLG_d.c_str()); // mum never have to worry again
-
-      return 0;
-  }
-  ```
-
-- http server ([openssl](https://www.openssl.org/) required for https)
-  ```cpp
-  http::Server serv;
-
-  serv.on_req(
-      [](const http::Req& req, http::Res& res) {
-          if (req.is_method_get()) {
-              if (req.url() == "/hello") {
-                  res.set_status(200);
-                  res.set_body("hello world");
-              } else {
-                  res.set_status(404);
-              }
-          } else {
-              res.set_status(405); // method not allowed
-          }
-      }
-  );
-
-  serv.start("0.0.0.0", 80);                                    // http
-  serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
-  ```
-
-- http client ([libcurl](https://curl.se/libcurl/) & zlib required)
-  ```cpp
-  http::Client c("http://127.0.0.1:7777"); // http
-  http::Client c("https://github.com");    // https, openssl required
-  c.add_header("hello", "world");          // add headers here..
-
-  c.get("/");
-  LOG << "response code: " << c.response_code();
-  LOG << "body size: " << c.body_size();
-  LOG << "Content-Length: " << c.header("Content-Length");
-  LOG << c.header();
-
-  c.post("/hello", "data xxx");
-  LOG << "response code: " << c.response_code();
-  ```
-
-### 支持 golang 中的一些特性
-
-#### defer
+#### 创建协程
 
 ```cpp
-#include "co/defer.h"
-#include <iostream>
+go(ku);            // void ku();
+go(f, 7);          // void f(int);
+go(&T::f, &o);     // void T::f(); T o;
+go(&T::f, &o, 7);  // void T::f(int); T o;
+go([](){
+    LOG << "hello go";
+});
+```
 
-void f(int x, int y) { std::cout << (x + y) << std::endl; }
+上面是用 `go()` 创建协程的例子，go() 是一个函数，它接受 1 到 3 个参数，第一个参数 `f` 是任意可调用的对象，这些参数只要满足 `f()`, `(*f)()`, `f(p)`, `(*f)(p)`, `(o->*f)()` 或者 `(o->*f)(p)` 能被调用就可以了。
 
-int main(int argc, char** argv) {
-    int x = 1, y = 2;
-    defer(f(3, 4); f(4, 3));
-    defer(f(x, y));
-    return 0;
+`go()` 创建的协程会均匀的分配到不同的调度线程中。如果用户想让某些协程运行在同一个线程下，可以用下面的方式创建协程：
+
+```cpp
+auto s = co::next_scheduler();
+s->go(f1);
+s->go(f2);
+```
+
+如果用户想在所有的调度线程中创建协程，可以用下面的方式：
+
+```cpp
+auto& s = co::all_schedulers();
+for (size_t i = 0; i < s.size(); ++i) {
+    s[i]->go(f);
 }
 ```
 
-#### waitgroup
+
+#### channel
+
+[co::Chan](https://idealvin.github.io/cn/co/coroutine/#channelcochan)，类似于 golang 中的 channel，可用于在协程之间传递数据。
 
 ```cpp
 #include "co/co.h"
 
-co::WaitGroup wg;
-
-for (int i = 0; i < 8; ++i) {
-    wg.add();
-    go([&]() {
-        // do ...
-        wg.done();
+DEF_main(argc, argv) {
+    co::Chan<int> ch;
+    go([ch]() {
+        ch << 7;
     });
-}
 
-wg.wait();
+    int v = 0;
+    ch >> v;
+    LOG << "v: " << v;
+
+    return 0;
+}
 ```
 
-### 日志库(log)
+**channel 的读写操作必须在协程中进行**，因此上述代码中用 `DEF_main` 定义 main 函数，让 main 函数中的代码也运行在协程中。
 
-[log](https://github.com/idealvin/co/blob/master/include/co/log.h) 是一个高性能的本地日志系统。
+代码中的 channel 对象在栈上，而 CO 采用的是共享栈实现方式，一个协程栈上的数据可能被其他协程覆盖，**协程间一般不能直接通过栈上的数据通信**，因此代码中的 lambda 采用了**按值捕获**的方式，将 channel 拷贝了一份，传递到新建的协程中。channel 的拷贝操作只是将内部引用计数加 1，几乎不会对性能造成影响。
 
-- 打印日志
-  ```cpp
-  LOG << "hello " << 23; // info
-  DLOG << "hello" << 23; // debug
-  WLOG << "hello" << 23; // warning
-  ELOG << "hello again"; // error
-  ```
+创建 channel 时可以像下面这样加上超时时间：
 
-- 与 glog 的性能比较
-  | log vs glog | google glog | co/log |
+```cpp
+co::Chan<int> ch(8, 1000);
+```
+
+channel 读写操作结束后，可以调用 `co::timeout()` 判断是否超时，这种方式比 golang 中基于 select 的实现方式更简单。
+
+CO 中的 channel 基于内存拷贝实现，传递的数据类型可以是内置类型、指针类型，或者**拷贝操作具有简单的内存拷贝语义的结构体类型**。像 `std::string` 或 STL 中的容器类型，拷贝操作不是简单的内存拷贝，一般不能直接在 channel 中传递，详情见 [co::Chan 参考文档](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
+
+
+#### waitgroup
+
+[co::WaitGroup](https://idealvin.github.io/cn/co/coroutine/#waitgroupcowaitgroup)，类似于 golang 中的 `sync.WaitGroup`，可用于等待协程或线程的退出。
+
+```cpp
+#include "co/co.h"
+
+DEF_main(argc, argv) {
+    FLG_cout = true;
+
+    co::WaitGroup wg;
+    wg.add(8);
+
+    for (int i = 0; i < 8; ++i) {
+        go([wg]() {
+            LOG << "co: " << co::coroutine_id();
+            wg.done();
+        });
+    }
+
+    wg.wait();
+    return 0;
+}
+```
+
+
+
+### 网络编程
+
+CO 提供了一套协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。另外，CO 也实现了更高层的网络编程组件，包括 [TCP](https://idealvin.github.io/cn/co/net/tcp/)、[HTTP](https://idealvin.github.io/cn/co/net/http/) 以及基于 [JSON](https://idealvin.github.io/cn/co/json/) 的 [RPC](https://idealvin.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。这里只简单的展示一下 HTTP 的用法，其余的可以查看参考文档。
+
+
+**静态 web server**
+
+```cpp
+#include "co/flag.h"
+#include "co/log.h"
+#include "co/so.h"
+
+DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    log::init();
+
+    so::easy(FLG_d.c_str()); // mum never have to worry again
+
+    return 0;
+}
+```
+
+
+**HTTP server**
+
+```cpp
+http::Server serv;
+
+serv.on_req(
+    [](const http::Req& req, http::Res& res) {
+        if (req.is_method_get()) {
+            if (req.url() == "/hello") {
+                res.set_status(200);
+                res.set_body("hello world");
+            } else {
+                res.set_status(404);
+            }
+        } else {
+            res.set_status(405); // method not allowed
+        }
+    }
+);
+
+serv.start("0.0.0.0", 80);                                    // http
+serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
+```
+
+
+**HTTP client**
+
+```cpp
+void f() {
+    http::Client c("https://github.com");
+
+    c.get("/");
+    LOG << "response code: "<< c.response_code();
+    LOG << "body size: "<< c.body_size();
+    LOG << "Content-Length: "<< c.header("Content-Length");
+    LOG << c.header();
+
+    c.post("/hello", "data xxx");
+    LOG << "response code: "<< c.response_code();
+}
+
+go(f);
+```
+
+
+
+### co/flag
+
+[co/flag](https://idealvin.github.io/cn/co/flag/) 是一个简单易用的命令行参数与配置文件解析库，CO 中的一些组件会用它定义配置项。
+
+co/flag 为每个配置项提供一个默认值，在没有配置参数的情况下，程序可以按默认配置运行。用户也可以从**命令行或配置文件**传入配置参数，在需要配置文件时，可以执行 `./exe -mkconf` **自动生成配置文件**。
+
+```cpp
+// xx.cc
+#include "co/flag.h"
+#include "co/log.h"
+
+DEF_bool(x, false, "bool x");
+DEF_bool(y, false, "bool y");
+DEF_uint32(u32, 0, "...");
+DEF_string(s, "hello world", "string");
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+
+    COUT << "x: " << FLG_x;
+    COUT << "y: " << FLG_y;
+    COUT << "u32: " << FLG_u32;
+    COUT << FLG_s << "|" << FLG_s.size();
+
+    return 0;
+}
+```
+
+上面是一个使用 co/flag 的例子，代码中 `DEF_` 开头的宏，定义了 4 个配置项，每个配置项相当于一个全局变量，变量名是 `FLG_` 加配置名。上面的代码编译完后，可以按下面的方式运行：
+
+```sh
+./xx                  # 按默认配置运行
+./xx -xy -s good      # 单字母命名的 bool flag, 可以一并设置为 true
+./xx -s "I'm ok"      # 含空格的字符串
+./xx -u32 8k          # 整数可以带单位: k,m,g,t,p, 不区分大小写
+
+./xx -mkconf          # 自动生成配置文件 xx.conf
+./xx xx.conf          # 从配置文件传入参数
+./xx -config xx.conf  # 与上同
+```
+
+
+
+### co/log
+
+[co/log](https://idealvin.github.io/cn/co/log/) 是一个高性能的本地日志系统，CO 中的一些组件会用它打印日志。
+
+co/log 将日志分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**。用户可以像下面这样打印不同级别的日志：
+
+```cpp
+DLOG << "hello " << 23;  // debug
+LOG << "hello " << 23;   // info
+WLOG << "hello " << 23;  // warning
+ELOG << "hello " << 23;  // error
+FLOG << "hello " << 23;  // fatal
+```
+
+co/log 还提供了一系列 `CHECK` 宏，可以视为加强版的 `assert`，它们在 debug 模式下也不会被清除。
+
+```cpp
+void* p = malloc(32);
+CHECK(p != NULL) << "malloc failed..";
+CHECK_NE(p, NULL) << "malloc failed..";
+```
+
+CHECK 断言失败时，co/log 会打印函数调用栈信息，然后终止程序的运行。
+
+co/log 速度非常快，在程序运行稳定后，几乎不需要内存分配操作。下面是一些测试结果，仅供参考：
+
+- co/log vs glog (single thread)
+
+  | platform | google glog | co/log |
   | ------ | ------ | ------ |
   | win2012 HHD | 1.6MB/s | 180MB/s |
   | win10 SSD | 3.7MB/s | 560MB/s |
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
-  
-上表是单线程连续打印 100 万条 info 日志(每条 50 字节左右)的测试结果，[co/log](https://github.com/idealvin/co/blob/master/include/log.h) 几乎快了 [glog](https://github.com/google/glog) 两个数量级。
 
-为何如此快？一是 log 库内部基于比 `sprintf` 快 8-25 倍的 [fastream](https://github.com/idealvin/co/blob/master/include/fastream.h) 实现，二是 log 库几乎没有什么内存分配操作。
+- [co/log vs spdlog](https://github.com/idealvin/co/tree/benchmark) (Windows)
 
+  | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
+  | ------ | ------ | ------ | ------ |
+  | 1 | 1000000 | 0.103619 | 0.482525 |
+  | 2 | 1000000 | 0.202246 | 0.565262 |
+  | 4 | 1000000 | 0.330694 | 0.722709 |
+  | 8 | 1000000 | 0.386760 | 1.322471 |
 
-### 命令行与配置文件解析(flag)
+- [co/log vs spdlog](https://github.com/idealvin/co/tree/benchmark) (Linux)
 
-[flag](https://github.com/idealvin/co/blob/master/include/co/flag.h) 是一个方便易用的命令行及配置文件解析库，支持自动生成配置文件。
-
-- 代码示例
-  ```cpp
-  #include "co/flag.h"
-
-  DEF_int32(i, 32, "comments");
-  DEF_string(s, "xxx", "string type");
-
-  int main(int argc, char** argv) {
-      flag::init(argc, argv);
-      std::cout << "i: " << FLG_i << std::endl;
-      std::cout << "s: " << FLG_s << std::endl;
-      return 0;
-  }
-  ```
-
-- 编译后运行
-  ```sh
-  ./xx                          # 以默认参数启动
-  ./xx -i=4k -s="hello world"   # 整数类型可以带单位 k,m,g,t,p, 不分大小写
-  ./xx -i 4k -s "hello world"   # 与上等价
-  ./xx --mkconf                 # 自动生成配置文件 xx.conf
-  ./xx xx.conf                  # 从配置文件启动
-  ./xx -config xx.conf          # 从配置文件启动
-  ```
+  | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
+  | ------ | ------ | ------ | ------ |
+  | 1 | 1000000 | 0.096445 | 2.006087 |
+  | 2 | 1000000 | 0.142160 | 3.276006 |
+  | 4 | 1000000 | 0.181407 | 4.339714 |
+  | 8 | 1000000 | 0.303968 | 4.700860 |
 
 
-### JSON
 
-[JSON](https://github.com/idealvin/co/blob/master/include/json.h) 是一个简单易用的高性能 JSON 库。最新版本将 JSON 对象构建到一块连续的内存上，从字符串解析 JSON 几乎不需要内存分配操作，大大提高了 parsing 速度，可以达到 GB 每秒。
+### co/unitest
 
-- 代码示例
-  ```cpp
-  #include "co/json.h"
+[co/unitest](https://idealvin.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，CO 中的很多组件会用它写单元测试代码，为 CO 的稳定性提供了保障。
 
-  // Json: { "hello":"json", "array":[123, 3.14, true, "nice"] }
-  json::Root r;
-  r.add_member("hello", "json");        // add key:value pair
+```cpp
+#include "co/unitest.h"
+#include "co/os.h"
 
-  json::Value a = r.add_array("array"); // add key:array
-  a.push_back(123, 3.14, true, "nice"); // push value to array, accepts any number of parameters
+namespace test {
+    
+DEF_test(os) {
+    DEF_case(homedir) {
+        EXPECT_NE(os::homedir(), "");
+    }
 
-  COUT << a[0].get_int();               // 123
-  COUT << r["array"][0].get_int();      // 123
-  COUT << r["hello"].get_string();      // "json"
+    DEF_case(cpunum) {
+        EXPECT_GT(os::cpunum(), 0);
+    }
+}
+    
+} // namespace test
+```
 
-  fastring s = r.str();                 // convert Json to string
-  fastring p = r.pretty();              // convert Json to human-readable string
-  json::Root x = json::parse(s);        // parse Json from a string
-  ```
+上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。多个测试单元可以放到同一个 C++ 项目中，main 函数一般只需要下面几行：
+
+```cpp
+#include "co/unitest.h"
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    unitest::run_all_tests();
+    return 0;
+}
+```
+
+[co/unitest](https://github.com/idealvin/co/tree/master/unitest) 目录下面是 CO 中的单元测试代码，编译后可执行下述命令运行：
+
+```sh
+xmake r unitest -a   # 运行所有单元测试用例
+xmake r unitest -os  # 仅运行 os 单元中的测试用例
+```
+
+
 
 
 ## 代码构成
@@ -284,143 +415,81 @@ wg.wait();
 
 co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
-- 安装 xmake
 
-  windows, mac 与 debian/ubuntu 可以直接去 xmake 的 [release](https://github.com/xmake-io/xmake/releases) 页面下载安装包，其他系统请参考 xmake 的 [Installation](https://xmake.io/#/guide/installation) 说明。
+#### 快速上手
 
-  xmake 在 linux 上默认禁止 root 用户编译，[ruki](https://github.com/waruqi) 说不安全，可以在 `~/.bashrc` 中加上下面的一行，启用 root 编译:
-  ```sh
-  export XMAKE_ROOT=y
-  ```
+```sh
+# 所有命令都在 co 根目录执行，后面不再说明
+xmake       # 默认构建 libco
+xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
+```
 
-  co 中的 HTTP/SSL 特性依赖于 libcurl 与 openssl，启用 HTTP/SSL 特性时，xmake 会自动安装所需要的三方库。xmake 可能从 github 上拉取三方库，国内 github 下载速度较慢，可以按[参考文档中的说明](https://www.yuque.com/idealvin/co/wos6kw#VSdZs)设置 github 镜像代理。
 
-- 快速上手
+#### 启用 HTTP/SSL 特性
 
-  ```sh
-  # 所有命令都在 co 根目录执行，后面不再说明
-  xmake       # 默认构建 libco
-  xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
-  ```
+```sh
+xmake f --with_libcurl=true --with_openssl=true
+xmake
+```
 
-- 使用 libcurl 与 openssl 构建(启用 HTTP/SSL 特性)
 
-  ```sh
-  xmake f --with_libcurl=true --with_openssl=true
-  xmake
-  ```
+#### 安装 libco
 
-- 构建 libco
+```sh
+xmake install -o pkg          # 打包安装到 pkg 目录
+xmake i -o pkg                # 同上
+xmake install -o /usr/local   # 安装到 /usr/local 目录
+```
 
-  ```sh
-  xmake build libco       # 仅构建 libco
-  xmake -b libco          # 与上同
-  xmake -v -b libco       # 与上同, 另外打印详细的编译信息
-  xmake -vD -b libco      # 与上同, 打印更加详细的编译信息
-  ```
 
-- 构建及运行 unitest 代码
+#### 从 xmake repo 安装 libco
 
-  [co/unitest](https://github.com/idealvin/co/tree/master/unitest) 是单元测试代码，用于检验 libco 库功能的正确性。
+```sh
+xrepo install -f "with_openssl=true,with_libcurl=true" co
+```
 
-  ```sh
-  xmake build unitest     # build 可以简写为 -b
-  xmake run unitest -a    # 执行所有单元测试
-  xmake r unitest -a      # 同上
-  xmake r unitest -os     # 执行单元测试 os
-  xmake r unitest -json   # 执行单元测试 json
-  ```
-
-- 构建及运行 test 代码
-
-  [co/test](https://github.com/idealvin/co/tree/master/test) 包含了一些测试代码。co/test 目录或子目录下增加 `xxx.cc` 源文件，然后在 co 根目录下执行 `xmake build xxx` 即可构建。
-
-  ```sh
-  xmake build flag             # 编译 test/flag.cc
-  xmake build log              # 编译 test/log.cc
-  
-  xmake r flag -xz             # 测试 flag 库
-  xmake r log                  # 测试 log 库
-  xmake r log -cout            # 终端也打印日志
-  xmake r log -perf            # log 库性能测试
-  ```
-
-- 构建 gen
-
-  ```sh
-  # 建议将 gen 放到系统目录下(如 /usr/local/bin/).
-  xmake build gen
-  cp gen /usr/local/bin/
-  gen hello_world.proto
-  ```
-
-  `proto` 文件格式可以参考 [hello_world.proto](https://github.com/idealvin/co/blob/master/test/so/rpc/hello_world.proto)。
-
-- 安装 libco
-
-  ```sh
-  # 默认安装头文件、libco
-  xmake install -o pkg          # 打包安装到 pkg 目录
-  xmake i -o pkg                # 同上
-  xmake install -o /usr/local   # 安装到 /usr/local 目录
-  ```
-
-- 从 xmake repo 安装 libco
-
-  ```sh
-  xrepo install -f "with_openssl=true,with_libcurl=true" co
-  ```
 
 
 ### cmake
 
 [izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
-- 默认只编译 `libco`。
-- 编译生成的库文件在 build/lib 目录下，可执行文件在 build/bin 目录下。
-- 可以用 `BUILD_ALL` 指定编译所有项目。
-- 可以用 `CMAKE_INSTALL_PREFIX` 指定安装目录。
-- cmake 只提供简单的编译选项，若需要更复杂的配置，请使用 xmake。
-
-- 默认构建 libco
-  ```sh
-  mkdir build && cd build
-  cmake ..
-  make -j8
-  ```
-
-- 构建所有项目
-  ```sh
-  mkdir build && cd build
-  cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
-  make -j8
-  make install
-  ```
-
-- 启用 libcurl & openssl (需要 libcurl, zlib, openssl 1.1.0 或以上版本)
-  ```sh
-  mkdir build && cd build
-  cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
-  make -j8
-  ```
 
 
-### Docker 编译
+#### 默认构建 libco
 
-```
-docker build -t co:v2.0.0 .
-docker run -itd -v $(pwd):/home/co/ co:v2.0.0
-docker exec -it ${CONTAINER_ID} bash   #替换为真正的CONTAINER_ID
-
-# docker中执行以下命令
-cd /home/co && mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DHAS_LIBCURL=ON
+```sh
+mkdir build && cd build
+cmake ..
 make -j8
 ```
+
+
+#### 构建所有项目
+
+```sh
+mkdir build && cd build
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+make -j8
+make install
+```
+
+
+#### 启用 HTTP & SSL (需要 openssl 1.1.0 或以上版本)
+
+```sh
+mkdir build && cd build
+cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
+make -j8
+```
+
+
 
 
 ## License
 
 The MIT license. co 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+
+
 
 
 ## 特别致谢
@@ -430,9 +499,3 @@ The MIT license. co 包含了一些其他项目的代码，可能使用了不同
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
 
-
-## 友情合作
-
-- 有问题请提交到 [github](https://github.com/idealvin/co/).
-- 赞助、商务合作请联系 `idealvin at qq.com`.
-- [Donate](https://www.yuque.com/idealvin/co/entqmb)
