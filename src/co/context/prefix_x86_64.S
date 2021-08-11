@@ -44,6 +44,12 @@
     .type   name, %function; \
     .hidden name; \
 name:
+#elif defined(_WIN32)
+#   define function(name) \
+    .text ;\
+    .align CPU_BYTE_SIZE ; \
+    .global name ;\
+name:
 #else
 #   define function(name) \
     .text ;\

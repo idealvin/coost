@@ -15,7 +15,9 @@ typedef uint64_t uint64;
 #ifdef _MSC_VER
 #define __thread __declspec(thread)
 #else
+#ifndef __forceinline 
 #define __forceinline __attribute__((always_inline))
+#endif
 #endif
 
 #define MAX_UINT8  ((uint8)  ~((uint8) 0))

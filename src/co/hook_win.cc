@@ -130,7 +130,8 @@ _CO_DEF_RAW_API(send);
 _CO_DEF_RAW_API(WSASend);
 _CO_DEF_RAW_API(sendto);
 _CO_DEF_RAW_API(WSASendTo);
-_CO_DEF_RAW_API(select);
+//_CO_DEF_RAW_API(select);
+select_fp_t co_raw_select = (select_fp_t) select;
 _CO_DEF_RAW_API(WSAPoll);
 _CO_DEF_RAW_API(WSAWaitForMultipleEvents);
 _CO_DEF_RAW_API(GetQueuedCompletionStatus);
@@ -1190,8 +1191,8 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
     CHECK_EQ(l, 0) << "detour detach failed: " << psz;
 }
 
-#define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), hook_##x, #x)
-#define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), hook_##x, #x)
+#define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
+#define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 
 void co_attach_hooks() {
     DetourTransactionBegin();

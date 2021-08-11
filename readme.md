@@ -427,6 +427,14 @@ xmake -a   # build all projects (libco, gen, co/test, co/unitest)
 ```
 
 
+#### Build with mingw
+
+```sh
+xmake f -p mingw
+xmake -v
+```
+
+
 #### Enable HTTP & SSL features
 
 ```sh

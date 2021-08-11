@@ -38,7 +38,7 @@
 #define _USER32_ 1
 
 #include <windows.h>
-#if (_MSC_VER < 1310)
+#if defined(_MSC_VER) && (_MSC_VER < 1310)
 #else
 #pragma warning(push)
 #if _MSC_VER > 1400
@@ -370,6 +370,8 @@ typedef struct  _GUID
 extern "C" {
 #endif // __cplusplus
 
+#define C_STATIC_ASSERT(e) typedef char _c_staic_asert_[(e)?1:-1]
+
 /////////////////////////////////////////////////// Instruction Target Macros.
 //
 #define DETOUR_INSTRUCTION_TARGET_NONE          ((PVOID)0)
@@ -463,14 +465,14 @@ typedef struct _DETOUR_EXE_RESTORE
 } DETOUR_EXE_RESTORE, *PDETOUR_EXE_RESTORE;
 
 #ifdef IMAGE_NT_OPTIONAL_HDR64_MAGIC
-C_ASSERT(sizeof(IMAGE_NT_HEADERS64) == 0x108);
+C_STATIC_ASSERT(sizeof(IMAGE_NT_HEADERS64) == 0x108);
 #endif
 
 // The size can change, but assert for clarity due to the muddying #ifdefs.
 #ifdef _WIN64
-C_ASSERT(sizeof(DETOUR_EXE_RESTORE) == 0x688);
+C_STATIC_ASSERT(sizeof(DETOUR_EXE_RESTORE) == 0x688);
 #else
-C_ASSERT(sizeof(DETOUR_EXE_RESTORE) == 0x678);
+C_STATIC_ASSERT(sizeof(DETOUR_EXE_RESTORE) == 0x678);
 #endif
 
 typedef struct _DETOUR_EXE_HELPER
@@ -1027,7 +1029,7 @@ int Detour_AssertExprWithFunctionName(int reportType, const char* filename, int 
 #define DETOUR_IA64_INSTRUCTION1_OFFSET (DETOUR_IA64_TEMPLATE_SIZE + DETOUR_IA64_INSTRUCTION_SIZE)
 #define DETOUR_IA64_INSTRUCTION2_OFFSET (DETOUR_IA64_TEMPLATE_SIZE + DETOUR_IA64_INSTRUCTION_SIZE + DETOUR_IA64_INSTRUCTION_SIZE)
 
-C_ASSERT(DETOUR_IA64_TEMPLATE_SIZE + DETOUR_IA64_INSTRUCTIONS_PER_BUNDLE * DETOUR_IA64_INSTRUCTION_SIZE == 128);
+C_STATIC_ASSERT(DETOUR_IA64_TEMPLATE_SIZE + DETOUR_IA64_INSTRUCTIONS_PER_BUNDLE * DETOUR_IA64_INSTRUCTION_SIZE == 128);
 
 __declspec(align(16)) struct DETOUR_IA64_BUNDLE
 {

@@ -5,8 +5,10 @@
 #include <vector>
 #include <map>
 
+#ifdef _WIN32
 #ifdef _MSC_VER
 #pragma warning(disable:4503)
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #endif

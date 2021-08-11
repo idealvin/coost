@@ -425,6 +425,14 @@ xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
 ```
 
 
+#### 用 mingw 构建
+
+```sh
+xmake f -p mingw
+xmake -v
+```
+
+
 #### 启用 HTTP/SSL 特性
 
 ```sh

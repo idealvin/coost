@@ -108,6 +108,8 @@ __end:
     xorq %rdi, %rdi
 #ifdef __ELF__
     call _exit@PLT
+#elif defined(_WIN32)
+    call _exit
 #else
     call __exit
 #endif

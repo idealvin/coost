@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 
 /**********************************************************************
  *
@@ -45,16 +45,6 @@
 #if _MSC_VER >= 1900
 #pragma warning(disable : 4091)
 #endif
-
-// special defines for VC5/6 (if no actual PSDK is installed):
-#if _MSC_VER < 1300
-typedef unsigned __int64 DWORD64, *PDWORD64;
-#if defined(_WIN64)
-typedef unsigned __int64 SIZE_T, *PSIZE_T;
-#else
-typedef unsigned long SIZE_T, *PSIZE_T;
-#endif
-#endif // _MSC_VER < 1300
 
 class StackWalkerInternal; // forward
 class StackWalker
@@ -121,11 +111,7 @@ public:
 
   BOOL ShowObject(LPVOID pObject);
 
-#if _MSC_VER >= 1300
-  // due to some reasons, the "STACKWALK_MAX_NAMELEN" must be declared as "public"
-  // in older compilers in order to use it... starting with VC7 we can declare it as "protected"
 protected:
-#endif
   enum
   {
     STACKWALK_MAX_NAMELEN = 1024
@@ -249,4 +235,4 @@ protected:
   } while (0);
 #endif
 
-#endif //defined(_MSC_VER)
+#endif // _WIN32

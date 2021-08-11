@@ -5,7 +5,7 @@ set_config("plat", os.host())
 set_project("co")
 
 -- set xmake minimum version
-set_xmakever("2.2.6")
+set_xmakever("2.5.4")
 
 -- set common flags
 set_languages("c++11")
@@ -17,16 +17,22 @@ if is_plat("windows") then
     set_optimize("fastest")  -- faster: -O2  fastest: -Ox  none: -O0
     add_defines("WIN32_LEAN_AND_MEAN")
     add_cxflags("-EHsc")
+    add_syslinks("ws2_32", "version", "Advapi32")
     if is_mode("debug") then
         set_runtimes("MTd")
     else
         set_runtimes("MT")
     end
+elseif is_plat("mingw") then
+    set_optimize("faster")
+    add_defines("WIN32_LEAN_AND_MEAN")
+    add_defines("_FILE_OFFSET_BITS=64")
+    add_syslinks("ws2_32", "version", "Advapi32")
 else
     set_optimize("faster")   -- faster: -O2  fastest: -O3  none: -O0
     add_defines("_FILE_OFFSET_BITS=64")
     add_cxflags("-g3", "-Wno-narrowing", "-Wno-sign-compare", "-Wno-class-memaccess", "-Wno-strict-aliasing")
-    if is_plat("macosx") then
+    if is_plat("macosx", "iphoneos") then
         add_cxflags("-fno-pie")
     end
     if not is_plat("android") then
