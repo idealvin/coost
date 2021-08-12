@@ -14,6 +14,7 @@ target("libco")
     end 
 
     if is_plat("windows", "mingw") then
+        add_defines("WIN32_LEAN_AND_MEAN")
         add_files("__/StackWalker.cpp")
         add_files("co/detours/creatwth.cpp")
         add_files("co/detours/detours.cpp")
@@ -27,11 +28,13 @@ target("libco")
                 add_files("co/context/context_x86.asm")
             end
         else
+            add_defines("_FILE_OFFSET_BITS=64")
             add_files("co/context/context.S")
         end
     else
         includes("check_cincludes.lua")
         check_cincludes("HAS_EXECINFO_H", "execinfo.h")
+        add_defines("_FILE_OFFSET_BITS=64")
         add_files("co/context/context.S")
     end
 
