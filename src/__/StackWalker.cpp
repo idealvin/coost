@@ -275,10 +275,10 @@ public:
       if (this->pSGSP(m_hProcess, buf, StackWalker::STACKWALK_MAX_NAMELEN) == FALSE)
         this->m_parent->OnDbgHelpErr("SymGetSearchPath", GetLastError(), 0);
     }
-    char  szUserName[1024] = {0};
-    DWORD dwSize = 1024;
-    GetUserNameA(szUserName, &dwSize);
-    this->m_parent->OnSymInit(buf, symOptions, szUserName);
+    //char  szUserName[1024] = {0};
+    //DWORD dwSize = 1024;
+    //GetUserNameA(szUserName, &dwSize);
+    this->m_parent->OnSymInit(buf, symOptions, NULL);
 
     return TRUE;
   }
@@ -610,6 +610,7 @@ private:
     if ((m_parent != NULL) && (szImg != NULL))
     {
       // try to retrieve the file-version:
+      /*
       if ((this->m_parent->m_options & StackWalker::RetrieveFileVersion) != 0)
       {
         VS_FIXEDFILEINFO* fInfo = NULL;
@@ -636,6 +637,7 @@ private:
           }
         }
       }
+      */
 
       // Retrieve some additional-infos about the module
       IMAGEHLP_MODULE64_V3 Module;
@@ -1285,12 +1287,12 @@ void StackWalker::OnDbgHelpErr(LPCSTR szFuncName, DWORD gle, DWORD64 addr)
   OnOutput(buffer);
 }
 
-void StackWalker::OnSymInit(LPCSTR szSearchPath, DWORD symOptions, LPCSTR szUserName)
+void StackWalker::OnSymInit(LPCSTR szSearchPath, DWORD symOptions, LPCSTR /*szUserName*/)
 {
   CHAR   buffer[STACKWALK_MAX_NAMELEN];
   size_t maxLen = _TRUNCATE;
-  _snprintf_s(buffer, maxLen, "SymInit: Symbol-SearchPath: '%s', symOptions: %d, UserName: '%s'\n",
-              szSearchPath, symOptions, szUserName);
+  _snprintf_s(buffer, maxLen, "SymInit: Symbol-SearchPath: '%s', symOptions: %d\n", 
+              szSearchPath, symOptions);
   buffer[STACKWALK_MAX_NAMELEN - 1] = 0;
   OnOutput(buffer);
   // Also display the OS-version

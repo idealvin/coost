@@ -243,9 +243,9 @@ class PoolImpl {
 
   private:
     std::vector<V*> _pools;
+    size_t _maxcap;
     std::function<void*()> _ccb;
     std::function<void(void*)> _dcb;
-    size_t _maxcap;
 
     V* new_pool() { V* v = new V(); v->reserve(1024); return v; }
 };

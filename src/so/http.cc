@@ -408,7 +408,7 @@ size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
 
     long code = 0;
     const CURLcode r = curl_easy_getinfo(ctx->easy, CURLINFO_RESPONSE_CODE, &code);
-    if (code == 100) return n;
+    if (r != CURLE_OK || code == 100) return n;
 
     if (!h.empty()) {
         if (n > 2) ctx->header_index.push_back(h.size());

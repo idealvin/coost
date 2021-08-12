@@ -13,7 +13,9 @@ typedef uint32_t uint32;
 typedef uint64_t uint64;
 
 #ifdef _MSC_VER
+#ifndef __thread
 #define __thread __declspec(thread)
+#endif
 #else
 #ifndef __forceinline 
 #define __forceinline __attribute__((always_inline))
