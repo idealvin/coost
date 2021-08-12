@@ -476,7 +476,7 @@ make -j8
 
 ```sh
 mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=/usr/local
 make -j8
 make install
 ```
@@ -488,6 +488,13 @@ make install
 mkdir build && cd build
 cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
 make -j8
+```
+
+
+#### 从 vcpkg 安装 libco
+
+```sh
+vcpkg install co:x64-windows
 ```
 
 

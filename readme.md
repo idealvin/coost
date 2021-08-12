@@ -479,17 +479,25 @@ make -j8
 
 ```sh
 mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=pkg
+cmake .. -DBUILD_ALL=ON
 make -j8
-make install
 ```
+
 
 #### Build with libcurl & openssl (openssl 1.1.0 or above required)
 
 ```sh
 mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
+cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=/usr/local
 make -j8
+make install
+```
+
+
+#### install libco from vcpkg
+
+```sh
+vcpkg install co:x64-windows
 ```
 
 
