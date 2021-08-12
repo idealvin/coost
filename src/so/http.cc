@@ -42,7 +42,8 @@ namespace http {
 #ifdef HAS_LIBCURL
 struct curl_ctx {
     curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), s(-1), cs(-1), action(0), ms(0) {
+        : l(NULL), upload(NULL), upsize(0), 
+          s((curl_socket_t)-1), cs((curl_socket_t)-1), action(0), ms(0) {
         multi = curl_multi_init();
         easy = curl_easy_init();
         memset(err, 0, sizeof(err));
@@ -359,7 +360,7 @@ void Client::do_io() {
     }
 }
 
-int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* socketp) {
+int multi_socket_cb(CURL*, curl_socket_t s, int action, void* userp, void*) {
     CHECK(userp != NULL);
     curl_ctx* ctx = (curl_ctx*)userp;
     switch (action) {
@@ -430,7 +431,7 @@ size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp) {
     return n;
 }
 
-curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_sockaddr* addr) {
+curl_socket_t easy_opensocket_cb(void* userp, curlsocktype, struct curl_sockaddr* addr) {
     curl_ctx* ctx = (curl_ctx*)userp;
     curl_socket_t fd = co::socket(addr->family, addr->socktype, addr->protocol);
     if (fd == (sock_t)-1) {
@@ -447,12 +448,12 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_
     return CURL_SOCKET_BAD;
 }
 
-int easy_closesocket_cb(void* userp, curl_socket_t fd) {
+int easy_closesocket_cb(void*, curl_socket_t fd) {
     if (fd != (curl_socket_t)-1) return co::close(fd);
     return 0;
 }
 
-int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose) {
+int easy_sockopt_cb(void*, curl_socket_t, curlsocktype) {
     return CURL_SOCKOPT_ALREADY_CONNECTED;
 }
 

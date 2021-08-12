@@ -1,8 +1,12 @@
 #ifdef _WIN32
 #include "co/fs.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifdef _MSC_VER
 #pragma warning (disable:4800)
+#endif
 #include <Windows.h>
 
 namespace fs {

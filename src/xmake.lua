@@ -15,6 +15,7 @@ target("libco")
 
     if is_plat("windows", "mingw") then
         add_defines("WIN32_LEAN_AND_MEAN")
+        add_defines("_WINSOCK_DEPRECATED_NO_WARNINGS")
         add_files("__/StackWalker.cpp")
         add_files("co/detours/creatwth.cpp")
         add_files("co/detours/detours.cpp")

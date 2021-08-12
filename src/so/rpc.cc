@@ -42,7 +42,7 @@ class Ping : public Service {
 
     virtual const char* name() const { return "ping"; }
 
-    virtual void process(const Json& req, Json& res) {
+    virtual void process(const Json&, Json& res) {
         res.add_member("err", 200);
         res.add_member("errmsg", "pong");
     }

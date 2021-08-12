@@ -70,8 +70,8 @@ DEF_test(fastring) {
         s.append(u);
         EXPECT_EQ(s, "xxxx");
 
-        int i = 'x';
-        s.append(i);
+        char c = 'x';
+        s.append(c);
         EXPECT_EQ(s, "xxxxx");
 
         EXPECT_EQ(fastring("x") + 'x', "xx");

@@ -24,7 +24,7 @@ inline void mutex_unlock(mutex_t* m)   { LeaveCriticalSection(m); }
 
 typedef CONDITION_VARIABLE cond_t;
 inline void cond_init(cond_t* c)                        { InitializeConditionVariable(c); }
-inline void cond_destroy(cond_t* c)                     {}
+inline void cond_destroy(cond_t*)                     {}
 inline void cond_wait(cond_t* c, mutex_t* m)            { SleepConditionVariableCS(c, m, INFINITE); }
 inline bool cond_wait(cond_t* c, mutex_t* m, uint32 ms) { return SleepConditionVariableCS(c, m, ms) == TRUE; }
 inline void cond_notify(cond_t* c)                      { WakeAllConditionVariable(c); }
@@ -41,7 +41,7 @@ typedef DWORD tls_t;
 inline void tls_init(tls_t* k)        { *k = TlsAlloc(); assert(*k != TLS_OUT_OF_INDEXES); }
 inline void tls_destroy(tls_t k)      { TlsFree(k); }
 inline void* tls_get(tls_t k)         { return TlsGetValue(k); }
-inline void tls_set(tls_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); }
+inline void tls_set(tls_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); (void)r; }
 
 } // xx
 } // co
