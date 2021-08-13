@@ -456,7 +456,7 @@ xmake install -o /usr/local  # install to the /usr/local directory
 #### Install libco from xmake repo
 
 ```sh
-xrepo install -f "with_openssl=true,with_libcurl=true" co
+xrepo install -f "openssl=true,libcurl=true" co
 ```
 
 
@@ -498,6 +498,9 @@ make install
 
 ```sh
 vcpkg install co:x64-windows
+
+# HTTP & SSL support
+vcpkg install co[libcurl,openssl]:x64-windows
 ```
 
 
