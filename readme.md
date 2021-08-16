@@ -37,7 +37,7 @@ CO is an elegant and efficient C++ base library that supports Linux, Windows and
 
 ## Sponsor
 
-Goto the [Sponsor](https://idealvin.github.io/en/about/sponsor/) page.
+Goto the [Sponsor](https://www.paypal.me/leo.haim.nigri) page.
 
 
 
@@ -510,12 +510,3 @@ vcpkg install co[libcurl,openssl]:x64-windows
 
 The MIT license. co contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
 
-
-
-
-## Special thanks
-
-- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
-- The English reference documents of co are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
-- [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
-- [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!
