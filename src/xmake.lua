@@ -30,6 +30,7 @@ target("libco")
             end
         else
             add_defines("_FILE_OFFSET_BITS=64")
+            add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
             add_files("co/context/context.S")
         end
     else

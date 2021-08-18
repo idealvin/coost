@@ -22,6 +22,7 @@ if is_plat("windows") then
         set_runtimes("MT")
     end
 elseif is_plat("mingw") then
+    add_ldflags("-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic", {force = true})
     set_optimize("faster")
     add_syslinks("ws2_32")
 else
@@ -34,6 +35,7 @@ else
         add_syslinks("pthread", "dl")
     end
 end
+
 
 -- build with openssl (1.1.0+)
 option("with_openssl")
