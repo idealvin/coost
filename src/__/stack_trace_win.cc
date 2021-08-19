@@ -88,7 +88,7 @@ StackTraceImpl::StackTraceImpl() : StackWalker(kOptions) {
 
 StackTraceImpl::~StackTraceImpl() {
     os::signal(SIGABRT, SIG_DFL);
-    RemoveVectoredContinueHandler(kParam->h);
+    RemoveVectoredExceptionHandler(kParam->h);
     delete kParam;
 }
 
