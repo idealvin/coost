@@ -480,7 +480,7 @@ void parse_config(const fastring& config) {
         exit(0);
     }
 
-    fastring data = f.read(f.size());
+    fastring data = f.read((size_t)f.size());
 
     char sep = '\n';
     if (data.find('\n') == data.npos && data.find('\r') != data.npos) sep = '\r';

@@ -34,12 +34,12 @@ size_t murmur_hash(const void* s, size_t n);
 
 template<>
 inline size_t murmur_hash<4>(const void* s, size_t n) {
-    return murmur_hash32(s, n, 0);
+    return (size_t) murmur_hash32(s, n, 0);
 }
 
 template<>
 inline size_t murmur_hash<8>(const void* s, size_t n) {
-    return murmur_hash64(s, n, 0);
+    return (size_t) murmur_hash64(s, n, 0);
 }
 } // xx
 
