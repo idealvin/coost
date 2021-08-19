@@ -31,11 +31,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef _WIN32
+/* //////////////////////////////////////////////////////////////////////////////////////
+ * implementation
+ */
 
 /**
- * translate from context_x64.asm
+ * translated from x64/context.asm by Alvin
+ *
+ * - support mingw/cygwin on windows
  */
+#ifdef _WIN32
+
 function(tb_context_make)
 
     // save the stack top to rax
@@ -115,7 +121,7 @@ function(tb_context_jump)
     pushq %r12
 
     // load TIB
-    movq %gs:0x30, %r10
+    movq %gs:(0x30), %r10
 
     // save current stack base
     movq 0x08(%r10), %rax
@@ -140,7 +146,7 @@ function(tb_context_jump)
     movq %rdx, %rsp
 
     // load TIB
-    movq %gs:0x30, %r10
+    movq %gs:(0x30), %r10
 
     // restore fiber local storage
     popq %rax
@@ -188,10 +194,6 @@ endfunc
 
 
 #else
-
-/* //////////////////////////////////////////////////////////////////////////////////////
- * implementation
- */
 
 /* make context (refer to boost.context)
  *

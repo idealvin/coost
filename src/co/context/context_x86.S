@@ -35,20 +35,17 @@
  *
  * - modify stack layout
  * - fix some bugs on macosx i386
- *
- *
- * modified by Alvin at 2018/12/21, 2021/08/18
- * 
- * - support mingw on windows
  */
-
-
 
 /* //////////////////////////////////////////////////////////////////////////////////////
  * implementation
  */
 
-// for mingw
+/**
+ * translated from x86/context.asm by Alvin
+ *
+ * - support mingw/cygwin.. on windows
+ */
 #if defined(_WIN32)
 
 function(tb_context_make)
