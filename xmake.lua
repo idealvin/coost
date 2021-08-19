@@ -15,7 +15,8 @@ set_symbols("debug")    -- dbg symbols
 
 if is_plat("windows") then
     set_optimize("fastest")  -- faster: -O2  fastest: -Ox  none: -O0
-    add_cxflags("-EHsc")
+    add_cxflags("/EHsc")
+    add_ldflags("/SAFESEH:NO")
     if is_mode("debug") then
         set_runtimes("MTd")
     else
