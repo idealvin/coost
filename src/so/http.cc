@@ -42,15 +42,15 @@ namespace http {
 #ifdef HAS_LIBCURL
 struct curl_ctx {
     curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), 
-          s((curl_socket_t)-1), cs((curl_socket_t)-1), action(0), ms(0) {
+        : l(NULL), upload(NULL), upsize(0), s((curl_socket_t)-1), cs((curl_socket_t)-1), 
+        action(0), ms(0), update_header(false) {
         multi = curl_multi_init();
         easy = curl_easy_init();
         memset(err, 0, sizeof(err));
     }
 
     ~curl_ctx() {
-        curl_slist_free_all(l);     l = NULL;
+        if (l) { curl_slist_free_all(l); l = NULL; }
         curl_easy_cleanup(easy);    easy = NULL;
         curl_multi_cleanup(multi);  multi = NULL;
     }
@@ -72,6 +72,7 @@ struct curl_ctx {
     curl_socket_t cs;
     int action;
     int ms;
+    bool update_header;
 };
 
 static int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* socketp);
@@ -148,8 +149,12 @@ void Client::close() {
 
 inline void Client::append_header(const char* s) {
     struct curl_slist* l = curl_slist_append(_ctx->l, s);
-    if (l) _ctx->l = l;
-    if (!l) ELOG << "libcurl add header failed: " << s;
+    if (l) {
+        _ctx->l = l;
+        if (!_ctx->update_header) _ctx->update_header = true;
+    } else {
+        ELOG << "libcurl add header failed: " << s;
+    }
 }
 
 void Client::add_header(const char* key, const char* val) {
@@ -180,10 +185,9 @@ void Client::remove_header(const char* key) {
 }
 
 inline void Client::set_headers() {
-    if (_ctx->l) {
+    if (_ctx->update_header) {
         curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
-        curl_slist_free_all(_ctx->l);
-        _ctx->l = NULL;
+        _ctx->update_header = false;
     }
 }
 
