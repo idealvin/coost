@@ -28,10 +28,8 @@
  * macros
  */
 #ifdef __ELF__
-#   define ELF
 #   define EXTERN_ASM
 #else
-#   define ELF          //
 #   define EXTERN_ASM   _
 #endif
 
@@ -91,7 +89,9 @@
  */
 .macro function name, export=0
     .macro endfunc
-ELF     .size \name, . - \name
+#ifdef __ELF__
+        .size \name, . - \name
+#endif
         .purgem endfunc
     .endm
 
@@ -99,12 +99,16 @@ ELF     .size \name, . - \name
         .align CPU_BYTE_SIZE
     .if \export
         .global EXTERN_ASM\name
-ELF     .type   EXTERN_ASM\name, %function
-ELF     .hidden EXTERN_ASM\name
+#ifdef __ELF__
+        .type   EXTERN_ASM\name, %function
+        .hidden EXTERN_ASM\name
+#endif
 EXTERN_ASM\name:
     .else
-ELF     .type   \name, %function
-ELF     .hidden \name
+#ifdef __ELF__
+        .type   \name, %function
+        .hidden \name
+#endif
 \name:
     .endif
 .endm
