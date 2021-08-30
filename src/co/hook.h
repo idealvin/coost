@@ -318,14 +318,22 @@ void co_detach_hooks();
 
 namespace co {
 
+#if __cplusplus < 201703L || defined(__APPLE__)
+#define _co_noexcept
+#else
+#define _co_noexcept noexcept
+#endif
+
 // deduce parameter type of ioctl
 template<typename T>
 struct ioctl_param;
 
 template<typename X, typename Y>
-struct ioctl_param<int(*)(X, Y, ...)> {
+struct ioctl_param<int(*)(X, Y, ...) _co_noexcept> {
     typedef Y type;
 };
+
+#undef _co_noexcept
 
 } // co
 
