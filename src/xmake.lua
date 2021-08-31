@@ -5,6 +5,7 @@ target("libco")
 
     add_options("with_openssl")
     add_options("with_libcurl")
+    add_options("fpic")
 
     if has_config("with_libcurl") then
         add_packages("libcurl")
