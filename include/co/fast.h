@@ -163,8 +163,12 @@ class stream {
         return this->append(v);
     }
 
+    stream& operator<<(signed char v) {
+        return this->operator<<((char)v);
+    }
+
     stream& operator<<(unsigned char v) {
-        return this->append((char)v);
+        return this->operator<<((char)v);
     }
 
     stream& operator<<(short v) {

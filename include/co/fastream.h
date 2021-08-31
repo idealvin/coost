@@ -63,6 +63,10 @@ class fastream : public fast::stream {
         return (fastream&) fast::stream::append(c);
     }
 
+    fastream& append(signed char v) {
+        return this->append((char)v);
+    }
+
     fastream& append(unsigned char v) {
         return this->append((char)v);
     }

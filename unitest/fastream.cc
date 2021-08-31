@@ -63,11 +63,12 @@ DEF_test(fastream) {
 
     DEF_case(char) {
         char c = 'c';
+        signed char sc = 'c';
         unsigned char uc = 'c';
         const char& x = c;
         fastream fs;
-        fs << c << ' ' << uc << ' ' << x;
-        EXPECT_EQ(fs.str(), "c c c");
+        fs << c << sc << uc << x;
+        EXPECT_EQ(fs.str(), "cccc");
     }
 
     DEF_case(int) {

@@ -84,6 +84,14 @@ class fastring : public fast::stream {
         return (fastring&) fast::stream::append(c);
     }
 
+    fastring& append(signed char c) {
+        return this->append((char)c);
+    }
+
+    fastring& append(unsigned char c) {
+        return this->append((char)c);
+    }
+
     fastring& operator+=(const char* s) {
         return this->append(s);
     }
@@ -97,6 +105,14 @@ class fastring : public fast::stream {
     }
 
     fastring& operator+=(char c) {
+        return this->append(c);
+    }
+
+    fastring& operator+=(signed char c) {
+        return this->append(c);
+    }
+
+    fastring& operator+=(unsigned char c) {
         return this->append(c);
     }
 
