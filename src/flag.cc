@@ -16,31 +16,22 @@ namespace flag {
 namespace xx {
 
 struct Flag {
-    Flag(const char* type_str_, const char* name_, const char* value_,
-         const char* help_, const char* file_, int line_, int type_, void* addr_)
-        : type_str(type_str_), name(name_), value(value_), help(help_),
-          file(file_), line(line_), type(type_), addr(addr_), lv(10) {
-        const char* const h = help;
-        if (h[0] == '#' && '0' <= h[1] && h[1] <= '9') {
-            if (h[2] == ' ' || h[2] == '\0') {
-                lv = h[1] - '0';
-                help += 2 + !!h[2];
-            } else if ('0' <= h[2] && h[2] <= '9' && (h[3] == ' ' || h[3] == '\0')) {
-                lv = (h[1] - '0') * 10 + (h[2] - '0');
-                help += 3 + !!h[3];
-            }
-        }
-    }
+    Flag(char type, const char* name, const char* value, const char* help, 
+         const char* file, int line, void* addr);
 
-    const char* type_str;
+    fastring set_value(const fastring& v);
+    fastring get_value() const;
+    fastring to_string() const;
+    const char* type_str() const;
+
+    char type;
     const char* name;
     const char* value;  // default value
     const char* help;   // help info
     const char* file;   // file where the flag is defined
     int line;           // line of the file where the flag is defined
-    int type;
-    void* addr;         // point to the flag variable
     int lv;             // level: 0-9 for co, 10-99 for users
+    void* addr;         // point to the flag variable
 };
 
 inline std::map<fastring, Flag>& gFlags() {
@@ -48,28 +39,53 @@ inline std::map<fastring, Flag>& gFlags() {
     return flags;
 }
 
-fastring flag_set_value(Flag* flag, const fastring& v) {
-    switch (flag->type) {
+const char TYPE_string = 's';
+const char TYPE_bool = 'b';
+const char TYPE_int32 = 'i';
+const char TYPE_int64 = 'I';
+const char TYPE_uint32 = 'u';
+const char TYPE_uint64 = 'U';
+const char TYPE_double = 'd';
+
+Flag::Flag(char type, const char* name, const char* value, const char* help, 
+           const char* file, int line, void* addr)
+    : type(type), name(name), value(value), help(help),
+      file(file), line(line), lv(10), addr(addr) {
+    // get level(0-99) at the beginning of help
+    const char* const h = help;
+    if (h[0] == '#' && '0' <= h[1] && h[1] <= '9') {
+        if (h[2] == ' ' || h[2] == '\0') {
+            lv = h[1] - '0';
+            help += 2 + !!h[2];
+        } else if ('0' <= h[2] && h[2] <= '9' && (h[3] == ' ' || h[3] == '\0')) {
+            lv = (h[1] - '0') * 10 + (h[2] - '0');
+            help += 3 + !!h[3];
+        }
+    }
+}
+
+fastring Flag::set_value(const fastring& v) {
+    switch (this->type) {
       case TYPE_string:
-        *static_cast<fastring*>(flag->addr) = v;
+        *static_cast<fastring*>(this->addr) = v;
         break;
       case TYPE_bool:
-        *static_cast<bool*>(flag->addr) = str::to_bool(v);
+        *static_cast<bool*>(this->addr) = str::to_bool(v);
         break;
       case TYPE_int32:
-        *static_cast<int32*>(flag->addr) = str::to_int32(v);
+        *static_cast<int32*>(this->addr) = str::to_int32(v);
         break;
       case TYPE_uint32:
-        *static_cast<uint32*>(flag->addr) = str::to_uint32(v);
+        *static_cast<uint32*>(this->addr) = str::to_uint32(v);
         break;
       case TYPE_int64:
-        *static_cast<int64*>(flag->addr) = str::to_int64(v);
+        *static_cast<int64*>(this->addr) = str::to_int64(v);
         break;
       case TYPE_uint64:
-        *static_cast<uint64*>(flag->addr) = str::to_uint64(v);
+        *static_cast<uint64*>(this->addr) = str::to_uint64(v);
         break;
       case TYPE_double:
-        *static_cast<double*>(flag->addr) = str::to_double(v);
+        *static_cast<double*>(this->addr) = str::to_double(v);
         break;
       default:
         return "unknown flag type";
@@ -91,42 +107,60 @@ fastring int_to_string(T t) {
         if (++i >= 4) break;
     }
 
-    return i < 0 ? str::from(t) : str::from(t) + u[i];
+    fastring s = str::from(t);
+    if (i >= 0) s.append(u[i]);
+    return s;
 }
 
-fastring flag_get_value(const Flag* flag) {
-    switch (flag->type) {
+fastring Flag::get_value() const {
+    switch (this->type) {
       case TYPE_string:
-        return *static_cast<fastring*>(flag->addr);
+        return *static_cast<fastring*>(this->addr);
       case TYPE_bool:
-        return str::from(*static_cast<bool*>(flag->addr));
+        return str::from(*static_cast<bool*>(this->addr));
       case TYPE_int32:
-        return int_to_string(*static_cast<int32*>(flag->addr));
+        return int_to_string(*static_cast<int32*>(this->addr));
       case TYPE_uint32:
-        return int_to_string(*static_cast<uint32*>(flag->addr));
+        return int_to_string(*static_cast<uint32*>(this->addr));
       case TYPE_int64:
-        return int_to_string(*static_cast<int64*>(flag->addr));
+        return int_to_string(*static_cast<int64*>(this->addr));
       case TYPE_uint64:
-        return int_to_string(*static_cast<uint64*>(flag->addr));
+        return int_to_string(*static_cast<uint64*>(this->addr));
       case TYPE_double:
-        return str::from(*static_cast<double*>(flag->addr));
+        return str::from(*static_cast<double*>(this->addr));
       default:
         return "unknown flag type";
     }
 }
 
-fastring flag_to_str(const Flag* flag) {
-    return fastring(64).append("--").append(flag->name)
-                       .append(": ").append(flag->help)
-                       .append("\n\t type: ").append(flag->type_str)
-                       .append("\t     default: ").append(flag->value)
-                       .append("\n\t from: ").append(flag->file);
+inline const char* Flag::type_str() const {
+    switch (this->type) {
+      case TYPE_string: return "string";
+      case TYPE_bool:   return "bool";
+      case TYPE_int32:  return "int32";
+      case TYPE_uint32: return "uint32";
+      case TYPE_int64:  return "int64";
+      case TYPE_uint64: return "uint64";
+      case TYPE_double: return "double";
+      default:          return "unknown flag type";
+    }
 }
 
-void add_flag(const char* type_str, const char* name, const char* value,
-              const char* help, const char* file, int line, int type, void* addr) {
+inline fastring Flag::to_string() const {
+    fastring s(64);
+    s.append("--").append(this->name)
+     .append(": ").append(this->help)
+     .append("\n\t type: ").append(this->type_str())
+     .append("\t     default: ").append(this->value)
+     .append("\n\t from: ").append(this->file);
+    return s;
+}
+
+void add_flag(
+    char type, const char* name, const char* value, const char* help, 
+    const char* file, int line, void* addr) {
     auto r = gFlags().insert(
-        std::make_pair(fastring(name), Flag(type_str, name, value, help, file, line, type, addr))
+        std::make_pair(fastring(name), Flag(type, name, value, help, file, line, addr))
     );
 
     if (!r.second) {
@@ -136,7 +170,7 @@ void add_flag(const char* type_str, const char* name, const char* value,
     }
 }
 
-Flag* find_flag(const fastring& name) {
+inline Flag* find_flag(const fastring& name) {
     auto it = gFlags().find(name);
     if (it != gFlags().end()) return &it->second;
     return NULL;
@@ -147,7 +181,7 @@ fastring set_flag_value(const fastring& name, const fastring& value) {
     Flag* flag = find_flag(name);
     if (!flag) return "flag not defined: " + name;
 
-    fastring err = flag_set_value(flag, value);
+    fastring err = flag->set_value(value);
     if (!err.empty()) err.append(": ").append(value);
     return err;
 }
@@ -160,12 +194,12 @@ fastring set_bool_flags(const fastring& name) {
             *static_cast<bool*>(flag->addr) = true;
             return fastring();
         } else {
-            return fastring("value not set for non-bool flag: -").append(name);
+            return fastring("value not set for non-bool flag: ").append(name);
         }
     }
 
     if (name.size() == 1) {
-        return fastring("undefined bool flag -").append(name);
+        return fastring("undefined bool flag: ").append(name);
     }
 
     for (size_t i = 0; i < name.size(); ++i) {
@@ -185,7 +219,7 @@ fastring set_bool_flags(const fastring& name) {
 void show_flags_info() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
         const auto& flag = it->second;
-        if (*flag.help != '\0') COUT << flag_to_str(&flag);
+        if (flag.help[0] != '\0') COUT << flag.to_string();
     }
 }
 
@@ -260,7 +294,7 @@ void mkconf(const fastring& exe) {
             f << "#" << fastring(COMMENT_LINE_LEN - 1, '=') << '\n';
             for (auto yit = y.begin(); yit != y.end(); ++yit) {
                 const Flag& flag = *yit->second;
-                fastring v = flag_get_value(&flag);
+                fastring v = flag.get_value();
                 if (flag.type == TYPE_string) v = format_str(v);
                 f << "# " << str::replace(flag.help, "\n", "\n# ") << '\n';
                 f << flag.name << " = " << v << "\n\n";
@@ -273,12 +307,6 @@ void mkconf(const fastring& exe) {
 }
 
 #undef COMMENT_LINE_LEN
-
-
-FlagSaver::FlagSaver(const char* type_str, const char* name, const char* value,
-                     const char* help, const char* file, int line, int type, void* addr) {
-    add_flag(type_str, name, value, help, file, line, type, addr);
-}
 
 // @kv:     for -a=b, or -a b, or a=b
 // @bools:  for -a, -xyz
@@ -481,7 +509,6 @@ void parse_config(const fastring& config) {
     }
 
     fastring data = f.read((size_t)f.size());
-
     char sep = '\n';
     if (data.find('\n') == data.npos && data.find('\r') != data.npos) sep = '\r';
 
