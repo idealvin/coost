@@ -1,5 +1,5 @@
 #include "co/hash.h"
-#include "co/log.h"
+#include "co/cout.h"
 
 int main(int argc, char** argv) {
     fastring s("hello world");

@@ -1,24 +1,20 @@
 #include "co/defer.h"
-#include "co/log.h"
+#include "co/cout.h"
 #include "co/time.h"
 
 void f(int x, int y) {
-    LOG << (x + y);
+    CLOG << (x + y);
 }
 
 void f() {
     Timer t;
-    defer(LOG << "time elapse: " << t.us() << " us");
-    LOG << "hello f()";
+    defer(CLOG << "time elapse: " << t.us() << " us");
+    CLOG << "hello f()";
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-    FLG_cout = true;
-
-    defer(LOG << "hello world");
-    defer(LOG << "hello again");
+    defer(CLOG << "hello world");
+    defer(CLOG << "hello again");
     defer(f(1, 1); f(1, 3));
     f();
     f();

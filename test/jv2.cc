@@ -1,9 +1,9 @@
-#include "co/all.h"
+#include "co/json.h"
+#include "co/cout.h"
+#include "co/flag.h"
+#include "co/time.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
     Json r;
     CLOG << r.is_null();
 

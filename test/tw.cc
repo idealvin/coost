@@ -1,6 +1,6 @@
 #include "test.h"
 #include "co/def.h"
-#include "co/log.h"
+#include "co/cout.h"
 #include "co/str.h"
 #include "co/fastream.h"
 #include "co/time.h"
@@ -281,9 +281,6 @@ inline int64 rtw(const char* s, const char* x) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
     CLOG << "hello world";
 
     def_test(100000);

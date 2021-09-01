@@ -1,6 +1,6 @@
 #include "co/def.h"
 #include "co/time.h"
-#include "co/log.h"
+#include "co/cout.h"
 
 #define def_test(n) \
     int N = n; \

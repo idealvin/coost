@@ -1,4 +1,5 @@
 #include "co/log.h"
+#include "co/cout.h"
 #include "co/time.h"
 
 DEF_bool(perf, false, "performance testing");

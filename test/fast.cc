@@ -1,8 +1,6 @@
 #include "co/def.h"
+#include "co/cout.h"
 #include "co/flag.h"
-#include "co/log.h"
-#include "co/fast.h"
-#include "co/fastring.h"
 #include "co/time.h"
 
 DEF_uint64(beg, 0, "beg");
