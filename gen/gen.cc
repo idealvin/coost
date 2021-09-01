@@ -2,7 +2,7 @@
 #include "co/str.h"
 #include "co/fs.h"
 #include "co/flag.h"
-#include "co/log.h"
+#include "co/cout.h"
  
 void generate(
     const fastring& gen_file, const fastring& pkg, const fastring& serv, 
@@ -240,7 +240,6 @@ void parse(const char* path) {
 
 int main(int argc, char** argv) {
     auto v = flag::init(argc, argv);
-    log::init();
     if (v.empty()) {
         COUT << "usage: gen xx.proto";
         return 0;
