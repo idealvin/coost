@@ -11,6 +11,7 @@
 #include "fastream.h"
 #include "str.h"
 
+#include "cout.h"
 #include "flag.h"
 #include "log.h"
 #include "json.h"
@@ -28,5 +29,3 @@
 #include "thread.h"
 #include "tasked.h"
 #include "unitest.h"
-
-#include <algorithm>
