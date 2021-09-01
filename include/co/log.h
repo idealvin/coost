@@ -110,35 +110,11 @@ class FatalLogSaver {
     }
 };
 
-class CLogSaver {
-  public:
-    CLogSaver() : _fs(128) {}
-
-    CLogSaver(const char* file, unsigned int line) : _fs(128) {
-        _fs << file << ':' << line << ']' << ' ';
-    }
-
-    ~CLogSaver() {
-        _fs << '\n';
-        ::fwrite(_fs.data(), 1, _fs.size(), stderr);
-    }
-
-    fastream& fs() {
-        return _fs;
-    }
-
-  private:
-    fastream _fs;
-};
-
 } // namespace xx
 } // namespace log
 } // namespace ___
 
 using namespace ___;
-
-#define COUT   log::xx::CLogSaver().fs()
-#define CLOG   log::xx::CLogSaver(__FILE__, __LINE__).fs()
 
 // DLOG  ->  debug log
 // LOG   ->  info log

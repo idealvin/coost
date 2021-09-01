@@ -1,10 +1,8 @@
 #include "co/flag.h"
-#include "co/log.h"
+#include "co/cout.h"
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/str.h"
-
-#include <stdlib.h>
 #include <map>
 
 DEF_string(help, "", ".help info");
