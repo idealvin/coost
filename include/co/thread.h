@@ -253,10 +253,17 @@ class Thread {
     }
 };
 
-inline uint32 current_thread_id() {
+namespace co {
+inline uint32 thread_id() {
     static __thread uint32 id = 0;
     if (id != 0) return id;
     return id = co::xx::thread_id();
+}
+} // co
+
+// deprecated since v2.0.2, use co::thread_id() instead.
+inline uint32 current_thread_id() {
+    return co::thread_id();
 }
 
 // thread_ptr is based on TLS. Each thread sets and holds its own pointer.
