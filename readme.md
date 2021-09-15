@@ -300,7 +300,9 @@ CHECK(p != NULL) << "malloc failed..";
 CHECK_NE(p, NULL) << "malloc failed..";
 ```
 
-When the CHECK assertion fails, co/log will print the function call stack information, and then terminate the program.
+When the CHECK assertion fails, co/log will print the function call stack information, and then terminate the program. On linux and macosx, make sure you have installed [libbacktrace](https://github.com/ianlancetaylor/libbacktrace) on your system.
+
+![stack](https://idealvin.github.io/images/stack.png)
 
 co/log is very fast. The following are some test results, for reference only:
 

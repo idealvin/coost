@@ -32,9 +32,6 @@ else
     if is_plat("macosx", "iphoneos") then
         add_cxflags("-fno-pie")
     end
-    if not is_plat("android") then
-        add_syslinks("pthread", "dl")
-    end
 end
 
 

@@ -15,7 +15,7 @@ if(WIN32)
     add_library(co
         ${CC_FILES}
         ${ASM_FILES}
-        __/StackWalker.cpp
+        log/StackWalker.cpp
         co/detours/creatwth.cpp
         co/detours/detours.cpp
         co/detours/image.cpp
@@ -27,13 +27,6 @@ else()
         ${CC_FILES}
         co/context/context.S
     )
-endif()
-
-
-include(CheckIncludeFiles)
-check_include_files(execinfo.h HAS_EXECINFO)
-if(HAS_EXECINFO)
-    target_compile_definitions(co PRIVATE HAS_EXECINFO_H)
 endif()
 
 
@@ -75,6 +68,18 @@ if(WIN32)
         target_link_libraries(co PUBLIC ws2_32)
     endif()
 else()
+    include(CheckIncludeFiles)
+    include(CheckIncludeFileCXX)
+    check_include_files(backtrace.h HAS_BACKTRACE)
+    check_include_file_cxx(cxxabi.h HAS_CXXABI)
+    if(HAS_BACKTRACE)
+        target_compile_definitions(co PRIVATE HAS_BACKTRACE_H)
+        target_link_libraries(co PRIVATE backtrace)
+    endif()
+    if(HAS_CXXABI)
+        target_compile_definitions(co PRIVATE HAS_CXXABI_H)
+    endif()
+
     target_compile_definitions(co PRIVATE _FILE_OFFSET_BITS=64)
     if(NOT ANDROID)
         target_link_libraries(co PUBLIC pthread)

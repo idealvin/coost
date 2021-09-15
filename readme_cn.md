@@ -300,7 +300,9 @@ CHECK(p != NULL) << "malloc failed..";
 CHECK_NE(p, NULL) << "malloc failed..";
 ```
 
-CHECK 断言失败时，co/log 会打印函数调用栈信息，然后终止程序的运行。
+CHECK 断言失败时，co/log 会打印函数调用栈信息，然后终止程序的运行。在 linux 与 macosx 上，需要安装 [libbacktrace](https://github.com/ianlancetaylor/libbacktrace)。
+
+![stack](https://idealvin.github.io/images/stack.png)
 
 co/log 速度非常快，在程序运行稳定后，几乎不需要内存分配操作。下面是一些测试结果，仅供参考：
 

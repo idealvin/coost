@@ -17,7 +17,7 @@ target("libco")
     if is_plat("windows", "mingw") then
         add_defines("WIN32_LEAN_AND_MEAN")
         add_defines("_WINSOCK_DEPRECATED_NO_WARNINGS")
-        add_files("__/StackWalker.cpp")
+        add_files("log/StackWalker.cpp")
         add_files("co/detours/creatwth.cpp")
         add_files("co/detours/detours.cpp")
         add_files("co/detours/image.cpp")
@@ -36,7 +36,14 @@ target("libco")
         end
     else
         includes("check_cincludes.lua")
-        check_cincludes("HAS_EXECINFO_H", "execinfo.h")
+        includes("check_cxxincludes.lua")
+        includes("check_links.lua")
+        check_cincludes("HAS_BACKTRACE_H", "backtrace.h")
+        check_cxxincludes("HAS_CXXABI_H", "cxxabi.h")
+        check_links("HAS_LIBBACKTRACE", "backtrace")
+        if not is_plat("android") then
+            add_syslinks("pthread", "dl")
+        end
         add_defines("_FILE_OFFSET_BITS=64")
         add_files("co/context/context.S")
     end

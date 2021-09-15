@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
+#include "./co/hook.h"
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -65,7 +66,6 @@ bool remove(const char* path, bool rf) {
         FILE* f = popen(cmd.c_str(), "w");
         if (f == NULL) return false;
         return pclose(f) != -1;
-        //return system(cmd.c_str()) != -1;
     }
 }
 
@@ -113,14 +113,23 @@ file::operator bool() const {
     return p && p->fd != nullfd;
 }
 
+
 const fastring& file::path() const {
     fctx* p = (fctx*) _p;
     if (p) return p->path;
-    static fastring kPath;
-    return kPath;
+    static char kEmptyPath[sizeof(fastring)] = { 0 };
+    return *(fastring*)kEmptyPath;
 }
 
 bool file::open(const char* path, char mode) {
+    // make sure CO_RAW_API(close, read, write) are not NULL
+    static bool kHookInit = []() {
+        if (CO_RAW_API(close) == 0) ::close(-1);
+        if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+        return true;
+    }();
+
     this->close();
     fctx* p = (fctx*) _p;
     if (!p) _p = (p = new fctx);
@@ -131,7 +140,7 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*) _p;
     if (!p || p->fd == nullfd) return;
-    while (::close(p->fd) != 0 && errno == EINTR);
+    while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
     p->fd = nullfd;
 }
 
@@ -154,7 +163,7 @@ size_t file::read(void* s, size_t n) {
 
     while (true) {
         size_t toread = (remain < N ? remain : N);
-        auto r = ::read(p->fd, c, toread);
+        auto r = CO_RAW_API(read)(p->fd, c, toread);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -183,7 +192,7 @@ size_t file::write(const void* s, size_t n) {
 
     while (true) {
         size_t towrite = (remain < N ? remain : N);
-        auto r = ::write(p->fd, c, towrite);
+        auto r = CO_RAW_API(write)(p->fd, c, towrite);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;

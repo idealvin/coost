@@ -44,6 +44,7 @@ DEF_test(fs) {
     }
 
     DEF_case(attr) {
+        EXPECT(fs::exists("."));
         EXPECT(fs::exists("xxx"));
         EXPECT(!fs::isdir("xxx"));
         EXPECT_NE(fs::mtime("xxx"), -1);

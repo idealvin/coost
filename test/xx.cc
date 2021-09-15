@@ -4,7 +4,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
 
-    while (true) sleep::sec(100000);
+    COUT << "hello world";
 
     return 0;
 }

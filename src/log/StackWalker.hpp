@@ -1,7 +1,3 @@
-#pragma once
-
-#if defined(_WIN32)
-
 /**********************************************************************
  *
  * StackWalker.h
@@ -38,7 +34,9 @@
  * **********************************************************************/
 // #pragma once is supported starting with _MSC_VER 1000,
 // so we need not to check the version (because we only support _MSC_VER >= 1100)!
-// modified by Alvin at 2019.12.02
+#pragma once
+
+#if defined(_WIN32)
 
 #include <windows.h>
 
