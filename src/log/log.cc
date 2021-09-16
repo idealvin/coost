@@ -335,6 +335,14 @@ void LevelLogger::push_fatal_log(fastream* log) {
     abort();
 }
 
+inline void write_to_stderr(const char* s, size_t n) {
+  #ifdef _WIN32
+    auto r = ::fwrite(s, 1, n, stderr); (void)r;
+  #else
+    auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
+  #endif
+}
+
 bool LevelLogger::open_log_file(int level) {
     const fastring& path_base = _config->log_path_base;
     if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
@@ -376,7 +384,7 @@ bool LevelLogger::open_log_file(int level) {
     if (!_file.open(_path.c_str(), 'a')) {
         _stmp.clear();
         _stmp << "cann't open the file: " << _path << '\n';
-        ::fwrite(_stmp.data(), 1, _stmp.size(), stderr);
+        write_to_stderr(_stmp.data(), _stmp.size());
         return false;
     }
 
@@ -387,14 +395,6 @@ void LevelLogger::on_signal(int sig) {
     this->stop(true);
     os::signal(sig, _old_handlers[sig]);
     raise(sig);
-}
-
-inline void write_to_stderr(const char* s, size_t n) {
-  #ifdef _WIN32
-    auto r = ::fwrite(s, 1, n, stderr); (void)r;
-  #else
-    auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
-  #endif
 }
 
 void LevelLogger::on_failure(int sig) {
