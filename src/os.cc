@@ -10,8 +10,13 @@
 namespace os {
 
 fastring env(const char* name) {
-    char* x = getenv(name);
+    char* x = ::getenv(name);
     return x ? fastring(x) : fastring();
+}
+
+bool env(const char* name, const char* value) {
+    if (value == NULL || *value == '\0') return ::unsetenv(name) == 0;
+    return ::setenv(name, value, 1) == 0;
 }
 
 fastring homedir() {
@@ -21,7 +26,7 @@ fastring homedir() {
 fastring cwd() {
     char buf[4096];
     char* s = getcwd(buf, 4096);
-    return  s ? fastring(s) : fastring(1, '.');
+    return s ? fastring(s) : fastring(1, '.');
 }
 
 fastring exename() {

@@ -4,6 +4,14 @@
 namespace test {
 
 DEF_test(os) {
+    DEF_case(env) {
+        EXPECT_EQ(os::env("CO_TEST"), fastring());
+        os::env("CO_TEST", "777");
+        EXPECT_EQ(os::env("CO_TEST"), "777");
+        os::env("CO_TEST", "");
+        EXPECT_EQ(os::env("CO_TEST"), fastring());
+    }
+
     DEF_case(homedir) {
         EXPECT_NE(os::homedir(), fastring());
     }

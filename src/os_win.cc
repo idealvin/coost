@@ -2,6 +2,7 @@
 
 #include "co/os.h"
 #include <signal.h>
+#include <algorithm>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -11,36 +12,65 @@
 namespace os {
 
 fastring env(const char* name) {
-    fastring s(256, '\0');
-    DWORD r = GetEnvironmentVariableA(name, &s[0], 256);
+    fastring s(64);
+    DWORD r = GetEnvironmentVariableA(name, (char*)s.data(), 64);
     s.resize(r);
-
-    if (r > 256) {
-        GetEnvironmentVariableA(name, &s[0], r);
+    if (r > 64) {
+        GetEnvironmentVariableA(name, (char*)s.data(), r);
         s.resize(r - 1);
     }
-
     return s;
 }
 
+bool env(const char* name, const char* value) {
+    return SetEnvironmentVariableA(name, value) == TRUE;
+}
+
+inline void backslash_to_slash(fastring& s) {
+    std::for_each((char*)s.data(), (char*)s.data() + s.size(), [](char& c){
+        if (c == '\\') c = '/';
+    });
+}
+
 fastring homedir() {
-    return os::env("SYSTEMDRIVE") + os::env("HOMEPATH");
+    fastring s = os::env("USERPROFILE"); // SYSTEMDRIVE + HOMEPATH
+    backslash_to_slash(s);
+    return s;
 }
 
 fastring cwd() {
-    char buf[264];
-    DWORD r = GetCurrentDirectoryA(sizeof(buf), buf);
-    return fastring(buf, r);
+    fastring s(64);
+    DWORD r = GetCurrentDirectoryA(64, (char*)s.data());
+    s.resize(r);
+    if (r > 64) {
+        GetCurrentDirectoryA(r, (char*)s.data());
+        s.resize(r - 1);
+    }
+
+    if (!(s.size() > 1 && s[0] == '\\' && s[1] == '\\')) backslash_to_slash(s);
+    return s;
+}
+
+static fastring _get_module_path() {
+    DWORD n = 128, r = 0;
+    fastring s(n);
+    while (true) {
+        r = GetModuleFileNameA(NULL, (char*)s.data(), n);
+        if (r < n) { s.resize(r); break; }
+        n <<= 1;
+        s.reserve(n);
+    }
+    return s;
 }
 
 fastring exepath() {
-    char buf[264]; // MAX_PATH = 260
-    DWORD r = GetModuleFileNameA(0, buf, sizeof(buf));
-    return fastring(buf, r);
+    fastring s = _get_module_path();
+    if (!(s.size() > 1 && s[0] == '\\' && s[1] == '\\')) backslash_to_slash(s);
+    return s;
 }
 
 fastring exename() {
-    fastring s = exepath();
+    fastring s = _get_module_path();
     return s.substr(s.rfind('\\') + 1);
 }
 
@@ -48,14 +78,12 @@ int pid() {
     return (int) GetCurrentProcessId();
 }
 
-inline int _Cpunum() {
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    return (int) info.dwNumberOfProcessors;
-}
-
 int cpunum() {
-    static int ncpu = _Cpunum();
+    static int ncpu = []() {
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        return (int) info.dwNumberOfProcessors;
+    }();
     return ncpu;
 }
 
