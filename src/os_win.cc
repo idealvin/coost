@@ -69,6 +69,23 @@ fastring exepath() {
     return s;
 }
 
+fastring exedir() {
+    fastring s = _get_module_path();
+    size_t n = s.rfind('\\');
+    if (n != s.npos && n != 0) {
+        if (s[n - 1] != ':') {
+            s.resize(n);
+            s[n] = '\0';
+        } else {
+            s.resize(n + 1);
+            if (s.capacity() > n + 1) s[n + 1] = '\0';
+        }
+    }
+
+    if (!(s.size() > 1 && s[0] == '\\' && s[1] == '\\')) backslash_to_slash(s);
+    return s;
+}
+
 fastring exename() {
     fastring s = _get_module_path();
     return s.substr(s.rfind('\\') + 1);

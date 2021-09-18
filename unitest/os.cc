@@ -21,10 +21,12 @@ DEF_test(os) {
     }
 
     DEF_case(exename) {
-        EXPECT_NE(os::exename(), fastring());
         EXPECT_NE(os::exepath(), fastring());
-        EXPECT(os::exename().starts_with("unitest"));
+        EXPECT_NE(os::exedir(), fastring());
+        EXPECT_NE(os::exename(), fastring());
+        EXPECT(os::exepath().starts_with(os::exedir()));
         EXPECT(os::exepath().ends_with(os::exename()));
+        EXPECT(os::exename().starts_with("unitest"));
     }
 
     DEF_case(pid) {

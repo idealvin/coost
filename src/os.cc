@@ -29,6 +29,21 @@ fastring cwd() {
     return s ? fastring(s) : fastring(1, '.');
 }
 
+fastring exedir() {
+    fastring s = os::exepath();
+    size_t n = s.rfind('/');
+    if (n != s.npos) {
+        if (n != 0) {
+            s[n] = '\0';
+            s.resize(n);
+        } else {
+            if (s.capacity() > 1) s[1] = '\0';
+            s.resize(1);
+        }
+    }
+    return s;
+}
+
 fastring exename() {
     fastring s = os::exepath();
     return s.substr(s.rfind('/') + 1);

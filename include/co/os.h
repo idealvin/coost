@@ -29,6 +29,9 @@ fastring cwd();
 // get executable path
 fastring exepath();
 
+// get executable directory
+fastring exedir();
+
 // get executable name
 fastring exename();
 
