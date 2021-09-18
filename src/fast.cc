@@ -30,24 +30,24 @@ static void init_itoa_table(uint32* p) {
     }    
 }
 
-static inline uint16* create_itoh_table() {
+inline uint16* create_itoh_table() {
     static uint16 itoh_table[256];
     init_itoh_table(itoh_table);
     return itoh_table;
 }
 
-static inline uint32* create_itoa_table() {
+inline uint32* create_itoa_table() {
     static uint32 itoa_table[10000];
     init_itoa_table(itoa_table);
     return itoa_table;
 }
 
-static inline uint16* get_itoh_table() {
+inline uint16* get_itoh_table() {
     static uint16* itoh_table = create_itoh_table();
     return itoh_table;
 }
 
-static inline uint32* get_itoa_table() {
+inline uint32* get_itoa_table() {
     static uint32* itoa_table = create_itoa_table();
     return itoa_table;
 }
