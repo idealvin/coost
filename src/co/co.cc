@@ -278,7 +278,7 @@ inline void PoolImpl::push(void* p) {
 // Create n coroutines to clear all the pools, n is number of schedulers.
 // clear() blocks untils all the coroutines are done.
 void PoolImpl::clear() {
-    if (!co::stopped()) {
+    if (!co::is_stopped()) {
         auto& scheds = co::all_schedulers();
         WaitGroup wg;
         wg.add((uint32)scheds.size());

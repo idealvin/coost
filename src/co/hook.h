@@ -7,19 +7,41 @@
 
 #ifdef _CO_DISABLE_HOOK
 #define CO_RAW_API(x) ::x
-#else
 
+namespace co {
+namespace hook {
+
+inline void init() {}
+inline void exit() {}
+inline void disable_hook_sleep() {}
+inline void enable_hook_sleep() {}
+
+} // hook
+} // co
+
+#else
 // We have to hook some native APIs, as third-party network libraries may block the 
 // coroutine schedulers.
 #define CO_RAW_API(x)         co_raw_##x
-#define _CO_DEC_RAW_API(x)     extern x##_fp_t CO_RAW_API(x)
+#define _CO_DEC_RAW_API(x)    extern x##_fp_t CO_RAW_API(x)
+
+namespace co {
+namespace hook {
+
+void init();
+void exit();
+void disable_hook_sleep();
+void enable_hook_sleep();
+
+} // hook
+} // co
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h> // for inet_ntop...
 #include <MSWSock.h>
 
-#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = x
+#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = (x##_fp_t)x
 
 extern "C" {
 
@@ -291,9 +313,6 @@ _CO_DEC_RAW_API(WSAPoll);
 _CO_DEC_RAW_API(WSAWaitForMultipleEvents);
 _CO_DEC_RAW_API(GetQueuedCompletionStatus);
 _CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
-
-void co_attach_hooks();
-void co_detach_hooks();
 
 } // "C"
 

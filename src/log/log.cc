@@ -29,7 +29,6 @@ DEF_uint32(max_log_file_num, 8, "#0 max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 32MB");
 DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
-DEC_bool(disable_hook_sleep);
 
 namespace ___ {
 namespace log {
@@ -212,9 +211,9 @@ void LevelLogger::init() {
 
 void signal_safe_sleep(int ms) {
   #ifdef _WIN32
-    auto x = atomic_swap(&FLG_disable_hook_sleep, true);
+    co::hook::disable_hook_sleep();
     ::Sleep(ms);
-    FLG_disable_hook_sleep = x;
+    co::hook::enable_hook_sleep();
   #else
     struct timeval tv = { 0, ms * 1000 };
     CO_RAW_API(select)(0, 0, 0, 0, &tv);

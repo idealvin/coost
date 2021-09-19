@@ -359,9 +359,12 @@ bool _can_skip_iocp_on_success() {
     return true;
 }
 
-void wsa_startup() {
+namespace sock {
+
+void init() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
+    (void) co::strerror(0);
 
     sock_t fd = ::socket(AF_INET, SOCK_STREAM, 0);
     CHECK_NE(fd, INVALID_SOCKET) << "create socket error: " << co::strerror();
@@ -398,15 +401,17 @@ void wsa_startup() {
     CHECK_EQ(r, 0) << "get GetAccpetExSockAddrs failed: " << co::strerror();
 
     ::closesocket(fd);
-    can_skip_iocp_on_success = _can_skip_iocp_on_success();
-    co_attach_hooks();
+    can_skip_iocp_on_success = co::_can_skip_iocp_on_success();
+
+    co::hook::init();
 }
 
-void wsa_cleanup() {
-    co_detach_hooks();
+void exit() {
+    co::hook::exit();
     WSACleanup();
 }
 
+} // sock
 } // co
 
 #endif // _WIN32

@@ -16,6 +16,37 @@
 namespace co {
 
 /**
+ * initialize the coroutine library
+ *   - It is better to call this function at the beginning of main().
+ */
+void init();
+
+/**
+ * This is equal to:
+ *   ```cpp
+ *   flag::init(argc, argv);
+ *   log::init();
+ *   co::init();
+ *   ```
+ */
+void init(int argc, char** argv);
+
+/**
+ * This is equal to:
+ *   ```cpp
+ *   flag::init(config);
+ *   log::init();
+ *   co::init();
+ *   ```
+ */
+void init(const char* config);
+
+/**
+ * The same as co::stop(), stop all schedulers.
+ */
+void exit();
+
+/**
  * add a task, which will run as a coroutine 
  *   - It is thread-safe and can be called from anywhere. 
  *   - Closure created by new_closure() will delete itself after Closure::run() 

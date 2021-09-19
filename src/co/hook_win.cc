@@ -130,8 +130,7 @@ _CO_DEF_RAW_API(send);
 _CO_DEF_RAW_API(WSASend);
 _CO_DEF_RAW_API(sendto);
 _CO_DEF_RAW_API(WSASendTo);
-//_CO_DEF_RAW_API(select);
-select_fp_t co_raw_select = (select_fp_t) select;
+_CO_DEF_RAW_API(select);
 _CO_DEF_RAW_API(WSAPoll);
 _CO_DEF_RAW_API(WSAWaitForMultipleEvents);
 _CO_DEF_RAW_API(GetQueuedCompletionStatus);
@@ -493,6 +492,7 @@ int WINAPI hook_WSAConnect(
 //  _ms:   check timeval
 //  _op:   IO operation
 #define do_hard_hook(_ctx, _s, _t, _ms, _op) \
+do { \
     if (!_ctx.has_nb_mark()) { set_non_blocking(_s, 1); _ctx.set_nb_mark(); } \
     int r; \
     uint32 ms = _ms; \
@@ -505,7 +505,8 @@ int WINAPI hook_WSAConnect(
         if (t < ms) ms = t; \
         co::gSched->sleep(ms); \
         if (t != (uint32)-1) t -= ms; \
-    }
+    } \
+} while (0)
 
 // As we use a shared stack for coroutines in the same thread, we MUST NOT pass 
 // a buffer on the stack to IOCP.
@@ -1192,6 +1193,13 @@ WSASendMsg_fp_t get_WSASendMsg_fp() {
     return fp;
 }
 
+} // extern "C"
+
+namespace co {
+namespace hook {
+
+static bool _dummy = !!&gHook();
+
 inline void detour_attach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
     LONG l = DetourAttach(ppbReal, pbMine);
     CHECK_EQ(l, 0) << "detour attach failed: " << psz;
@@ -1205,11 +1213,11 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 #define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 #define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 
-void co_attach_hooks() {
+void init() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     attach_hook(Sleep);
-    //attach_hook(socket);
+    attach_hook(socket);
     attach_hook(WSASocketA);
     attach_hook(WSASocketW);
     attach_hook(closesocket);
@@ -1239,13 +1247,14 @@ void co_attach_hooks() {
     attach_hook(GetQueuedCompletionStatus);
     attach_hook(GetQueuedCompletionStatusEx);
     DetourTransactionCommit();
+    (void) gHook();
 }
 
-void co_detach_hooks() {
+void exit() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     detach_hook(Sleep);
-    //detach_hook(socket);
+    detach_hook(socket);
     detach_hook(WSASocketA);
     detach_hook(WSASocketW);
     detach_hook(closesocket);
@@ -1277,10 +1286,20 @@ void co_detach_hooks() {
     DetourTransactionCommit();
 }
 
+void disable_hook_sleep() {
+    atomic_swap(&FLG_disable_hook_sleep, true);
+}
+
+void enable_hook_sleep() {
+    atomic_swap(&FLG_disable_hook_sleep, false);
+}
+
+} // hook
+} // co
+
 #undef attach_hook
 #undef detach_hook
 #undef do_hard_hook
-
-} // extern "C"
+#undef HOOKLOG
 
 #endif // #ifdef _WIN32

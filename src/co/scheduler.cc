@@ -211,40 +211,20 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     return (int) (_timer.begin()->first - now_ms);
 }
 
-#ifdef _WIN32
-extern void wsa_startup();
-extern void wsa_cleanup();
-
-#else
-inline void wsa_startup() {
-#ifndef _CO_DISABLE_HOOK
-    if (CO_RAW_API(close) == 0) ::close(-1);
-    if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
-    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
-    CHECK(CO_RAW_API(close) != 0);
-    CHECK(CO_RAW_API(read) != 0);
-    CHECK(CO_RAW_API(write) != 0);
-
-  #ifdef __linux__
-    if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
-    CHECK(CO_RAW_API(epoll_wait) != 0);
-  #else
-    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
-    CHECK(CO_RAW_API(kevent) != 0);
-  #endif
-#endif
-}
-
-inline void wsa_cleanup() {}
-#endif
-
 inline bool& initialized() {
     static bool kInitialized = false;
     return kInitialized;
 }
 
+inline bool& stopped() {
+    static bool kStopped = true;
+    return kStopped;
+}
+
+bool is_stopped() { return stopped(); }
+
 SchedulerManager::SchedulerManager() {
-    wsa_startup();
+    co::sock::init();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
@@ -264,12 +244,12 @@ SchedulerManager::SchedulerManager() {
 
 SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
-    wsa_cleanup();
+    co::sock::exit();
     stopped() = true;
     initialized() = false;
 }
 
-void SchedulerManager::stop_all_schedulers() {
+void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
@@ -278,6 +258,31 @@ void SchedulerManager::stop_all_schedulers() {
 
 void Scheduler::go(Closure* cb) {
     ((SchedulerImpl*)this)->add_new_task(cb);
+}
+
+inline SchedulerManager* scheduler_manager() {
+    static SchedulerManager kSchedMgr;
+    return &kSchedMgr;
+}
+
+void init() {
+    (void) scheduler_manager();
+}
+
+void init(int argc, char** argv) {
+    flag::init(argc, argv);
+    log::init();
+    co::init();
+}
+
+void init(const char* config) {
+    flag::init(config);
+    log::init();
+    co::init();
+}
+
+void exit() {
+    scheduler_manager()->stop();
 }
 
 void go(Closure* cb) {
@@ -346,7 +351,7 @@ bool on_stack(const void* p) {
 }
 
 void stop() {
-    return scheduler_manager()->stop_all_schedulers();
+    return co::exit();
 }
 
 } // co

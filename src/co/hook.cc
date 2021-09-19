@@ -823,13 +823,17 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
     return ent;
 }
 
-static bool init_hooks();
-static bool _dummy = init_hooks();
+} // "C"
 
-static bool init_hooks() {
+namespace co {
+namespace hook {
+
+// DO NOT call _init_hooks() elsewhere.
+static bool _init_hooks();
+static bool _dummy = _init_hooks();
+
+static bool _init_hooks() {
     (void) _dummy;
-    //Timer t;
-    //defer(LOG << "init hooks in " << t.us() << " us");
     init_hook(socket);
     init_hook(socketpair);
     init_hook(pipe);
@@ -878,10 +882,47 @@ static bool init_hooks() {
     return true;
 }
 
-} // "C"
+void init() {
+    (void) gHook();
+    if (CO_RAW_API(close) == 0) { (void) ::close(-1); }
+    if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+    if (CO_RAW_API(pipe) == 0)  { (void) ::pipe((int*)0); }
+    if (CO_RAW_API(fcntl) == 0) { (void) ::fcntl(-1, 0); }
+    CHECK(CO_RAW_API(close) != 0);
+    CHECK(CO_RAW_API(read) != 0);
+    CHECK(CO_RAW_API(write) != 0);
+    CHECK(CO_RAW_API(pipe) != 0);
+    CHECK(CO_RAW_API(fcntl) != 0);
+
+  #ifdef __linux__
+    if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
+    CHECK(CO_RAW_API(epoll_wait) != 0);
+  #else
+    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
+    CHECK(CO_RAW_API(kevent) != 0);
+  #endif
+}
+
+void exit() {
+    atomic_swap(&FLG_hook_log, false);
+    atomic_swap(&FLG_disable_hook_sleep, true);
+}
+
+void disable_hook_sleep() {
+    atomic_swap(&FLG_disable_hook_sleep, true);
+}
+
+void enable_hook_sleep() {
+    atomic_swap(&FLG_disable_hook_sleep, false);
+}
+
+} // hook
+} // co
 
 #undef do_hook
 #undef init_hook
+#undef HOOKLOG
 
 #endif
 #endif

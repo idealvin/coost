@@ -378,7 +378,7 @@ class SchedulerManager {
         return _scheds;
     }
 
-    void stop_all_schedulers();
+    void stop();
 
   private:
     std::vector<Scheduler*> _scheds;
@@ -387,16 +387,14 @@ class SchedulerManager {
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
 };
 
-inline SchedulerManager* scheduler_manager() {
-    static SchedulerManager kSchedMgr;
-    return &kSchedMgr;
-}
-
-inline bool& stopped() {
-    static bool kStopped = true;
-    return kStopped;
-}
+bool is_stopped();
 
 extern __thread SchedulerImpl* gSched;
 
+namespace sock {
+
+void init();
+void exit();
+
+} // sock
 } // co

@@ -224,8 +224,6 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
-namespace xx {
-
 class Error {
   public:
     Error() = default;
@@ -258,14 +256,24 @@ class Error {
     thread_ptr<T> _p;
 };
 
-} // xx
-
 const char* strerror(int err) {
     if (err == ETIMEDOUT) return "Timed out";
-    static xx::Error e;
+    static co::Error e;
     return e.strerror(err);
 }
 
+namespace sock {
+
+void init() {
+    (void) co::strerror(0);
+    co::hook::init();
+}
+
+void exit() {
+    co::hook::exit();
+}
+
+} // sock
 } // co
 
 #endif
