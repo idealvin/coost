@@ -337,22 +337,21 @@ _CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
 
 namespace co {
 
-#if __cplusplus < 201703L || defined(__APPLE__)
-#define _co_noexcept
-#else
-#define _co_noexcept noexcept
-#endif
-
 // deduce parameter type of ioctl
 template<typename T>
 struct ioctl_param;
 
 template<typename X, typename Y>
-struct ioctl_param<int(*)(X, Y, ...) _co_noexcept> {
+struct ioctl_param<int(*)(X, Y, ...)> {
     typedef Y type;
 };
 
-#undef _co_noexcept
+#if __cplusplus >= 201703L
+template<typename X, typename Y>
+struct ioctl_param<int(*)(X, Y, ...) noexcept> {
+    typedef Y type;
+};
+#endif
 
 } // co
 
