@@ -11,7 +11,11 @@ namespace flag {
 
 // Parse command line flags or config file specified by -config.
 // Return non-flag elements.
-std::vector<fastring> init(int argc, char** argv);
+std::vector<fastring> init(int argc, const char** argv);
+
+inline std::vector<fastring> init(int argc, char** argv) {
+    return flag::init(argc, (const char**)argv);
+}
 
 // Initialize with a config file.
 void init(const fastring& path);

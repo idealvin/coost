@@ -385,7 +385,7 @@ std::vector<fastring> analyze(
 
 void parse_config(const fastring& config);
 
-std::vector<fastring> parse_command_line_flags(int argc, char** argv) {
+std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
     if (argc <= 1) return std::vector<fastring>();
 
     std::vector<fastring> args;
@@ -538,7 +538,7 @@ void parse_config(const fastring& config) {
 
 } // namespace xx
 
-std::vector<fastring> init(int argc, char** argv) {
+std::vector<fastring> init(int argc, const char** argv) {
     std::vector<fastring> v = xx::parse_command_line_flags(argc, argv);
 
     if (FLG_mkconf) {
