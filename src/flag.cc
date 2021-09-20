@@ -63,6 +63,7 @@ Flag::Flag(char type, const char* name, const char* value, const char* help,
 }
 
 fastring Flag::set_value(const fastring& v) {
+    errno = 0;
     switch (this->type) {
       case TYPE_string:
         *static_cast<fastring*>(this->addr) = v;
