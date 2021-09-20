@@ -116,6 +116,7 @@ class PoolGuard {
      * @return  a pointer to an object of class T.
      */
     T* operator->() const { assert(_p); return _p; }
+    T& operator*()  const { assert(_p); return *_p; }
 
     bool operator==(T* p) const { return _p == p; }
     bool operator!=(T* p) const { return _p != p; }
