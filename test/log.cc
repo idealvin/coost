@@ -47,5 +47,6 @@ int main(int argc, char** argv) {
         LOG << "hello " << nested_log() << "  " << nested_log();
     }
 
+    log::exit();
     return 0;
 }

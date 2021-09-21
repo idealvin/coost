@@ -1,4 +1,5 @@
 #include "co/co.h"
+#include "co/cout.h"
 
 void f() {
     co::Chan<int> ch;

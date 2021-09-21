@@ -28,8 +28,7 @@ void f() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
+    co::init(argc, argv);
     FLG_cout = true;
 
     // print scheduler pointers
@@ -61,5 +60,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 32; ++i) go(f);
 
     sleep::ms(300);
+    co::exit();
     return 0;
 }

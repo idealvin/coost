@@ -25,8 +25,7 @@ void c() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
+    co::init(argc, argv);
 
     if (FLG_m) {
         c();
@@ -38,5 +37,6 @@ int main(int argc, char** argv) {
 
     while (1) sleep::sec(1024);
 
+    co::exit();
     return 0;
 }

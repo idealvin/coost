@@ -56,9 +56,8 @@ void fb() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    co::init(argc, argv);
     FLG_cout = true;
-    log::init();
 
     if (FLG_m.empty() && FLG_url.empty()) {
         go(fa);
@@ -67,5 +66,6 @@ int main(int argc, char** argv) {
     }
 
     ev.wait();
+    co::exit();
     return 0;
 }

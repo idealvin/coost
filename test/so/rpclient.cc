@@ -31,12 +31,12 @@ void client_fun() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
+    co::init(argc, argv);
     FLG_cout = true;
 
     go(client_fun);
     ev.wait();
 
+    co::exit();
     return 0;
 }

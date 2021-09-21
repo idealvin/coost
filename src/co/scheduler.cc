@@ -4,6 +4,7 @@
 DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
 DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
 DEF_bool(co_debug_log, false, "#1 enable debug log for coroutine library");
+DEF_bool(disable_co_exit, false, ".disable co::exit if true");
 
 namespace co {
 
@@ -265,6 +266,11 @@ inline SchedulerManager* scheduler_manager() {
     return &kSchedMgr;
 }
 
+inline bool& need_exit_log() {
+    static bool kExitLog = false;
+    return kExitLog;
+}
+
 void init() {
     (void) scheduler_manager();
 }
@@ -272,17 +278,22 @@ void init() {
 void init(int argc, char** argv) {
     flag::init(argc, argv);
     log::init();
+    need_exit_log() = true;
     co::init();
 }
 
 void init(const char* config) {
     flag::init(config);
     log::init();
+    need_exit_log() = true;
     co::init();
 }
 
 void exit() {
-    scheduler_manager()->stop();
+    if (!FLG_disable_co_exit) {
+        scheduler_manager()->stop();
+        if (need_exit_log()) log::exit();
+    }
 }
 
 void go(Closure* cb) {

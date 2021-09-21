@@ -17,7 +17,7 @@ namespace co {
 
 /**
  * initialize the coroutine library
- *   - It is better to call this function at the beginning of main().
+ *   - It will not call `flat::init()` or `log::init()`.
  */
 void init();
 
@@ -43,6 +43,10 @@ void init(const char* config);
 
 /**
  * The same as co::stop(), stop all schedulers.
+ *   - If you are using co.dll on windows, it is better to call co::exit() manaully 
+ *     at end of the main function, or the program may hang forever at exit.
+ *   - It will also call `log::exit()` after the schedulers are stopped, if you have 
+ *     called `co::init(argc, argv)` or `co::init(config)` before.
  */
 void exit();
 
@@ -121,10 +125,11 @@ inline void go(F&& f, T* t, P&& p) {
  *   - DEF_main can be used to ensure code in main function also runs in coroutine. 
  */
 #define DEF_main(argc, argv) \
+DEC_bool(disable_co_exit); \
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
-    flag::init(argc, argv); \
-    log::init(); \
+    co::init(argc, argv); \
+    FLG_disable_co_exit = true; \
     int r; \
     co::WaitGroup wg; \
     wg.add(); \
@@ -133,6 +138,8 @@ int main(int argc, char** argv) { \
         wg.done(); \
     }); \
     wg.wait(); \
+    FLG_disable_co_exit = false; \
+    co::exit(); \
     return r; \
 } \
 int _co_main(int argc, char** argv)
