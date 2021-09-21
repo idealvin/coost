@@ -28,4 +28,3 @@ jobs:
           xmake r unitest -a
           xmake f -m debug
           xmake -a
-          xmake r unitest -a
