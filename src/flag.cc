@@ -63,11 +63,10 @@ Flag::Flag(char type, const char* name, const char* value, const char* help,
 }
 
 fastring Flag::set_value(const fastring& v) {
-    errno = 0;
     switch (this->type) {
       case TYPE_string:
         *static_cast<fastring*>(this->addr) = v;
-        break;
+        return fastring();
       case TYPE_bool:
         *static_cast<bool*>(this->addr) = str::to_bool(v);
         break;
@@ -90,9 +89,14 @@ fastring Flag::set_value(const fastring& v) {
         return "unknown flag type";
     }
 
-    if (errno == 0) return fastring();
-    if (errno == ERANGE) return "out of range";
-    return "invalid number";
+    switch (err::get()) {
+      case 0:
+        return fastring();
+      case ERANGE:
+        return "out of range";
+      default:
+        return "invalid value";
+    }
 }
 
 template<typename T>

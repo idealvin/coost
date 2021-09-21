@@ -215,6 +215,7 @@ fastring strip(const fastring& s, const fastring& c, char d) {
 }
 
 bool to_bool(const char* s) {
+    err::set(0);
     if (strcmp(s, "false") == 0 || strcmp(s, "0") == 0) return false;
     if (strcmp(s, "true") == 0 || strcmp(s, "1") == 0) return true;
     err::set(EINVAL);
@@ -263,10 +264,10 @@ inline int _Shift(char c) {
 }
 
 int64 to_int64(const char* s) {
+    err::set(0);
     if (!*s) return 0;
 
     char* end = 0;
-    err::set(0);
     int64 x = strtoll(s, &end, 0);
     if (err::get() != 0) return 0;
 
@@ -290,10 +291,10 @@ int64 to_int64(const char* s) {
 }
 
 uint64 to_uint64(const char* s) {
+    err::set(0);
     if (!*s) return 0;
 
     char* end = 0;
-    err::set(0);
     uint64 x = strtoull(s, &end, 0);
     if (err::get() != 0) return 0;
 
@@ -319,11 +320,10 @@ uint64 to_uint64(const char* s) {
 }
 
 double to_double(const char* s) {
-    char* end = 0;
     err::set(0);
+    char* end = 0;
     double x = strtod(s, &end);
     if (err::get() != 0) return 0;
-
     if (end == s + strlen(s)) return x;
     err::set(EINVAL);
     return 0;

@@ -62,7 +62,10 @@ fastring strip(const fastring& s, const fastring& c, char d='b');
 
 /**
  * convert string to built-in types 
- *   - Returns 0 if the conversion failed, and the errno will be ERANGE or EINVAL.
+ *   - Returns false or 0 if the conversion failed, and the errno will be set to 
+ *     ERANGE or EINVAL. On success, errno will be 0.
+ *   - Call err::get() to get the error number. Don't use `errno` directly as we 
+ *     use GetLastError and SetLastError on windows.
  */
 bool to_bool(const char* s);
 int32 to_int32(const char* s);
