@@ -37,7 +37,7 @@ CO is an elegant and efficient C++ base library that supports Linux, Windows and
 
 ## Sponsor
 
-Goto the [Sponsor](https://idealvin.github.io/en/about/sponsor/) page.
+If you like CO, you may [consider becoming a sponsor](https://github.com/sponsors/idealvin), or [make me a cup of coffee](https://idealvin.github.io/en/about/sponsor/). Thanks very much!
 
 
 
@@ -280,7 +280,7 @@ The above is an example of using co/flag. The macro at the beginning of `DEF_` i
 
 ### co/log
 
-[co/log](https://idealvin.github.io/en/co/log/) is a high-performance local log library, some components in CO use it to print logs.
+[co/log](https://idealvin.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in CO will use it to print logs.
 
 co/log divides the log into five levels: debug, info, warning, error, and fatal. **Printing a fatal level log will terminate the program**. Users can print logs of different levels as follows:
 

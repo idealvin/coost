@@ -37,7 +37,7 @@ CO 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等
 
 ## 赞助
 
-见 [Sponsor](https://idealvin.github.io/cn/about/sponsor/) 页面。
+如果您喜欢 CO，可以考虑[赞助 CO](https://github.com/sponsors/idealvin)，或者[给作者来杯咖啡](https://idealvin.gitee.io/cn/about/sponsor/)，非常感谢🙏
 
 
 
@@ -280,7 +280,7 @@ int main(int argc, char** argv) {
 
 ### co/log
 
-[co/log](https://idealvin.github.io/cn/co/log/) 是一个高性能的本地日志系统，CO 中的一些组件会用它打印日志。
+[co/log](https://idealvin.github.io/cn/co/log/) 是一个内存友好的高性能本地日志系统，程序运行稳定后，打印日志不需要分配内存。CO 中的一些组件会用它打印日志。
 
 co/log 将日志分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**。用户可以像下面这样打印不同级别的日志：
 
