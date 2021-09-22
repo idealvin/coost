@@ -61,6 +61,9 @@ endif()
 
 
 if(WIN32)
+    if(BUILD_SHARED_LIBS)
+        target_compile_definitions(co PRIVATE CO_DLL)
+    endif()
     target_compile_definitions(co PUBLIC WIN32_LEAN_AND_MEAN)
     target_compile_definitions(co PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
     if(NOT MSVC)

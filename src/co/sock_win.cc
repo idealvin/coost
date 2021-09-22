@@ -414,6 +414,7 @@ void exit() {
 } // sock
 } // co
 
+#ifdef CO_DLL
 extern "C" {
 
 BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID) {
@@ -430,6 +431,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID) {
     return TRUE;
 }
 
-}
+} // extern "C"
+#endif
 
 #endif // _WIN32
