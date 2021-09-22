@@ -32,7 +32,6 @@ jobs:
           XMAKE_ROOT: y
         run: |
           xmake -a
-          xmake r unitest -a
           xmake r flag -xy
           xmake f -m debug
           xmake -a

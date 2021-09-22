@@ -25,7 +25,6 @@ jobs:
       - name: Tests
         run: |
           xmake -a
-          xmake r unitest -a
           xmake r flag -xy
           xmake f -m debug
           xmake -a
