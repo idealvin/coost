@@ -63,7 +63,7 @@ enum co_state_t : uint8 {
 
 struct Coroutine {
     Coroutine() = delete;
-    ~Coroutine() { stack.~fastream(); }
+    ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
 
     uint32 id;         // coroutine id
     uint8 state;       // coroutine state
@@ -140,7 +140,7 @@ class TaskManager {
 
     void add_new_task(Closure* cb) {
         ::MutexGuard g(_mtx);
-       _new_tasks.push_back(cb);
+        _new_tasks.push_back(cb);
     }
 
     void add_ready_task(Coroutine* co) {
@@ -167,20 +167,6 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
     return fs << *(void**)(&id);
 }
 
-inline bool is_null_timer_id(const timer_id_t& it) {
-    if (sizeof(timer_id_t) == sizeof(void*)) return *(void**)&it == 0;
-    static char buf[sizeof(timer_id_t)] = { 0 };
-    return memcmp((void*)&it, buf, sizeof(buf)) == 0;
-}
-
-inline void set_null_timer_id(timer_id_t& it) {
-    if (sizeof(timer_id_t) == sizeof(void*)) {
-        *(void**)&it = 0;
-    } else {
-        memset((void*)&it, 0, sizeof(timer_id_t));
-    }
-}
-
 // Timer must be added in the scheduler thread. We need no lock here.
 class TimerManager {
   public:
@@ -196,22 +182,17 @@ class TimerManager {
         _timer.erase(it);
     }
 
+    timer_id_t end() {
+        return _timer.end();
+    }
+
     // return time(ms) to wait for the next timeout.
     // all timedout coroutines will be pushed into @res.
     uint32 check_timeout(std::vector<Coroutine*>& res);
 
-    // ========================================================================
-    // for unitest/co
-    // ========================================================================
-    bool assert_empty() const { return _timer.empty() && _it == _timer.end(); }
-    bool assert_it(const timer_id_t& it) const { return _it == it; }
-
   private:
-    std::multimap<int64, Coroutine*> _timer;            // timed-wait tasks: <time_ms, co>
-    union {
-        std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
-        char buf[sizeof(timer_id_t)];
-    };
+    std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
+    std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
 struct Stack {
@@ -340,6 +321,7 @@ class SchedulerImpl : public co::Scheduler {
     Coroutine* new_coroutine(Closure* cb) {
         Coroutine* co = _co_pool.pop();
         co->cb = cb;
+        co->it = _timer_mgr.end();
         return co;
     }
 
