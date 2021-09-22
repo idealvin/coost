@@ -3,11 +3,6 @@
 #include "flag.h"
 #include "fastream.h"
 #include "atomic.h"
-#include "thread.h"
-
-#ifdef _MSC_VER
-#pragma warning (disable:4722)
-#endif
 
 DEC_bool(cout);
 DEC_int32(min_log_level);
@@ -42,22 +37,9 @@ enum LogLevel {
     fatal = 4
 };
 
-inline fastream& log_stream() {
-    static __thread fastream* kLogStream = 0;
-    if (kLogStream) return *kLogStream;
-    return *(kLogStream = new fastream(128));
-}
-
 class LevelLogSaver {
   public:
-    LevelLogSaver(const char* file, unsigned int line, int level)
-        : _s(log_stream()) {
-        _n = _s.size();
-        _s.resize(_n + 18); // make room for level and time: I0523 17:00:00.123
-        _s[_n] = "DIWE"[level];
-        _s << ' ' << co::thread_id() << ' ' << file << ':' << line << ']' << ' ';
-    }
-
+    LevelLogSaver(const char* file, int len, unsigned int line, int level);
     ~LevelLogSaver();
 
     fastream& stream() const { return _s; }
@@ -69,13 +51,7 @@ class LevelLogSaver {
 
 class FatalLogSaver {
   public:
-    FatalLogSaver(const char* file, unsigned int line)
-        : _s(log_stream()) {
-        _s.resize(18);
-        _s.front() = 'F';
-        _s << ' ' << co::thread_id() << ' ' << file << ':' << line << ']' << ' ';
-    }
-
+    FatalLogSaver(const char* file, int len, unsigned int line);
     ~FatalLogSaver();
 
     fastream& stream() const { return _s; }
@@ -99,8 +75,8 @@ using namespace ___;
 //
 // LOG << "hello world " << 23;
 // WLOG_IF(1 + 1 == 2) << "xx";
-#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(__FILE__, __LINE__, lv).stream()
-#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(__FILE__, __LINE__).stream()
+#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__, lv).stream()
+#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__).stream()
 #define DLOG  if (FLG_min_log_level <= log::xx::debug)   _CO_LOG_STREAM(log::xx::debug)
 #define LOG   if (FLG_min_log_level <= log::xx::info)    _CO_LOG_STREAM(log::xx::info)
 #define WLOG  if (FLG_min_log_level <= log::xx::warning) _CO_LOG_STREAM(log::xx::warning)

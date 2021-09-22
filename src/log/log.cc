@@ -4,6 +4,7 @@
 #include "co/str.h"
 #include "co/path.h"
 #include "co/time.h"
+#include "co/thread.h"
 #include "../co/hook.h"
 #include "stack_trace.h"
 
@@ -20,6 +21,10 @@
 #include <sys/select.h>
 #endif
 
+#ifdef _MSC_VER
+#pragma warning (disable:4722)
+#endif
+
 DEF_string(log_dir, "logs", "#0 log dir, will be created if not exists");
 DEF_string(log_file_name, "", "#0 name of log file, using exename if empty");
 DEF_int32(min_log_level, 0, "#0 write logs at or above this level, 0-4 (debug|info|warning|error|fatal)");
@@ -29,6 +34,7 @@ DEF_uint32(max_log_file_num, 8, "#0 max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 32MB");
 DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
+DEF_bool(syslog, false, "#0 add syslog header to each log if true");
 
 namespace ___ {
 namespace log {
@@ -304,7 +310,7 @@ void LevelLogger::push(char* s, size_t n) {
     }
     {
         MutexGuard g(_log_mutex);
-        memcpy(s + 1, _t, _log_time.size()); // log time
+        memcpy(*s != '<' ? s + 1 : s + 5, _t, _log_time.size()); // log time
 
         if (unlikely(_fs->size() + n >= _config->max_log_buffer_size)) {
             const char* p = strchr(_fs->data() + (_fs->size() >> 1) + 7, '\n');
@@ -322,7 +328,8 @@ void LevelLogger::push(char* s, size_t n) {
 void LevelLogger::push_fatal_log(fastream* log) {
     this->stop();
 
-    memcpy((char*)log->data() + 1, _t, _log_time.size());
+    char* const s = (char*) log->data();
+    memcpy(*s != '<' ? s + 1 : s + 5, _t, _log_time.size());
     this->write(log);
     if (!FLG_cout) fwrite(log->data(), 1, log->size(), stderr);
 
@@ -400,7 +407,10 @@ void LevelLogger::on_failure(int sig) {
     this->stop(true);
     this->open_log_file(fatal);
     _stmp.clear();
-    if (!_check_failed) _stmp << 'F' << _t << "] ";
+    if (!_check_failed) {
+        if (FLG_syslog) _stmp << "<10>";
+        _stmp << 'F' << _t << "] ";
+    }
 
     switch (sig) {
       case SIGABRT:
@@ -498,6 +508,7 @@ int LevelLogger::on_exception(PEXCEPTION_POINTERS p) {
     this->open_log_file(fatal);
 
     _stmp.clear();
+    if (FLG_syslog) _stmp << "<10>";
     _stmp << 'F' << _t << "] " << err << '\n';
     if (_file) _file.write(_stmp.data(), _stmp.size());
     write_to_stderr(_stmp.data(), _stmp.size());
@@ -528,10 +539,42 @@ LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
 }
 #endif
 
+inline fastream& log_stream() {
+    static __thread fastream* kLogStream = 0;
+    if (kLogStream) return *kLogStream;
+    return *(kLogStream = new fastream(256));
+}
+
+LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int level)
+    : _s(log_stream()) {
+    _n = _s.size();
+    if (!FLG_syslog) {
+        _s.resize(_n + 18); // make room for level and time: I0523 17:00:00.123
+        _s[_n] = "DIWE"[level];
+    } else {
+        _s.resize(_n + 22); // make room for level and time: I0523 17:00:00.123
+        static const char* kHeader[] = { "<15>D", "<14>I", "<12>W", "<11>E" };
+        memcpy((char*)_s.data() + _n, kHeader[level], 5);
+    }
+    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+}
+
 LevelLogSaver::~LevelLogSaver() {
     _s << '\n';
     level_logger()->push((char*)_s.data() + _n, _s.size() - _n);
     _s.resize(_n);
+}
+
+FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
+    : _s(log_stream()) {
+    if (!FLG_syslog) {
+        _s.resize(18);
+        _s.front() = 'F';
+    } else {
+        _s.resize(22);
+        memcpy((char*)_s.data(), "<10>F", 5);
+    }
+    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
 }
 
 FatalLogSaver::~FatalLogSaver() {
