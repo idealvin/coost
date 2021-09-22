@@ -1,12 +1,13 @@
 #include "co/cout.h"
 #include "co/co.h"
+#include "co/thread.h"
 
 int main(int argc, char** argv) {
     co::WaitGroup wg;
 
     auto f = [wg]() {
         for (int i = 0; i < 3; ++i) {
-            COUT << current_thread_id() << " " << i;
+            COUT << co::thread_id() << " " << i;
             co::sleep(10);
         }
         wg.done();
@@ -14,7 +15,7 @@ int main(int argc, char** argv) {
 
     auto g = [wg]() {
         for (int i = 0; i < 3; ++i) {
-            CLOG << current_thread_id() << " " << i;
+            CLOG << co::thread_id() << " " << i;
             co::sleep(10);
         }
         wg.done();

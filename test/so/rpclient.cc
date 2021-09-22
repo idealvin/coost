@@ -13,7 +13,7 @@ DEF_string(s, "", "service name");
 DEF_string(m, "", "method name");
 DEF_string(json, "", "rpc request");
 
-SyncEvent ev;
+co::Event ev;
 
 void client_fun() {
     rpc::Client c(FLG_ip.c_str(), FLG_port, FLG_ssl);
