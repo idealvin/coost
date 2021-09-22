@@ -639,12 +639,20 @@ int select(int nfds, fd_set* r, fd_set* w, fd_set* e, struct timeval* tv) {
     // it's boring to hook select, just check select every 16 ms
     uint32 t = 16;
     struct timeval o = { 0, 0 };
+    fd_set s[3];
+    if (r) s[0] = *r;
+    if (w) s[1] = *w;
+    if (e) s[2] = *e;
+
     do {
         int x = CO_RAW_API(select)(nfds, r, w, e, &o);
         if (x != 0 || ms == 0) return x;
         if ((uint32)ms < t) t = (uint32)ms;
         co::gSched->sleep(t);
         if (ms > 0) ms -= (int)t;
+        if (r) *r = s[0];
+        if (w) *w = s[1];
+        if (e) *e = s[2];
     } while (true);
 }
 

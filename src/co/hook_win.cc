@@ -1038,13 +1038,10 @@ int WINAPI hook_select(
     int r;
     uint32 ms = 16;
     struct timeval tv = { 0, 0 };
-    
-    fd_set s1; FD_ZERO(&s1);
-    fd_set s2; FD_ZERO(&s2);
-    fd_set s3; FD_ZERO(&s3);
-    if (a1) s1 = *a1;
-    if (a2) s2 = *a2;
-    if (a3) s3 = *a3;
+    fd_set s[3];
+    if (a1) s[0] = *a1;
+    if (a2) s[1] = *a2;
+    if (a3) s[2] = *a3;
 
     while (true) {
         r = CO_RAW_API(select)(a0, a1, a2, a3, &tv);
@@ -1052,9 +1049,9 @@ int WINAPI hook_select(
         if (t < ms) ms = t;
         co::gSched->sleep(ms);
         if (t != (uint32)-1) t -= ms;
-        if (a1) *a1 = s1;
-        if (a2) *a2 = s2;
-        if (a3) *a3 = s3;
+        if (a1) *a1 = s[0];
+        if (a2) *a2 = s[1];
+        if (a3) *a3 = s[2];
     }
 }
 
