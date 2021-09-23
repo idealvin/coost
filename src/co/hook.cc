@@ -895,7 +895,7 @@ void init() {
     if (CO_RAW_API(close) == 0) { (void) ::close(-1); }
     if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
     if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
-    if (CO_RAW_API(pipe) == 0)  { (void) ::pipe((int*)0); }
+    if (CO_RAW_API(pipe) == 0)  { auto r = ::pipe((int*)0);   (void)r; }
     if (CO_RAW_API(fcntl) == 0) { (void) ::fcntl(-1, 0); }
     CHECK(CO_RAW_API(close) != 0);
     CHECK(CO_RAW_API(read) != 0);

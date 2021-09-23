@@ -319,6 +319,7 @@ _CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
 #else
 
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>  // struct sockaddr_in...
@@ -361,7 +362,7 @@ typedef int (*socket_fp_t)(int, int, int);
 typedef int (*socketpair_fp_t)(int, int, int, int[2]);
 typedef int (*pipe_fp_t)(int[2]);
 typedef int (*pipe2_fp_t)(int[2], int);
-typedef int (*fcntl_fp_t)(int, int, ... /* arg */);
+typedef int (*fcntl_fp_t)(int, int, ...);
 typedef decltype(ioctl)* ioctl_fp_t;
 typedef int (*dup_fp_t)(int);
 typedef int (*dup2_fp_t)(int, int);

@@ -9,6 +9,10 @@ void set_nonblock(sock_t fd) {
     CO_RAW_API(fcntl)(fd, F_SETFL, CO_RAW_API(fcntl)(fd, F_GETFL) | O_NONBLOCK);
 }
 
+void set_cloexec(sock_t fd) {
+    fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+}
+
 #ifdef SOCK_NONBLOCK
 sock_t socket(int domain, int type, int protocol) {
     return CO_RAW_API(socket)(domain, type | SOCK_NONBLOCK | SOCK_CLOEXEC, protocol);

@@ -4,11 +4,15 @@
 #include "./co/hook.h"
 #include <assert.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
+#ifdef _FILE_OFFSET_BITS
+#define _OLD_FILE_OFFSET_BITS _FILE_OFFSET_BITS
+#undef _FILE_OFFSET_BITS
+#endif
+#define _FILE_OFFSET_BITS 64
+#include <sys/types.h>
+#include <sys/stat.h>
 
 namespace fs {
 
@@ -204,6 +208,11 @@ size_t file::write(const void* s, size_t n) {
 }
 
 #undef nullfd
+#undef _FILE_OFFSET_BITS
+#ifdef _OLD_FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS _OLD_FILE_OFFSET_BITS
+#undef _OLD_FILE_OFFSET_BITS
+#endif
 
 } // namespace fs
 

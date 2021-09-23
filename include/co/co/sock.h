@@ -367,9 +367,7 @@ void set_nonblock(sock_t fd);
 /**
  * set option FD_CLOEXEC on a socket 
  */
-inline void set_cloexec(sock_t fd) {
-    fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-}
+void set_cloexec(sock_t fd);
 #endif
 
 /**
