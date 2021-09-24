@@ -26,8 +26,10 @@ DEF_uint32(http_send_timeout, 3000, "#2 send timeout in ms for http server");
 DEF_uint32(http_conn_idle_sec, 180, "#2 http server may close the connection if no data was recieved for n seconds");
 DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections for http server");
 DEF_bool(http_log, true, "#2 enable http server log if true");
+DEF_bool(http_debug_log, false, "#2 enable http debug log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
+#define HTTPDLOG DLOG_IF(FLG_http_debug_log)
 
 namespace http {
 
@@ -371,6 +373,7 @@ int multi_socket_cb(CURL*, curl_socket_t s, int action, void* userp, void*) {
       case CURL_POLL_IN:
       case CURL_POLL_OUT:
       case CURL_POLL_IN | CURL_POLL_OUT:
+        HTTPDLOG << "curl add sock: " << s << ", action: " << action;
         ctx->s = s;
         ctx->action = action;
         break;
@@ -378,6 +381,7 @@ int multi_socket_cb(CURL*, curl_socket_t s, int action, void* userp, void*) {
         // delete io event if the socket was not created by the opensocket callback.
         // Now we have hooked close (closesocket) globally, MAYBE no need to do this..
         if (s != ctx->cs) co::del_io_event(s);
+        HTTPDLOG << "curl remove sock: " << ctx->s;
         ctx->s = 0;
         ctx->action = 0;
         break;
@@ -443,6 +447,7 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype, struct curl_sockaddr
         return CURL_SOCKET_BAD;
     }
 
+    HTTPDLOG << "opensocket_cb sock: " << fd;
     const int r = co::connect(fd, &addr->addr, addr->addrlen, FLG_http_conn_timeout);
     if (r == 0) return (ctx->cs = fd);
 
@@ -453,6 +458,7 @@ curl_socket_t easy_opensocket_cb(void* userp, curlsocktype, struct curl_sockaddr
 }
 
 int easy_closesocket_cb(void*, curl_socket_t fd) {
+    HTTPDLOG << "closesocket_cb sock: " << fd;
     if (fd != (curl_socket_t)-1) return co::close(fd);
     return 0;
 }
@@ -1044,3 +1050,6 @@ void easy(const char* root_dir, const char* ip, int port, const char* key, const
 }
 
 } // so
+
+#undef HTTPLOG
+#undef HTTPDLOG

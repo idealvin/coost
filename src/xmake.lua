@@ -33,11 +33,11 @@ target("libco")
                 add_files("co/context/context_x86.asm")
             end
         else
-            --add_defines("_FILE_OFFSET_BITS=64")
             add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
             add_files("co/context/context.S")
         end
     else
+        add_cxflags("-Wno-strict-aliasing")
         includes("check_cincludes.lua")
         includes("check_cxxincludes.lua")
         includes("check_links.lua")
@@ -47,7 +47,5 @@ target("libco")
         if not is_plat("android") then
             add_syslinks("pthread", "dl")
         end
-        --add_defines("_FILE_OFFSET_BITS=64")
         add_files("co/context/context.S")
     end
-

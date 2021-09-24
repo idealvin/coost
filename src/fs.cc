@@ -6,11 +6,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef _FILE_OFFSET_BITS
-#define _OLD_FILE_OFFSET_BITS _FILE_OFFSET_BITS
-#undef _FILE_OFFSET_BITS
-#endif
-#define _FILE_OFFSET_BITS 64
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -134,6 +129,7 @@ bool file::open(const char* path, char mode) {
         if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
         return true;
     }();
+    (void) kHookInit;
 
     this->close();
     fctx* p = (fctx*) _p;
@@ -209,11 +205,6 @@ size_t file::write(const void* s, size_t n) {
 }
 
 #undef nullfd
-#undef _FILE_OFFSET_BITS
-#ifdef _OLD_FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS _OLD_FILE_OFFSET_BITS
-#undef _OLD_FILE_OFFSET_BITS
-#endif
 
 } // namespace fs
 
