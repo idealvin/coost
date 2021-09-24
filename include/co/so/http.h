@@ -210,8 +210,6 @@ class Client {
     void close();
 
   private:
-    void do_io();
-    void set_headers();
     void append_header(const char* s);
     const char* make_url(const char* url);
 

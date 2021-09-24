@@ -44,9 +44,7 @@ namespace http {
 #ifdef HAS_LIBCURL
 struct curl_ctx {
     curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), s((curl_socket_t)-1), cs((curl_socket_t)-1), 
-        action(0), ms(0), update_header(false) {
-        multi = curl_multi_init();
+        : l(NULL), upload(NULL), upsize(0), header_updated(false) {
         easy = curl_easy_init();
         memset(err, 0, sizeof(err));
     }
@@ -54,7 +52,6 @@ struct curl_ctx {
     ~curl_ctx() {
         if (l) { curl_slist_free_all(l); l = NULL; }
         curl_easy_cleanup(easy);    easy = NULL;
-        curl_multi_cleanup(multi);  multi = NULL;
     }
 
     fastring serv_url;
@@ -65,33 +62,16 @@ struct curl_ctx {
     std::vector<size_t> header_index;
     char err[CURL_ERROR_SIZE];
 
-    CURLM* multi;
     CURL* easy;
     struct curl_slist* l;
     const char* upload; // for PUT, data to upload
     size_t upsize;      // for PUT, size of the data to upload
-    curl_socket_t s;
-    curl_socket_t cs;
-    int action;
-    int ms;
-    bool update_header;
+    bool header_updated;
 };
 
-static int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* socketp);
-static int multi_timer_cb(CURLM* m, long ms, void* userp);
 static size_t easy_write_cb(void* data, size_t size, size_t count, void* userp);
 static size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp);
 static size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp);
-static curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_sockaddr* addr);
-static int easy_closesocket_cb(void* userp, curl_socket_t fd);
-static int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose);
-
-void init_multi_opts(CURLM* m, curl_ctx* ctx) {
-    curl_multi_setopt(m, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
-    curl_multi_setopt(m, CURLMOPT_SOCKETDATA, (void*)ctx); // userdata
-    curl_multi_setopt(m, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
-    curl_multi_setopt(m, CURLMOPT_TIMERDATA, (void*)ctx);
-}
 
 void init_easy_opts(CURL* e, curl_ctx* ctx) {
     curl_easy_setopt(e, CURLOPT_NOSIGNAL, 1);
@@ -105,13 +85,6 @@ void init_easy_opts(CURL* e, curl_ctx* ctx) {
 
     curl_easy_setopt(e, CURLOPT_CONNECTTIMEOUT_MS, FLG_http_conn_timeout);
     curl_easy_setopt(e, CURLOPT_TIMEOUT_MS, FLG_http_timeout);
-
-    curl_easy_setopt(e, CURLOPT_OPENSOCKETFUNCTION, easy_opensocket_cb);
-    curl_easy_setopt(e, CURLOPT_OPENSOCKETDATA, (void*)ctx);
-    curl_easy_setopt(e, CURLOPT_CLOSESOCKETFUNCTION, easy_closesocket_cb);
-    curl_easy_setopt(e, CURLOPT_CLOSESOCKETDATA, (void*)ctx);
-    curl_easy_setopt(e, CURLOPT_SOCKOPTFUNCTION, easy_sockopt_cb);
-
     curl_easy_setopt(e, CURLOPT_ERRORBUFFER, ctx->err);
 }
 
@@ -137,7 +110,6 @@ Client::Client(const char* serv_url) {
     }
     _ctx->serv_url = std::move(s);
 
-    init_multi_opts(_ctx->multi, _ctx);
     init_easy_opts(_ctx->easy, _ctx);
 }
 
@@ -153,9 +125,9 @@ inline void Client::append_header(const char* s) {
     struct curl_slist* l = curl_slist_append(_ctx->l, s);
     if (l) {
         _ctx->l = l;
-        if (!_ctx->update_header) _ctx->update_header = true;
+        if (!_ctx->header_updated) _ctx->header_updated = true;
     } else {
-        ELOG << "libcurl add header failed: " << s;
+        ELOG << "curl add header failed: " << s;
     }
 }
 
@@ -184,13 +156,6 @@ void Client::remove_header(const char* key) {
     s.clear();
     s.append(key).append(':');
     this->append_header(s.c_str());
-}
-
-inline void Client::set_headers() {
-    if (_ctx->update_header) {
-        curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
-        _ctx->update_header = false;
-    }
 }
 
 inline const char* Client::make_url(const char* url) {
@@ -249,14 +214,17 @@ void* Client::easy_handle() const {
 
 void Client::perform() {
     CHECK(co::scheduler()) << "must be called in coroutine..";
-    this->set_headers();
     _ctx->header.clear();
     _ctx->body.clear();
     _ctx->header_index.clear();
     _ctx->err[0] = '\0';
-    curl_multi_add_handle(_ctx->multi, _ctx->easy);
-    while (_ctx->action != 0) do_io();
-    _ctx->mutable_header.clear();
+
+    if (_ctx->header_updated) {
+        curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
+        _ctx->header_updated = false;
+    }
+
+    curl_easy_perform(_ctx->easy);
 }
 
 int Client::response_code() const {
@@ -315,94 +283,6 @@ size_t Client::body_size() const {
     return _ctx->body.size();
 }
 
-void Client::do_io() {
-    bool r;
-    int n, curl_ev;
-
-    if (_ctx->action == CURL_POLL_IN) {
-        curl_ev = CURL_CSELECT_IN;
-        co::IoEvent ev(_ctx->s, co::ev_read);
-        r = ev.wait(_ctx->ms);
-    } else if (_ctx->action == CURL_POLL_OUT) {
-        curl_ev = CURL_CSELECT_OUT;
-        co::IoEvent ev(_ctx->s, co::ev_write);
-        r = ev.wait(_ctx->ms);
-    } else {
-        CHECK_EQ(_ctx->action, CURL_POLL_IN | CURL_POLL_OUT);
-        curl_ev = CURL_CSELECT_IN | CURL_CSELECT_OUT;
-        do {
-            {
-                co::IoEvent ev(_ctx->s, co::ev_write);
-                r = ev.wait(_ctx->ms);
-                if (!r) break;
-            }
-            {
-                co::IoEvent ev(_ctx->s, co::ev_read);
-                r = ev.wait(_ctx->ms);
-            }
-        } while (0);
-    }
-
-    if (r) {
-        curl_multi_socket_action(_ctx->multi, _ctx->s, curl_ev, &n);
-    } else {
-        if (co::timeout()) {
-            curl_multi_socket_action(_ctx->multi, CURL_SOCKET_TIMEOUT, 0, &n);
-        } else {
-            ELOG << "io wait error: " << co::strerror();
-        }
-    }
-
-    CURLMsg* msg;
-    while ((msg = curl_multi_info_read(_ctx->multi, &n))) {
-        switch (msg->msg) {
-        case CURLMSG_DONE:
-            _ctx->action = 0;
-            curl_multi_remove_handle(_ctx->multi, msg->easy_handle);
-            break;
-        default:
-            CHECK(false) << "CURLMSG default";
-        }
-    }
-}
-
-int multi_socket_cb(CURL*, curl_socket_t s, int action, void* userp, void*) {
-    CHECK(userp != NULL);
-    curl_ctx* ctx = (curl_ctx*)userp;
-    switch (action) {
-      case CURL_POLL_IN:
-      case CURL_POLL_OUT:
-      case CURL_POLL_IN | CURL_POLL_OUT:
-        HTTPDLOG << "curl add sock: " << s << ", action: " << action;
-        ctx->s = s;
-        ctx->action = action;
-        break;
-      case CURL_POLL_REMOVE:
-        // delete io event if the socket was not created by the opensocket callback.
-        // Now we have hooked close (closesocket) globally, MAYBE no need to do this..
-        if (s != ctx->cs) co::del_io_event(s);
-        HTTPDLOG << "curl remove sock: " << ctx->s;
-        ctx->s = 0;
-        ctx->action = 0;
-        break;
-      default:
-        CHECK(false) << "invalid curl action: " << action;
-    }
-    return 0;
-}
-
-int multi_timer_cb(CURLM* m, long ms, void* userp) {
-    int n;
-    curl_ctx* ctx = (curl_ctx*)userp;
-    if (ms == 0) {
-        CHECK_EQ(m, ctx->multi);
-        curl_multi_socket_action(m, CURL_SOCKET_TIMEOUT, 0, &n);
-    } else {
-        if (ms > 0) ctx->ms = ms;
-    }
-    return 0;
-}
-
 size_t easy_write_cb(void* data, size_t size, size_t count, void* userp) {
     curl_ctx* ctx = (curl_ctx*)userp;
     const size_t n = size * count;
@@ -439,40 +319,12 @@ size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp) {
     return n;
 }
 
-curl_socket_t easy_opensocket_cb(void* userp, curlsocktype, struct curl_sockaddr* addr) {
-    curl_ctx* ctx = (curl_ctx*)userp;
-    curl_socket_t fd = co::socket(addr->family, addr->socktype, addr->protocol);
-    if (fd == (sock_t)-1) {
-        ELOG << "create socket failed: " << co::strerror();
-        return CURL_SOCKET_BAD;
-    }
-
-    HTTPDLOG << "opensocket_cb sock: " << fd;
-    const int r = co::connect(fd, &addr->addr, addr->addrlen, FLG_http_conn_timeout);
-    if (r == 0) return (ctx->cs = fd);
-
-    ELOG << "connect to " << co::to_string(&addr->addr, addr->addrlen) << " failed: " << co::strerror();
-    memcpy(ctx->err, "connect timeout", 16);
-    co::close(fd);
-    return CURL_SOCKET_BAD;
-}
-
-int easy_closesocket_cb(void*, curl_socket_t fd) {
-    HTTPDLOG << "closesocket_cb sock: " << fd;
-    if (fd != (curl_socket_t)-1) return co::close(fd);
-    return 0;
-}
-
-int easy_sockopt_cb(void*, curl_socket_t, curlsocktype) {
-    return CURL_SOCKOPT_ALREADY_CONNECTED;
-}
-
 #else
 Client::Client(const char*) {
     CHECK(false)
         << "To use http::Client, please build libco with libcurl as follow: \n"
-        << "xmake f --with_libcurl=true\n"
-        << "xmake -v";
+        << "  xmake f --with_libcurl=true\n"
+        << "  xmake -v";
 }
 
 Client::~Client() {}
