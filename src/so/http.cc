@@ -26,10 +26,8 @@ DEF_uint32(http_send_timeout, 3000, "#2 send timeout in ms for http server");
 DEF_uint32(http_conn_idle_sec, 180, "#2 http server may close the connection if no data was recieved for n seconds");
 DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections for http server");
 DEF_bool(http_log, true, "#2 enable http server log if true");
-DEF_bool(http_debug_log, false, "#2 enable http debug log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
-#define HTTPDLOG DLOG_IF(FLG_http_debug_log)
 
 namespace http {
 
@@ -904,4 +902,3 @@ void easy(const char* root_dir, const char* ip, int port, const char* key, const
 } // so
 
 #undef HTTPLOG
-#undef HTTPDLOG
