@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "../def.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -17,7 +17,7 @@
  *           4-byte aligned.
  * @param n  size of the data.
  */
-uint32_t murmur_hash32(const void* s, size_t n, uint32_t seed);
+__coapi uint32_t murmur_hash32(const void* s, size_t n, uint32_t seed);
 
 /**
  * 64 bit murmur hash
@@ -26,7 +26,7 @@ uint32_t murmur_hash32(const void* s, size_t n, uint32_t seed);
  *           8-byte aligned.
  * @param n  size of the data.
  */
-uint64_t murmur_hash64(const void* s, size_t n, uint64_t seed);
+__coapi uint64_t murmur_hash64(const void* s, size_t n, uint64_t seed);
 
 namespace xx {
 template<int>

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdint.h>
+#include "def.h"
 
-class Random {
+class __coapi Random {
   public:
     Random() : Random(1u) {}
 

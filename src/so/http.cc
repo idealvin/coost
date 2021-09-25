@@ -339,7 +339,7 @@ void* Client::easy_handle() const { return 0; }
 void Client::perform() {}
 int Client::response_code() const { return 0; }
 const char* Client::strerror() const { return ""; }
-const char* Client::header(const char* key) { return ""; }
+const char* Client::header(const char*) { return ""; }
 const char* Client::header() const { return ""; }
 const char* Client::body() const { return ""; }
 size_t Client::body_size() const { return 0; }
@@ -489,7 +489,7 @@ void send_error_message(int err, Res& res, tcp::Connection* conn) {
 }
 
 void ServerImpl::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> x(conn);
+    std::unique_ptr<tcp::Connection> _(conn); (void)_;
     char c;
     int r = 0;
     size_t pos = 0, total_len = 0;

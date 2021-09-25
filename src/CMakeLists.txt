@@ -1,5 +1,11 @@
 file(GLOB_RECURSE CC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
+if(BUILD_SHARED_LIBS)
+    set(LIBKIND SHARED)
+else()
+    set(LIBKIND STATIC)
+endif()
+
 # source files
 if(WIN32)
     set(ASM_FILES co/context/context_x64.asm)
@@ -12,7 +18,7 @@ if(WIN32)
         set(ASM_FILES co/context/context.S)
     endif()
 
-    add_library(co
+    add_library(co ${LIBKIND}
         ${CC_FILES}
         ${ASM_FILES}
         log/StackWalker.cpp
@@ -23,7 +29,7 @@ if(WIN32)
         co/detours/disasm.cpp
     )
 else()
-    add_library(co
+    add_library(co ${LIBKIND}
         ${CC_FILES}
         co/context/context.S
     )
@@ -62,8 +68,15 @@ endif()
 
 if(WIN32)
     if(BUILD_SHARED_LIBS)
-        target_compile_definitions(co PRIVATE CO_DLL)
+        target_compile_definitions(co PRIVATE CO_BUILDING_DLL)
+        set(CO_DLL 1)
+    else()
+        set(CO_DLL 0)
     endif()
+    configure_file(
+        "../include/co/config.h.in"
+        "${PROJECT_SOURCE_DIR}/include/co/config.h"
+    )
     target_compile_definitions(co PUBLIC WIN32_LEAN_AND_MEAN)
     target_compile_definitions(co PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
     if(NOT MSVC)

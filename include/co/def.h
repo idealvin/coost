@@ -46,3 +46,16 @@ typedef uint64_t uint64;
 #else
 #define  unlikely(x)  (x)
 #endif
+
+
+#include "config.h"
+
+#if defined(_MSC_VER) && CO_DLL > 0
+  #ifdef CO_BUILDING_DLL
+    #define __coapi __declspec(dllexport)
+  #else
+    #define __coapi __declspec(dllimport)
+  #endif
+#else
+  #define __coapi
+#endif

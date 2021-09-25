@@ -28,7 +28,7 @@ struct curl_ctx;
  *     url_encode() in co/hash/url.h to encode the url before passing it to a http
  *     request, if necessary.
  */
-class Client {
+class __coapi Client {
   public:
     /**
      * initialize a http client with a server url
@@ -234,7 +234,7 @@ enum Method {
     kGet, kHead, kPost, kPut, kDelete, kOptions,
 };
 
-class Req {
+class __coapi Req {
   public:
     Req() = default;
     ~Req() = default;
@@ -269,7 +269,7 @@ class Req {
     int parse(fastring* buf);
 };
 
-class Res {
+class __coapi Res {
   public:
     Res() : _version(kHTTP11), _status(200) {}
     ~Res() = default;
@@ -312,7 +312,7 @@ class Res {
  *   - NOTE: http::Server will not url-decode the url in the request. The user may 
  *     call url_decode() in co/hash/url.h to decode the url, if necessary. 
  */
-class Server {
+class __coapi Server {
   public:
     Server();
     ~Server();
@@ -379,7 +379,7 @@ namespace so {
  * @param ip        server ip, either an ipv4 or ipv6 address, default: "0.0.0.0"
  * @param port      server port, default: 80.
  */
-void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
+__coapi void easy(const char* root_dir = ".", const char* ip = "0.0.0.0", int port = 80);
 
 /**
  * start a static https server 
@@ -392,6 +392,6 @@ void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
  * @param key       path of the private key file for ssl.
  * @param ca        path of the certificate file for ssl.
  */
-void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
+__coapi void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
 
 } // so

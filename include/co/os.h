@@ -6,10 +6,10 @@
 namespace os {
 
 // get value of an environment variable
-fastring env(const char* name);
+__coapi fastring env(const char* name);
 
 // set value of an environment variable
-bool env(const char* name, const char* value);
+__coapi bool env(const char* name, const char* value);
 
 /**
  * We try to use `/` as the path separator on all platforms. 
@@ -21,33 +21,33 @@ bool env(const char* name, const char* value);
  */
 
 // get home dir of current user
-fastring homedir();
+__coapi fastring homedir();
 
 // get current working directory
-fastring cwd();
+__coapi fastring cwd();
 
 // get executable path
-fastring exepath();
+__coapi fastring exepath();
 
 // get executable directory
-fastring exedir();
+__coapi fastring exedir();
 
 // get executable name
-fastring exename();
+__coapi fastring exename();
 
 // get current process id
-int pid();
+__coapi int pid();
 
 // get number of processors
-int cpunum();
+__coapi int cpunum();
 
 // run as a daemon
-void daemon();
+__coapi void daemon();
 
 typedef void (*sig_handler_t)(int);
 
 // set a handler for the specified signal
 // return the old handler.
-sig_handler_t signal(int sig, sig_handler_t handler, int flag=0);
+__coapi sig_handler_t signal(int sig, sig_handler_t handler, int flag = 0);
 
 } // namespace os

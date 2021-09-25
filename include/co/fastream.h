@@ -3,7 +3,7 @@
 #include "fast.h"
 #include "fastring.h"
 
-class fastream : public fast::stream {
+class __coapi fastream : public fast::stream {
   public:
     constexpr fastream() noexcept : fast::stream() {}
     

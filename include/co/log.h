@@ -15,17 +15,17 @@ namespace log {
  *   - log::init() should be called once at the beginning of main(). 
  *   - It is safe to call log::init() for multiple times. 
  */
-void init();
+__coapi void init();
 
 /**
  * close the log library 
  *   - write all buffered logs to destination.
  *   - stop the logging thread.
  */
-void exit();
+__coapi void exit();
 
 // deprecated since v2.0.2, use log::exit() instead.
-void close();
+__coapi void close();
 
 namespace xx {
 
@@ -37,7 +37,7 @@ enum LogLevel {
     fatal = 4
 };
 
-class LevelLogSaver {
+class __coapi LevelLogSaver {
   public:
     LevelLogSaver(const char* file, int len, unsigned int line, int level);
     ~LevelLogSaver();
@@ -49,7 +49,7 @@ class LevelLogSaver {
     size_t _n;
 };
 
-class FatalLogSaver {
+class __coapi FatalLogSaver {
   public:
     FatalLogSaver(const char* file, int len, unsigned int line);
     ~FatalLogSaver();

@@ -2,7 +2,6 @@ target("libco")
     set_kind("$(kind)")
     set_basename("co")
     add_files("**.cc")
-
     add_options("with_openssl")
     add_options("with_libcurl")
     add_options("fpic")
@@ -17,9 +16,6 @@ target("libco")
     if is_plat("windows", "mingw") then
         add_defines("WIN32_LEAN_AND_MEAN")
         add_defines("_WINSOCK_DEPRECATED_NO_WARNINGS")
-        if is_kind("shared") then
-            add_defines("CO_DLL")
-        end
         add_files("log/StackWalker.cpp")
         add_files("co/detours/creatwth.cpp")
         add_files("co/detours/detours.cpp")
@@ -27,6 +23,13 @@ target("libco")
         add_files("co/detours/modules.cpp")
         add_files("co/detours/disasm.cpp")
         if is_plat("windows") then
+            if is_kind("shared") then
+                add_defines("CO_BUILDING_DLL")
+                set_configvar("CO_DLL", 1)
+            else
+                set_configvar("CO_DLL", 0)
+            end
+            add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
             if is_arch("x64") then
                 add_files("co/context/context_x64.asm")
             else

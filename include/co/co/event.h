@@ -10,7 +10,7 @@ namespace co {
  *   - It is similar to SyncEvent for threads.
  *   - It can be used anywhere since co 2.0.1.
  */
-class Event {
+class __coapi Event {
   public:
     Event();
     ~Event();

@@ -8,7 +8,7 @@
 namespace path {
 
 // Return the shortest path name equivalent to path.
-fastring clean(const fastring& s);
+__coapi fastring clean(const fastring& s);
 
 namespace _xx {
 inline fastring join(const fastring& s) {
@@ -61,10 +61,10 @@ inline fastring dir(const fastring& s) {
 // Trailing slashes are removed before extracting the last element.
 // If the path is empty, return ".".
 // If the path consists entirely of slashes, return "/".
-fastring base(const fastring& s);
+__coapi fastring base(const fastring& s);
 
 // Return file name extension used by path.
 // path::ext("a.b/x.log")  ->  ".log"
-fastring ext(const fastring& s);
+__coapi fastring ext(const fastring& s);
 
 } // namespace path

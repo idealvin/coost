@@ -16,7 +16,7 @@
  *
  * @return   a url-encoded string.
  */
-fastring url_encode(const void* s, size_t n);
+__coapi fastring url_encode(const void* s, size_t n);
 
 /**
  * url decode
@@ -29,7 +29,7 @@ fastring url_encode(const void* s, size_t n);
  *
  * @return   a decoded string on success, or an empty string on any error.
  */
-fastring url_decode(const void* s, size_t n);
+__coapi fastring url_decode(const void* s, size_t n);
 
 inline fastring url_encode(const char* s) {
     return url_encode(s, strlen(s));

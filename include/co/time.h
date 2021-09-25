@@ -5,49 +5,40 @@
 
 namespace now {
 
-/**
- * monotonic timestamp in milliseconds
- */
-int64 ms();
+// monotonic timestamp in milliseconds
+__coapi int64 ms();
 
-/**
- * monotonic timestamp in microseconds
- */
-int64 us();
+// monotonic timestamp in microseconds
+__coapi int64 us();
 
 // "%Y-%m-%d %H:%M:%S" ==> 2018-08-08 08:08:08
-fastring str(const char* fm="%Y-%m-%d %H:%M:%S");
+__coapi fastring str(const char* fm = "%Y-%m-%d %H:%M:%S");
 
 } // now
 
 namespace epoch {
 
-/**
- * milliseconds since epoch
- */
-int64 ms();
+// milliseconds since epoch
+__coapi int64 ms();
 
-/**
- * 
- * microseconds since epoch
- */
-int64 us();
+// microseconds since epoch
+__coapi int64 us();
 
 } // epoch
 
 namespace ___ {
 namespace sleep {
 
-void ms(uint32 n);
+__coapi void ms(uint32 n);
 
-void sec(uint32 n);
+__coapi void sec(uint32 n);
 
 } // sleep
 } // ___
 
 using namespace ___;
 
-class Timer {
+class __coapi Timer {
   public:
     Timer() {
         _start = now::us();

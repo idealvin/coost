@@ -16,7 +16,7 @@ class Service {
     virtual void process(const Json& req, Json& res) = 0;
 };
 
-class Server {
+class __coapi Server {
   public:
     Server();
     ~Server();
@@ -60,7 +60,7 @@ class Server {
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
 
-class Client {
+class __coapi Client {
   public:
     Client(const char* ip, int port, bool use_ssl=false);
     Client(const Client& c);

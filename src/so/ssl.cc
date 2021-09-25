@@ -284,9 +284,9 @@ bool timeout() { return co::timeout(); }
 
 namespace ssl {
 
-const char* strerror(S* s) { return 0; }
+const char* strerror(S*) { return 0; }
 
-C* new_ctx(char c) {
+C* new_ctx(char) {
     CHECK(false)
         << "To use SSL features, please build libco with openssl 1.1+ as follow: \n"
         << "xmake f --with_openssl=true\n"

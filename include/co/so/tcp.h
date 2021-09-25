@@ -7,7 +7,7 @@
 
 namespace tcp {
 
-struct Connection {
+struct __coapi Connection {
     Connection(int sockfd) : _fd(sockfd) {}
     virtual ~Connection() { this->close(); }
 
@@ -71,7 +71,7 @@ struct Connection {
  *   - Support ssl (openssl required).
  *   - One coroutine per connection. 
  */
-class Server {
+class __coapi Server {
   public:
     Server() = default; // { _on_connection = NULL; }
     virtual ~Server() = default; //{ if (_on_connection) delete _on_connection; }
@@ -139,7 +139,7 @@ class Server {
  *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
  *     may be established. 
  */
-class Client {
+class __coapi Client {
   public:
     /**
      * @param ip       a domain name, or either an ipv4 or ipv6 address of the server. 

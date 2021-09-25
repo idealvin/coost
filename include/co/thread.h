@@ -86,7 +86,7 @@ inline void tls_set(tls_t k, void* v) { int r = pthread_setspecific(k, v); asser
 
 #endif
 
-class Mutex {
+class __coapi Mutex {
   public:
     Mutex() {
         co::xx::mutex_init(&_mutex);
@@ -117,7 +117,7 @@ class Mutex {
     DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
-class MutexGuard {
+class __coapi MutexGuard {
   public:
     explicit MutexGuard(Mutex& lock) : _lock(lock) {
         _lock.lock();
@@ -136,7 +136,7 @@ class MutexGuard {
     DISALLOW_COPY_AND_ASSIGN(MutexGuard);
 };
 
-class SyncEvent {
+class __coapi SyncEvent {
   public:
     explicit SyncEvent(bool manual_reset = false, bool signaled = false)
         : _counter(0), _manual_reset(manual_reset), _signaled(signaled) {
@@ -204,7 +204,7 @@ class SyncEvent {
 //
 // run independently from thread object:
 //   Thread(f).detach();                 // void f();
-class Thread {
+class __coapi Thread {
   public:
     // @cb is not saved in this thread object, but passed directly to the
     // thread function, so it can run independently from the thread object.

@@ -10,7 +10,7 @@ namespace co {
  *   - It is similar to Mutex for threads.
  *   - Users SHOULD use co::Mutex in coroutine environments only.
  */
-class Mutex {
+class __coapi Mutex {
   public:
     Mutex();
     ~Mutex();
@@ -54,7 +54,7 @@ class Mutex {
  *   - lock() is called in the constructor.
  *   - unlock() is called in the destructor.
  */
-class MutexGuard {
+class __coapi MutexGuard {
   public:
     explicit MutexGuard(const co::Mutex& lock) : _lock(lock) {
         _lock.lock();

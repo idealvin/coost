@@ -1,8 +1,9 @@
 #pragma once
 
+#include "def.h"
 #include <functional>
 
-class Tasked {
+class __coapi Tasked {
   public:
     typedef std::function<void()> F;
 
