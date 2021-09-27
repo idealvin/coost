@@ -25,7 +25,6 @@ if is_plat("windows") then
 elseif is_plat("mingw") then
     add_ldflags("-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic", {force = true})
     set_optimize("faster")
-    add_syslinks("ws2_32")
 else
     set_optimize("faster")   -- faster: -O2  fastest: -O3  none: -O0
     --add_cxflags("-Wno-narrowing", "-Wno-sign-compare", "-Wno-class-memaccess", "-Wno-strict-aliasing")

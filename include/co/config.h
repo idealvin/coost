@@ -1,1 +1,1 @@
-#define CO_DLL 0
+#define USING_CO_DLL 1

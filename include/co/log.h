@@ -4,8 +4,8 @@
 #include "fastream.h"
 #include "atomic.h"
 
-DEC_bool(cout);
-DEC_int32(min_log_level);
+__codec DEC_bool(cout);
+__codec DEC_int32(min_log_level);
 
 namespace ___ {
 namespace log {

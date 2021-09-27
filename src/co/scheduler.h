@@ -26,9 +26,9 @@
 #include <vector>
 #include <map>
 
-DEC_uint32(co_sched_num);
-DEC_uint32(co_stack_size);
-DEC_bool(co_debug_log);
+__codec DEC_uint32(co_sched_num);
+__codec DEC_uint32(co_stack_size);
+__codec DEC_bool(co_debug_log);
 
 #define CO_DBG_LOG DLOG_IF(FLG_co_debug_log)
 

@@ -37,9 +37,9 @@ typedef uint64_t uint64;
 #define MIN_INT32  ((int32) ~MAX_INT32)
 #define MIN_INT64  ((int64) ~MAX_INT64)
 
-#define DISALLOW_COPY_AND_ASSIGN(ClassName) \
-    ClassName(const ClassName&) = delete; \
-    void operator=(const ClassName&) = delete
+#define DISALLOW_COPY_AND_ASSIGN(T) \
+    T(const T&) = delete; \
+    void operator=(const T&) = delete
 
 #if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__clang__)
 #define  unlikely(x)  __builtin_expect(!!(x), 0)
@@ -48,14 +48,22 @@ typedef uint64_t uint64;
 #endif
 
 
+#ifdef _MSC_VER
 #include "config.h"
+#endif
 
-#if defined(_MSC_VER) && CO_DLL > 0
-  #ifdef CO_BUILDING_DLL
+#if defined(_MSC_VER) && USING_CO_DLL > 0
+  #ifdef BUILDING_CO_DLL
+    #define __codef __declspec(dllexport)
+    #define __codec __declspec(dllexport)
     #define __coapi __declspec(dllexport)
   #else
+    #define __codef
+    #define __codec __declspec(dllimport)
     #define __coapi __declspec(dllimport)
   #endif
 #else
+  #define __codef
+  #define __codec
   #define __coapi
 #endif

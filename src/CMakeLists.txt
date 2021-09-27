@@ -10,7 +10,7 @@ endif()
 if(WIN32)
     set(ASM_FILES co/context/context_x64.asm)
     if(MSVC)
-        if(${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 4)
             set(ASM_FILES co/context/context_x86.asm)
         endif()
         set_property(SOURCE ${ASM_FILES} PROPERTY LANGUAGE ASM_MASM)
@@ -67,16 +67,18 @@ endif()
 
 
 if(WIN32)
-    if(BUILD_SHARED_LIBS)
-        target_compile_definitions(co PRIVATE CO_BUILDING_DLL)
-        set(CO_DLL 1)
-    else()
-        set(CO_DLL 0)
+    if(MSVC)
+        if(BUILD_SHARED_LIBS)
+            target_compile_definitions(co PRIVATE BUILDING_CO_DLL)
+            set(USING_CO_DLL 1)
+        else()
+            set(USING_CO_DLL 0)
+        endif()
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/include/co/config.h.in"
+            "${PROJECT_SOURCE_DIR}/include/co/config.h"
+        )
     endif()
-    configure_file(
-        "../include/co/config.h.in"
-        "${PROJECT_SOURCE_DIR}/include/co/config.h"
-    )
     target_compile_definitions(co PUBLIC WIN32_LEAN_AND_MEAN)
     target_compile_definitions(co PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
     if(NOT MSVC)
