@@ -26,6 +26,6 @@ jobs:
         run: |
           xmake -a
           xmake r flag -xy
-          xmake r unitest -a -noco
+          xmake r unitest -a -co_sched_num=1
           xmake f -m debug
           xmake -a
