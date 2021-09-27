@@ -96,7 +96,7 @@ class ServerImpl {
         x.safe_clear(); // clear password info in the json.
     }
 
-    void on_connection(tcp::Connection* conn);
+    void on_connection(tcp::Connection conn);
 
     void start(const char* ip, int port, const char* key, const char* ca) {
         _tcp_serv.on_connection(&ServerImpl::on_connection, this);
@@ -157,11 +157,10 @@ void ServerImpl::process(const Json& req, Json& res) {
     }
 }
 
-void ServerImpl::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> c(conn);
-    if (!_userpass.empty() && !this->auth(conn)) {
-        ELOG << "auth failed, reset connection " << conn->socket() << " 3 seconds later..";
-        conn->reset(3000);
+void ServerImpl::on_connection(tcp::Connection conn) {
+    if (!_userpass.empty() && !this->auth(&conn)) {
+        ELOG << "auth failed, reset connection " << conn.socket() << " 3 seconds later..";
+        conn.reset(3000);
         return;
     }
 
@@ -176,7 +175,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
         // recv req from the client
         do {
           recv_beg:
-            r = conn->recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
+            r = conn.recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
 
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r < 0)) {
@@ -198,7 +197,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
             if (buf == NULL) buf = (fastring*) _buffer.pop();
             buf->resize(len);
-            r = conn->recvn((char*)buf->data(), len, FLG_rpc_recv_timeout);
+            r = conn.recvn((char*)buf->data(), len, FLG_rpc_recv_timeout);
             if (unlikely(r == 0)) goto recv_zero_err;
             if (unlikely(r < 0)) goto recv_err;
 
@@ -217,7 +216,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             res.str(*(fastream*)buf);
             set_header((void*)buf->data(), (int) buf->size() - sizeof(Header));
             
-            r = conn->send(buf->data(), (int) buf->size(), FLG_rpc_send_timeout);
+            r = conn.send(buf->data(), (int) buf->size(), FLG_rpc_send_timeout);
             if (unlikely(r <= 0)) goto send_err;
 
             RPCLOG << "rpc send res: " << res;
@@ -225,12 +224,12 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "rpc client close the connection, connfd: " << conn->socket();
-    conn->close();
+    LOG << "rpc client close the connection, connfd: " << conn.socket();
+    conn.close();
     goto cleanup;
   idle_err:
-    ELOG << "rpc close idle connection, connfd: " << conn->socket();
-    conn->reset();
+    ELOG << "rpc close idle connection, connfd: " << conn.socket();
+    conn.reset();
     goto cleanup;
   magic_err:
     ELOG << "rpc recv error: bad magic number";
@@ -239,16 +238,16 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     ELOG << "rpc recv error: body too long: " << len;
     goto err_end;
   recv_err:
-    ELOG << "rpc recv error: " << conn->strerror();
+    ELOG << "rpc recv error: " << conn.strerror();
     goto err_end;
   send_err:
-    ELOG << "rpc send error: " << conn->strerror();
+    ELOG << "rpc send error: " << conn.strerror();
     goto err_end;
   json_parse_err:
     ELOG << "rpc json parse error: " << *buf;
     goto err_end;
   err_end:
-    conn->reset(1000);
+    conn.reset(1000);
   cleanup:
     atomic_dec(&_conn_num);
     if (buf) {

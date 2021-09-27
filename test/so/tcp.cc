@@ -4,25 +4,24 @@ DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_int32(client_num, 1, "client num");
 
-void on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> c(conn);
+void on_connection(tcp::Connection conn) {
     char buf[8] = { 0 };
 
     while (true) {
-        int r = conn->recv(buf, 8);
+        int r = conn.recv(buf, 8);
         if (r == 0) {         /* client close the connection */
-            conn->close();
+            conn.close();
             break;
         } else if (r < 0) { /* error */
-            conn->reset(3000);
+            conn.reset(3000);
             break;
         } else {
             LOG << "server recv " << fastring(buf, r);
             LOG << "server send pong";
-            r = conn->send("pong", 4);
+            r = conn.send("pong", 4);
             if (r <= 0) {
-                LOG << "server send error: " << conn->strerror();
-                conn->reset(3000);
+                LOG << "server send error: " << conn.strerror();
+                conn.reset(3000);
                 break;
             }
         }

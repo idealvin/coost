@@ -428,7 +428,7 @@ class ServerImpl {
     void start(const char* ip, int port, const char* key, const char* ca);
 
   private:
-    void on_connection(tcp::Connection* conn);
+    void on_connection(tcp::Connection conn);
 
   private:
     co::Pool _buffer; // buffer for recieving http data
@@ -488,8 +488,7 @@ void send_error_message(int err, Res& res, tcp::Connection* conn) {
     res.clear();
 }
 
-void ServerImpl::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> _(conn); (void)_;
+void ServerImpl::on_connection(tcp::Connection conn) {
     char c;
     int r = 0;
     size_t pos = 0, total_len = 0;
@@ -504,7 +503,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
           recv_beg:
             if (!buf) {
                 // try recieving a single byte
-                r = conn->recv(&c, 1, FLG_http_conn_idle_sec * 1000);
+                r = conn.recv(&c, 1, FLG_http_conn_idle_sec * 1000);
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
@@ -520,7 +519,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             while ((pos = buf->find("\r\n\r\n")) == buf->npos) {
                 if (buf->size() > FLG_http_max_header_size) goto header_too_long_err;
                 buf->reserve(buf->size() + 1024);
-                r = conn->recv(
+                r = conn.recv(
                     (void*)(buf->data() + buf->size()), 
                     (int)(buf->capacity() - buf->size()), FLG_http_recv_timeout
                 );
@@ -536,7 +535,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
             r = req.parse(buf);
             if (r != 0) { /* parse error */
                 ELOG << "http parse error: " << r;
-                send_error_message(r, res, conn);
+                send_error_message(r, res, &conn);
                 goto err_end;
             }
 
@@ -546,7 +545,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                 if (req.body_size() > 0) {
                     if (buf->size() < total_len) {
                         buf->reserve(total_len);
-                        r = conn->recvn(
+                        r = conn.recvn(
                             (void*)(buf->data() + buf->size()), 
                             (int)(total_len - buf->size()), FLG_http_recv_timeout
                         );
@@ -571,10 +570,10 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                     while ((x = s.find("\r\n")) == s.npos) {
                         if (expect_100_continue) { /* send 100 continue */
                             res.set_version(req.version());
-                            send_error_message(100, res, conn);
+                            send_error_message(100, res, &conn);
                         }
                         s.reserve(s.size() + 32);
-                        r = conn->recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
+                        r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
                         if (r == 0) goto recv_zero_err;
                         if (r < 0) goto recv_err;
                         s.resize(s.size() + r);
@@ -595,7 +594,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                         if (o < n) {
                             buf->append(s.data() + x + 2, o);
                             buf->reserve(buf->size() + n - o + 2);
-                            r = conn->recvn((void*)(buf->data() + buf->size()), (int)(n - o + 2), FLG_http_recv_timeout);
+                            r = conn.recvn((void*)(buf->data() + buf->size()), (int)(n - o + 2), FLG_http_recv_timeout);
                             if (r == 0) goto recv_zero_err;
                             if (r < 0) goto recv_err;
                             buf->resize(buf->size() + r - 2);
@@ -606,7 +605,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                         }
 
                         if (buf->size() - pos - 4 > FLG_http_max_body_size) {
-                            send_error_message(413, res, conn);
+                            send_error_message(413, res, &conn);
                             goto err_end;
                         }
 
@@ -615,7 +614,7 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
                         s[x] = '\r'; s.lshift(x);
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
-                            r = conn->recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
+                            r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
                             if (r == 0) goto recv_zero_err;
                             if (r < 0) goto recv_err;
                             s.resize(s.size() + r);
@@ -652,12 +651,12 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
             _on_req(req, res);
             fastring s = res.str();
-            r = conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
+            r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
             if (r <= 0) goto send_err;
 
             s.resize(s.size() - res.body_size());
             HTTPLOG << "http send res: " << s;
-            if (need_close) { conn->close(0); goto cleanup; }
+            if (need_close) { conn.close(0); goto cleanup; }
         };
 
         if (buf->size() == total_len) {
@@ -674,27 +673,27 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
     }
 
   recv_zero_err:
-    LOG << "http client close the connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
-    conn->close();
+    LOG << "http client close the connection: " << co::peer(conn.socket()) << ", connfd: " << conn.socket();
+    conn.close();
     goto cleanup;
   idle_err:
-    LOG << "http close idle connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
-    conn->reset();
+    LOG << "http close idle connection: " << co::peer(conn.socket()) << ", connfd: " << conn.socket();
+    conn.reset();
     goto cleanup;
   header_too_long_err:
     ELOG << "http recv error: header too long";
     goto err_end;
   recv_err:
-    ELOG << "http recv error: " << conn->strerror();
+    ELOG << "http recv error: " << conn.strerror();
     goto err_end;
   send_err:
-    ELOG << "http send error: " << conn->strerror();
+    ELOG << "http send error: " << conn.strerror();
     goto err_end;
   chunk_err:
     ELOG << "http invalid chunked data..";
     goto err_end;
   err_end:
-    conn->reset(1000);
+    conn.reset(1000);
   cleanup:
     atomic_dec(&_conn_num);
     if (buf) { 

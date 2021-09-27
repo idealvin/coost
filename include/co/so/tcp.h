@@ -7,9 +7,20 @@
 
 namespace tcp {
 
-struct __coapi Connection {
-    Connection(int sockfd) : _fd(sockfd) {}
-    virtual ~Connection() { this->close(); }
+struct __coapi Connection final {
+    Connection(int sock);
+    Connection(void* ssl);
+    ~Connection() { this->close(); }
+
+    Connection(Connection&& c) : _p(c._p) {
+        c._p = 0;
+    }
+
+    Connection(const Connection&) = delete;
+    void operator=(const Connection&) = delete;
+
+    // get the underlying socket fd
+    int socket() const;
 
     /**
      * recv using co::recv or ssl::recv
@@ -17,7 +28,7 @@ struct __coapi Connection {
      * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recv(void* buf, int n, int ms=-1);
+    int recv(void* buf, int n, int ms=-1);
 
     /**
      * recv n bytes using co::recvn or ssl::recvn
@@ -25,7 +36,7 @@ struct __coapi Connection {
      * @return  n on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recvn(void* buf, int n, int ms=-1);
+    int recvn(void* buf, int n, int ms=-1);
 
     /**
      * send n bytes using co::send or ssl::send 
@@ -33,36 +44,34 @@ struct __coapi Connection {
      * 
      * @return  n on success, <=0 on timeout or error.
      */
-    virtual int send(const void* buf, int n, int ms=-1);
+    int send(const void* buf, int n, int ms=-1);
 
     /**
      * close the connection
+     *   - Once a Connection was closed, it can't be used any more.
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int close(int ms = 0);
+    int close(int ms = 0);
 
     /**
      * reset the connection
+     *   - Once a Connection was reset, it can't be used any more.
      *   - Server may use this method instead of close() to avoid TIME_WAIT state.
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int reset(int ms = 0);
+    int reset(int ms = 0);
 
     /**
      * get error message of the last I/O operation
-     *   - If an error occured in send() or recv(), the user can call this method
-     *     to get the error message.
+     *   - If an error occured in send() or recv(), this method can be called to 
+     *     get the error message.
      */
-    virtual const char* strerror() const;
-
-    int socket() const {
-        return _fd;
-    }
+    const char* strerror() const;
 
   private:
-    int _fd;
+    void* _p;
 };
 
 /**
@@ -71,12 +80,10 @@ struct __coapi Connection {
  *   - Support ssl (openssl required).
  *   - One coroutine per connection. 
  */
-class __coapi Server {
+class __coapi Server final {
   public:
-    Server() = default; // { _on_connection = NULL; }
-    virtual ~Server() = default; //{ if (_on_connection) delete _on_connection; }
-
-    typedef std::function<void(Connection*)> conn_cb;
+    Server();
+    ~Server();
 
     /**
      * set a callback for handling a connection 
@@ -85,12 +92,10 @@ class __coapi Server {
      * @param f  either a pointer to void f(tcp::Connection*), 
      *           or a reference of std::function<void(tcp::Connection*)>.
      */
-    void on_connection(conn_cb&& f) {
-        _on_connection.reset(new conn_cb(std::move(f)));
-    }
+    void on_connection(std::function<void(Connection)>&& f);
 
-    void on_connection(const conn_cb& f) {
-        this->on_connection(conn_cb(f));
+    void on_connection(const std::function<void(Connection)>& f) {
+        this->on_connection(std::function<void(Connection)>(f));
     }
 
     /**
@@ -101,8 +106,8 @@ class __coapi Server {
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_connection(void (T::*f)(Connection*), T* o) {
-        _on_connection.reset(new conn_cb(std::bind(f, o, std::placeholders::_1)));
+    void on_connection(void (T::*f)(Connection), T* o) {
+        this->on_connection(std::bind(f, o, std::placeholders::_1));
     }
 
     /**
@@ -118,10 +123,13 @@ class __coapi Server {
      * @param key   path of ssl private key file.
      * @param ca    path of ssl certificate file.
      */
-    virtual void start(const char* ip, int port, const char* key=NULL, const char* ca=NULL);
+    void start(const char* ip, int port, const char* key=0, const char* ca=0);
+
+    // exit the server gracefully
+    void exit();
 
   private:
-    std::shared_ptr<conn_cb> _on_connection;
+    void* _p;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
