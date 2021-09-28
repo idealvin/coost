@@ -39,7 +39,7 @@ void client_fun() {
 
     char buf[8] = { 0 };
 
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         LOG << "client send ping";
         int r = c.send("ping", 4);
         if (r <= 0) {
@@ -56,7 +56,7 @@ void client_fun() {
             break;
         } else {
             LOG << "client recv " << fastring(buf, r) << '\n';
-            co::sleep(3000);
+            co::sleep(500);
         }
     }
 
@@ -80,7 +80,7 @@ void client_with_pool() {
 
     char buf[8] = { 0 };
 
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         LOG << "client send ping";
         int r = c->send("ping", 4);
         if (r <= 0) {
@@ -97,14 +97,13 @@ void client_with_pool() {
             break;
         } else {
             LOG << "client recv " << fastring(buf, r) << '\n';
-            co::sleep(3000);
+            co::sleep(500);
         }
     }
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
+    co::init(argc, argv);
     FLG_cout = true;
 
     tcp::Server s;
@@ -121,7 +120,8 @@ int main(int argc, char** argv) {
         go(client_fun);
     }
 
-    while (true) sleep::sec(1024);
-
+    sleep::sec(2);
+    s.exit();
+    co::exit();
     return 0;
 }

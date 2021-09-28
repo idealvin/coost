@@ -125,7 +125,12 @@ class __coapi Server final {
      */
     void start(const char* ip, int port, const char* key=0, const char* ca=0);
 
-    // exit the server gracefully
+    /**
+     * exit the server gracefully
+     *   - Once `exit()` was called, the listening socket will be closed, and new 
+     *     connections will not be accepted.
+     *   - NOTE: The server will not close previously established connections.
+     */
     void exit();
 
   private:

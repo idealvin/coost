@@ -246,7 +246,7 @@ void ServerImpl::stop() {
         if (info) freeaddrinfo(info);
     }
 
-    while (status != 2) sleep::ms(8);
+    while (_status != 2) sleep::ms(8);
 }
 
 /**
@@ -301,8 +301,9 @@ void ServerImpl::loop() {
         go(&_on_sock, _connfd);
     }
 
-    co::close(_fd); _fd = (sock_t)-1;
     LOG << "server stopped: " << _ip << ':' << _port;
+    co::close(_fd); _fd = (sock_t)-1;
+    atomic_swap(&_status, 2);
 }
 
 void ServerImpl::on_tcp_connection(sock_t fd) {
