@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2019-2021 Alvin
+Copyright (c) 2019-2021 Alvin Yih <idealvin@qq.com> (github.com/idealvin/co)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,6 @@ Co includes code from the following projects, which have their own licenses:
 
 - [dtoa_milo](https://github.com/idealvin/co/blob/master/include/co/__/dtoa_milo.h) [MIT] (See [dtoa-benchmark](https://github.com/miloyip/dtoa-benchmark/blob/master/license.txt) by [Milo Yip](https://github.com/miloyip))
 
-- [stack_trace/StackWalker*](https://github.com/idealvin/co/tree/master/src/__) [BSD-2-Clause] (See [StackWalker](https://github.com/JochenKalmbach/StackWalker/blob/master/LICENSE) by [Jochen Kalmbach](https://github.com/JochenKalmbach))
+- [StackWalker](https://github.com/idealvin/co/tree/master/src/log) [BSD-2-Clause] (See [StackWalker](https://github.com/JochenKalmbach/StackWalker/blob/master/LICENSE) by [Jochen Kalmbach](https://github.com/JochenKalmbach))
 
 - [detours](https://github.com/idealvin/co/tree/master/src/co/detours) [MIT] (See [Detours](https://github.com/microsoft/Detours/blob/master/LICENSE.md) by Microsoft)
