@@ -360,23 +360,41 @@ void Server::exit() {
 }
 
 Client::Client(const char* ip, int port, bool use_ssl)
-    : _ip((ip && *ip) ? ip : "127.0.0.1"), _port((uint16)port),
-      _use_ssl(use_ssl), _fd(-1), _ssl(0), _ssl_ctx(0) {
+    : _port((uint16)port), _use_ssl(use_ssl), _fd(-1) {
+    if (!ip || !*ip) ip = "127.0.0.1";
+    const size_t n = strlen(ip) + 1;
+    if (!use_ssl) {
+        _ip = (char*) malloc(n);
+        memcpy(_ip, ip, n);
+    } else {
+        const int h = sizeof(void*) * 2;
+        _ip = ((char*)malloc(h + n)) + h;
+        memcpy(_ip, ip, n);
+        _s[-1] = _s[-2] = 0;
+    }
+}
+
+Client::~Client() {
+    this->close();
+    if (_ip) {
+        free(!_use_ssl ? _ip : (_ip - sizeof(void*) * 2));
+        _ip = 0;
+    }
 }
 
 int Client::recv(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recv(_fd, buf, n, ms);
-    return ssl::recv((ssl::S*)_ssl, buf, n, ms);
+    return ssl::recv(_s[-1], buf, n, ms);
 }
 
 int Client::recvn(void* buf, int n, int ms) {
     if (!_use_ssl) return co::recvn(_fd, buf, n, ms);
-    return ssl::recvn((ssl::S*)_ssl, buf, n, ms);
+    return ssl::recvn(_s[-1], buf, n, ms);
 }
 
 int Client::send(const void* buf, int n, int ms) {
     if (!_use_ssl) return co::send(_fd, buf, n, ms);
-    return ssl::send((ssl::S*)_ssl, buf, n, ms);
+    return ssl::send(_s[-1], buf, n, ms);
 }
 
 bool Client::connect(int ms) {
@@ -384,45 +402,44 @@ bool Client::connect(int ms) {
 
     fastring port = str::from(_port);
     struct addrinfo* info = 0;
-    int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
+    int r = getaddrinfo(_ip, port.c_str(), NULL, &info);
     if (r != 0) goto err_end;
 
     CHECK_NOTNULL(info);
     _fd = (int) co::tcp_socket(info->ai_family);
     if (_fd == -1) {
-        ELOG << "connect to " << _ip << ':' << _port << " failed, create socket error: " << co::strerror();
+        ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
         goto err_end;
     }
 
     r = co::connect(_fd, info->ai_addr, (int)info->ai_addrlen, ms);
-    if (r == -1) {
+    if (r != 0) {
         ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
         goto err_end;
     }
 
     co::set_tcp_nodelay(_fd);
-
     if (_use_ssl) {
-        if ((_ssl_ctx = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
-        if ((_ssl = ssl::new_ssl((ssl::C*)_ssl_ctx)) == NULL) goto new_ssl_err;
-        if (ssl::set_fd((ssl::S*)_ssl, _fd) != 1) goto set_fd_err;
-        if (ssl::connect((ssl::S*)_ssl, ms) != 1) goto connect_err;
+        if ((_s[-2] = ssl::new_client_ctx()) == NULL) goto new_ctx_err;
+        if ((_s[-1] = ssl::new_ssl(_s[-2])) == NULL) goto new_ssl_err;
+        if (ssl::set_fd(_s[-1], _fd) != 1) goto set_fd_err;
+        if (ssl::connect(_s[-1], ms) != 1) goto connect_err;
     }
 
     if (info) freeaddrinfo(info);
     return true;
 
   new_ctx_err:
-    ELOG << "ssl connect new client contex error: " << ssl::strerror();
+    ELOG << "ssl connect new client contex failed: " << ssl::strerror();
     goto err_end;
   new_ssl_err:
     ELOG << "ssl connect new SSL failed: " << ssl::strerror();
     goto err_end;
   set_fd_err:
-    ELOG << "ssl connect set fd (" << _fd << ") failed: " << ssl::strerror((ssl::S*)_ssl);
+    ELOG << "ssl connect set fd " << _fd << " failed: " << ssl::strerror(_s[-1]);
     goto err_end;
   connect_err:
-    ELOG << "ssl connect failed: " << ssl::strerror((ssl::S*)_ssl);
+    ELOG << "ssl connect failed: " << ssl::strerror(_s[-1]);
     goto err_end;
   err_end:
     this->disconnect();
@@ -431,16 +448,18 @@ bool Client::connect(int ms) {
 }
 
 void Client::disconnect() {
-    if (this->connected()) {
-        if (_ssl) { ssl::free_ssl((ssl::S*)_ssl); _ssl = 0; }
-        if (_ssl_ctx) { ssl::free_ctx((ssl::C*)_ssl_ctx); _ssl_ctx = 0; }
+    if (_fd != -1) {
+        if (_use_ssl) {
+            if (_s[-1]) { ssl::free_ssl(_s[-1]); _s[-1] = 0; }
+            if (_s[-2]) { ssl::free_ctx(_s[-2]); _s[-2] = 0; }
+        }
         co::close(_fd); _fd = -1;
     }
 }
 
 const char* Client::strerror() const {
     if (!_use_ssl) return co::strerror();
-    return ssl::strerror((ssl::S*)_ssl);
+    return ssl::strerror(_s[-1]);
 }
 
 } // tcp

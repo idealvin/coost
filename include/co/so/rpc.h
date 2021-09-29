@@ -52,7 +52,7 @@ class __coapi Server {
      * @param key   path of ssl private key file.
      * @param ca    path of ssl certificate file.
      */
-    void start(const char* ip, int port, const char* key=NULL, const char* ca=NULL);
+    void start(const char* ip, int port, const char* key=0, const char* ca=0);
 
   private:
     void* _p;

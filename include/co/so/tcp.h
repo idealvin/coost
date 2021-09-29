@@ -1,23 +1,28 @@
 #pragma once
 
 #include "../def.h"
-#include "../fastring.h"
 #include <functional>
-#include <memory>
 
 namespace tcp {
 
+/**
+ * TCP connection for tcp::Server 
+ *   - An object of tcp::Connection will be created by tcp::Server if a connection 
+ *     was accepted. DO NOT create tcp::Connection by yourself.
+ *   - If tcp::Server is a SSL server, data will be transfered by SSL.
+ */
 struct __coapi Connection final {
+    // normal TCP connection
     Connection(int sock);
+
+    // TCP connection with SSL support. Data will be transfered by SSL.
     Connection(void* ssl);
+
+    // move constructor
+    Connection(Connection&& c) : _p(c._p) { c._p = 0; }
+
+    // close the connection in destructor
     ~Connection() { this->close(); }
-
-    Connection(Connection&& c) : _p(c._p) {
-        c._p = 0;
-    }
-
-    Connection(const Connection&) = delete;
-    void operator=(const Connection&) = delete;
 
     // get the underlying socket fd
     int socket() const;
@@ -72,12 +77,14 @@ struct __coapi Connection final {
 
   private:
     void* _p;
+
+    DISALLOW_COPY_AND_ASSIGN(Connection);
 };
 
 /**
  * TCP server based on coroutine 
  *   - Support both ipv4 and ipv6. 
- *   - Support ssl (openssl required).
+ *   - Support ssl (openssl 1.1.0+ required).
  *   - One coroutine per connection. 
  */
 class __coapi Server final {
@@ -86,11 +93,7 @@ class __coapi Server final {
     ~Server();
 
     /**
-     * set a callback for handling a connection 
-     *   - The user MUST delete the Connection pointer when the connection was closed.
-     * 
-     * @param f  either a pointer to void f(tcp::Connection*), 
-     *           or a reference of std::function<void(tcp::Connection*)>.
+     * set a connection callback
      */
     void on_connection(std::function<void(Connection)>&& f);
 
@@ -99,10 +102,7 @@ class __coapi Server final {
     }
 
     /**
-     * set a callback for handling a connection 
-     *   - The user MUST delete the Connection pointer when the connection was closed.
-     * 
-     * @param f  a pointer to a method with a parameter of type tcp::Connection* in class T.
+     * @param f  a pointer to a method in class T.
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
@@ -142,19 +142,22 @@ class __coapi Server final {
 /**
  * TCP client based on coroutine 
  *   - Support both ipv4 and ipv6. 
- *   - Support ssl (openssl required).
+ *   - Support ssl (openssl 1.1.0+ required).
  *   - One client corresponds to one connection. 
  * 
  *   - It MUST be used in a coroutine. 
- *   - It is NOT coroutine-safe, NEVER use a same Client in different coroutines 
+ *   - It is NOT coroutine-safe, DO NOT use a same Client in different coroutines 
  *     at the same time. 
  * 
  *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
  *     may be established. 
  */
-class __coapi Client {
+class __coapi Client final {
   public:
     /**
+     * the constructor
+     *   - NOTE: It will not connect to the server immediately here.
+     * 
      * @param ip       a domain name, or either an ipv4 or ipv6 address of the server. 
      *                 if ip is NULL or empty, "127.0.0.1" will be used by default. 
      * @param port     the server port. 
@@ -166,12 +169,13 @@ class __coapi Client {
      * copy constructor 
      *   - Copy ip, port, use_ssl from another Client. 
      */
-    Client(const Client& c)
-        : _ip(c._ip), _port(c._port), _use_ssl(c._use_ssl),
-          _fd(-1), _ssl(0), _ssl_ctx(0) {
-    }
+    Client(const Client& c) : Client(c._ip, c._port, c._use_ssl) {}
 
-    virtual ~Client() { this->close(); }
+    /**
+     * the destructor
+     *   - Connection will be closed here.
+     */
+    ~Client();
 
     void operator=(const Client& c) = delete;
 
@@ -181,7 +185,7 @@ class __coapi Client {
      * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recv(void* buf, int n, int ms=-1);
+    int recv(void* buf, int n, int ms=-1);
 
     /**
      * recv n bytes using co::recvn or ssl::recvn
@@ -189,7 +193,7 @@ class __coapi Client {
      * @return  n on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recvn(void* buf, int n, int ms=-1);
+    int recvn(void* buf, int n, int ms=-1);
 
     /**
      * send n bytes using co::send or ssl::send 
@@ -197,14 +201,12 @@ class __coapi Client {
      * 
      * @return  n on success, <=0 on timeout or error.
      */
-    virtual int send(const void* buf, int n, int ms=-1);
+    int send(const void* buf, int n, int ms=-1);
 
     /**
      * check whether the connection has been established 
      */
-    virtual bool connected() const {
-        return (_use_ssl && _ssl != NULL) || (_fd != -1);
-    }
+    bool connected() const { return _fd != -1; }
 
     /**
      * connect to the server 
@@ -214,36 +216,32 @@ class __coapi Client {
      * 
      * @return    true on success, false on timeout or error.
      */
-    virtual bool connect(int ms);
+    bool connect(int ms);
 
     /**
      * close the connection 
-     *   - It MUST be called in the thread that performed the IO operation. 
+     *   - It can be called anywhere since v2.0.1. 
      */
-    virtual void disconnect();
+    void disconnect();
 
-    /**
-     * the same as disconnect 
-     */
+    // close the connection, the same as disconnect 
     void close() { this->disconnect(); }
 
-    /**
-     * get error string
-     */
-    virtual const char* strerror() const;
+    // get error string
+    const char* strerror() const;
 
-    /**
-     * get the socket fd 
-     */
+    // get the socket fd 
     int socket() const { return _fd; }
 
-  protected:
-    fastring _ip;
+  private:
+    union {
+        char* _ip; // server ip
+        void** _s; // _s[-1] for (void*)ssl, _s[-2] for (void*)ssl_ctx
+    };
     uint16 _port;
-    bool _use_ssl;
+    uint8 _use_ssl;
+    uint8 _;
     int _fd;
-    void* _ssl;
-    void* _ssl_ctx;
 };
 
 } // tcp
