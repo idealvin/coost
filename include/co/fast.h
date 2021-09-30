@@ -45,6 +45,10 @@ class __coapi stream {
         : _cap(cap), _size(0), _p((char*) malloc(cap)) {
     }
 
+    stream(void* p, size_t size, size_t cap)
+        : _cap(cap), _size(size), _p((char*)p) {
+    }
+
     ~stream() {
         if (_p) free(_p);
     }

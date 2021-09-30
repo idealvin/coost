@@ -9,6 +9,10 @@ class __coapi fastream : public fast::stream {
     
     explicit fastream(size_t cap) : fast::stream(cap) {}
 
+    fastream(void* p, size_t size, size_t cap)
+        : fast::stream(p, size, cap) {
+    }
+
     ~fastream() = default;
 
     fastream(const fastream&) = delete;
@@ -22,7 +26,7 @@ class __coapi fastream : public fast::stream {
         return (fastream&) fast::stream::operator=(std::move(fs));
     }
 
-    // make a copy of fastring
+    // copy data in fastream as a fastring
     fastring str() const {
         return fastring(_p, _size);
     }

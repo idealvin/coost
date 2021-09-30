@@ -21,12 +21,14 @@ class __coapi fastring : public fast::stream {
         : fast::stream(cap) {
     }
 
+    fastring (void* p, size_t size, size_t cap)
+        : fast::stream(p, size, cap) {
+    }
+
     ~fastring() = default;
 
-    fastring(const void* s, size_t n) {
-        if (n == 0) { _cap = 0; _size = 0; _p = 0; return; }
-        this->_Init(n + 1, n);
-        memcpy(_p, s, n);
+    fastring(const void* s, size_t n)
+        : fast::stream(n ? memcpy(malloc(n + 1), s, n) : 0, n, n ? n + 1 : 0) {
     }
 
     fastring(const char* s)
@@ -41,9 +43,8 @@ class __coapi fastring : public fast::stream {
         : fastring(s.data(), s.size()) {
     }
 
-    fastring(size_t n, char c) {
-        this->_Init(n + 1, n);
-        memset(_p, c, n);
+    fastring(size_t n, char c)
+        : fast::stream(memset(malloc(n + 1), c, n), n, n + 1) {
     }
 
     fastring(char c, size_t n) : fastring(n, c) {}
@@ -311,12 +312,6 @@ class __coapi fastring : public fast::stream {
     }
 
   private:
-    void _Init(size_t cap, size_t size) {
-        _cap = cap;
-        _size = size;
-        _p = (char*) malloc(_cap);
-    }
-
     bool _Inside(const char* p) const {
         return _p <= p && p < _p + _size;
     }
