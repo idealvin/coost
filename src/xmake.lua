@@ -39,7 +39,7 @@ target("libco")
         else
             add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
             add_files("co/context/context.S")
-            add_syslinks("ws2_32")
+            add_syslinks("ws2_32", { public = true })
         end
     else
         add_cxflags("-Wno-strict-aliasing")
@@ -50,7 +50,8 @@ target("libco")
         check_cxxincludes("HAS_CXXABI_H", "cxxabi.h")
         check_links("HAS_LIBBACKTRACE", "backtrace")
         if not is_plat("android") then
-            add_syslinks("pthread", "dl")
+            add_syslinks("pthread", { public = true })
+            add_syslinks("dl")
         end
         add_files("co/context/context.S")
     end
