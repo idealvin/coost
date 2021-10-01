@@ -1,6 +1,7 @@
 #include "co/so/http.h"
 #include "co/so/tcp.h"
 #include "co/co.h"
+#include "co/god.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/fastring.h"
@@ -40,14 +41,14 @@ namespace http {
  */
 
 #ifdef HAS_LIBCURL
-struct curl_ctx {
-    curl_ctx()
+struct curl_ctx_t {
+    curl_ctx_t()
         : l(NULL), upload(NULL), upsize(0), header_updated(false) {
         easy = curl_easy_init();
         memset(err, 0, sizeof(err));
     }
 
-    ~curl_ctx() {
+    ~curl_ctx_t() {
         if (l) { curl_slist_free_all(l); l = NULL; }
         curl_easy_cleanup(easy);    easy = NULL;
     }
@@ -71,7 +72,7 @@ static size_t easy_write_cb(void* data, size_t size, size_t count, void* userp);
 static size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp);
 static size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp);
 
-void init_easy_opts(CURL* e, curl_ctx* ctx) {
+void init_easy_opts(CURL* e, curl_ctx_t* ctx) {
     curl_easy_setopt(e, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(e, CURLOPT_SSL_VERIFYPEER, 0);
     curl_easy_setopt(e, CURLOPT_SSL_VERIFYHOST, 0);
@@ -99,7 +100,7 @@ struct curl_global {
 
 Client::Client(const char* serv_url) {
     static curl_global g;
-    _ctx = new curl_ctx();
+    _ctx = new curl_ctx_t();
 
     fastring s(serv_url);
     s.strip('/', 'r');        // remove '/' at the right side
@@ -282,14 +283,14 @@ size_t Client::body_size() const {
 }
 
 size_t easy_write_cb(void* data, size_t size, size_t count, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
     const size_t n = size * count;
     ctx->body.append(data, n);
     return n;
 }
 
 size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
     const size_t n = size * nmemb;
     fastream& h = ctx->header;
 
@@ -307,7 +308,7 @@ size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
 }
 
 size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
     if (ctx->upsize == 0) return 0;
     const size_t N = size * nmemb;
     const size_t n = (ctx->upsize <= N ? ctx->upsize : N);
@@ -365,6 +366,17 @@ inline const char* method_str(int m) {
     return s[m];
 }
 
+static std::unordered_map<fastring, int>* create_method_map() {
+    static std::unordered_map<fastring, int> kM;
+    kM["GET"]     = kGet;
+    kM["POST"]    = kPost;
+    kM["HEAD"]    = kHead;
+    kM["PUT"]     = kPut;
+    kM["DELETE"]  = kDelete;
+    kM["OPTIONS"] = kOptions;
+    return &kM;
+}
+
 const char** create_status_table() {
     static const char* s[512];
     for (int i = 0; i < 512; ++i) s[i] = "";
@@ -416,6 +428,221 @@ inline const char* status_str(int n) {
     return (100 <= n && n <= 511) ? s[n] : s[500];
 }
 
+inline fastring& cache() {
+    static __thread fastring* kS = 0;
+    if (kS) return *kS;
+    return *(kS = new fastring(128));
+}
+
+struct http_req_t {
+    http_req_t() = delete;
+    ~http_req_t() = delete;
+
+    void clear();
+    void add_header(uint32 k, uint32 v);
+    const char* header(const char* key) const;
+
+    // DO NOT change orders of the members here.
+    uint32 method;
+    uint32 version;
+    uint32 body;     // body:  buf->data() + body
+    uint32 body_size;
+    fastring url;
+    fastring* buf;   // http data: | header | \r\n\r\n | body |
+    uint32* arr;     // array of header index: [<k,v>]
+    uint32 arr_size;
+    uint32 arr_cap;
+};
+
+struct http_res_t {
+    http_res_t() = delete;
+    ~http_res_t() = delete;
+
+    void clear();
+    void set_body(const void* s, size_t n);
+    fastring str() const;
+
+    // DO NOT change orders of the members here.
+    uint32 status;
+    uint32 version;
+    fastring header;
+    const void* body;
+    size_t body_size;
+};
+
+inline void http_req_t::clear() {
+    url.clear();
+    arr_size = 0;
+    buf = 0;
+}
+
+inline void http_req_t::add_header(uint32 k, uint32 v) {
+    if (arr_cap < arr_size + 2) {
+        arr_cap += 32;
+        arr = (uint32*)realloc(arr, arr_cap << 2);
+        assert(arr != NULL);
+    }
+    arr[arr_size++] = k;
+    arr[arr_size++] = v;
+}
+
+const char* http_req_t::header(const char* key) const {
+    fastring& s = cache();
+    fastring x(key);
+    x.toupper();
+
+    for (uint32 i = 0; i < arr_size; i += 2) {
+        s.clear();
+        s.append(buf->data() + arr[i]).toupper();
+        if (s == x) return buf->data() + arr[i + 1];
+    }
+
+    static const char* e = "";
+    return e;
+}
+
+inline void http_res_t::clear() {
+    status = 0;
+    header.clear();
+    body_size = 0;
+}
+
+inline void http_res_t::set_body(const void* s, size_t n) {
+    body = s;
+    body_size = n;
+}
+
+fastring http_res_t::str() const {
+    int x = status;
+    if (x == 0) x = 200;
+
+    fastring s(header.size() + body_size + 64);
+    s << version_str(version) << ' ' << x << ' ' << status_str(x) << "\r\n"
+      << "Content-Length: " << body_size << "\r\n"
+      << header << "\r\n";
+    if (body_size > 0) s.append(body, body_size);
+    return s;
+}
+
+const char* Req::header(const char* key) const {
+    return _p->header(key);
+}
+
+const char* Req::body() const {
+    return _p->buf->data() + _p->body;
+}
+
+Req::~Req() {
+    if (_p) {
+        _p->url.~fastring();
+        free(_p->arr);
+        free(_p);
+        _p = 0;
+    }
+}
+
+void Res::set_body(const void* s, size_t n) {
+    _p->set_body(s, n);
+}
+
+Res::~Res() {
+    if (_p) {
+        _p->header.~fastring();
+        free(_p);
+        _p = 0;
+    }
+}
+
+// @x  beginning of http header
+int parse_http_headers(fastring* buf, size_t x, http_req_t* req) {
+    fastring& m = *buf;
+    size_t p, k, v;
+
+    while (m[x] != '\0') {
+        p = m.find('\r', x); // header end
+        if (p == m.npos || m[p + 1] != '\n') return 400;
+        m[p] = '\0'; // make value null-terminated
+
+        k = x;       // key
+        v = m.find(':', x);
+        if (v == m.npos) return 400;
+        m[v] = '\0'; // make key null-terminated
+        while (m[++v] == ' ');
+        req->add_header((uint32)k, (uint32)v);
+
+        x = p + 2;
+    }
+    return 0;
+}
+
+int parse_http_req(fastring* buf, http_req_t* req) {
+    static std::unordered_map<fastring, int>* mm = create_method_map();
+    fastring& m = *buf;
+    req->buf = buf;
+
+    size_t x = m.find('\r'); // end of start line
+    { /* parse start line: method, url, version */
+        if (m[x + 1] != '\n') return 400;
+        m[x] = '\0'; // make start line null-terminated
+
+        size_t p, q;
+        p = m.find(' ');
+        if (p == m.npos) return 400;
+
+        auto& s = cache();
+        s.clear();
+        s.append(m.data(), p).toupper();
+        auto it = mm->find(s);
+        if (it != mm->end()) {
+            req->method = it->second;
+        } else {
+            return 405; // Method Not Allowed
+        }
+
+        while (m[++p] == ' ');
+        q = m.find(' ', p);
+        if (q == m.npos) return 400;
+        req->url.append(m.data() + p, q - p);
+
+        while (m[++q] == ' ');
+        if (m[q] == '\0') return 400;
+        s.clear();
+        s.append(m.data() + q, x - q).toupper();
+        if (s.size() != 8) return 505;
+        if (god::byte_eq<uint64>(s.data(), "HTTP/1.1")) {
+            req->version = kHTTP11;
+        } else if (god::byte_eq<uint64>(s.data(), "HTTP/1.0")) {
+            req->version = kHTTP10;
+        } else {
+            return 505; // HTTP Version Not Supported
+        }
+    }
+
+    x += 2; // skip "\r\n"
+
+    { /* parse header */
+        int r = parse_http_headers(buf, x, req);
+        if (r != 0) return r;
+    }
+
+    { /* parse body size */
+        const char* v = req->header("CONTENT-LENGTH");
+        if (*v == '\0' || *v == '0') {
+            req->body_size = 0;
+            return 0;
+        } else {
+            int n = atoi(v);
+            if (n >= 0) {
+                if ((uint32)n > FLG_http_max_body_size) return 413;
+                req->body_size = n;
+                return 0;
+            }
+            ELOG << "http parse error, invalid content-length: " << v;
+            return 400;
+        }
+    }
+}
+
 class ServerImpl {
   public:
     ServerImpl();
@@ -427,13 +654,12 @@ class ServerImpl {
 
     void start(const char* ip, int port, const char* key, const char* ca);
 
-  private:
     void on_connection(tcp::Connection conn);
 
   private:
     co::Pool _buffer; // buffer for recieving http data
     uint32 _conn_num;
-    std::unique_ptr<tcp::Server> _serv;
+    tcp::Server _serv;
     std::function<void(const Req&, Res&)> _on_req;
 };
 
@@ -442,7 +668,7 @@ Server::Server() {
 }
 
 Server::~Server() {
-    delete (ServerImpl*)_p;
+    if (_p) { delete (ServerImpl*)_p; _p = 0; }
 }
 
 void Server::on_req(std::function<void(const Req&, Res&)>&& f) {
@@ -465,27 +691,24 @@ ServerImpl::ServerImpl()
 }
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
-    CHECK(_on_req != NULL) << "req callback must be set..";
-    _serv.reset(new tcp::Server());
-    _serv->on_connection(&ServerImpl::on_connection, this);
-    _serv->start(ip, port, key, ca);
+    CHECK(_on_req != NULL) << "req callback not set..";
+    _serv.on_connection(&ServerImpl::on_connection, this);
+    _serv.start(ip, port, key, ca);
 }
 
-static inline int hex2int(char c) {
+inline int hex2int(char c) {
     if ('0' <= c && c <= '9') return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
     if ('A' <= c && c <= 'F') return c - 'A' + 10;
     return -1;
 }
 
-int parse_headers(const char* x, const char* beg, std::vector<size_t>& headers);
-
-void send_error_message(int err, Res& res, tcp::Connection* conn) {
-    res.set_status(err);
-    fastring s = res.str();
+void send_error_message(int err, http_res_t* res, tcp::Connection* conn) {
+    res->status = err;
+    fastring s = res->str();
     conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
     HTTPLOG << "http send res: " << s;
-    res.clear();
+    res->clear();
 }
 
 void ServerImpl::on_connection(tcp::Connection conn) {
@@ -494,12 +717,14 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     size_t pos = 0, total_len = 0;
     fastring* buf = 0;
     Req req; Res res;
+    auto& preq = *(http_req_t**) &req;
+    auto& pres = *(http_res_t**) &res;
 
     r = atomic_inc(&_conn_num);
     DLOG << "http conn num: " << r;
 
     while (true) {
-        {
+        { /* recv http header and body */
           recv_beg:
             if (!buf) {
                 // try recieving a single byte
@@ -528,49 +753,54 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 buf->resize(buf->size() + r);
             }
 
-            // parse http header
-            req._body = pos + 4;
             (*buf)[pos + 2] = '\0'; // make header null-terminated
             HTTPLOG << "http recv req: " << buf->data();
-            r = req.parse(buf);
+
+            // parse http header
+            if (preq == 0) preq = (http_req_t*) calloc(1, sizeof(http_req_t));
+            if (pres == 0) pres = (http_res_t*) calloc(1, sizeof(http_res_t));
+
+            r = parse_http_req(buf, preq);
             if (r != 0) { /* parse error */
                 ELOG << "http parse error: " << r;
-                send_error_message(r, res, &conn);
+                pres->version = kHTTP11;
+                send_error_message(r, pres, &conn);
                 goto err_end;
+            } else {
+                pres->version = preq->version;
             }
 
             // try to recv the remain part of http body
-            if (req.body_size() > 0 || strcmp(req.header("Transfer-Encoding"), "chunked") != 0) {
+            preq->body = pos + 4; // beginning of http body
+            if (preq->body_size > 0 || strcmp(preq->header("Transfer-Encoding"), "chunked") != 0) {
                 total_len = pos + 4 + req.body_size();
-                if (req.body_size() > 0) {
-                    if (buf->size() < total_len) {
-                        buf->reserve(total_len);
-                        r = conn.recvn(
-                            (void*)(buf->data() + buf->size()), 
-                            (int)(total_len - buf->size()), FLG_http_recv_timeout
-                        );
-                        if (r == 0) goto recv_zero_err;
-                        if (r < 0) goto recv_err;
-                        buf->resize(total_len);
-                    }
+                if (preq->body_size > 0 && buf->size() < total_len) {
+                    buf->reserve(total_len);
+                    r = conn.recvn(
+                        (void*)(buf->data() + buf->size()), 
+                        (int)(total_len - buf->size()), FLG_http_recv_timeout
+                    );
+                    if (r == 0) goto recv_zero_err;
+                    if (r < 0) goto recv_err;
+                    buf->resize(total_len);
                 }
 
-            } else { /* stupid chunked data */
-                // he grandmother's. The chunked Transfer-Encoding makes the stupid HTTP stupid again.
-                bool expect_100_continue = strcmp(req.header("Expect"), "100-continue") == 0;
+            } else { /* chunked Transfer-Encoding */
+                god::bless_no_bugs();
+
+                bool expect_100_continue = strcmp(preq->header("Expect"), "100-continue") == 0;
                 size_t x, o, i, n = 0;
-                fastring& s = req._s;
-                s.clear();
+                auto& s = cache(); s.clear();
+
                 if (buf->size() > pos + 4) {
                     s.append(buf->data() + pos + 4, buf->size() - pos - 4);
                     buf->resize(pos + 4);
                 }
 
-                while (true) {
+                while (true) { /* loop for recving chunked data */
                     while ((x = s.find("\r\n")) == s.npos) {
                         if (expect_100_continue) { /* send 100 continue */
-                            res.set_version(req.version());
-                            send_error_message(100, res, &conn);
+                            send_error_message(100, pres, &conn);
                         }
                         s.reserve(s.size() + 32);
                         r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
@@ -601,16 +831,16 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                             s.clear();
                         } else {
                             buf->append(s.data() + x + 2, n);
-                            s.lshift(s.size() >= x + n + 4 ? x + 4 + n : x + 2 + n);
+                            s.lshift(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n);
                         }
 
                         if (buf->size() - pos - 4 > FLG_http_max_body_size) {
-                            send_error_message(413, res, &conn);
+                            send_error_message(413, pres, &conn);
                             goto err_end;
                         }
 
                     } else { /* n == 0, end of chunked data */
-                        req._body_size = buf->size() - pos - 4;
+                        preq->body_size = buf->size() - pos - 4;
                         s[x] = '\r'; s.lshift(x);
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
@@ -621,17 +851,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         }
 
                         s[x + 2] = '\0';
-                        if (s.size() > 4) {
+                        if (s.size() > 4) { /* \r\n tailing headers \r\n\r\n*/
                             // there are some tailing headers following the chunked data
                             total_len = buf->size() + x + 4;
                             o = buf->size();
                             buf->append(s.data(), s.size());
-                            parse_headers(buf->data() + o + 2, buf->data(), req._headers);
+                            r = parse_http_headers(buf, o + 2, preq);
+                            if (r != 0) {
+                                send_error_message(r, pres, &conn);
+                                goto err_end;
+                            }
                         } else {
                             total_len = buf->size();
                         }
 
-                        break; // exit the while loop
+                        break; // exit the chunked loop
                     }
                 }
             };
@@ -639,22 +873,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
         { /* handle the http request */
             bool need_close = false;
-            fastring x(req.header("Connection")); 
+            fastring x(preq->header("Connection")); 
             if (!x.empty()) res.add_header("Connection", x.c_str());
-            res.set_version(req.version());
 
-            if (req.version() == kHTTP10) {
+            if (preq->version == kHTTP10) {
                 if (x.empty() || x.lower() != "keep-alive") need_close = true;
             } else {
                 if (!x.empty() && x == "close") need_close = true;
             }
 
             _on_req(req, res);
-            fastring s = res.str();
+            fastring s = pres->str();
             r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
             if (r <= 0) goto send_err;
 
-            s.resize(s.size() - res.body_size());
+            s.resize(s.size() - pres->body_size);
             HTTPLOG << "http send res: " << s;
             if (need_close) { conn.close(0); goto cleanup; }
         };
@@ -667,8 +900,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             buf->lshift(total_len);
         }
 
-        req.clear();
-        res.clear();
+        preq->clear();
+        pres->clear();
         total_len = 0;
     }
 
@@ -698,138 +931,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     atomic_dec(&_conn_num);
     if (buf) { 
         buf->clear();
-        buf->capacity() <= 1024 * 1024 ? _buffer.push(buf) : delete buf;
-    }
-}
-
-const char* Req::header(const char* key) const {
-    static const char* e = "";
-    Req* req = (Req*)this;
-    fastring& s = req->_s;
-    fastring x(key);
-    x.toupper();
-
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s.clear();
-        s.append(_buf->data() + _headers[i]).toupper();
-        if (s == x) return _buf->data() + _headers[i + 1];
-    }
-    return e;
-}
-
-fastring Res::str() const {
-    fastring s(_header.size() + _body.size() + 64);
-    s << version_str(_version) << ' ' << _status << ' ' << status_str(_status) << "\r\n";
-    s << "Content-Length: " << _body.size() << "\r\n";
-    s << _header << "\r\n";
-    if (_body.size() > 0) s << _body;
-    return s;
-}
-
-static std::unordered_map<fastring, int>* method_map() {
-    static std::unordered_map<fastring, int> m;
-    m["GET"]     = kGet;
-    m["POST"]    = kPost;
-    m["HEAD"]    = kHead;
-    m["PUT"]     = kPut;
-    m["DELETE"]  = kDelete;
-    m["OPTIONS"] = kOptions;
-    return &m;
-}
-
-static std::unordered_map<fastring, int>* version_map() {
-    static std::unordered_map<fastring, int> m;
-    m["HTTP/1.0"] = kHTTP10;
-    m["HTTP/1.1"] = kHTTP11;
-    return &m;
-}
-
-int parse_headers(const char* x, const char* beg, std::vector<size_t>& headers) {
-    const char* p;
-    while (*x) {
-        p = strchr(x, '\r');
-        if (!p || *(p + 1) != '\n') return 400;
-
-        *(char*)p = '\0';
-        headers.push_back(x - beg); // key
-
-        x = strchr(x, ':');
-        if (!x) return 400;
-
-        *(char*)x = '\0';
-        while (*++x == ' ');
-        headers.push_back(x - beg); // value
-        x = p + 2;
-    }
-    return 0;
-}
-
-int Req::parse(fastring* buf) {
-    _buf = buf;
-    const char* s = _buf->data(); 
-    const char* x = strchr(s, '\r'); // MUST NOT be NULL
-
-    { /* parse start line */
-        const char* p;
-        const char* q;
-        const char* beg = s;
-        const char* end = x;
-        if (*(end + 1) != '\n') return 400;
-
-        *(char*)end = '\0'; // make start line null-terminated
-        p = strchr(beg, ' ');
-        if (!p) return 400;
-
-        static std::unordered_map<fastring, int>* mm = method_map();
-        _s.clear();
-        _s.append(beg, p - beg).toupper();
-        auto it = mm->find(_s);
-        if (it != mm->end()) {
-            _method = (Method)(it->second);
-        } else {
-            return 405; // Method Not Allowed
-        }
-
-        while (*++p == ' ');
-        q = strchr(p, ' ');
-        if (!q) return 400;
-
-        _url.append(p, q - p);
-        while (*++q == ' ');
-        if (*q == '\0') return 400;
-
-        static std::unordered_map<fastring, int>* vm = version_map();
-        _s.clear();
-        _s.append(q, end - q).toupper();
-        it = vm->find(_s);
-        if (it != vm->end()) {
-            _version = (Version)(it->second);
-        } else {
-            return 505; // HTTP Version Not Supported
-        }
-    }
-
-    x += 2; // skip "\r\n"
-
-    { /* parse header */
-        parse_headers(x, s, _headers);
-    }
-
-    { /* parse body size */
-        const char* v = this->header("CONTENT-LENGTH");
-        if (*v == '\0' || *v == '0') {
-            _body_size = 0;
-            return 0;
-        } else {
-            int n = atoi(v);
-            if (n >= 0) {
-                if ((uint32)n > FLG_http_max_body_size) return 413;
-                _body_size = n;
-                return 0;
-            }
-            ELOG << "http parse error, invalid content-length: " << v;
-            return 400;
-        }
+        buf->capacity() < 128 * 1024 ? _buffer.push(buf) : delete buf;
     }
 }
 

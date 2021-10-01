@@ -14,7 +14,7 @@ namespace http {
  * ===========================================================================
  */
 
-struct curl_ctx;
+struct curl_ctx_t;
 
 /**
  * http client for coroutine programming
@@ -214,7 +214,7 @@ class __coapi Client {
     const char* make_url(const char* url);
 
   private:
-    curl_ctx* _ctx;
+    curl_ctx_t* _ctx;
 };
 
 
@@ -234,75 +234,68 @@ enum Method {
     kGet, kHead, kPost, kPut, kDelete, kOptions,
 };
 
+struct http_req_t;
+struct http_res_t;
+
 class __coapi Req {
   public:
-    Req() = default;
-    ~Req() = default;
+    Req() : _p(0) {}
+    ~Req();
 
-    Version version()        const { return (Version)_version; }
-    Method method()          const { return (Method)_method; }
-    bool is_method_get()     const { return _method == kGet; }
-    bool is_method_head()    const { return _method == kHead; }
-    bool is_method_post()    const { return _method == kPost; }
-    bool is_method_put()     const { return _method == kPut; }
-    bool is_method_delete()  const { return _method == kDelete; }
-    bool is_method_options() const { return _method == kOptions; }
-    const fastring& url()    const { return _url; }
-    const char* body()       const { return _buf->data() + _body; }
-    size_t body_size()       const { return _body_size; }
+    Version version()        const { return (Version) ((uint32*)_p)[1]; }
+    Method method()          const { return (Method)  ((uint32*)_p)[0]; }
+    bool is_method_get()     const { return this->method() == kGet; }
+    bool is_method_head()    const { return this->method() == kHead; }
+    bool is_method_post()    const { return this->method() == kPost; }
+    bool is_method_put()     const { return this->method() == kPut; }
+    bool is_method_delete()  const { return this->method() == kDelete; }
+    bool is_method_options() const { return this->method() == kOptions; }
 
+    const fastring& url()    const { return *(fastring*)((uint32*)_p + 4); }
+
+    // return a null-terminated value of the header
     const char* header(const char* key) const;
 
-    void clear() { _buf = 0; _url.clear(); _s.clear(); _headers.clear(); }
+    // return a pointer to the body, which may be not null-terminated, call 
+    // `body_size()` to get the length.
+    const char* body() const;
+
+    // get length of the body
+    size_t body_size()       const { return ((uint32*)_p)[3]; }
 
   private:
-    int _version;
-    int _method;
-    size_t _body;
-    size_t _body_size;
-    fastring* _buf;
-    fastring _url;
-    fastring _s;
-    std::vector<size_t> _headers;
-
-    friend class ServerImpl;
-    int parse(fastring* buf);
+    http_req_t* _p;
 };
 
 class __coapi Res {
   public:
-    Res() : _version(kHTTP11), _status(200) {}
-    ~Res() = default;
+    Res() : _p(0) {}
+    ~Res();
 
-    void set_version(Version v) { _version = v; }
-    void set_status(int status) { _status = status; }
+    void set_status(int status) { ((uint32*)_p)[0] = status; }
 
+    /**
+     * add a HTTP header to the response
+     *   - 'Content-Length' will be added automatically, no need to add it manually.
+     */
     void add_header(const char* key, const char* val) {
-        _header.append(key).append(": ").append(val).append("\r\n");
+        auto& s = *(fastring*)((uint32*)_p + 2);
+        if (s.capacity() == 0) s.reserve(128);
+        s.append(key).append(": ").append(val).append("\r\n");
     }
 
-    void set_body(const void* s, size_t n) {
-        _body.clear();
-        _body.append(s, n);
-    }
+    /**
+     * set body of the response
+     *   - The body length will be zero if no body was set.
+     */
+    void set_body(const void* s, size_t n);
 
     void set_body(const char* s) {
         this->set_body(s, strlen(s));
     }
 
-    void clear() {
-        _version = kHTTP11; _status = 200;
-        _header.clear(); _body.clear();
-    }
-
-    fastring str() const;
-    size_t body_size() const { return _body.size(); }
-
   private:
-    int _version;
-    int _status;
-    fastring _header;
-    fastring _body;
+    http_res_t* _p;
 };
 
 /**
