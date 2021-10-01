@@ -11,18 +11,18 @@ namespace flag {
 
 // Parse command line flags or config file specified by -config.
 // Return non-flag elements.
-__coapi std::vector<fastring> init(int argc, const char** argv);
+__codec std::vector<fastring> init(int argc, const char** argv);
 
 inline std::vector<fastring> init(int argc, char** argv) {
     return flag::init(argc, (const char**)argv);
 }
 
 // Initialize with a config file.
-__coapi void init(const fastring& path);
+__codec void init(const fastring& path);
 
 namespace xx {
 
-__coapi void add_flag(
+__codec void add_flag(
     char type, const char* name, const char* value, const char* help, 
     const char* file, int line, void* addr
 );

@@ -11,7 +11,7 @@
  *
  * @return   a base64-encoded string.
  */
-__coapi fastring base64_encode(const void* s, size_t n);
+__codec fastring base64_encode(const void* s, size_t n);
 
 /**
  * base64 decode 
@@ -24,7 +24,7 @@ __coapi fastring base64_encode(const void* s, size_t n);
  * 
  * @return   a decoded string on success, or an empty string on any error.
  */
-__coapi fastring base64_decode(const void* s, size_t n);
+__codec fastring base64_decode(const void* s, size_t n);
 
 inline fastring base64_encode(const char* s) {
     return base64_encode(s, strlen(s));

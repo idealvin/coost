@@ -19,7 +19,7 @@ namespace co {
  * initialize the coroutine library
  *   - It will not call `flat::init()` or `log::init()`.
  */
-__coapi void init();
+__codec void init();
 
 /**
  * This is equal to:
@@ -29,7 +29,7 @@ __coapi void init();
  *   co::init();
  *   ```
  */
-__coapi void init(int argc, char** argv);
+__codec void init(int argc, char** argv);
 
 /**
  * This is equal to:
@@ -39,7 +39,7 @@ __coapi void init(int argc, char** argv);
  *   co::init();
  *   ```
  */
-__coapi void init(const char* config);
+__codec void init(const char* config);
 
 /**
  * The same as co::stop(), stop all schedulers.
@@ -48,7 +48,7 @@ __coapi void init(const char* config);
  *   - It will also call `log::exit()` after the schedulers are stopped, if you have 
  *     called `co::init(argc, argv)` or `co::init(config)` before.
  */
-__coapi void exit();
+__codec void exit();
 
 /**
  * add a task, which will run as a coroutine 
@@ -61,7 +61,7 @@ __coapi void exit();
  * 
  * @param cb  a pointer to a Closure created by new_closure(), or an user-defined Closure.
  */
-__coapi void go(Closure* cb);
+__codec void go(Closure* cb);
 
 /**
  * add a task, which will run as a coroutine 
@@ -145,7 +145,7 @@ int main(int argc, char** argv) { \
 int _co_main(int argc, char** argv)
 
 
-class __coapi Scheduler {
+class __codec Scheduler {
   public:
     void go(Closure* cb);
 
@@ -174,14 +174,14 @@ class __coapi Scheduler {
  *   
  * @return  a reference of an array, which stores pointers to all the Schedulers
  */
-__coapi const std::vector<Scheduler*>& all_schedulers();
+__codec const std::vector<Scheduler*>& all_schedulers();
 
 /**
  * get the current scheduler
  * 
  * @return a pointer to the current scheduler, or NULL if called from a non-scheduler thread.
  */
-__coapi Scheduler* scheduler();
+__codec Scheduler* scheduler();
 
 /**
  * get next scheduler 
@@ -193,7 +193,7 @@ __coapi Scheduler* scheduler();
  * 
  * @return a non-null pointer.
  */
-__coapi Scheduler* next_scheduler();
+__codec Scheduler* next_scheduler();
 
 /**
  * get number of schedulers 
@@ -205,7 +205,7 @@ __coapi Scheduler* next_scheduler();
  * 
  * @return  total number of the schedulers.
  */
-__coapi int scheduler_num();
+__codec int scheduler_num();
 
 /**
  * get id of the current scheduler 
@@ -214,7 +214,7 @@ __coapi int scheduler_num();
  * @return  a non-negative id of the current scheduler, or -1 if the current thread 
  *          is not a scheduler thread.
  */
-__coapi int scheduler_id();
+__codec int scheduler_id();
 
 /**
  * get id of the current coroutine 
@@ -224,7 +224,7 @@ __coapi int scheduler_id();
  * @return  a non-negative id of the current coroutine, or -1 if the current thread 
  *          is not a scheduler thread.
  */
-__coapi int coroutine_id();
+__codec int coroutine_id();
 
 /**
  * add a timer for the current coroutine 
@@ -234,7 +234,7 @@ __coapi int coroutine_id();
  *
  * @param ms  timeout in milliseconds.
  */
-__coapi void add_timer(uint32 ms);
+__codec void add_timer(uint32 ms);
 
 /**
  * add an IO event on a socket to the epoll 
@@ -247,19 +247,19 @@ __coapi void add_timer(uint32 ms);
  *
  * @return    true on success, false on error.
  */
-__coapi bool add_io_event(sock_t fd, io_event_t ev);
+__codec bool add_io_event(sock_t fd, io_event_t ev);
 
 /**
  * delete an IO event from epoll
  *   - It MUST be called in a coroutine.
  */
-__coapi void del_io_event(sock_t fd, io_event_t ev);
+__codec void del_io_event(sock_t fd, io_event_t ev);
 
 /**
  * remove all events on the socket 
  *   - It MUST be called in a coroutine.
  */
-__coapi void del_io_event(sock_t fd);
+__codec void del_io_event(sock_t fd);
 
 /**
  * suspend the current coroutine 
@@ -268,7 +268,7 @@ __coapi void del_io_event(sock_t fd);
  *     and then call yield() to suspend the coroutine. When the event is present 
  *     or the timer expires, the scheduler will resume the coroutine. 
  */
-__coapi void yield();
+__codec void yield();
 
 /**
  * sleep for milliseconds 
@@ -276,7 +276,7 @@ __coapi void yield();
  * 
  * @param ms  time in milliseconds
  */
-__coapi void sleep(uint32 ms);
+__codec void sleep(uint32 ms);
 
 /**
  * check whether the current coroutine has timed out 
@@ -286,19 +286,19 @@ __coapi void sleep(uint32 ms);
  * 
  * @return  true if timed out, otherwise false.
  */
-__coapi bool timeout();
+__codec bool timeout();
 
 /**
  * check whether a pointer is on the stack of the current coroutine 
  *   - It MUST be called in a coroutine. 
  */
-__coapi bool on_stack(const void* p);
+__codec bool on_stack(const void* p);
 
 /**
  * stop all coroutine schedulers 
  *   - It is safe to call stop() from anywhere. 
  */
-__coapi void stop();
+__codec void stop();
 
 } // namespace co
 

@@ -5,7 +5,6 @@ DEF_int32(port, 9988, "port");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
 DEF_int32(t, 0, "0: server & client, 1: server, 2: client");
-DEC_bool(cout);
 
 struct Header {
     int32 magic;

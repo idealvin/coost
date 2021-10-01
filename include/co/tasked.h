@@ -3,7 +3,7 @@
 #include "def.h"
 #include <functional>
 
-class __coapi Tasked {
+class __codec Tasked {
   public:
     typedef std::function<void()> F;
 

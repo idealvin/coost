@@ -20,7 +20,7 @@ enum io_event_t {
  *   - This is different from IoEvent for linux & mac. Windows users should be 
  *     careful. See details in the comments below.
  */
-class __coapi IoEvent {
+class __codec IoEvent {
   public:
     struct PerIoInfo {
         // co::waitx_t:  {co, state}

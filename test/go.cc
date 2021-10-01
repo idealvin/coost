@@ -1,7 +1,5 @@
 #include "co/co.h"
 
-DEC_bool(cout);
-
 void f0() {
     LOG << "f0()";
 }

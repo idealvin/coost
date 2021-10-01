@@ -47,23 +47,21 @@ typedef uint64_t uint64;
 #define  unlikely(x)  (x)
 #endif
 
-
 #ifdef _MSC_VER
 #include "config.h"
 #endif
 
+// __codef: define global variables
+// __codec: declare classes, functions, global variables
 #if defined(_MSC_VER) && USING_CO_DLL > 0
   #ifdef BUILDING_CO_DLL
     #define __codef __declspec(dllexport)
     #define __codec __declspec(dllexport)
-    #define __coapi __declspec(dllexport)
   #else
     #define __codef
     #define __codec __declspec(dllimport)
-    #define __coapi __declspec(dllimport)
   #endif
 #else
   #define __codef
   #define __codec
-  #define __coapi
 #endif

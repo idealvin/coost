@@ -5,7 +5,7 @@
 namespace co {
 namespace xx {
 
-class __coapi Pipe {
+class __codec Pipe {
   public:
     Pipe(uint32 buf_size, uint32 blk_size, uint32 ms);
     ~Pipe();

@@ -18,12 +18,12 @@ inline int dtoa(double v, char* buf) {
 }
 
 // integer to hex string  (255 -> "0xff". eg.)
-__coapi int u32toh(uint32 v, char* buf);
-__coapi int u64toh(uint64 v, char* buf);
+__codec int u32toh(uint32 v, char* buf);
+__codec int u64toh(uint64 v, char* buf);
 
 // integer to ascii string
-__coapi int u32toa(uint32 v, char* buf);
-__coapi int u64toa(uint64 v, char* buf);
+__codec int u32toa(uint32 v, char* buf);
+__codec int u64toa(uint64 v, char* buf);
 
 inline int i32toa(int32 v, char* buf) {
     if (v >= 0) return u32toa((uint32)v, buf);
@@ -37,7 +37,7 @@ inline int i64toa(int64 v, char* buf) {
     return u64toa((uint64)(-v), buf + 1) + 1;
 }
 
-class __coapi stream {
+class __codec stream {
   public:
     constexpr stream() noexcept : _cap(0), _size(0), _p(0) {}
     

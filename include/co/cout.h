@@ -6,7 +6,7 @@
 namespace co {
 namespace xx {
 
-class Cout {
+class __codec Cout {
   public:
     Cout() {
         this->mutex().lock();

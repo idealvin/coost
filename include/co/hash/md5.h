@@ -34,9 +34,9 @@ typedef struct {
     uint32 block[16];
 } md5_ctx_t;
 
-__coapi void md5_init(md5_ctx_t* ctx);
-__coapi void md5_update(md5_ctx_t* ctx, const void* s, size_t n);
-__coapi void md5_finish(md5_ctx_t* ctx, uint8* result);
+__codec void md5_init(md5_ctx_t* ctx);
+__codec void md5_update(md5_ctx_t* ctx, const void* s, size_t n);
+__codec void md5_finish(md5_ctx_t* ctx, uint8* result);
 
 /**
  * @param s  a pointer to the input data.
@@ -44,7 +44,7 @@ __coapi void md5_finish(md5_ctx_t* ctx, uint8* result);
  * 
  * @return   a 32-byte string containing only hexadecimal digits.
  */
-__coapi fastring md5sum(const void* s, size_t n);
+__codec fastring md5sum(const void* s, size_t n);
 
 inline fastring md5sum(const char* s) {
     return md5sum(s, strlen(s));

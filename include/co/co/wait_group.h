@@ -5,7 +5,7 @@
 
 namespace co {
 
-class __coapi WaitGroup {
+class __codec WaitGroup {
   public:
     WaitGroup();
     ~WaitGroup();

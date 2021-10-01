@@ -6,28 +6,28 @@
 
 namespace fs {
 
-__coapi bool exists(const char* path);
+__codec bool exists(const char* path);
 
-__coapi bool isdir(const char* path);
+__codec bool isdir(const char* path);
 
 // modify time
-__coapi int64 mtime(const char* path);
+__codec int64 mtime(const char* path);
 
 // file size
-__coapi int64 fsize(const char* path);
+__codec int64 fsize(const char* path);
 
 // p = false  ->  mkdir
 // p = true   ->  mkdir -p
-__coapi bool mkdir(const char* path, bool p = false);
+__codec bool mkdir(const char* path, bool p = false);
 
 // rf = false  ->  rm or rmdir
 // rf = true   ->  rm -rf
-__coapi bool remove(const char* path, bool rf = false);
+__codec bool remove(const char* path, bool rf = false);
 
-__coapi bool rename(const char* from, const char* to);
+__codec bool rename(const char* from, const char* to);
 
 // administrator privileges required on windows
-__coapi bool symlink(const char* dst, const char* lnk);
+__codec bool symlink(const char* dst, const char* lnk);
 
 inline bool exists(const fastring& path) {
     return fs::exists(path.c_str());
@@ -98,7 +98,7 @@ inline bool symlink(const std::string& dst, const std::string& lnk) {
 //   'a': append       created if not exists
 //   'w': write        created if not exists, truncated if exists
 //   'm': modify       like 'w', but not truncated if exists
-class __coapi file {
+class __codec file {
   public:
     static const int seek_beg = 0;
     static const int seek_cur = 1;
@@ -174,7 +174,7 @@ class __coapi file {
 // open mode:
 //   'a': append       created if not exists
 //   'w': write        created if not exists, truncated if exists
-class __coapi fstream {
+class __codec fstream {
   public:
     fstream() : _s(8192) {}
     explicit fstream(size_t cap) : _s(cap) {}

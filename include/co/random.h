@@ -2,7 +2,7 @@
 
 #include "def.h"
 
-class __coapi Random {
+class __codec Random {
   public:
     Random() : Random(1u) {}
 
