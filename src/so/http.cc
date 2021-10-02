@@ -476,21 +476,22 @@ struct http_res_t {
     ~http_res_t() = delete;
 
     void clear();
+    void add_header(const char* k, const char* v);
     void set_body(const void* s, size_t n);
-    fastring str() const;
 
     // DO NOT change orders of the members here.
     uint32 status;
     uint32 version;
+    fastring* buf;
     fastring header;
-    const void* body;
     size_t body_size;
 };
 
 inline void http_req_t::clear() {
+    body_size = 0;
     url.clear();
-    arr_size = 0;
     buf = 0;
+    arr_size = 0;
 }
 
 inline void http_req_t::add_header(uint32 k, uint32 v) {
@@ -520,25 +521,23 @@ const char* http_req_t::header(const char* key) const {
 
 inline void http_res_t::clear() {
     status = 0;
+    buf = 0;
     header.clear();
     body_size = 0;
 }
 
-inline void http_res_t::set_body(const void* s, size_t n) {
-    body = s;
-    body_size = n;
+inline void http_res_t::add_header(const char* k, const char* v) {
+    if (header.capacity() == 0) header.reserve(128);
+    header << k << ": " << v << "\r\n";
 }
 
-fastring http_res_t::str() const {
-    int x = status;
-    if (x == 0) x = 200;
-
-    fastring s(header.size() + body_size + 64);
-    s << version_str(version) << ' ' << x << ' ' << status_str(x) << "\r\n"
-      << "Content-Length: " << body_size << "\r\n"
-      << header << "\r\n";
-    if (body_size > 0) s.append(body, body_size);
-    return s;
+inline void http_res_t::set_body(const void* s, size_t n) {
+    body_size = n;
+    if (status == 0) status = 200;
+    (*buf) << version_str(version) << ' ' << status << ' ' << status_str(status) << "\r\n"
+           << "Content-Length: " << n << "\r\n"
+           << header << "\r\n";
+    buf->append(s, n);
 }
 
 const char* Req::header(const char* key) const {
@@ -556,6 +555,10 @@ Req::~Req() {
         free(_p);
         _p = 0;
     }
+}
+
+void Res::add_header(const char* k, const char* v) {
+    _p->add_header(k, v);
 }
 
 void Res::set_body(const void* s, size_t n) {
@@ -720,8 +723,10 @@ inline int hex2int(char c) {
 }
 
 void send_error_message(int err, http_res_t* res, tcp::Connection* conn) {
+    fastring s(128);
+    res->buf = &s;
     res->status = err;
-    fastring s = res->str();
+    res->set_body("", 0);
     conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
     HTTPLOG << "http send res: " << s;
     res->clear();
@@ -732,7 +737,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     int r = 0;
     size_t pos = 0, total_len = 0;
     fastring* buf = 0;
-    fastring cs; // cache for chunked data
     Req req; Res res;
     auto& preq = *(http_req_t**) &req;
     auto& pres = *(http_res_t**) &res;
@@ -807,8 +811,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
                 bool expect_100_continue = strcmp(preq->header("Expect"), "100-continue") == 0;
                 size_t x, o, i, n = 0;
-                auto& s = cs; s.clear();
-                if (s.capacity() == 0) s.reserve(128);
+                fastring s(128);
 
                 if (buf->size() > pos + 4) {
                     s.append(buf->data() + pos + 4, buf->size() - pos - 4);
@@ -891,17 +894,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
         { /* handle the http request */
             bool need_close = false;
-            fastring x(preq->header("Connection")); 
-            if (!x.empty()) res.add_header("Connection", x.c_str());
+            fastring s(4096);
+            s.append(preq->header("Connection"));
+            if (!s.empty()) pres->add_header("Connection", s.c_str());
 
             if (preq->version == kHTTP10) {
-                if (x.empty() || x.lower() != "keep-alive") need_close = true;
+                if (s.empty() || s.tolower() != "keep-alive") need_close = true;
             } else {
-                if (!x.empty() && x == "close") need_close = true;
+                if (!s.empty() && s == "close") need_close = true;
             }
 
+            s.clear();
+            pres->buf = &s;
             _on_req(req, res);
-            fastring s = pres->str();
+            if (s.empty()) pres->set_body("", 0);
+
             r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
             if (r <= 0) goto send_err;
 

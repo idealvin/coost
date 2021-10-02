@@ -260,7 +260,7 @@ class __codec Req {
     const char* body() const;
 
     // get length of the body
-    size_t body_size()       const { return ((uint32*)_p)[3]; }
+    size_t body_size() const { return ((uint32*)_p)[3]; }
 
   private:
     http_req_t* _p;
@@ -271,21 +271,19 @@ class __codec Res {
     Res() : _p(0) {}
     ~Res();
 
-    void set_status(int status) { ((uint32*)_p)[0] = status; }
+    // set response code
+    void set_status(int status) { *(uint32*)_p = status; }
 
     /**
      * add a HTTP header to the response
      *   - 'Content-Length' will be added automatically, no need to add it manually.
      */
-    void add_header(const char* key, const char* val) {
-        auto& s = *(fastring*)((uint32*)_p + 2);
-        if (s.capacity() == 0) s.reserve(128);
-        s.append(key).append(": ").append(val).append("\r\n");
-    }
+    void add_header(const char* key, const char* val);
 
     /**
      * set body of the response
      *   - The body length will be zero if no body was set.
+     *   - NOTE: set_status() and add_header() MUST be called before set_body().
      */
     void set_body(const void* s, size_t n);
 

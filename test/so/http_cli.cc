@@ -17,6 +17,8 @@ void fa() {
     LOG_IF(r == 0) << "error: " << c.strerror();
     LOG << "body size: " << c.body_size();
     LOG << "Content-Length: " << c.header("Content-Length");
+    LOG << "Content-Length: " << c.header("Content-Length");
+    LOG << "Content-Type: " << c.header("Content-Type");
     LOG << c.header();
 
     LOG << "get /idealvin/co";
@@ -26,6 +28,8 @@ void fa() {
     LOG_IF(r == 0) << "error: " << c.strerror();
     LOG << "body size: " << c.body_size();
     LOG << "Content-Length: " << c.header("Content-Length");
+    LOG << "Content-Type: " << c.header("Content-Type");
+    LOG << "Content-Type: " << c.header("Content-Type");
     LOG << c.header();
 
     // close the client before sending a signal
