@@ -2,7 +2,6 @@
 
 #include "../fastring.h"
 #include <functional>
-#include <vector>
 
 namespace http {
 

@@ -11,7 +11,7 @@
 #include "co/fs.h"
 #include "co/path.h"
 #include "co/lru_map.h"
-#include <memory>
+#include <vector>
 #include <unordered_map>
 
 #ifdef HAS_LIBCURL
@@ -31,6 +31,16 @@ DEF_bool(http_log, true, "#2 enable http server log if true");
 #define HTTPLOG LOG_IF(FLG_http_log)
 
 namespace http {
+
+inline fastring& fastring_cache() {
+    static __thread fastring* kS = 0;
+    if (kS) return *kS;
+    return *(kS = new fastring(128));
+}
+
+inline fastream& fastream_cache() {
+    return *(fastream*) &fastring_cache();
+}
 
 /**
  * ===========================================================================
@@ -428,12 +438,6 @@ inline const char* status_str(int n) {
     return (100 <= n && n <= 511) ? s[n] : s[500];
 }
 
-inline fastring& cache() {
-    static __thread fastring* kS = 0;
-    if (kS) return *kS;
-    return *(kS = new fastring(128));
-}
-
 struct http_req_t {
     http_req_t() = delete;
     ~http_req_t() = delete;
@@ -487,7 +491,7 @@ inline void http_req_t::add_header(uint32 k, uint32 v) {
 }
 
 const char* http_req_t::header(const char* key) const {
-    fastring& s = cache();
+    fastring& s = fastring_cache();
     fastring x(key);
     x.toupper();
 
@@ -589,8 +593,7 @@ int parse_http_req(fastring* buf, http_req_t* req) {
         p = m.find(' ');
         if (p == m.npos) return 400;
 
-        auto& s = cache();
-        s.clear();
+        auto& s = fastring_cache(); s.clear();
         s.append(m.data(), p).toupper();
         auto it = mm->find(s);
         if (it != mm->end()) {
@@ -716,6 +719,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     int r = 0;
     size_t pos = 0, total_len = 0;
     fastring* buf = 0;
+    fastring cs; // cache for chunked data
     Req req; Res res;
     auto& preq = *(http_req_t**) &req;
     auto& pres = *(http_res_t**) &res;
@@ -790,7 +794,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
                 bool expect_100_continue = strcmp(preq->header("Expect"), "100-continue") == 0;
                 size_t x, o, i, n = 0;
-                auto& s = cache(); s.clear();
+                auto& s = cs; s.clear();
+                if (s.capacity() == 0) s.reserve(128);
 
                 if (buf->size() > pos + 4) {
                     s.append(buf->data() + pos + 4, buf->size() - pos - 4);
