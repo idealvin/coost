@@ -52,23 +52,31 @@ inline fastream& fastream_cache() {
 
 #ifdef HAS_LIBCURL
 struct curl_ctx_t {
-    curl_ctx_t()
-        : l(NULL), upload(NULL), upsize(0), header_updated(false) {
-        easy = curl_easy_init();
-        memset(err, 0, sizeof(err));
-    }
+    curl_ctx_t() = delete;
 
     ~curl_ctx_t() {
-        if (l) { curl_slist_free_all(l); l = NULL; }
-        curl_easy_cleanup(easy);    easy = NULL;
+        if (l) { curl_slist_free_all(l); l = 0; }
+        if (easy) { curl_easy_cleanup(easy); easy = 0; }
+        if (arr) { free(arr); arr = 0; }
+    }
+
+    void add_header(uint32 k) {
+        if (arr_cap < arr_size + 2) {
+            arr_cap += 32;
+            arr = (uint32*)realloc(arr, arr_cap << 2);
+            assert(arr != NULL);
+        }
+        arr[arr_size++] = k;
+        arr[arr_size++] = 0;
     }
 
     fastring serv_url;
-    fastream stream;
     fastream header;
     fastream mutable_header;
     fastream body;
-    std::vector<size_t> header_index;
+    uint32* arr; // array of header index
+    uint32 arr_size;
+    uint32 arr_cap;
     char err[CURL_ERROR_SIZE];
 
     CURL* easy;
@@ -110,24 +118,28 @@ struct curl_global {
 
 Client::Client(const char* serv_url) {
     static curl_global g;
-    _ctx = new curl_ctx_t();
+    _ctx = (curl_ctx_t*) calloc(1, sizeof(curl_ctx_t));
+    _ctx->easy = curl_easy_init();
 
-    fastring s(serv_url);
-    s.strip('/', 'r');        // remove '/' at the right side
-    if (!s.starts_with("https://") && !s.starts_with("http://")) {
-        s = "http://" + s;    // use http by default if protocol was not specified.
+    auto& s = _ctx->serv_url;
+    if (strncmp(serv_url, "https://", 8) == 0 || strncmp(serv_url, "http://", 7) == 0) {
+        s.append(serv_url);
+    } else {
+        const size_t n = strlen(serv_url);
+        s.reserve(n + 8);
+        s.append("http://").append(serv_url, n); // use http by default
     }
-    _ctx->serv_url = std::move(s);
+    s.strip('/', 'r'); // remove '/' at the right side
 
     init_easy_opts(_ctx->easy, _ctx);
 }
 
 Client::~Client() {
-    if (_ctx) { delete _ctx; _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); free(_ctx); _ctx = NULL; }
 }
 
 void Client::close() {
-    if (_ctx) { delete _ctx; _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); free(_ctx); _ctx = NULL; }
 }
 
 inline void Client::append_header(const char* s) {
@@ -141,8 +153,7 @@ inline void Client::append_header(const char* s) {
 }
 
 void Client::add_header(const char* key, const char* val) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(key);
     const size_t n = strlen(val);
     if (n > 0) {
@@ -154,22 +165,19 @@ void Client::add_header(const char* key, const char* val) {
 }
 
 void Client::add_header(const char* key, int val) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s << key << ": " << val;
     this->append_header(s.c_str());
 }
 
 void Client::remove_header(const char* key) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(key).append(':');
     this->append_header(s.c_str());
 }
 
 inline const char* Client::make_url(const char* url) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(_ctx->serv_url).append(url);
     return s.c_str();
 }
@@ -224,8 +232,9 @@ void* Client::easy_handle() const {
 void Client::perform() {
     CHECK(co::scheduler()) << "must be called in coroutine..";
     _ctx->header.clear();
+    _ctx->mutable_header.clear();
     _ctx->body.clear();
-    _ctx->header_index.clear();
+    _ctx->arr_size = 0;
     _ctx->err[0] = '\0';
 
     if (_ctx->header_updated) {
@@ -250,31 +259,35 @@ const char* Client::strerror() const {
 
 const char* Client::header(const char* key) {
     static const char* e = "";
-    auto& index = _ctx->header_index;
-    if (index.empty()) return e;
+    if (_ctx->arr_size == 0) return e;
 
     fastream& h = _ctx->header;
     fastream& m = _ctx->mutable_header;
     if (m.empty() && !h.empty()) m.append(h.c_str(), h.size() + 1);
 
-    fastring& s = *(fastring*)(&_ctx->stream);
-    fastring u(std::move(fastring(key).toupper()));
+    fastring& s = fastring_cache();
+    fastring u(key); u.toupper();
     const char* header_begin = m.c_str();
     const char* b;
     const char* p;
-    for (size_t i = 0; i < index.size(); ++i) {
-        b = header_begin + index[i];
+    for (uint32 i = 0; i < _ctx->arr_size; i += 2) {
+        b = header_begin + _ctx->arr[i];
         p = strchr(b, ':');
         if (p) {
             s.clear();
             s.append(b, p - b).strip(' ').toupper();
-            if (s != u) continue;
-
-            b = p;
-            while (*++b == ' ');
-            p = strchr(b, '\r');
-            if (p) *(char*)p = '\0';
-            return b;
+            if (s == u) {
+                if (_ctx->arr[i + 1] == 0) {
+                    b = p;
+                    while (*++b == ' ');
+                    p = strchr(b, '\r');
+                    if (p) *(char*)p = '\0';
+                    _ctx->arr[i + 1] = (uint32)(b - header_begin);
+                    return b;
+                } else {
+                    return header_begin + _ctx->arr[i + 1];
+                }
+            }
         }
     }
     return e;
@@ -309,7 +322,7 @@ size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
     if (r != CURLE_OK || code == 100) return n;
 
     if (!h.empty()) {
-        if (n > 2) ctx->header_index.push_back(h.size());
+        if (n > 2) ctx->add_header((uint32)h.size());
         h.append(p, n);
     } else {
         h.append(p, n); // start line
