@@ -30,6 +30,9 @@ option(WITH_LIBCURL "build with libcurl" OFF)
 # build with openssl (openssl 1.1.0+ required)
 option(WITH_OPENSSL "build with openssl" OFF)
 
+# build with -fPIC
+option(FPIC "build with -fPIC" OFF)
+
 # build all projects (libco, gen, test, unitest)
 option(BUILD_ALL "Build all projects" OFF)
 

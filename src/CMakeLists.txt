@@ -65,6 +65,12 @@ elseif(WITH_OPENSSL)
     endif()
 endif()
 
+if(FPIC)
+    if(NOT MSVC)
+        target_compile_options(co PRIVATE -fPIC)
+    endif()
+endif()
+
 
 if(WIN32)
     if(MSVC)
