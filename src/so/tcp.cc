@@ -83,7 +83,7 @@ class SSLConn : public Conn {
     }
 
     virtual int close(int ms) {
-        ssl::S* s = god::swap(&_s, 0);
+        ssl::S* s = god::swap(&_s, nullptr);
         if (s) {
             int fd = ssl::get_fd(s);
             ssl::shutdown(s);
@@ -94,7 +94,7 @@ class SSLConn : public Conn {
     }
 
     virtual int reset(int ms) {
-        ssl::S* s = god::swap(&_s, 0);
+        ssl::S* s = god::swap(&_s, nullptr);
         if (s) {
             int fd = ssl::get_fd(s);
             ssl::free_ssl(s);
@@ -140,7 +140,7 @@ int Connection::send(const void* buf, int n, int ms) {
 }
 
 int Connection::close(int ms) {
-    Conn* p = (Conn*) god::swap(&_p, 0);
+    Conn* p = (Conn*) god::swap(&_p, nullptr);
     if (p) {
         int r = p->close(ms);
         delete p;
@@ -150,7 +150,7 @@ int Connection::close(int ms) {
 }
 
 int Connection::reset(int ms) {
-    Conn* p = (Conn*) god::swap(&_p, 0);
+    Conn* p = (Conn*) god::swap(&_p, nullptr);
     if (p) {
         int r = p->reset(ms);
         delete p;

@@ -792,7 +792,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             }
 
             // try to recv the remain part of http body
-            preq->body = pos + 4; // beginning of http body
+            preq->body = (uint32)(pos + 4); // beginning of http body
             if (preq->body_size > 0 || strcmp(preq->header("Transfer-Encoding"), "chunked") != 0) {
                 total_len = pos + 4 + req.body_size();
                 if (preq->body_size > 0 && buf->size() < total_len) {
@@ -861,7 +861,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         }
 
                     } else { /* n == 0, end of chunked data */
-                        preq->body_size = buf->size() - pos - 4;
+                        preq->body_size = (uint32)(buf->size() - pos - 4);
                         s[x] = '\r'; s.lshift(x);
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
