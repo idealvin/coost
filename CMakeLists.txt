@@ -36,6 +36,20 @@ option(FPIC "build with -fPIC" OFF)
 # build all projects (libco, gen, test, unitest)
 option(BUILD_ALL "Build all projects" OFF)
 
+# vs runtime, use MT
+if(MSVC)
+    option(STATIC_VS_CRT "use /MT or /MTd" ON)
+
+    if(STATIC_VS_CRT)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+    endif()
+endif()
+
+
 include_directories(include)
 add_subdirectory(src)
 
