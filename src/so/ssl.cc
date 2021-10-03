@@ -1,4 +1,4 @@
-#ifdef CO_SSL
+#ifdef HAS_OPENSSL
 #include "co/so/ssl.h"
 #include "co/co.h"
 #include "co/log.h"
@@ -288,7 +288,7 @@ const char* strerror(S*) { return 0; }
 
 C* new_ctx(char) {
     CHECK(false)
-        << "To use SSL features, please build libco with openssl 1.1+ as follow: \n"
+        << "To use SSL features, please build libco with openssl 1.1.0+ as follow: \n"
         << "xmake f --with_openssl=true\n"
         << "xmake -v";
     return 0;

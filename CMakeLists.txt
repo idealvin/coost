@@ -27,7 +27,7 @@ endif()
 # build with libcurl (openssl & zlib also required)
 option(WITH_LIBCURL "build with libcurl" OFF)
 
-# build with openssl (openssl 1.1.0+ required)
+# build with openssl 1.1.0+
 option(WITH_OPENSSL "build with openssl" OFF)
 
 # build with -fPIC

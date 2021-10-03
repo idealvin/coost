@@ -34,13 +34,11 @@ else
 end
 
 
--- build with openssl (1.1.0+)
+-- build with openssl 1.1.0+
 option("with_openssl")
     set_default(false)
     set_showmenu(true)
-    set_description("build with openssl, required by SSL features")
-    add_defines("CO_SSL")
-    add_defines("HAS_OPENSSL")
+    set_description("build with openssl, 1.1.0+ required")
 option_end()
 
 -- build with libcurl (openssl, zlib also required)
@@ -48,7 +46,6 @@ option("with_libcurl")
     set_default(false)
     set_showmenu(true)
     set_description("build with libcurl, required by http::Client")
-    add_defines("HAS_LIBCURL")
 option_end()
 
 -- build with -fPIC
@@ -58,7 +55,6 @@ option("fpic")
     set_description("build with -fPIC")
     add_cxflags("-fPIC")
 option_end()
-
 
 if has_config("with_libcurl") then
     add_requires("openssl >=1.1.0")

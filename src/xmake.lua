@@ -1,15 +1,29 @@
+option("libbacktrace")
+    add_cincludes("backtrace.h")
+option_end()
+
+option("cxxabi")
+    add_cxxincludes("cxxabi.h")
+option_end()
+
+
 target("libco")
     set_kind("$(kind)")
     set_basename("co")
     add_files("**.cc")
     add_options("with_openssl")
     add_options("with_libcurl")
-    add_options("fpic")
+    if not is_plat("windows") then
+        add_options("fpic")
+    end
 
     if has_config("with_libcurl") then
+        add_defines("HAS_LIBCURL")
+        add_defines("HAS_OPENSSL")
         add_packages("libcurl")
         add_packages("openssl")
     elseif has_config("with_openssl") then
+        add_defines("HAS_OPENSSL")
         add_packages("openssl")
     end 
 
@@ -38,17 +52,18 @@ target("libco")
             end
         else
             add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
-            add_files("co/context/context.S")
             add_syslinks("ws2_32", { public = true })
+            add_files("co/context/context.S")
         end
     else
         add_cxflags("-Wno-strict-aliasing")
-        includes("check_cincludes.lua")
-        includes("check_cxxincludes.lua")
-        includes("check_links.lua")
-        check_cincludes("HAS_BACKTRACE_H", "backtrace.h")
-        check_cxxincludes("HAS_CXXABI_H", "cxxabi.h")
-        check_links("HAS_LIBBACKTRACE", "backtrace")
+        if has_config("libbacktrace") then
+            add_defines("HAS_BACKTRACE_H")
+            add_syslinks("backtrace", { public = true })
+        end
+        if has_config("cxxabi") then
+            add_defines("HAS_CXXABI_H")
+        end
         if not is_plat("android") then
             add_syslinks("pthread", { public = true })
             add_syslinks("dl")
