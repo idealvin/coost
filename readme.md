@@ -429,6 +429,13 @@ xmake -a   # build all projects (libco, gen, co/test, co/unitest)
 ```
 
 
+#### Build shared library
+
+```sh
+xmake f -k shared
+xmake -v
+```
+
 #### Build with mingw
 
 ```sh
@@ -493,6 +500,13 @@ mkdir build && cd build
 cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=/usr/local
 make -j8
 make install
+```
+
+
+#### Build shared library
+
+```sh
+cmake .. -DBUILD_SHARED_LIBS=ON
 ```
 
 
