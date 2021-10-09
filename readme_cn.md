@@ -40,6 +40,15 @@ CO 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等
 如果您喜欢 CO，可以考虑[赞助 CO](https://github.com/sponsors/idealvin)，或者[给作者来杯咖啡](https://idealvin.gitee.io/cn/about/sponsor/)，非常感谢🙏
 
 
+### 特别赞助商
+
+CO 由如下企业特别赞助，在此深表感谢！
+
+<a href="https://www.oneflow.org/index.html">
+<img src="https://idealvin.github.io/images/sponsor/oneflow.png" width="210" height="150">
+</a>
+
+
 
 
 ## 参考文档
