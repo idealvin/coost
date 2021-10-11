@@ -1,12 +1,9 @@
 #include "co/unitest.h"
 #include "co/co.h"
 
-DEF_bool(noco, false, "disable unitest for coroutine if true");
-
 namespace test {
 
 DEF_test(co) {
-    if (FLG_noco) return;
     int v = 0;
 
     DEF_case(wait_group) {
