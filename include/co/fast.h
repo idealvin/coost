@@ -8,20 +8,23 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <new>
+#include <type_traits>
 #include <utility>
 
 namespace fast {
 
-// double to ascii string
+// double to ascii string, return length of the result
 inline int dtoa(double v, char* buf) {
     return milo::dtoa(v, buf);
 }
 
-// integer to hex string  (255 -> "0xff". eg.)
+// unsigned integer to hex string, return length of the result
+//   - 255 -> "0xff"
 __codec int u32toh(uint32 v, char* buf);
 __codec int u64toh(uint64 v, char* buf);
 
-// integer to ascii string
+// integer to ascii string, return length of the result
 __codec int u32toa(uint32 v, char* buf);
 __codec int u64toa(uint64 v, char* buf);
 
@@ -37,15 +40,71 @@ inline int i64toa(int64 v, char* buf) {
     return u64toa((uint64)(-v), buf + 1) + 1;
 }
 
+namespace xx {
+template<bool> struct le_32bit{};
+
+template<typename V>
+inline int itoa(V v, char* buf, le_32bit<true>) {
+    return i32toa((int32)v, buf);
+}
+
+template<typename V>
+inline int itoa(V v, char* buf, le_32bit<false>) {
+    return i64toa((int64)v, buf);
+}
+
+template<typename V>
+inline int utoa(V v, char* buf, le_32bit<true>) {
+    return u32toa((uint32)v, buf);
+}
+
+template<typename V>
+inline int utoa(V v, char* buf, le_32bit<false>) {
+    return u64toa((uint64)v, buf);
+}
+
+template<int>
+int ptoh(const void* p, char* buf);
+
+template<>
+inline int ptoh<4>(const void* p, char* buf) {
+    return u32toh((uint32)(size_t)p, buf);
+}
+
+template<>
+inline int ptoh<8>(const void* p, char* buf) {
+    return u64toh((uint64)p, buf);
+}
+} // xx
+
+// signed integer to ascii string
+template<typename V>
+inline int itoa(V v, char* buf) {
+    return xx::itoa(v, buf, xx::le_32bit<sizeof(V) <= sizeof(uint32)>());
+}
+
+// unsigned integer to ascii string
+template<typename V>
+inline int utoa(V v, char* buf) {
+    return xx::utoa(v, buf, xx::le_32bit<sizeof(V) <= sizeof(uint32)>());
+}
+
+// pointer to hex string
+inline int ptoh(const void* p, char* buf) {
+    return xx::ptoh<sizeof(p)>(p, buf);
+}
+
 class __codec stream {
   public:
-    constexpr stream() noexcept : _cap(0), _size(0), _p(0) {}
+    constexpr stream() noexcept
+        : _cap(0), _size(0), _p(0) {
+    }
     
     explicit stream(size_t cap)
         : _cap(cap), _size(0), _p((char*) malloc(cap)) {
     }
 
-    stream(void* p, size_t size, size_t cap)
+    stream(void* p, size_t size, size_t cap) noexcept
         : _cap(cap), _size(size), _p((char*)p) {
     }
 
@@ -62,14 +121,10 @@ class __codec stream {
         s._cap = s._size = 0;
     }
 
-    stream& operator=(stream&& s) noexcept {
+    stream& operator=(stream&& s) {
         if (&s != this) {
             if (_p) free(_p);
-            _cap = s._cap;
-            _size = s._size;
-            _p = s._p;
-            s._p = 0;
-            s._cap = s._size = 0;
+            new (this) stream(std::move(s));
         }
         return *this;
     }
@@ -176,50 +231,52 @@ class __codec stream {
     }
 
     stream& operator<<(short v) {
-        this->ensure(8);
-        _size += fast::i32toa(v, _p + _size);
+        this->ensure(sizeof(v) * 3);
+        _size += fast::itoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned short v) {
-        this->ensure(8);
-        _size += fast::u32toa(v, _p + _size);
+        this->ensure(sizeof(v) * 3);
+        _size += fast::utoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(int v) {
-        this->ensure(12);
-        _size += fast::i32toa(v, _p + _size);
+        this->ensure(sizeof(v) * 3);
+        _size += fast::itoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned int v) {
-        this->ensure(12);
-        _size += fast::u32toa(v, _p + _size);
+        this->ensure(sizeof(v) * 3);
+        _size += fast::utoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(long v) {
         this->ensure(sizeof(v) * 3);
-        _size += fast::i64toa(v, _p + _size);
+        _size += fast::itoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned long v) {
         this->ensure(sizeof(v) * 3);
-        _size += fast::u64toa(v, _p + _size);
+        _size += fast::utoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(long long v) {
-        this->ensure(24);
-        _size += fast::i64toa(v, _p + _size);
+        static_assert(sizeof(v) <= sizeof(int64), "");
+        this->ensure(sizeof(v) * 3);
+        _size += fast::itoa(v, _p + _size);
         return *this;
     }
 
     stream& operator<<(unsigned long long v) {
-        this->ensure(24);
-        _size += fast::u64toa(v, _p + _size);
+        static_assert(sizeof(v) <= sizeof(uint64), "");
+        this->ensure(sizeof(v) * 3);
+        _size += fast::utoa(v, _p + _size);
         return *this;
     }
 
@@ -227,9 +284,17 @@ class __codec stream {
         return this->append(v, strlen(v));
     }
 
+    stream& operator<<(const signed char* v) {
+        return this->operator<<((const char*)v);
+    }
+
+    stream& operator<<(const unsigned char* v) {
+        return this->operator<<((const char*)v);
+    }
+
     stream& operator<<(const void* v) {
-        this->ensure(20);
-        _size += fast::u64toh((uint64)v, _p + _size);
+        this->ensure(sizeof(v) * 3);
+        _size += fast::ptoh(v, _p + _size);
         return *this;
     }
 
