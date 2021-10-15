@@ -55,6 +55,7 @@ class __codec fastream : public fast::stream {
         return *this;
     }
 
+    // append n characters
     fastream& append(size_t n, char c) {
         return (fastream&) fast::stream::append(n, c);
     }
@@ -67,12 +68,12 @@ class __codec fastream : public fast::stream {
         return (fastream&) fast::stream::append(c);
     }
 
-    fastream& append(signed char v) {
-        return this->append((char)v);
+    fastream& append(signed char c) {
+        return this->append((char)c);
     }
 
-    fastream& append(unsigned char v) {
-        return this->append((char)v);
+    fastream& append(unsigned char c) {
+        return this->append((char)c);
     }
 
     fastream& append(short v) {
@@ -111,6 +112,14 @@ class __codec fastream : public fast::stream {
         return this->append(s);
     }
 
+    fastream& operator<<(const signed char* s) {
+        return this->operator<<((const char*)s);
+    }
+
+    fastream& operator<<(const unsigned char* s) {
+        return this->operator<<((const char*)s);
+    }
+
     fastream& operator<<(const std::string& s) {
         return this->append(s);
     }
@@ -123,8 +132,20 @@ class __codec fastream : public fast::stream {
         return this->append(s);
     }
 
+    // for built-in types or pointer types
     template<typename T>
     fastream& operator<<(T v) {
         return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& cat() { return *this; }
+
+    // concatenate fastream to any number of elements
+    //   - fastream s("hello");
+    //     s.cat(' ', 123);  // s -> "hello 123"
+    template<typename X, typename ...V>
+    fastream& cat(X&& x, V&& ... v) {
+        this->operator<<(std::forward<X>(x));
+        return this->cat(std::forward<V>(v)...);
     }
 };

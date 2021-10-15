@@ -201,6 +201,7 @@ class __codec stream {
         fs.swap(*this);
     }
 
+  protected:
     stream& append(size_t n, char c) {
         this->ensure(n);
         memset(_p + _size, c, n);
@@ -211,6 +212,13 @@ class __codec stream {
     stream& append(char c) {
         this->ensure(1);
         _p[_size++] = c;
+        return *this;
+    }
+
+    stream& append(const void* p, size_t n) {
+        this->ensure(n);
+        memcpy(_p + _size, p, n);
+        _size += n;
         return *this;
     }
 
@@ -284,14 +292,6 @@ class __codec stream {
         return this->append(v, strlen(v));
     }
 
-    stream& operator<<(const signed char* v) {
-        return this->operator<<((const char*)v);
-    }
-
-    stream& operator<<(const unsigned char* v) {
-        return this->operator<<((const char*)v);
-    }
-
     stream& operator<<(const void* v) {
         this->ensure(sizeof(v) * 3);
         _size += fast::ptoh(v, _p + _size);
@@ -307,14 +307,6 @@ class __codec stream {
     stream& operator<<(double v) {
         this->ensure(24);
         _size += fast::dtoa(v, _p + _size);
-        return *this;
-    }
-
-  protected:
-    stream& append(const void* p, size_t n) {
-        this->ensure(n);
-        memcpy(_p + _size, p, n);
-        _size += n;
         return *this;
     }
     

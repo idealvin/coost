@@ -13,7 +13,7 @@ class __codec fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
 
-    constexpr fastring() noexcept
+    fastring() noexcept
         : fast::stream() {
     }
 
@@ -121,6 +121,14 @@ class __codec fastring : public fast::stream {
         return this->append(s);
     }
 
+    fastring& operator<<(const signed char* s) {
+        return this->operator<<((const char*)s);
+    }
+
+    fastring& operator<<(const unsigned char* s) {
+        return this->operator<<((const char*)s);
+    }
+
     fastring& operator<<(const std::string& s) {
         return this->append(s);
     }
@@ -132,6 +140,17 @@ class __codec fastring : public fast::stream {
     template<typename T>
     fastring& operator<<(T v) {
         return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& cat() { return *this; }
+
+    // concatenate fastring to any number of elements
+    //   - fastring s("hello");
+    //     s.cat(' ', 123);  // s -> "hello 123"
+    template<typename X, typename ...V>
+    fastring& cat(X&& x, V&& ... v) {
+        this->operator<<(std::forward<X>(x));
+        return this->cat(std::forward<V>(v)...);
     }
 
     fastring substr(size_t pos) const {

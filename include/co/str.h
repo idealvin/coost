@@ -144,6 +144,14 @@ inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
     dbg(beg, end, c1, c2, fs);
     return fs;
 }
+
+inline void cat(fastring& s) {}
+
+template<typename X, typename ...V>
+inline void cat(fastring& s, X&& x, V&& ... v) {
+    s << std::forward<X>(x);
+    cat(s, std::forward<V>(v)...);
+}
 } // xx
 
 // convert std::pair to a debug string
@@ -182,6 +190,18 @@ inline fastring dbg(const std::unordered_set<T>& v) {
 template<typename K, typename V>
 inline fastring dbg(const std::unordered_map<K, V>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+inline fastring cat() { return fastring(); }
+
+// concatenate any number of elements into a string
+//   - str::cat("hello ", 23);              ==>  "hello 23"
+//   - str::cat("127.0.0.1", ':', 7777);    ==>  "127.0.0.1:7777"
+template <typename ...X>
+inline fastring cat(X&& ... x) {
+    fastring s(64);
+    xx::cat(s, std::forward<X>(x)...);
+    return s;
 }
 
 } // namespace str

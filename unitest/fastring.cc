@@ -80,6 +80,13 @@ DEF_test(fastring) {
         EXPECT_EQ(std::string("x") + fastring("x"), "xx");
     }
 
+    DEF_case(cat) {
+        fastring s;
+        EXPECT_EQ(s.cat(), "");
+        EXPECT_EQ(s.cat(1, 2, 3), "123");
+        EXPECT_EQ(s.cat("hello ", false), "123hello false");
+    }
+
     DEF_case(substr) {
         fastring s = "helloworld";
         EXPECT_EQ(s.substr(0), s);

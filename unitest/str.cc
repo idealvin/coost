@@ -165,6 +165,18 @@ DEF_test(str) {
         };
         EXPECT_EQ(str::dbg(ms), "{1:\"1\",2:\"2\",3:\"3\"}");
     }
+
+    DEF_case(cat) {
+        EXPECT_EQ(str::cat(), "");
+        EXPECT_EQ(str::cat(1, 2, 3), "123");
+        EXPECT_EQ(str::cat("hello", 1, 2, 3), "hello123");
+        EXPECT_EQ(str::cat("hello ", false), "hello false");
+        EXPECT_EQ(str::cat("hello ", true, ':', 999), "hello true:999");
+        fastring f("fff");
+        std::string s("sss");
+        const char* c = "ccc";
+        EXPECT_EQ(str::cat(f, s, c, 123), "fffsssccc123");
+    }
 }
 
 } // namespace test

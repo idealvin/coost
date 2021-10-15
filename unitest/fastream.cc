@@ -54,6 +54,13 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.size(), 0);
     }
 
+    DEF_case(cat) {
+        fastream s;
+        EXPECT_EQ(s.cat().str(), "");
+        EXPECT_EQ(s.cat(1, 2, 3).str(), "123");
+        EXPECT_EQ(s.cat("hello ", false).str(), "123hello false");
+    }
+
     DEF_case(bool) {
         fastream fs;
         fs << false << ' ' << true;

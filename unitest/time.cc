@@ -12,11 +12,9 @@ DEF_test(time) {
         EXPECT_GT(us, 0);
         EXPECT_GT(ms, 0);
 
-        for (int i = 0; i < 3; i++) {
-            int64 x = now::us();
-            int64 y = now::us();
-            EXPECT_LE(x, y);
-        }
+        int64 x = now::us();
+        int64 y = now::us();
+        EXPECT_LE(x, y);
     }
 
     DEF_case(str) {
