@@ -5,6 +5,7 @@
 #include "byte_order.h"
 #include "closure.h"
 #include "defer.h"
+#include "god.h"
 
 #include "fast.h"
 #include "fastring.h"
