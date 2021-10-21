@@ -4,6 +4,7 @@
 #pragma warning (disable:4706)
 #endif
 
+#include "god.h"
 #include "fast.h"
 #include "hash/murmur_hash.h"
 #include <string>
@@ -53,7 +54,7 @@ class __codec fastring : public fast::stream {
         : fast::stream(std::move(s)) {
     }
 
-    fastring& operator=(fastring&& s) noexcept {
+    fastring& operator=(fastring&& s) {
         return (fastring&) fast::stream::operator=(std::move(s));
     }
 
@@ -117,8 +118,15 @@ class __codec fastring : public fast::stream {
         return this->append(c);
     }
 
-    fastring& operator<<(const char* s) {
-        return this->append(s);
+    fastring& cat() { return *this; }
+
+    // concatenate fastring to any number of elements
+    //   - fastring s("hello");
+    //     s.cat(' ', 123);  // s -> "hello 123"
+    template<typename X, typename ...V>
+    fastring& cat(X&& x, V&& ... v) {
+        this->operator<<(std::forward<X>(x));
+        return this->cat(std::forward<V>(v)...);
     }
 
     fastring& operator<<(const signed char* s) {
@@ -127,6 +135,11 @@ class __codec fastring : public fast::stream {
 
     fastring& operator<<(const unsigned char* s) {
         return this->operator<<((const char*)s);
+    }
+
+#if 0
+    fastring& operator<<(const char* s) {
+        return this->append(s);
     }
 
     fastring& operator<<(const std::string& s) {
@@ -141,16 +154,24 @@ class __codec fastring : public fast::stream {
     fastring& operator<<(T v) {
         return (fastring&) fast::stream::operator<<(v);
     }
+#endif
 
-    fastring& cat() { return *this; }
+    // Special optimization for string literal like "hello". The length of a string 
+    // literal can be get at compile-time, no need to call strlen().
+    template<typename T>
+    fastring& operator<<(T&& t) {
+        using A = typename std::remove_reference<decltype(t)>::type; // remove & or &&
+        using B = typename std::remove_extent<A>::type;              // remove []
+        using C = typename std::remove_cv<A>::type;                  // remove const, volatile
 
-    // concatenate fastring to any number of elements
-    //   - fastring s("hello");
-    //     s.cat(' ', 123);  // s -> "hello 123"
-    template<typename X, typename ...V>
-    fastring& cat(X&& x, V&& ... v) {
-        this->operator<<(std::forward<X>(x));
-        return this->cat(std::forward<V>(v)...);
+        constexpr const int N =
+            std::is_array<A>::value && god::is_same<B, const char>::value
+            ? 1 : std::is_pointer<A>::value && god::is_same<C, const char*, char*>::value
+            ? 2 : god::is_same<C, fastring, std::string>::value
+            ? 3 : std::is_class<A>::value
+            ? 4 : 0;
+
+        return this->_out(std::forward<T>(t), I<N>());
     }
 
     fastring substr(size_t pos) const {
@@ -331,6 +352,38 @@ class __codec fastring : public fast::stream {
     }
 
   private:
+    template<int N> struct I {};
+
+    // built-in types or pointer types
+    template<typename T>
+    fastring& _out(T&& t, I<0>) {
+        return (fastring&) fast::stream::operator<<(std::forward<T>(t));
+    }
+
+    // string literal like "hello"
+    template<typename T>
+    fastring& _out(T&& t, I<1>) {
+        return (fastring&) fast::stream::append(t, sizeof(t) - 1);
+    }
+
+    // const char* or char*
+    template<typename T>
+    fastring& _out(T&& t, I<2>) {
+        return this->append(t);
+    }
+
+    // fastring, std::string
+    template<typename T>
+    fastring& _out(T&& t, I<3>) {
+        return this->append((typename god::add_const_lvalue_reference<T>::type)t);
+    }
+
+    // other classes, call global `fastring& operator<<(fastring&, const X&)`
+    template<typename T>
+    fastring& _out(T&& t, I<4>) {
+        return (*this) << (typename god::add_const_lvalue_reference<T>::type)t;
+    }
+
     bool _Inside(const char* p) const {
         return _p <= p && p < _p + _size;
     }

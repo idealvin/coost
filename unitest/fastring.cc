@@ -84,7 +84,87 @@ DEF_test(fastring) {
         fastring s;
         EXPECT_EQ(s.cat(), "");
         EXPECT_EQ(s.cat(1, 2, 3), "123");
-        EXPECT_EQ(s.cat("hello ", false), "123hello false");
+        EXPECT_EQ(s.cat(' ', "hello ", false), "123 hello false");
+    }
+
+    DEF_case(operator<<) {
+        fastring s;
+        {
+            s << false << ' ' << true;
+            EXPECT_EQ(s, "false true");
+            EXPECT_EQ((fastring() << false << ' ' << true), "false true");
+            s.clear();
+        }
+
+        {
+            char c = 'c';
+            signed char sc = 'c';
+            unsigned char uc = 'c';
+            const char& x = c;
+            s << c << sc << uc << x;
+            EXPECT_EQ(s, "cccc");
+            s.clear();
+        }
+
+        {
+            short s1 = -1;
+            unsigned short s2 = 1;
+            int i1 = -2;
+            unsigned int i2 = 2;
+            long l1 = -4;
+            unsigned long l2 = 4;
+            long long ll1 = -8;
+            unsigned long long ll2 = 8;
+            s << s1 << s2 << ' ' << i1 << i2 << ' ' << l1 << l2 << ' ' << ll1 << ll2;
+            EXPECT_EQ(s, "-11 -22 -44 -88");
+            s.clear();
+        }
+
+        {
+            float f = 0.5f;
+            double d = 3.14159;
+
+            s << f;
+            EXPECT_NE(s, "");
+            EXPECT_EQ(s, "0.5");
+            s.clear();
+
+            s << d;
+            EXPECT_NE(s, "");
+            EXPECT_EQ(s, "3.14159");
+            s.clear();
+        }
+
+        {
+            const char* cs = "cs";
+            std::string ss = "ss";
+            fastring x = "x";
+            char yz[4];
+            yz[0] = 'y';
+            yz[1] = 'z';
+            yz[2] = '\0';
+            yz[3] = 'x';
+
+            s << cs << ss << x << yz << "^o^";
+            EXPECT_EQ(s, "csssxyz^o^");
+            EXPECT_EQ((fastring() << cs << ss << x << yz << "^o^"), "csssxyz^o^");
+
+            s.clear();
+            s << s;
+            EXPECT_EQ(s, "");
+            s << "x";
+            s << s;
+            EXPECT_EQ(s, "xx");
+            s.clear();
+        }
+
+        {
+            int x = 0;
+            s << &x;
+            EXPECT_NE(s, "");
+            EXPECT_EQ(s.substr(0, 2), "0x");
+            s.clear();
+        }
     }
 
     DEF_case(substr) {

@@ -1,15 +1,20 @@
 #pragma once
 
+#include "god.h"
 #include "fast.h"
 #include "fastring.h"
 
 class __codec fastream : public fast::stream {
   public:
-    constexpr fastream() noexcept : fast::stream() {}
+    fastream() noexcept
+        : fast::stream() {
+    }
     
-    explicit fastream(size_t cap) : fast::stream(cap) {}
+    explicit fastream(size_t cap)
+        : fast::stream(cap) {
+    }
 
-    fastream(void* p, size_t size, size_t cap)
+    fastream(void* p, size_t size, size_t cap) noexcept
         : fast::stream(p, size, cap) {
     }
 
@@ -64,6 +69,7 @@ class __codec fastream : public fast::stream {
         return this->append(n, c);
     }
 
+    // append a single character
     fastream& append(char c) {
         return (fastream&) fast::stream::append(c);
     }
@@ -76,6 +82,7 @@ class __codec fastream : public fast::stream {
         return this->append((char)c);
     }
 
+    // append binary data of integer types
     fastream& append(short v) {
         return this->append(&v, sizeof(v));
     }
@@ -108,8 +115,15 @@ class __codec fastream : public fast::stream {
         return this->append(&v, sizeof(v));
     }
 
-    fastream& operator<<(const char* s) {
-        return this->append(s);
+    fastream& cat() { return *this; }
+
+    // concatenate fastream to any number of elements
+    //   - fastream s("hello");
+    //     s.cat(' ', 123);  // s -> "hello 123"
+    template<typename X, typename ...V>
+    fastream& cat(X&& x, V&& ... v) {
+        this->operator<<(std::forward<X>(x));
+        return this->cat(std::forward<V>(v)...);
     }
 
     fastream& operator<<(const signed char* s) {
@@ -120,32 +134,54 @@ class __codec fastream : public fast::stream {
         return this->operator<<((const char*)s);
     }
 
-    fastream& operator<<(const std::string& s) {
-        return this->append(s);
-    }
-
-    fastream& operator<<(const fastring& s) {
-        return this->append(s);
-    }
-
-    fastream& operator<<(const fastream& s) {
-        return this->append(s);
-    }
-
-    // for built-in types or pointer types
+    // Special optimization for string literal like "hello". The length of a string 
+    // literal can be get at compile-time, no need to call strlen().
     template<typename T>
-    fastream& operator<<(T v) {
-        return (fastream&) fast::stream::operator<<(v);
+    fastream& operator<<(T&& t) {
+        using A = typename std::remove_reference<decltype(t)>::type; // remove & or &&
+        using B = typename std::remove_extent<A>::type;              // remove []
+        using C = typename std::remove_cv<A>::type;                  // remove const, volatile
+
+        constexpr const int N =
+            std::is_array<A>::value && god::is_same<B, const char>::value
+            ? 1 : std::is_pointer<A>::value && god::is_same<C, const char*, char*>::value
+            ? 2 : god::is_same<C, fastring, fastream, std::string>::value
+            ? 3 : std::is_class<A>::value
+            ? 4 : 0;
+
+        return this->_out(std::forward<T>(t), I<N>());
     }
 
-    fastream& cat() { return *this; }
+  private:
+    template<int N> struct I {};
 
-    // concatenate fastream to any number of elements
-    //   - fastream s("hello");
-    //     s.cat(' ', 123);  // s -> "hello 123"
-    template<typename X, typename ...V>
-    fastream& cat(X&& x, V&& ... v) {
-        this->operator<<(std::forward<X>(x));
-        return this->cat(std::forward<V>(v)...);
+    // built-in types or pointer types
+    template<typename T>
+    fastream& _out(T&& t, I<0>) {
+        return (fastream&) fast::stream::operator<<(std::forward<T>(t));
+    }
+
+    // string literal like "hello"
+    template<typename T>
+    fastream& _out(T&& t, I<1>) {
+        return this->append(t, sizeof(t) - 1);
+    }
+
+    // const char* or char*
+    template<typename T>
+    fastream& _out(T&& t, I<2>) {
+        return this->append(t);
+    }
+
+    // fastring, fastream, std::string
+    template<typename T>
+    fastream& _out(T&& t, I<3>) {
+        return this->append((typename god::add_const_lvalue_reference<T>::type)t);
+    }
+
+    // other classes, call global `fastream& operator<<(fastream&, const X&)`
+    template<typename T>
+    fastream& _out(T&& t, I<4>) {
+        return (*this) << (typename god::add_const_lvalue_reference<T>::type)t;
     }
 };
