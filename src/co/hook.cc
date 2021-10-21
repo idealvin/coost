@@ -90,8 +90,8 @@ class Hook {
 } // co
 
 inline co::Hook& gHook() {
-    static co::Hook hook;
-    return hook;
+    static co::Hook* hook = new co::Hook();
+    return *hook;
 }
 
 inline struct hostent* gHostEnt() {
