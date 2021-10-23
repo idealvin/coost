@@ -73,7 +73,7 @@ inline constexpr bool is_array() {
 template <typename T>
 inline constexpr bool is_pointer() {
     return std::is_pointer<T>::value || std::is_member_pointer<T>::value || 
-           std::is_null_pointer<T>::value;
+           std::is_same<T, decltype(nullptr)>::value;
 }
 
 template <typename T>
