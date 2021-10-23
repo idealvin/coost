@@ -298,6 +298,11 @@ class __codec stream {
         return *this;
     }
 
+    stream& operator<<(std::nullptr_t) {
+        this->ensure(4);
+        return this->append("0x0", 3);
+    }
+
     stream& operator<<(float v) {
         this->ensure(24);
         _size += fast::dtoa(v, _p + _size);
