@@ -628,9 +628,9 @@ int parse_http_req(fastring* buf, http_req_t* req) {
         s.clear();
         s.append(m.data() + q, x - q).toupper();
         if (s.size() != 8) return 505;
-        if (god::byte_eq<uint64>(s.data(), "HTTP/1.1")) {
+        if (god::bytes_eq<uint64>(s.data(), "HTTP/1.1")) {
             req->version = kHTTP11;
-        } else if (god::byte_eq<uint64>(s.data(), "HTTP/1.0")) {
+        } else if (god::bytes_eq<uint64>(s.data(), "HTTP/1.0")) {
             req->version = kHTTP10;
         } else {
             return 505; // HTTP Version Not Supported

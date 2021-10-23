@@ -38,32 +38,69 @@ inline T b8(T n) {
     return (n >> 3) + !!(n & 7);
 }
 
+/**
+ * whether the first sizeof(T) bytes are equal
+ */
 template <typename T>
-inline bool byte_eq(const void* p, const void* q) {
+inline bool bytes_eq(const void* p, const void* q) {
     return *(const T*)p == *(const T*)q;
 }
 
+namespace xx {
 template <typename ...T>
 struct is_same {
     static constexpr bool value = false;
 };
 
-/**
- * check whether T is same as U or one of X...
- */
 template <typename T, typename U, typename ...X>
 struct is_same<T, U, X...> {
     static constexpr bool value = std::is_same<T, U>::value || is_same<T, X...>::value;
 };
+} // xx
+
+// check whether T is same as U or one of X...
+template <typename T, typename U, typename ...X>
+inline constexpr bool is_same() {
+    return xx::is_same<T, U, X...>::value;
+};
+
+template <typename T>
+inline constexpr bool is_array() {
+    return std::is_array<T>::value;
+}
+
+// check whether T is pointer, member pointer or std::nullptr_t
+template <typename T>
+inline constexpr bool is_pointer() {
+    return std::is_pointer<T>::value || std::is_member_pointer<T>::value || 
+           std::is_null_pointer<T>::value;
+}
+
+template <typename T>
+inline constexpr bool is_class() {
+    return std::is_class<T>::value;
+}
+
+// remove lvalue or rvalue reference
+template <typename T>
+using remove_ref_t = typename std::remove_reference<T>::type;
+
+// remove the first array dimension
+template <typename T>
+using remove_arr_t = typename std::remove_extent<T>::type;
+
+// remove const or volatile
+template <typename T>
+using remove_cv_t = typename std::remove_cv<T>::type;
+
+template <typename T>
+using add_const_t = typename std::add_const<T>::type;
 
 /**
- * add const and lvalue reference
+ * const lvalue reference
  *   - T, T&, T&&, const T, const T&  =>  const T&
  */
 template <typename T>
-struct add_const_lvalue_reference {
-    using _ = typename std::remove_reference<T>::type;
-    using type = typename std::add_lvalue_reference<typename std::add_const<_>::type>::type;
-};
+using const_ref_t = typename std::add_lvalue_reference<add_const_t<remove_ref_t<T>>>::type;
 
 } // god

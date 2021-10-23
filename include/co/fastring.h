@@ -137,39 +137,20 @@ class __codec fastring : public fast::stream {
         return this->operator<<((const char*)s);
     }
 
-#if 0
-    fastring& operator<<(const char* s) {
-        return this->append(s);
-    }
-
-    fastring& operator<<(const std::string& s) {
-        return this->append(s);
-    }
-
-    fastring& operator<<(const fastring& s) {
-        return (fastring&) this->append(s);
-    }
-
-    template<typename T>
-    fastring& operator<<(T v) {
-        return (fastring&) fast::stream::operator<<(v);
-    }
-#endif
-
     // Special optimization for string literal like "hello". The length of a string 
     // literal can be get at compile-time, no need to call strlen().
     template<typename T>
     fastring& operator<<(T&& t) {
-        using A = typename std::remove_reference<decltype(t)>::type; // remove & or &&
-        using B = typename std::remove_extent<A>::type;              // remove []
-        using C = typename std::remove_cv<A>::type;                  // remove const, volatile
+        using A = god::remove_ref_t<decltype(t)>; // remove & or &&
+        using B = god::remove_arr_t<A>;           // remove []
+        using C = god::remove_cv_t<A>;            // remove const, volatile
 
-        constexpr const int N =
-            std::is_array<A>::value && god::is_same<B, const char>::value
-            ? 1 : std::is_pointer<A>::value && god::is_same<C, const char*, char*>::value
-            ? 2 : god::is_same<C, fastring, std::string>::value
-            ? 3 : std::is_class<A>::value
-            ? 4 : 0;
+        constexpr int N =
+            god::is_array<A>() && god::is_same<B, const char>() ? 1 :
+            god::is_pointer<A>() && god::is_same<C, const char*, char*>() ? 2 :
+            god::is_same<C, fastring, std::string>() ? 3 :
+            god::is_class<A>() ? 4 :
+            0;
 
         return this->_out(std::forward<T>(t), I<N>());
     }
@@ -375,13 +356,13 @@ class __codec fastring : public fast::stream {
     // fastring, std::string
     template<typename T>
     fastring& _out(T&& t, I<3>) {
-        return this->append((typename god::add_const_lvalue_reference<T>::type)t);
+        return this->append((god::const_ref_t<T>)t);
     }
 
     // other classes, call global `fastring& operator<<(fastring&, const X&)`
     template<typename T>
     fastring& _out(T&& t, I<4>) {
-        return (*this) << (typename god::add_const_lvalue_reference<T>::type)t;
+        return (*this) << (god::const_ref_t<T>)t;
     }
 
     bool _Inside(const char* p) const {
