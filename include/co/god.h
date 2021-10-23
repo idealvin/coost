@@ -46,6 +46,28 @@ inline bool bytes_eq(const void* p, const void* q) {
     return *(const T*)p == *(const T*)q;
 }
 
+// remove lvalue or rvalue reference
+template <typename T>
+using remove_ref_t = typename std::remove_reference<T>::type;
+
+// remove the first array dimension
+template <typename T>
+using remove_arr_t = typename std::remove_extent<T>::type;
+
+// remove const or volatile
+template <typename T>
+using remove_cv_t = typename std::remove_cv<T>::type;
+
+template <typename T>
+using add_const_t = typename std::add_const<T>::type;
+
+/**
+ * const lvalue reference
+ *   - T, T&, T&&, const T, const T&  =>  const T&
+ */
+template <typename T>
+using const_ref_t = typename std::add_lvalue_reference<add_const_t<remove_ref_t<T>>>::type;
+
 namespace xx {
 template <typename ...T>
 struct is_same {
@@ -73,34 +95,12 @@ inline constexpr bool is_array() {
 template <typename T>
 inline constexpr bool is_pointer() {
     return std::is_pointer<T>::value || std::is_member_pointer<T>::value || 
-           std::is_same<T, decltype(nullptr)>::value;
+           std::is_same<typename std::remove_cv<T>::type, decltype(nullptr)>::value;
 }
 
 template <typename T>
 inline constexpr bool is_class() {
     return std::is_class<T>::value;
 }
-
-// remove lvalue or rvalue reference
-template <typename T>
-using remove_ref_t = typename std::remove_reference<T>::type;
-
-// remove the first array dimension
-template <typename T>
-using remove_arr_t = typename std::remove_extent<T>::type;
-
-// remove const or volatile
-template <typename T>
-using remove_cv_t = typename std::remove_cv<T>::type;
-
-template <typename T>
-using add_const_t = typename std::add_const<T>::type;
-
-/**
- * const lvalue reference
- *   - T, T&, T&&, const T, const T&  =>  const T&
- */
-template <typename T>
-using const_ref_t = typename std::add_lvalue_reference<add_const_t<remove_ref_t<T>>>::type;
 
 } // god

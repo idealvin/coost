@@ -67,6 +67,8 @@ DEF_test(god) {
         EXPECT_EQ((god::is_pointer<void*>()), true);
         EXPECT_EQ((god::is_pointer<void**>()), true);
         EXPECT_EQ((god::is_pointer<std::nullptr_t>()), true);
+        EXPECT_EQ((god::is_pointer<const std::nullptr_t>()), true);
+        EXPECT_EQ((god::is_pointer<const volatile std::nullptr_t>()), true);
         EXPECT_EQ((god::is_pointer<std::string*>()), true);
     }
 
