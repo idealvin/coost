@@ -106,6 +106,14 @@ class LevelLogger {
     int on_exception(PEXCEPTION_POINTERS p); // for windows only
   #endif
 
+    void set_write_cb(const std::function<void(const void*, size_t)>& cb);
+
+    void set_single_write_cb(const std::function<void(const void*, size_t)>& cb);
+
+    const std::function<void(const void*, size_t)>& single_write_cb() const {
+        return _single_write_cb;
+    }
+
   private:
     bool open_log_file(int level=0);
     void write(fastream* fs);
@@ -121,6 +129,8 @@ class LevelLogger {
     fastring _path; // path of log file
     fastring _stmp;
     std::deque<fastring> _old_paths;
+    std::function<void(const void*, size_t)> _write_cb;
+    std::function<void(const void*, size_t)> _single_write_cb;
 
     LogTime _log_time;
     char _t[24];
@@ -215,6 +225,29 @@ void LevelLogger::init() {
     _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
 }
 
+void LevelLogger::set_write_cb(const std::function<void(const void*, size_t)>& cb) {
+    _write_cb = cb;
+}
+
+void LevelLogger::set_single_write_cb(const std::function<void(const void*, size_t)>& cb) {
+    _single_write_cb = cb;
+    _write_cb = [this](const void* p, size_t n) {
+        const char* b = (const char*)p;
+        const char* e = b + n;
+        const char* s;
+        while (b < e) {
+            s = (const char*) memchr(b, '\n', e - b);
+            if (s) {
+                this->single_write_cb()(b, s - b + 1);
+                b = s + 1;
+            } else {
+                this->single_write_cb()(b, e - b);
+                break;
+            }
+        }
+    };
+}
+
 void signal_safe_sleep(int ms) {
   #ifdef _WIN32
     co::hook::disable_hook_sleep();
@@ -289,13 +322,18 @@ void LevelLogger::thread_fun() {
 }
 
 void LevelLogger::write(fastream* fs) {
-    fs::file& f = _file;
-    if (f || this->open_log_file()) {
-        f.write(fs->data(), fs->size());
+    if (!_write_cb) {
+        fs::file& f = _file;
+        if (f || this->open_log_file()) {
+            f.write(fs->data(), fs->size());
+        }
+        if (_file && (!_file.exists() || _file.size() >= FLG_max_log_file_size)) {
+            _file.close();
+        }
+    } else {
+        _write_cb(fs->data(), fs->size());
     }
-    if (_file && (!_file.exists() || _file.size() >= FLG_max_log_file_size)) {
-        _file.close();
-    }
+
     if (FLG_cout) fwrite(fs->data(), 1, fs->size(), stderr);
 }
 
@@ -663,6 +701,14 @@ void exit() {
 
 void close() {
     log::exit();
+}
+
+void set_write_cb(const std::function<void(const void*, size_t)>& cb) {
+    xx::level_logger()->set_write_cb(cb);
+}
+
+void set_single_write_cb(const std::function<void(const void*, size_t)>& cb) {
+    xx::level_logger()->set_single_write_cb(cb);
 }
 
 } // namespace log

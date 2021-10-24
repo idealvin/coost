@@ -3,6 +3,7 @@
 #include "flag.h"
 #include "fastream.h"
 #include "atomic.h"
+#include <functional>
 
 __codec DEC_bool(cout);
 __codec DEC_int32(min_log_level);
@@ -26,6 +27,22 @@ __codec void exit();
 
 // deprecated since v2.0.2, use log::exit() instead.
 __codec void close();
+
+/**
+ * set a callback for writing logs
+ *   - By default, logs will be written into a file. Users can set a callback to 
+ *     write logs to different destinations.
+ *   - The callback has 2 parameters, a pointer to the log buffer and its length. 
+ *     The buffer may contain more than one logs.
+ */
+__codec void set_write_cb(const std::function<void(const void*, size_t)>& cb);
+
+/**
+ * set a callback for writing a single log
+ *   - Similar to set_write_cb, but the callback writes a single log each time. 
+ *     It may be useful when users want to send logs by UDP.
+ */
+__codec void set_single_write_cb(const std::function<void(const void*, size_t)>& cb);
 
 namespace xx {
 
