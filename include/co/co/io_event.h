@@ -39,7 +39,6 @@ class __codec IoEvent {
     
     static const int nb_tcp_recv = 1; // recv on non-blocking tcp socket
     static const int nb_tcp_send = 2; // send on non-blocking tcp socket
-    static const int nb_tcp_conn = 4; // connect on non-blocking tcp socket
 
     /**
      * the constructor with IO event on a non-blocking TCP socket 
@@ -116,6 +115,7 @@ class __codec IoEvent {
     PerIoInfo* _info;
     char* _to;
     int _nb_tcp; // for non-blocking tcp socket
+    bool _timeout;
     DISALLOW_COPY_AND_ASSIGN(IoEvent);
 };
 

@@ -7,7 +7,7 @@ extern bool can_skip_iocp_on_success;
 
 #ifdef _WIN32
 IoEvent::IoEvent(sock_t fd, io_event_t ev)
-    : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send) {
+    : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev); // add socket to IOCP
     _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo));
@@ -16,7 +16,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev)
 }
 
 IoEvent::IoEvent(sock_t fd, int n)
-    : _fd(fd), _to(0), _nb_tcp(0) {
+    : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev_read); // add socket to IOCP
     _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo) + n);
@@ -25,7 +25,7 @@ IoEvent::IoEvent(sock_t fd, int n)
 }
 
 IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
-    : _fd(fd), _to(0), _nb_tcp(0) {
+    : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev);
     if (!s->on_stack(buf)) {
@@ -48,12 +48,10 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
 }
 
 IoEvent::~IoEvent() {
-    if (!gSched->timeout()) {
+    if (!_timeout) {
         if (_to && _info->n > 0) memcpy(_to, _info->buf.buf, _info->n);
         free(_info);
-    } else if (_nb_tcp == nb_tcp_conn) {
-        free(_info);
-    }
+    } 
     gSched->running()->waitx = 0;
 }
 
@@ -82,7 +80,8 @@ bool IoEvent::wait(uint32 ms) {
     if (ms != (uint32)-1) {
         s->add_timer(ms);
         s->yield();
-        if (!s->timeout()) {
+        _timeout = s->timeout();
+        if (!_timeout) {
             return true;
         } else {
             CancelIo((HANDLE)_fd);
@@ -97,7 +96,6 @@ bool IoEvent::wait(uint32 ms) {
   wait_for_connect:
     {
         // as no IO operation was posted to IOCP, remove ioinfo from coroutine.
-        _nb_tcp = nb_tcp_conn;
         gSched->running()->waitx = 0;
 
         // check whether the socket is connected or not every 16 ms.
