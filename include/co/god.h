@@ -50,13 +50,17 @@ inline bool bytes_eq(const void* p, const void* q) {
 template <typename T>
 using remove_ref_t = typename std::remove_reference<T>::type;
 
-// remove the first array dimension
-template <typename T>
-using remove_arr_t = typename std::remove_extent<T>::type;
-
 // remove const or volatile
 template <typename T>
 using remove_cv_t = typename std::remove_cv<T>::type;
+
+// remove reference and const/volatile
+template <typename T>
+using remove_cvref_t = remove_cv_t<remove_ref_t<T>>;
+
+// remove the first array dimension
+template <typename T>
+using remove_arr_t = typename std::remove_extent<T>::type;
 
 template <typename T>
 using add_const_t = typename std::add_const<T>::type;
@@ -86,11 +90,6 @@ inline constexpr bool is_same() {
     return xx::is_same<T, U, X...>::value;
 };
 
-template <typename T>
-inline constexpr bool is_array() {
-    return std::is_array<T>::value;
-}
-
 // check whether T is pointer, member pointer or std::nullptr_t
 template <typename T>
 inline constexpr bool is_pointer() {
@@ -99,8 +98,26 @@ inline constexpr bool is_pointer() {
 }
 
 template <typename T>
+inline constexpr bool is_ref() {
+    return std::is_reference<T>::value;
+}
+
+template <typename T>
+inline constexpr bool is_array() {
+    return std::is_array<T>::value;
+}
+
+template <typename T>
 inline constexpr bool is_class() {
     return std::is_class<T>::value;
 }
+
+template <typename T>
+inline constexpr bool is_scalar() {
+    return std::is_scalar<T>::value;
+}
+
+template <bool C, typename T=void>
+using enable_if_t = typename std::enable_if<C, T>::type;
 
 } // god
