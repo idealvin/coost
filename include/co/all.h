@@ -6,12 +6,12 @@
 #include "closure.h"
 #include "defer.h"
 #include "god.h"
+#include "maybe.h"
 
 #include "fast.h"
 #include "fastring.h"
 #include "fastream.h"
 #include "str.h"
-
 #include "cout.h"
 #include "flag.h"
 #include "log.h"
@@ -20,7 +20,6 @@
 #include "so.h"
 #include "fs.h"
 #include "os.h"
-
 #include "hash.h"
 #include "path.h"
 #include "lru_map.h"
