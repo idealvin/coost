@@ -35,6 +35,7 @@ DEF_uint32(max_log_buffer_size, 32 << 20, "#0 max size of log buffer, default: 3
 DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
 DEF_bool(syslog, false, "#0 add syslog header to each log if true");
+DEF_bool(also_log_to_local, false, "#0 if true, also log to local file when write-cb is set");
 
 namespace ___ {
 namespace log {
@@ -322,7 +323,7 @@ void LevelLogger::thread_fun() {
 }
 
 void LevelLogger::write(fastream* fs) {
-    if (!_write_cb) {
+    if (!_write_cb || FLG_also_log_to_local) {
         fs::file& f = _file;
         if (f || this->open_log_file()) {
             f.write(fs->data(), fs->size());
@@ -330,10 +331,9 @@ void LevelLogger::write(fastream* fs) {
         if (_file && (!_file.exists() || _file.size() >= FLG_max_log_file_size)) {
             _file.close();
         }
-    } else {
-        _write_cb(fs->data(), fs->size());
     }
 
+    if (_write_cb) _write_cb(fs->data(), fs->size());
     if (FLG_cout) fwrite(fs->data(), 1, fs->size(), stderr);
 }
 
