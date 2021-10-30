@@ -2,29 +2,27 @@
 
 #include "god.h"
 #include "log.h"
-#include "fastring.h"
 
 namespace co {
 namespace xx {
 
 struct E {
-    E() = default;
+    E() : _s("") {}
+    explicit E(const char* s) : _s(s) {}
+
     E(const E&) = default;
     ~E() = default;
 
-    E(E&& e) : _s(std::move(e._s)) {}
-    explicit E(const char* e) : _s(e) {}
-
-    fastring& error() const { return (fastring&)_s; }
+    const char* error() const { return _s; }
 
   private:
-    fastring _s;
+    const char* _s;
 };
 
 } // xx
 
-inline xx::E error(const char* e) {
-    return xx::E(e);
+inline xx::E error(const char* s) {
+    return xx::E(s);
 }
 
 template <typename T, typename X=void>
@@ -40,8 +38,7 @@ class maybe<T, god::enable_if_t<god::is_same<T, void>()>> final {
         : _e(), _has_error(false) {
     }
 
-    maybe(int) : maybe() {
-    }
+    maybe(int) : maybe() {}
 
     maybe(E&& e)
         : _e(std::move(e)), _has_error(true) {
@@ -60,14 +57,14 @@ class maybe<T, god::enable_if_t<god::is_same<T, void>()>> final {
         return _has_error;
     }
 
-    fastring& error() const {
+    const char* error() const {
         return _e.error();
     }
 
     void value() const {}
 
     void must_value() const {
-        CHECK(!this->has_error());
+        CHECK(!this->has_error()) << "error: " << _e.error();
     }
 
   private:
@@ -82,19 +79,20 @@ class maybe<T, god::enable_if_t<god::is_scalar<T>()>> final {
     using E = xx::E;
 
     maybe()
-        : _e(), _t(T()), _has_error(false) {
+        : _t(T()), _has_error(false) {
     }
 
     maybe(T t)
-        : _e(), _t(t), _has_error(false) {
+        : _t(t), _has_error(false) {
     }
 
     maybe(E&& e)
-        : _e(std::move(e)), _t(T()), _has_error(true) {
+        : _e(std::move(e)), _has_error(true) {
     }
 
     maybe(maybe&& m)
-        : _e(std::move(m._e)), _t(m._t), _has_error(m._has_error) {
+        : _has_error(m._has_error) {
+        !_has_error ? (void)(_t = m._t) : (void)(_e = m._e);
     }
 
     maybe(const maybe&) = delete;
@@ -106,22 +104,24 @@ class maybe<T, god::enable_if_t<god::is_scalar<T>()>> final {
         return _has_error;
     }
 
-    fastring& error() const {
-        return _e.error();
+    const char* error() const {
+        return this->has_error() ? _e.error() : "";
     }
 
     T value() const {
-        return _t;
+        return !this->has_error() ? _t : T();
     }
 
     T must_value() const {
-        CHECK(!this->has_error());
-        return this->value();
+        CHECK(!this->has_error()) << "error: " << _e.error();
+        return _t;
     }
 
   private:
-    E _e;
-    T _t;
+    union {
+        E _e;
+        T _t;
+    };
     bool _has_error;
 };
 
@@ -132,15 +132,16 @@ class maybe<T, god::enable_if_t<god::is_ref<T>()>> final {
     using E = xx::E;
 
     maybe(T t)
-        : _e(), _t(&t), _has_error(false) {
+        : _t(&t), _has_error(false) {
     }
 
     maybe(E&& e)
-        : _e(std::move(e)), _t(0), _has_error(true) {
+        : _e(std::move(e)), _has_error(true) {
     }
 
     maybe(maybe&& m)
-        : _e(std::move(m._e)), _t(m._t), _has_error(m._has_error) {
+        : _has_error(m._has_error) {
+        !_has_error ? (void)(_t = m._t) : (void)(_e = m._e);
     }
 
     maybe(const maybe&) = delete;
@@ -152,22 +153,26 @@ class maybe<T, god::enable_if_t<god::is_ref<T>()>> final {
         return _has_error;
     }
 
-    fastring& error() const {
-        return _e.error();
+    const char* error() const {
+        return this->has_error() ? _e.error() : "";
     }
 
+    // for reference, we always check if there is an error.
     T value() const {
+        CHECK(!this->has_error()) << "error: " << _e.error();
         return (T)*_t;
     }
 
     T must_value() const {
-        CHECK(!this->has_error());
-        return this->value();
+        CHECK(!this->has_error()) << "error: " << _e.error();
+        return (T)*_t;
     }
 
   private:
-    E _e;
-    god::remove_ref_t<T>* _t;
+    union {
+        E _e;
+        god::remove_ref_t<T>* _t;
+    };
     bool _has_error;
 };
 
@@ -178,7 +183,7 @@ class maybe<T, god::enable_if_t<god::is_class<T>()>> final {
     using E = xx::E;
 
     maybe(T&& t)
-        : _e(), _t(std::move(t)), _has_error(false) {
+        : _t(std::move(t)), _has_error(false) {
     }
 
     maybe(E&& e)
@@ -186,8 +191,8 @@ class maybe<T, god::enable_if_t<god::is_class<T>()>> final {
     }
 
     maybe(maybe&& m)
-        : _e(std::move(m._e)), _has_error(m._has_error) {
-        if (!_has_error) new (&_t) T(std::move(m._t));
+        : _has_error(m._has_error) {
+        !_has_error ? (void)(new (&_t) T(std::move(m._t))) : (void)(_e = m._e);
     }
 
     maybe(const maybe&) = delete;
@@ -201,24 +206,25 @@ class maybe<T, god::enable_if_t<god::is_class<T>()>> final {
         return _has_error;
     }
 
-    fastring& error() const {
-        return _e.error();
+    const char* error() const {
+        return this->has_error() ? _e.error() : "";
     }
 
+    // for class type, we always check if there is an error.
     T& value() const {
+        CHECK(!this->has_error()) << "error: " << _e.error();
         return (T&)_t;
     }
 
     T& must_value() const {
-        CHECK(!this->has_error());
-        return this->value();
+        CHECK(!this->has_error()) << "error: " << _e.error();
+        return (T&)_t;
     }
 
   private:
-    E _e;
     union {
+        E _e;
         T _t;
-        char _dummy[sizeof(T)];
     };
     bool _has_error;
 };
