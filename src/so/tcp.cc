@@ -186,7 +186,7 @@ class ServerImpl {
 
   private:
     fastring _ip;
-    fastring _port;
+    uint16 _port;
     sock_t _fd;
     sock_t _connfd;
     std::function<void(Connection)> _conn_cb;
@@ -203,7 +203,7 @@ class ServerImpl {
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
     CHECK(_conn_cb != NULL) << "connection callback not set..";
     _ip = (ip && *ip) ? ip : "0.0.0.0";
-    _port = str::from(port);
+    _port = (uint16)port;
 
     if (key && *key && ca && *ca) {
         _ssl_ctx = ssl::new_server_ctx();
@@ -232,18 +232,12 @@ void ServerImpl::stop() {
     if (status == 2) return; // already stopped
 
     if (status == 0) {
-        fastring ip = (_ip == "0.0.0.0" || _ip == "::") ? "127.0.0.1" : _ip.c_str();
-        struct addrinfo* info = 0;
-        int r = getaddrinfo(ip.c_str(), _port.c_str(), NULL, &info);
-        CHECK_EQ(r, 0) << "invalid addr: " << ip << ':' << _port;
-        CHECK_NOTNULL(info);
-
-        sock_t fd = ::socket(info->ai_family, info->ai_socktype, 0);
-        CHECK(fd != (sock_t)-1) << "create socket failed..";
-
-        r = ::connect(fd, info->ai_addr, (int)info->ai_addrlen);
-        co::close(fd);
-        if (info) freeaddrinfo(info);
+        const char* ip = (_ip == "0.0.0.0" || _ip == "::") ? "127.0.0.1" : _ip.c_str();
+        uint16 port = _port;
+        go([ip, port]() {
+            tcp::Client c(ip, port);
+            c.connect(-1);
+        });
     }
 
     while (_status != 2) sleep::ms(8);
@@ -257,8 +251,9 @@ void ServerImpl::stop() {
  */
 void ServerImpl::loop() {
     do {
+        fastring port = str::from(_port);
         struct addrinfo* info = 0;
-        int r = getaddrinfo(_ip.c_str(), _port.c_str(), NULL, &info);
+        int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
         CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
         CHECK(info != NULL);
 
