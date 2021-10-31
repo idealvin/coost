@@ -120,6 +120,7 @@ class Copool {
 
     void push(Coroutine* co) {
         _ids.push_back(co->id);
+        if (_ids.size() >= 1024) co->stack.swap(fastream());
     }
 
     Coroutine* operator[](size_t i) {
