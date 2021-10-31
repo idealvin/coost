@@ -351,6 +351,14 @@ class __codec Server {
      */
     void start(const char* ip, int port, const char* key, const char* ca);
 
+    /**
+     * exit the server gracefully
+     *   - Once `exit()` was called, the listening socket will be closed, and new 
+     *     connections will not be accepted.
+     *   - NOTE: The server will not close previously established connections.
+     */
+    void exit();
+
   private:
     void* _p;
 

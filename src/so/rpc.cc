@@ -103,6 +103,10 @@ class ServerImpl {
         _tcp_serv.start(ip, port, key, ca);
     }
 
+    void exit() {
+        _tcp_serv.exit();
+    }
+
     bool auth(tcp::Connection* conn);
 
     void process(const Json& req, Json& res);
@@ -139,6 +143,10 @@ void Server::add_userpass(const char* s) {
 
 void Server::start(const char* ip, int port, const char* key, const char* ca) {
     ((ServerImpl*)_p)->start(ip, port, key, ca);
+}
+
+void Server::exit() {
+    ((ServerImpl*)_p)->exit();
 }
 
 void ServerImpl::process(const Json& req, Json& res) {

@@ -675,6 +675,10 @@ class ServerImpl {
 
     void on_connection(tcp::Connection conn);
 
+    void exit() {
+        _serv.exit();
+    }
+
   private:
     co::Pool _buffer; // buffer for recieving http data
     uint32 _conn_num;
@@ -700,6 +704,10 @@ void Server::start(const char* ip, int port) {
 
 void Server::start(const char* ip, int port, const char* key, const char* ca) {
     ((ServerImpl*)_p)->start(ip, port, key, ca);
+}
+
+void Server::exit() {
+    ((ServerImpl*)_p)->exit();
 }
 
 ServerImpl::ServerImpl()
