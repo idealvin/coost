@@ -145,7 +145,7 @@ inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
     return fs;
 }
 
-inline void cat(fastring& s) {}
+inline void cat(fastring&) {}
 
 template<typename X, typename ...V>
 inline void cat(fastring& s, X&& x, V&& ... v) {
