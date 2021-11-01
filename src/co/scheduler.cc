@@ -35,7 +35,6 @@ void SchedulerImpl::stop() {
 void SchedulerImpl::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
     gSched->running()->cb->run(); // run the coroutine function
-    gSched->recycle();            // recycle the current coroutine
     tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 
@@ -86,11 +85,14 @@ void SchedulerImpl::resume(Coroutine* co) {
         from = tb_context_jump(co->ctx, _main_co); // jump back to where the user called yiled()
     }
 
-    // yiled() was called in coroutine, the scheduler will jump back to resume()
     if (from.priv) {
+        // yiled() was called in the coroutine, update context for it
         assert(_running == from.priv);
-        _running->ctx = from.ctx;   // update context for the coroutine
+        _running->ctx = from.ctx;
         CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id;
+    } else {
+        // the coroutine has terminated, recycle it
+        this->recycle();
     }
 }
 

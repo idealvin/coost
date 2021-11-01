@@ -120,6 +120,7 @@ class Copool {
 
     void push(Coroutine* co) {
         _ids.push_back(co->id);
+        if (_ids.size() >= 1024) co->stack.reset();
     }
 
     Coroutine* operator[](size_t i) {
@@ -300,7 +301,10 @@ class SchedulerImpl : public co::Scheduler {
     static void main_func(tb_context_from_t from);
 
     // push a coroutine back to the pool, so it can be reused later.
-    void recycle() { _co_pool.push(_running); }
+    void recycle() {
+        _stack[_running->sid].co = 0;
+        _co_pool.push(_running);
+    }
 
     // start the scheduler thread
     void start() { Thread(&SchedulerImpl::loop, this).detach(); }
@@ -313,8 +317,10 @@ class SchedulerImpl : public co::Scheduler {
 
     // save stack for the coroutine
     void save_stack(Coroutine* co) {
-        co->stack.clear();
-        co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
+        if (co) {
+            co->stack.clear();
+            co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
+        }
     }
 
     // pop a Coroutine from the pool
