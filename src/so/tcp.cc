@@ -167,7 +167,7 @@ class ServerImpl {
   public:
     ServerImpl() : _fd((sock_t)-1), _connfd((sock_t)-1), _ssl_ctx(0), _status(0) {}
     ~ServerImpl() {
-        if (_fd != (sock_t)-1) this->stop();
+        if (_fd != (sock_t)-1) this->exit();
         if (_ssl_ctx) { ssl::free_ctx(_ssl_ctx); _ssl_ctx = 0; }
     }
 
@@ -177,10 +177,11 @@ class ServerImpl {
 
     void start(const char* ip, int port, const char* key, const char* ca);
 
-    void stop();
+    void exit();
 
   private:
     void loop();
+    void stop();
     void on_tcp_connection(sock_t sock);
     void on_ssl_connection(sock_t sock);
 
@@ -227,20 +228,22 @@ void ServerImpl::start(const char* ip, int port, const char* key, const char* ca
     }
 }
 
-void ServerImpl::stop() {
+void ServerImpl::exit() {
     int status = atomic_compare_swap(&_status, 0, 1);
     if (status == 2) return; // already stopped
 
     if (status == 0) {
-        const char* ip = (_ip == "0.0.0.0" || _ip == "::") ? "127.0.0.1" : _ip.c_str();
-        uint16 port = _port;
-        go([ip, port]() {
-            tcp::Client c(ip, port);
-            c.connect(-1);
-        });
+        sleep::ms(1);
+        if (status != 2) go(&ServerImpl::stop, this);
     }
 
-    while (_status != 2) sleep::ms(8);
+    while (_status != 2) sleep::ms(1);
+}
+
+void ServerImpl::stop() {
+    const char* ip = (_ip == "0.0.0.0" || _ip == "::") ? "127.0.0.1" : _ip.c_str();
+    tcp::Client c(ip, _port);
+    c.connect(-1);
 }
 
 /**
@@ -351,7 +354,7 @@ void Server::start(const char* ip, int port, const char* key, const char* ca) {
 }
 
 void Server::exit() {
-    ((ServerImpl*)_p)->stop();
+    ((ServerImpl*)_p)->exit();
 }
 
 Client::Client(const char* ip, int port, bool use_ssl)
