@@ -166,6 +166,11 @@ class __codec stream {
         }
     }
 
+    void reset() {
+        if (_p) { free(_p); _p = 0; }
+        _cap = _size = 0;
+    }
+
     void ensure(size_t n) {
         if (_cap < _size + n) {
             _cap += ((_cap >> 1) + n);
