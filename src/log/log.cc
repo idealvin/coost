@@ -36,6 +36,7 @@ DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
 DEF_bool(syslog, false, "#0 add syslog header to each log if true");
 DEF_bool(also_log_to_local, false, "#0 if true, also log to local file when write-cb is set");
+DEF_bool(log_by_day, false, "#0 if true, it enalbes daily log rotation");
 
 namespace ___ {
 namespace log {
@@ -119,6 +120,7 @@ class LevelLogger {
     bool open_log_file(int level=0);
     void write(fastream* fs);
     void thread_fun();
+    int today();
 
   private:
     Mutex _log_mutex;
@@ -140,6 +142,7 @@ class LevelLogger {
     std::unique_ptr<co::StackTrace> _stack_trace;
     std::map<int, os::sig_handler_t> _old_handlers;
     void* _ex_handler; // exception handler for windows
+    int _today;
 };
 
 LevelLogger::LevelLogger()
@@ -188,6 +191,12 @@ LevelLogger::~LevelLogger() {
   #endif
 }
 
+int LevelLogger::today() {
+  std::time_t t = std::time(0);
+  std::tm* now = std::localtime(&t);
+  return (now->tm_year + 1900) * 10000 + (now->tm_mon + 1) * 100 + now->tm_mday;
+}
+
 void LevelLogger::init() {
     fastring s = FLG_log_file_name;
     s.remove_tail(".log");
@@ -224,6 +233,9 @@ void LevelLogger::init() {
 
     // start the logging thread
     _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
+
+    // daily log rotation init
+    if (FLG_log_by_day) _today = today();
 }
 
 void LevelLogger::set_write_cb(const std::function<void(const void*, size_t)>& cb) {
@@ -330,6 +342,12 @@ void LevelLogger::write(fastream* fs) {
         }
         if (_file && (!_file.exists() || _file.size() >= FLG_max_log_file_size)) {
             _file.close();
+        } else if(_today) {
+          int today = this->today();
+          if(_today != today) {
+            _today = today;
+            _file.close();
+          }
         }
     }
 
@@ -395,7 +413,10 @@ bool LevelLogger::open_log_file(int level) {
     _stmp.clear();
 
     if (level < xx::fatal) {
-        _path.append(path_base).append(".log");
+        if (_today)
+            _path.append(path_base).append('-').append(std::to_string(_today)).append(".log");
+        else
+            _path.append(path_base).append(".log");
         if (fs::fsize(_path) >= FLG_max_log_file_size) {
             char t[24] = { 0 }; // 0723 17:00:00.123
             memcpy(t, _log_time.get(), _log_time.size());
