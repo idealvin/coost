@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "co/os.h"
+#include <stdio.h>
 #include <unistd.h>
 
 #ifdef __APPLE__
@@ -88,6 +89,12 @@ sig_handler_t signal(int sig, sig_handler_t handler, int flag) {
     sa.sa_handler = handler;
     int r = sigaction(sig, &sa, &old);
     return r == 0 ? old.sa_handler : SIG_ERR;
+}
+
+bool system(const char* cmd) {
+    FILE* f = popen(cmd, "w");
+    if (f == NULL) return false;
+    return pclose(f) != -1;
 }
 
 } // os
