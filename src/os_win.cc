@@ -110,6 +110,10 @@ sig_handler_t signal(int sig, sig_handler_t handler, int) {
     return ::signal(sig, handler);
 }
 
+bool system(const char* cmd) {
+    return ::system(cmd) != -1;
+}
+
 } // os
 
 #endif

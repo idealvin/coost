@@ -50,4 +50,11 @@ typedef void (*sig_handler_t)(int);
 // return the old handler.
 __codec sig_handler_t signal(int sig, sig_handler_t handler, int flag = 0);
 
+// execute a shell command
+__codec bool system(const char* cmd);
+
+inline bool system(const fastring& cmd) {
+    return os::system(cmd.c_str());
+}
+
 } // namespace os

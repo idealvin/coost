@@ -253,7 +253,7 @@ co/flag 为每个配置项提供一个默认值，在没有配置参数的情况
 ```cpp
 // xx.cc
 #include "co/flag.h"
-#include "co/log.h"
+#include "co/cout.h"
 
 DEF_bool(x, false, "bool x");
 DEF_bool(y, false, "bool y");

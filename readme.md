@@ -103,7 +103,7 @@ If users want to create coroutine in all scheduling threads, the following way c
 
 ```cpp
 auto& s = co::all_schedulers();
-for (size_t i = 0; i <s.size(); ++i) {
+for (size_t i = 0; i < s.size(); ++i) {
     s[i]->go(f);
 }
 ```
@@ -124,7 +124,7 @@ DEF_main(argc, argv) {
 
     int v = 0;
     ch >> v;
-    LOG << "v: "<< v;
+    LOG << "v: " << v;
 
     return 0;
 }
@@ -158,9 +158,9 @@ DEF_main(argc, argv) {
     co::WaitGroup wg;
     wg.add(8);
 
-    for (int i = 0; i <8; ++i) {
+    for (int i = 0; i < 8; ++i) {
         go([wg]() {
-            LOG << "co: "<< co::coroutine_id();
+            LOG << "co: " << co::coroutine_id();
             wg.done();
         });
     }
@@ -252,7 +252,7 @@ co/flag provides a default value for each config item. Without config parameters
 ```cpp
 // xx.cc
 #include "co/flag.h"
-#include "co/log.h"
+#include "co/cout.h"
 
 DEF_bool(x, false, "bool x");
 DEF_bool(y, false, "bool y");
@@ -293,11 +293,11 @@ The above is an example of using co/flag. The macro at the beginning of `DEF_` i
 co/log divides the log into five levels: debug, info, warning, error, and fatal. **Printing a fatal level log will terminate the program**. Users can print logs of different levels as follows:
 
 ```cpp
-DLOG << "hello "<< 23; // debug
-LOG << "hello "<< 23;  // info
-WLOG << "hello "<< 23; // warning
-ELOG << "hello "<< 23; // error
-FLOG << "hello "<< 23; // fatal
+DLOG << "hello " << 23; // debug
+LOG << "hello " << 23;  // info
+WLOG << "hello " << 23; // warning
+ELOG << "hello " << 23; // error
+FLOG << "hello " << 23; // fatal
 ```
 
 co/log also provides a series of `CHECK` macros, which can be regarded as an enhanced version of `assert`, and they will not be cleared in debug mode.
