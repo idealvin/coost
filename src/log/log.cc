@@ -194,9 +194,11 @@ LevelLogger::~LevelLogger() {
 }
 
 void LevelLogger::compress_rotated_log(const fastring& path) {
-    fastring cmd(path.size() + 8);
-    cmd.append("xz ").append(path);
-    os::system(cmd);
+    Thread([path]() {
+        fastring cmd(path.size() + 8);
+        cmd.append("xz ").append(path);
+        os::system(cmd);
+    }).detach();
 }
 
 void LevelLogger::init() {
@@ -408,7 +410,7 @@ inline void write_to_stderr(const char* s, size_t n) {
 }
 
 bool LevelLogger::open_log_file(int level) {
-    fastring path_base = _config->log_path_base;
+    const fastring& path_base = _config->log_path_base;
     if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
 
     _path.clear();
