@@ -8,7 +8,6 @@
 #include "../co/hook.h"
 #include "stack_trace.h"
 
-#include <cstdlib>
 #include <time.h>
 #include <string>
 #include <vector>
@@ -37,9 +36,8 @@ DEF_uint32(log_flush_ms, 128, "#0 flush the log buffer every n ms");
 DEF_bool(cout, false, "#0 also logging to terminal");
 DEF_bool(syslog, false, "#0 add syslog header to each log if true");
 DEF_bool(also_log_to_local, false, "#0 if true, also log to local file when write-cb is set");
-DEF_bool(log_by_day, false, "#0 if true, it enalbes daily log rotation");
-DEF_string(log_compress_cmd, "", "#0 if set, it calls system command to compress the last rotated log file. eg. `gzip <log_file>`");
-DEF_string(log_compress_ext, ".gz", "#0 if log_compress_cmd enabled, this must be set. eg. `.gz`");
+DEF_bool(log_daily, false, "#0 if true, enable daily log rotation");
+DEF_bool(log_compress, false, "#0 if true, compress rotated log files with xz");
 
 namespace ___ {
 namespace log {
@@ -123,7 +121,6 @@ class LevelLogger {
     bool open_log_file(int level=0);
     void write(fastream* fs);
     void thread_fun();
-    int today();
     void compress_rotated_log(const fastring& path);
 
   private:
@@ -141,12 +138,12 @@ class LevelLogger {
 
     LogTime _log_time;
     char _t[24];
+    uint32 _day;
     int _stop;
     bool _check_failed;
     std::unique_ptr<co::StackTrace> _stack_trace;
     std::map<int, os::sig_handler_t> _old_handlers;
     void* _ex_handler; // exception handler for windows
-    int _today;
 };
 
 LevelLogger::LevelLogger()
@@ -155,6 +152,7 @@ LevelLogger::LevelLogger()
     _config.reset(new Config);
     _log_time.update();
     memcpy(_t, _log_time.get(), 24);
+    _day = *(uint32*)_t;
 
     _stack_trace.reset(co::new_stack_trace());
     _old_handlers[SIGINT] = os::signal(SIGINT, xx::on_signal);
@@ -195,17 +193,10 @@ LevelLogger::~LevelLogger() {
   #endif
 }
 
-int LevelLogger::today() {
-  std::time_t t = std::time(0);
-  std::tm* now = std::localtime(&t);
-  return (now->tm_year + 1900) * 10000 + (now->tm_mon + 1) * 100 + now->tm_mday;
-}
-
 void LevelLogger::compress_rotated_log(const fastring& path) {
-  if (FLG_log_compress_cmd == "") return;
-  fastring cmd(FLG_log_compress_cmd);
-  cmd.replace("<log_file>", path.c_str());
-  std::system(cmd.c_str());
+    fastring cmd(path.size() + 8);
+    cmd.append("xz ").append(path);
+    os::system(cmd);
 }
 
 void LevelLogger::init() {
@@ -241,12 +232,9 @@ void LevelLogger::init() {
     nlog = FLG_max_log_size;
     if (nlog < 128) nlog = 128;
     if ((uint32)nlog >= (nbuf >> 1)) nlog = (int32)((nbuf >> 1) - 1);
-
+  
     // start the logging thread
     _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
-
-    // daily log rotation init
-    if (FLG_log_by_day) _today = today();
 }
 
 void LevelLogger::set_write_cb(const std::function<void(const void*, size_t)>& cb) {
@@ -351,16 +339,17 @@ void LevelLogger::write(fastream* fs) {
         if (f || this->open_log_file()) {
             f.write(fs->data(), fs->size());
         }
-        if (_file && (!_file.exists() || _file.size() >= FLG_max_log_file_size)) {
-            _file.close();
-        } else if(_today) {
-          int today = this->today();
-          if(_today != today) {
-            _today = today;
-            auto path = _file.path();
-            _file.close();
-            compress_rotated_log(path);
-          }
+
+        if (f) {
+            if (!f.exists() || f.size() >= FLG_max_log_file_size) {
+                f.close();
+            } else if (FLG_log_daily) {
+                uint32 day = *(uint32*)_t;
+                if (_day != day) {
+                    _day = day;
+                    f.close();
+                }
+            }
         }
     }
 
@@ -420,8 +409,6 @@ inline void write_to_stderr(const char* s, size_t n) {
 
 bool LevelLogger::open_log_file(int level) {
     fastring path_base = _config->log_path_base;
-    if (_today)
-        path_base.append('-').append(std::to_string(_today));
     if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
 
     _path.clear();
@@ -429,7 +416,13 @@ bool LevelLogger::open_log_file(int level) {
 
     if (level < xx::fatal) {
         _path.append(path_base).append(".log");
-        if (fs::fsize(_path) >= FLG_max_log_file_size) {
+        if (fs::exists(_path) && !_old_paths.empty()) {
+            auto& path = _old_paths.back();
+            fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
+            if (FLG_compress) this->compress_rotated_log(path);
+        }
+      
+        if (_file.open(_path.c_str(), 'a')) {
             char t[24] = { 0 }; // 0723 17:00:00.123
             memcpy(t, _log_time.get(), _log_time.size());
             for (int i = 0; i < _log_time.size(); ++i) {
@@ -437,14 +430,10 @@ bool LevelLogger::open_log_file(int level) {
             }
 
             _stmp.append(path_base).append('_').append(t).append(".log");
-            fs::rename(_path, _stmp); // rename xx.log to xx_0808_15_30_08.123.log
-            if (FLG_log_compress_cmd != "") {
-              compress_rotated_log(_stmp);
-              _stmp.append(FLG_log_compress_ext);
-            }
             _old_paths.push_back(_stmp);
 
-            while (!_old_paths.empty() && _old_paths.size() >= FLG_max_log_file_num) {
+            while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
+                if (FLG_compress) _old_paths.front().append(".xz");
                 fs::remove(_old_paths.front());
                 _old_paths.pop_front();
             }
@@ -458,11 +447,13 @@ bool LevelLogger::open_log_file(int level) {
                 f.write(_stmp);
             }
         }
+
     } else {
         _path.append(path_base).append(".fatal");
+        _file.open(_path.c_str(), 'a');
     }
 
-    if (!_file.open(_path.c_str(), 'a')) {
+    if (!_file) {
         _stmp.clear();
         _stmp << "cann't open the file: " << _path << '\n';
         write_to_stderr(_stmp.data(), _stmp.size());
