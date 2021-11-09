@@ -419,7 +419,7 @@ bool LevelLogger::open_log_file(int level) {
         if (fs::exists(_path) && !_old_paths.empty()) {
             auto& path = _old_paths.back();
             fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
-            if (FLG_compress) this->compress_rotated_log(path);
+            if (FLG_log_compress) this->compress_rotated_log(path);
         }
       
         if (_file.open(_path.c_str(), 'a')) {
@@ -433,7 +433,7 @@ bool LevelLogger::open_log_file(int level) {
             _old_paths.push_back(_stmp);
 
             while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
-                if (FLG_compress) _old_paths.front().append(".xz");
+                if (FLG_log_compress) _old_paths.front().append(".xz");
                 fs::remove(_old_paths.front());
                 _old_paths.pop_front();
             }
