@@ -122,6 +122,7 @@ class LevelLogger {
     void write(fastream* fs);
     void thread_fun();
     void compress_rotated_log(const fastring& path);
+    uint32 get_day_from_path(const fastring& path);
 
   private:
     Mutex _log_mutex;
@@ -191,14 +192,6 @@ LevelLogger::~LevelLogger() {
     os::signal(SIGBUS, SIG_DFL);
     os::signal(SIGILL, SIG_DFL);
   #endif
-}
-
-void LevelLogger::compress_rotated_log(const fastring& path) {
-    Thread([path]() {
-        fastring cmd(path.size() + 8);
-        cmd.append("xz ").append(path);
-        os::system(cmd);
-    }).detach();
 }
 
 void LevelLogger::init() {
@@ -336,22 +329,22 @@ void LevelLogger::thread_fun() {
 }
 
 void LevelLogger::write(fastream* fs) {
+    fs::file& f = _file;
+    if (FLG_log_daily) {
+        uint32 day = *(uint32*)_t;
+        if (_day != day) {
+            _day = day;
+            f.close();
+        }
+    }
+
     if (!_write_cb || FLG_also_log_to_local) {
-        fs::file& f = _file;
         if (f || this->open_log_file()) {
             f.write(fs->data(), fs->size());
         }
 
-        if (f) {
-            if (!f.exists() || f.size() >= FLG_max_log_file_size) {
-                f.close();
-            } else if (FLG_log_daily) {
-                uint32 day = *(uint32*)_t;
-                if (_day != day) {
-                    _day = day;
-                    f.close();
-                }
-            }
+        if (f && (!f.exists() || f.size() >= FLG_max_log_file_size)) {
+            f.close();
         }
     }
 
@@ -409,6 +402,25 @@ inline void write_to_stderr(const char* s, size_t n) {
   #endif
 }
 
+// get day from xx_0808_15_30_08.123.log
+inline uint32 LevelLogger::get_day_from_path(const fastring& path) {
+    if (path.size() > 21) {
+        uint32 x;
+        memcpy(&x, path.data() + path.size() - 21, 4);
+        return x;
+    }
+    return 0;
+}
+
+// compress log file in another thread
+inline void LevelLogger::compress_rotated_log(const fastring& path) {
+    Thread([path]() {
+        fastring cmd(path.size() + 8);
+        cmd.append("xz ").append(path);
+        os::system(cmd);
+    }).detach();
+}
+
 bool LevelLogger::open_log_file(int level) {
     const fastring& path_base = _config->log_path_base;
     if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
@@ -418,13 +430,22 @@ bool LevelLogger::open_log_file(int level) {
 
     if (level < xx::fatal) {
         _path.append(path_base).append(".log");
-        if (fs::exists(_path) && !_old_paths.empty()) {
-            auto& path = _old_paths.back();
-            fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
-            if (FLG_log_compress) this->compress_rotated_log(path);
+
+        bool need_create_new_file = !fs::exists(_path);
+        if (!need_create_new_file) {
+            if (!_old_paths.empty()) {
+                auto& path = _old_paths.back();
+                if (fs::fsize(_path) >= FLG_max_log_file_size || this->get_day_from_path(path) != _day) {
+                    fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
+                    if (FLG_log_compress) this->compress_rotated_log(path);
+                    need_create_new_file = true;
+                }
+            } else {
+                need_create_new_file = true;
+            }
         }
       
-        if (_file.open(_path.c_str(), 'a')) {
+        if (_file.open(_path.c_str(), 'a') && need_create_new_file) {
             char t[24] = { 0 }; // 0723 17:00:00.123
             memcpy(t, _log_time.get(), _log_time.size());
             for (int i = 0; i < _log_time.size(); ++i) {
