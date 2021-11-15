@@ -47,6 +47,12 @@ if(MSVC)
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
         set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
     endif()
+
+
+    option(CURL_STATICLIB "use static libcurl" ON)
+    if(CURL_STATICLIB)
+        add_definitions("-DCURL_STATICLIB")
+    endif()
 endif()
 
 
