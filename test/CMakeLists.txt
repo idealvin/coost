@@ -1,6 +1,10 @@
 list(APPEND LIBS_TO_LINK co)
 file(GLOB_RECURSE ALL_TEST_FILES "*.cc")
 
+if(MSVC)
+    list(APPEND LIBS_TO_LINK co crypt32.lib)
+endif()
+
 foreach(TEST_FILE ${ALL_TEST_FILES})
     get_filename_component(TEST_FILE_NAME ${TEST_FILE} NAME)
     string(REPLACE ".cc" "" TEST_TARGET ${TEST_FILE_NAME})
