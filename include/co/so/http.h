@@ -2,6 +2,7 @@
 
 #include "../fastring.h"
 #include <functional>
+#include "tcp.h"
 
 namespace http {
 
@@ -307,6 +308,7 @@ class __codec Server {
     Server();
     ~Server();
 
+    void setNotify(tcp::ServerStatusNotify* notify);
     /**
      * set a callback for handling http request 
      * 

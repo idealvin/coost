@@ -666,6 +666,11 @@ class ServerImpl {
   public:
     ServerImpl();
     ~ServerImpl() = default;
+    
+    void setNotify(tcp::ServerStatusNotify* notify)
+    {
+        _serv.setNotify(notify);
+    }
 
     void on_req(std::function<void(const Req&, Res&)>&& f) {
         _on_req = std::move(f);
@@ -692,6 +697,11 @@ Server::Server() {
 
 Server::~Server() {
     if (_p) { delete (ServerImpl*)_p; _p = 0; }
+}
+
+void Server::setNotify(tcp::ServerStatusNotify* notify)
+{
+    ((ServerImpl*)_p)->setNotify(notify);
 }
 
 void Server::on_req(std::function<void(const Req&, Res&)>&& f) {

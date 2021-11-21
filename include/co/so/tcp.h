@@ -81,6 +81,12 @@ struct __codec Connection final {
     DISALLOW_COPY_AND_ASSIGN(Connection);
 };
 
+class __codec ServerStatusNotify {
+public:
+    virtual void listenSuccess() = 0;
+    virtual void listenFailed() = 0;
+    virtual void listenStop() = 0;
+};
 /**
  * TCP server based on coroutine 
  *   - Support both ipv4 and ipv6. 
@@ -92,6 +98,7 @@ class __codec Server final {
     Server();
     ~Server();
 
+    void setNotify(ServerStatusNotify* notify);
     /**
      * set a connection callback
      */
@@ -135,7 +142,6 @@ class __codec Server final {
 
   private:
     void* _p;
-
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
 

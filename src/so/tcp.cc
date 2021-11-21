@@ -165,10 +165,14 @@ const char* Connection::strerror() const {
 
 class ServerImpl {
   public:
-    ServerImpl() : _fd((sock_t)-1), _connfd((sock_t)-1), _ssl_ctx(0), _status(0) {}
+    ServerImpl() : _fd((sock_t)-1), _connfd((sock_t)-1), _ssl_ctx(0), _status(2) {}
     ~ServerImpl() {
         if (_fd != (sock_t)-1) this->exit();
         if (_ssl_ctx) { ssl::free_ctx(_ssl_ctx); _ssl_ctx = 0; }
+    }
+
+    void setNotify(ServerStatusNotify* notify) {
+      this->notify = notify;
     }
 
     void on_connection(std::function<void(Connection)>&& cb) {
@@ -186,6 +190,7 @@ class ServerImpl {
     void on_ssl_connection(sock_t sock);
 
   private:
+    ServerStatusNotify* notify;
     fastring _ip;
     uint16 _port;
     sock_t _fd;
@@ -202,26 +207,52 @@ class ServerImpl {
 };
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
-    CHECK(_conn_cb != NULL) << "connection callback not set..";
+    if (_conn_cb == NULL) {
+        ELOG << "connection callback not set..";
+        if (notify)
+            notify->listenFailed();
+        return;
+    } 
+    
     _ip = (ip && *ip) ? ip : "0.0.0.0";
     _port = (uint16)port;
 
     if (key && *key && ca && *ca) {
         _ssl_ctx = ssl::new_server_ctx();
-        CHECK(_ssl_ctx != NULL) << "ssl new server contex error: " << ssl::strerror();
+        if (_ssl_ctx == NULL) {
+            ELOG << "ssl new server contex error: " << ssl::strerror();
+            goto err_end;
+        }
 
         int r;
         r = ssl::use_private_key_file(_ssl_ctx, key);
-        CHECK_EQ(r, 1) << "ssl use private key file (" << key << ") error: " << ssl::strerror();
+        if (r != 1) {
+            ELOG << "ssl use private key file (" << key << ") error: " << ssl::strerror();
+            goto err_end;
+        }
 
         r = ssl::use_certificate_file(_ssl_ctx, ca);
-        CHECK_EQ(r, 1) << "ssl use certificate file (" << ca << ") error: " << ssl::strerror();
+        if (r != 1) {
+            ELOG  << "ssl use certificate file (" << ca << ") error: " << ssl::strerror();
+            goto err_end;
+        }
 
         r = ssl::check_private_key(_ssl_ctx);
-        CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
+        if (r != 1) {
+            ELOG  << "ssl check private key error: " << ssl::strerror();
+            goto err_end;
+        }
 
         _on_sock = std::bind(&ServerImpl::on_ssl_connection, this, std::placeholders::_1);
         go(&ServerImpl::loop, this);
+        return;
+    err_end:
+        if (_ssl_ctx) {
+            ssl::free_ctx(_ssl_ctx);
+            _ssl_ctx = 0;
+        }
+        if (notify)
+            notify->listenFailed();
     } else {
         _on_sock = std::bind(&ServerImpl::on_tcp_connection, this, std::placeholders::_1);
         go(&ServerImpl::loop, this);
@@ -238,6 +269,11 @@ void ServerImpl::exit() {
     }
 
     while (_status != 2) sleep::ms(1);
+
+    if (_ssl_ctx) {
+        ssl::free_ctx(_ssl_ctx);
+        _ssl_ctx = 0;
+    }
 }
 
 void ServerImpl::stop() {
@@ -253,15 +289,24 @@ void ServerImpl::stop() {
  *     the connection callback to handle the connection. 
  */
 void ServerImpl::loop() {
+    atomic_swap(&_status, 0);
+
     do {
         fastring port = str::from(_port);
         struct addrinfo* info = 0;
         int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
-        CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
-        CHECK(info != NULL);
+        if (r != 0) {
+            ELOG << "invalid ip address: " << _ip << ':' << _port;
+            goto listen_failed;
+        }
 
         _fd = co::tcp_socket(info->ai_family);
-        CHECK_NE(_fd, (sock_t)-1) << "create socket error: " << co::strerror();
+        if (_fd == -1) {
+            ELOG << "create socket error: " << co::strerror();
+            freeaddrinfo(info);
+            goto listen_failed;
+        }
+
         co::set_reuseaddr(_fd);
 
         // turn off IPV6_V6ONLY
@@ -271,13 +316,21 @@ void ServerImpl::loop() {
         }
 
         r = co::bind(_fd, info->ai_addr, (int)info->ai_addrlen);
-        CHECK_EQ(r, 0) << "bind " << _ip << ':' << _port << " failed: " << co::strerror();
-
-        r = co::listen(_fd, 1024);
-        CHECK_EQ(r, 0) << "listen error: " << co::strerror();
-
         freeaddrinfo(info);
+        if (r != 0) {
+            ELOG << "bind " << _ip << ':' << _port << " failed: " << co::strerror();
+            goto listen_failed; 
+        }
+        
+        r = co::listen(_fd, 1024);
+        if (r != 0) {
+            ELOG << "listen error: " << co::strerror();
+            goto listen_failed; 
+        }
     } while (0);
+
+    if (notify)
+        notify->listenSuccess();
 
     LOG << "server start: " << _ip << ':' << _port;
     while (true) {
@@ -299,9 +352,22 @@ void ServerImpl::loop() {
         go(&_on_sock, _connfd);
     }
 
-    LOG << "server stopped: " << _ip << ':' << _port;
-    co::close(_fd); _fd = (sock_t)-1;
-    atomic_swap(&_status, 2);
+    if (notify) {
+        notify->listenStop();
+    }
+
+    goto final_free;
+
+    listen_failed:
+        atomic_swap(&_status, 2);
+        if (notify)
+            notify->listenFailed();
+    final_free:
+        LOG << "server stopped: " << _ip << ':' << _port;
+        if (_fd >= 0) {
+            co::close(_fd); _fd = (sock_t)-1;
+        }
+        atomic_swap(&_status, 2);
 }
 
 void ServerImpl::on_tcp_connection(sock_t fd) {
@@ -343,6 +409,10 @@ Server::Server() {
 
 Server::~Server() {
     if (_p) { delete (ServerImpl*)_p; _p = 0; }
+}
+
+void Server::setNotify(ServerStatusNotify* notify) {
+    ((ServerImpl*)_p)->setNotify(notify);
 }
 
 void Server::on_connection(std::function<void(Connection)>&& f) {
@@ -403,7 +473,6 @@ bool Client::connect(int ms) {
     int r = getaddrinfo(_ip, port.c_str(), NULL, &info);
     if (r != 0) goto err_end;
 
-    CHECK_NOTNULL(info);
     _fd = (int) co::tcp_socket(info->ai_family);
     if (_fd == -1) {
         ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
