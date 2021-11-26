@@ -35,6 +35,7 @@ else()
     )
 endif()
 
+redefine_file_macro(co)
 
 if(WITH_LIBCURL)
     find_package(OpenSSL 1.1.0 REQUIRED)

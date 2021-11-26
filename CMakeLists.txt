@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(co)
 
+include (utils.cmake)
+
 if(MSVC)
     enable_language(C CXX ASM_MASM)
 else()
@@ -14,9 +16,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin)
 
 
 if(MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-builtin-macro-redefined")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wno-builtin-macro-redefined")
     add_compile_options(/W4 /fp:fast /EHsc)
     add_link_options(/SAFESEH:NO)
 else()
+    add_definitions(-Wno-builtin-macro-redefined)
     add_compile_options(-Wall -O2 -g -Wno-sign-compare -Wno-class-memaccess -Wno-strict-aliasing)
     if(APPLE)
         add_compile_options(-fno-pie)
