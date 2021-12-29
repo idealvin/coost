@@ -12,6 +12,7 @@
 #include "fastring.h"
 #include "fastream.h"
 #include "str.h"
+#include "stl.h"
 #include "cout.h"
 #include "flag.h"
 #include "log.h"

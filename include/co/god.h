@@ -119,6 +119,16 @@ inline constexpr bool is_scalar() {
     return std::is_scalar<T>::value;
 }
 
+template <typename T>
+inline constexpr bool is_trivially_copyable() {
+    return std::is_trivially_copyable<T>::value;
+}
+
+template <typename T>
+inline constexpr bool is_trivially_destructible() {
+    return std::is_trivially_destructible<T>::value;
+}
+
 template <bool C, typename T=void>
 using enable_if_t = typename std::enable_if<C, T>::type;
 
