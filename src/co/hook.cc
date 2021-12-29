@@ -240,43 +240,45 @@ int pipe2(int pipefd[2], int flags) {
 #define F_DUPFD_CLOEXEC F_DUPFD 
 #endif
 
+
+/* 假定：__cdecl函数变长参数部分使用栈大小不超过8*机器字长（sizeof(intptr_t)）
+    那么，通过a1-a8去拷贝所有原始函数变参调用栈数据，然后按照顺序对目标函数压栈即可
+    多入栈的参数无害(浪费一点栈空间)
+*/
+#define VARG_8_GET(st) intptr_t a1,a2,a3,a4,a5,a6,a7,a8;\
+    {va_list ap; va_start(ap,st);    \
+    a1=va_arg(ap,intptr_t); a2=va_arg(ap,intptr_t); a3=va_arg(ap,intptr_t); a4=va_arg(ap,intptr_t); \
+    a5=va_arg(ap,intptr_t); a6=va_arg(ap,intptr_t); a7=va_arg(ap,intptr_t); a8=va_arg(ap,intptr_t); \
+    va_end(ap);}
+
+#define VARG_8_PARAMS  a1,a2,a3,a4,a5,a6,a7,a8
+
 int fcntl(int fd, int cmd, ... /* arg */) {
     init_hook(fcntl);
     if (fd < 0) { errno = EBADF; return -1; }
 
-    va_list args;
-    va_start(args, cmd);
+    VARG_8_GET(cmd);
 
-    int r, v;
+    int r = CO_RAW_API(fcntl)(fd, cmd, VARG_8_PARAMS);
+
     auto& ctx = gHook().get_hook_ctx(fd);
     if (!ctx.is_sock_or_pipe()) {
-        r = CO_RAW_API(fcntl)(fd, cmd, args); 
-        va_end(args);
         return r;
     }
 
     if (cmd == F_SETFL) {
-        v = va_arg(args, int);
-        va_end(args);
-        r = CO_RAW_API(fcntl)(fd, cmd, v); 
         if (r != -1) {
-            ctx.set_non_blocking(v & O_NONBLOCK);
-            HOOKLOG << "hook fcntl F_SETFL, fd: " << fd << ", non_block: " << (v & O_NONBLOCK);
+            ctx.set_non_blocking(a1 & O_NONBLOCK);
+            HOOKLOG << "hook fcntl F_SETFL, fd: " << fd << ", non_block: " << (a1 & O_NONBLOCK);
         }
 
     } else if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
-        v = va_arg(args, int);
-        va_end(args);
-        r = CO_RAW_API(fcntl)(fd, cmd, v); 
         if (r != -1) {
             gHook().get_hook_ctx(r) = ctx;
             HOOKLOG << "hook fcntl F_DUPFD, fd: " << fd << ", r: " << r;
         }
 
-    } else {
-        r = CO_RAW_API(fcntl)(fd, cmd, args); 
-        va_end(args);
-    }
+    } 
 
     HOOKLOG << "hook fcntl cmd: " << cmd << ", fd: " << fd << ", r: " << r;
     return r;
@@ -286,24 +288,22 @@ int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     init_hook(ioctl);
     if (fd < 0) { errno = EBADF; return -1; }
 
-    va_list args;
-    va_start(args, request);
-    void* arg = va_arg(args, void*);
-    va_end(args);
+    VARG_8_GET(request);
 
+    int r = CO_RAW_API(ioctl)(fd, request, VARG_8_PARAMS);
+    
     auto& ctx = gHook().get_hook_ctx(fd);
-    int r = CO_RAW_API(ioctl)(fd, request, arg);
-    if (r != -1) {
-        if (request == FIONBIO && ctx.is_sock_or_pipe()) {
-            ctx.set_non_blocking(*(int*)arg);
-            HOOKLOG << "hook ioctl FIONBIO, fd: " << fd << ", non_block: " << *(int*)arg; 
-        }
+    if (r != -1 && request == FIONBIO && ctx.is_sock_or_pipe()) {
+        int v=*(int*)a1;
+
+        ctx.set_non_blocking(v);
+        HOOKLOG << "hook ioctl FIONBIO, fd: " << fd << ", non_block: " << v; 
     }
 
     HOOKLOG << "hook ioctl, fd: " << fd << ", req: " << request << ", r: " << r;
     return r;
 }
-
+  
 int dup(int oldfd) {
     init_hook(dup);
 
