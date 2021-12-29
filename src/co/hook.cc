@@ -240,58 +240,50 @@ int pipe2(int pipefd[2], int flags) {
 #define F_DUPFD_CLOEXEC F_DUPFD 
 #endif
 
-/* 
-    For system IO functions which take a variable number of arguments (like fcntl, ioctl),
-      we assume that the variadic parameters part's memory usage <= 8*sizeof(intptr_t) .  
-    So, we can use 'a1'..'a8' to hold the stack memory data of variadic parameters passed from function caller (with va_star/va_arg/va_end).
-    Then, pass these parameters to destination function (raw function) in the prescribed order.
-    If the parameters is more than actually what the caller passed, it is just OK, 
-        because the extra part only takes some stack memory space and will be ignored.
-    If the parameters is LESS than actually what the caller passed, some missed parameters cannot be passed!
-    It will cause error/fatal!
-    Ref: 
-        https://docs.microsoft.com/en-us/cpp/cpp/cdecl?view=msvc-170
-        https://baike.baidu.com/item/__cdecl/9518056
+/**
+ * A dirty hack to get the variadic arguments of fcntl, ioctl, etc.
+ *   - It works when the storage of the variadic arguments is <= 8*sizeof(intptr_t),
+ *     which should be enough for most cases.
+ */
+#define VARG_8_GET(args) \
+    intptr_t a1,a2,a3,a4,a5,a6,a7,a8; { \
+        a1=va_arg(args,intptr_t); a2=va_arg(args,intptr_t); \
+        a3=va_arg(args,intptr_t); a4=va_arg(args,intptr_t); \
+        a5=va_arg(args,intptr_t); a6=va_arg(args,intptr_t); \
+        a7=va_arg(args,intptr_t); a8=va_arg(args,intptr_t); \
+    }
 
-*/
-#define VARG_8_GET(st) intptr_t a1,a2,a3,a4,a5,a6,a7,a8;\
-    {va_list ap; va_start(ap,st);    \
-    a1=va_arg(ap,intptr_t); a2=va_arg(ap,intptr_t); a3=va_arg(ap,intptr_t); a4=va_arg(ap,intptr_t); \
-    a5=va_arg(ap,intptr_t); a6=va_arg(ap,intptr_t); a7=va_arg(ap,intptr_t); a8=va_arg(ap,intptr_t); \
-    va_end(ap);}
-
-#define VARG_8_PARAMS  a1,a2,a3,a4,a5,a6,a7,a8
+#define VARG_8_PARAMS a1,a2,a3,a4,a5,a6,a7,a8
 
 
 int fcntl(int fd, int cmd, ... /* arg */) {
     init_hook(fcntl);
     if (fd < 0) { errno = EBADF; return -1; }
 
-    VARG_8_GET(cmd);
+    va_list args;
+    va_start(args, cmd);
 
+    int r, v;
     auto& ctx = gHook().get_hook_ctx(fd);
-    if (!ctx.is_sock_or_pipe()) {
-        return CO_RAW_API(fcntl)(fd, cmd, VARG_8_PARAMS);
-    }
-    
-    int r;
 
-    if (cmd == F_SETFL) {
-        // 'F_SETFL' only need one extra parameter 
-        r = CO_RAW_API(fcntl)(fd, cmd, a1);
-        if (r != -1) {
-            ctx.set_non_blocking(a1 & O_NONBLOCK);
-            HOOKLOG << "hook fcntl F_SETFL, fd: " << fd << ", non_block: " << (a1 & O_NONBLOCK);
+    if (cmd == F_SETFL || cmd == F_GETFL || cmd == F_SETFD || cmd == F_GETFD || 
+        cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
+        v = va_arg(args, int);
+        va_end(args);
+        r = CO_RAW_API(fcntl)(fd, cmd, v);
+        if (r != -1 && ctx.is_sock_or_pipe()) {
+            if (cmd == F_SETFL) {
+                ctx.set_non_blocking(v & O_NONBLOCK);
+                HOOKLOG << "hook fcntl F_SETFL, fd: " << fd << ", non_block: " << (v & O_NONBLOCK);
+            } else if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
+                gHook().get_hook_ctx(r) = ctx;
+                HOOKLOG << "hook fcntl F_DUPFD, fd: " << fd << ", r: " << r;
+            }
         }
 
-    } else if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
-        // 'F_DUPFD'/'F_DUPFD_CLOEXEC' only need one extra parameter 
-        r = CO_RAW_API(fcntl)(fd, cmd, a1);
-        if (r != -1) {
-            gHook().get_hook_ctx(r) = ctx;
-            HOOKLOG << "hook fcntl F_DUPFD, fd: " << fd << ", r: " << r;
-        }
     } else {
+        VARG_8_GET(args);
+        va_end(args);
         r = CO_RAW_API(fcntl)(fd, cmd, VARG_8_PARAMS);
     }
 
@@ -303,19 +295,24 @@ int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     init_hook(ioctl);
     if (fd < 0) { errno = EBADF; return -1; }
 
-    VARG_8_GET(request);
+    va_list args;
+    va_start(args, request);
 
     int r;
     auto& ctx = gHook().get_hook_ctx(fd);
     
-    if (request == FIONBIO && ctx.is_sock_or_pipe()) {
-        int v=*(int*)a1;
+    if (request == FIONBIO) {
+        int v = *(int*)va_arg(args, void*);
+        va_end(args);
         r = CO_RAW_API(ioctl)(fd, request, v);
-        if (r != -1) {
+        if (r != -1 && ctx.is_sock_or_pipe()) {
             ctx.set_non_blocking(v);
             HOOKLOG << "hook ioctl FIONBIO, fd: " << fd << ", non_block: " << v; 
         }
-    }else {
+
+    } else {
+        VARG_8_GET(args);
+        va_end(args);
         r = CO_RAW_API(ioctl)(fd, request, VARG_8_PARAMS);
     }
 
