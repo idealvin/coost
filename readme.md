@@ -1,48 +1,55 @@
 <div align="center">
   <div>
-    <a href="https://github.com/idealvin/co/blob/master/LICENSE.md">
+    <a href="https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md">
       <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="license" />
     </a>
-    <a href="https://github.com/idealvin/co/releases">
-      <img src="https://img.shields.io/github/release/idealvin/co.svg?style=flat-square" alt="Github All Releases" />
+    <a href="https://github.com/idealvin/cocoyaxi/releases">
+      <img src="https://img.shields.io/github/release/idealvin/cocoyaxi.svg?style=flat-square" alt="Github All Releases" />
     </a>
   </div>
   <div>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AWindows">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AWindows">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3ALinux">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3ALinux">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AmacOS">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AmacOS">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AAndroid">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AAndroid">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
     </a>
   </div>
 
   <div>
-  <span style="border-bottom: 3px double #ccc">A go-style C++ coroutine library and more.</span>
+  <span style="border-bottom: 3px double #ccc">A go-style coroutine library in C++11 and more.</span>
   </div>
 </div>
 
 
-## Basic [(中文)](readme_cn.md)
+## Cocoyaxi
 
-CO is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It implements a series of high-quality base components, such as go-style coroutine, coroutine-based network programming framework, command line parameter and config file parsing library, high-performance log library, unit testing framework, JSON library, etc.
+About 23 light-years from the Earth, there is a planet named **Namake**. Namake has three suns, a large one and two small ones. The Namakians make a living by programming. They divide themselves into nine levels according to their programming level, and the three lowest levels will be sent to other planets to develop programming technology. These wandering Namakians must collect at least **10,000 stars** through a project on the github before they can return to Namake.
+
+Several years ago, two Namakians, [ruki](https://github.com/waruqi) and [alvin](https://github.com/idealvin), were dispatched to the Earth. In order to go back to the Namake planet as soon as possible, ruki has developed a nice build tool [xmake](https://github.com/xmake-io/xmake), whose name is taken from Namake by replacing na with a similar pronunciation of x. At the same time, alvin has developed a go-style C++ coroutine library [cocoyaxi](https://github.com/idealvin/cocoyaxi), whose name is taken from the **Cocoyaxi village** where ruki and alvin live on Namake.
+
+
+## Introduction [(中文)](readme_cn.md)
+
+cocoyaxi is an elegant and efficient C++ base library that supports Linux, Windows and Mac platforms. It contains a series of high-quality base components, such as **go-style coroutine**, coroutine-based network programming framework, command line parameter and config file parsing library, high-performance log library, unit testing framework, JSON library, etc.
 
 
 
 
 ## Sponsor
 
-If you like CO, you may [consider becoming a sponsor](https://github.com/sponsors/idealvin), or [make me a cup of coffee](https://idealvin.github.io/en/about/sponsor/). Thanks very much!
+If you like cocoyaxi, you may [consider becoming a sponsor](https://github.com/sponsors/idealvin), or [make me a cup of coffee](https://idealvin.github.io/en/about/sponsor/). Thank you very much!
 
 
 ### Special sponsors
 
-CO is specially sponsored by the following companies, thank you very much!
+cocoyaxi is specially sponsored by the following companies, thank you very much!
 
 <a href="https://www.oneflow.org/index.html">
 <img src="https://idealvin.github.io/images/sponsor/oneflow.png" width="210" height="150">
@@ -63,7 +70,7 @@ CO is specially sponsored by the following companies, thank you very much!
 
 ### Coroutine
 
-CO has implemented a [go-style](https://github.com/golang/go) coroutine, which has the following features:
+cocoyaxi has implemented a [go-style](https://github.com/golang/go) coroutine, which has the following features:
 
 - Multi-thread scheduling, the default number of threads is the number of system CPU cores.
 - Shared stack, coroutines in the same thread share several stacks (the default size is 1MB), and the memory usage is low. Simple test on Linux shows that 10 millions of coroutines only take 2.8G of memory (for reference only).
@@ -132,7 +139,7 @@ DEF_main(argc, argv) {
 
 **The read and write operations of channel must be performed in coroutine**, so the main function is defined with `DEF_main` in above code, so that code in the main function also runs in coroutine.
 
-The channel object in the code is on the stack, while CO uses a shared stack implementation. Data on the stack of one coroutine may be overwritten by other coroutines. Generally, we cann't share data on stack between coroutines. Therefore, we **capture by value** in the lambda to copy the channel and pass it to the newly created coroutine. The copy operation just increases the internal reference count by 1 and will not affect the performance.
+The channel object in the code is on the stack, while cocoyaxi uses a shared stack implementation. Data on the stack of one coroutine may be overwritten by other coroutines. Generally, we cann't share data on stack between coroutines. Therefore, we **capture by value** in the lambda to copy the channel and pass it to the newly created coroutine. The copy operation just increases the internal reference count by 1 and will not affect the performance.
 
 When creating a channel, we can add a timeout as follows:
 
@@ -142,7 +149,7 @@ co::Chan<int> ch(8, 1000);
 
 After read or write operation, we can call `co::timeout()` to determine whether it has timed out. This method is simpler than the select-based implementation in golang.
 
-The channel in CO is implemented based on memory copy. The data type passed can be a built-in type, a pointer type, or a structure type with simple memory copy semantics for the copy operation. Like `std::string` or container types in STL, the copy operation is not a simple memory copy, and generally cannot be passed directly in channel. For details, see [Document of co::Chan](https://idealvin.github.io/en/co/coroutine/#cochan).
+The channel in cocoyaxi is implemented based on memory copy. The data type passed can be a built-in type, a pointer type, or a structure type with simple memory copy semantics for the copy operation. Like `std::string` or container types in STL, the copy operation is not a simple memory copy, and generally cannot be passed directly in channel. For details, see [Document of co::Chan](https://idealvin.github.io/en/co/coroutine/#cochan).
 
 
 #### waitgroup
@@ -174,7 +181,7 @@ DEF_main(argc, argv) {
 
 ### network programming
 
-CO provides a set of coroutineized [socket APIs](https://idealvin.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form. In addition, CO has also implemented higher-level network programming components, including [TCP](https://idealvin.github.io/en/co/net/tcp/), [HTTP](https://idealvin.github.io/en/co/net/http/) and [RPC](https://idealvin.github.io/en/co/net/rpc/) framework based on [JSON](https://idealvin.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs. Here is just a brief demonstration of the usage of HTTP, and the rest can be viewed in the documents.
+cocoyaxi provides a set of coroutineized [socket APIs](https://idealvin.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form. In addition, CO has also implemented higher-level network programming components, including [TCP](https://idealvin.github.io/en/co/net/tcp/), [HTTP](https://idealvin.github.io/en/co/net/http/) and [RPC](https://idealvin.github.io/en/co/net/rpc/) framework based on [JSON](https://idealvin.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs. Here is just a brief demonstration of the usage of HTTP, and the rest can be viewed in the documents.
 
 
 **Static web server**
@@ -245,7 +252,7 @@ go(f);
 
 ### co/flag
 
-[co/flag](https://idealvin.github.io/en/co/flag/) is a simple and easy-to-use command line and config file parsing library. Some components in CO use it to define config items.
+[co/flag](https://idealvin.github.io/en/co/flag/) is a simple and easy-to-use command line and config file parsing library. Some components in cocoyaxi use it to define config items.
 
 co/flag provides a default value for each config item. Without config parameters, the program can run with the default config. Users can also pass in config parameters from **command line or config file**. When a config file is needed, users can run `./exe -mkconf` to **generate a config file**.
 
@@ -288,7 +295,7 @@ The above is an example of using co/flag. The macro at the beginning of `DEF_` i
 
 ### co/log
 
-[co/log](https://idealvin.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in CO will use it to print logs.
+[co/log](https://idealvin.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in cocoyaxi will use it to print logs.
 
 co/log divides the log into five levels: debug, info, warning, error, and fatal. **Printing a fatal level log will terminate the program**. Users can print logs of different levels as follows:
 
@@ -345,7 +352,7 @@ co/log is very fast. The following are some test results, for reference only:
 
 ### co/unitest
 
-[co/unitest](https://idealvin.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in CO use it to write unit test code, which guarantees the stability of CO.
+[co/unitest](https://idealvin.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in cocoyaxi use it to write unit test code, which guarantees the stability of cocoyaxi.
 
 ```cpp
 #include "co/unitest.h"
@@ -378,7 +385,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-[co/unitest](https://github.com/idealvin/co/tree/master/unitest) contains the unit test code in CO. Users can run unitest with the following commands:
+[unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest) contains the unit test code in cocoyaxi. Users can run unitest with the following commands:
 
 ```sh
 xmake r unitest -a   # Run all test cases
@@ -390,23 +397,23 @@ xmake r unitest -os  # Run test cases in the os unit
 
 ## Code composition
 
-- [co/include](https://github.com/idealvin/co/tree/master/include)
+- [include](https://github.com/idealvin/cocoyaxi/tree/master/include)
 
-  Header files of `libco`.
+  Header files of cocoyaxi.
 
-- [co/src](https://github.com/idealvin/co/tree/master/src)
+- [src](https://github.com/idealvin/cocoyaxi/tree/master/src)
 
-  Source files of `libco`.
+  Source files of cocoyaxi.
 
-- [co/test](https://github.com/idealvin/co/tree/master/test)
+- [test](https://github.com/idealvin/cocoyaxi/tree/master/test)
 
   Some test code, each `.cc` file will be compiled into a separate test program.
 
-- [co/unitest](https://github.com/idealvin/co/tree/master/unitest)
+- [unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest)
 
   Some unit test code, each `.cc` file corresponds to a different test unit, and all code will be compiled into a single test program.
 
-- [co/gen](https://github.com/idealvin/co/tree/master/gen)
+- [gen](https://github.com/idealvin/cocoyaxi/tree/master/gen)
 
   A code generator for the RPC framework.
 
@@ -425,15 +432,15 @@ xmake r unitest -os  # Run test cases in the os unit
 
 ### xmake
 
-co recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
+cocoyaxi recommends using [xmake](https://github.com/xmake-io/xmake) as the build tool.
 
 
 #### Quick start
 
 ```sh
-# All commands are executed in the root directory of co (the same below)
+# All commands are executed in the root directory of cocoyaxi (the same below)
 xmake      # build libco by default
-xmake -a   # build all projects (libco, gen, co/test, co/unitest)
+xmake -a   # build all projects (libco, gen, test, unitest)
 ```
 
 
@@ -473,7 +480,7 @@ xmake install -o /usr/local  # install to the /usr/local directory
 #### Install libco from xmake repo
 
 ```sh
-xrepo install -f "openssl=true,libcurl=true" co
+xrepo install -f "openssl=true,libcurl=true" cocoyaxi
 ```
 
 
@@ -521,10 +528,10 @@ cmake .. -DBUILD_SHARED_LIBS=ON
 #### install libco from vcpkg
 
 ```sh
-vcpkg install co:x64-windows
+vcpkg install cocoyaxi:x64-windows
 
 # HTTP & SSL support
-vcpkg install co[libcurl,openssl]:x64-windows
+vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
 ```
 
 
@@ -532,14 +539,14 @@ vcpkg install co[libcurl,openssl]:x64-windows
 
 ## License
 
-The MIT license. co contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md).
+The MIT license. cocoyaxi contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md).
 
 
 
 
 ## Special thanks
 
-- The code of [co/context](https://github.com/idealvin/co/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
-- The English reference documents of co are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
+- The code of [co/context](https://github.com/idealvin/cocoyaxi/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
+- The English reference documents of cocoyaxi are translated by [Leedehai](https://github.com/Leedehai) (1-10), [daidai21](https://github.com/daidai21) (11-15) and [google](https://translate.google.cn/), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!

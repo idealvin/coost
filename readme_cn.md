@@ -1,24 +1,24 @@
 <div align="center">
   <div>
-    <a href="https://github.com/idealvin/co/blob/master/LICENSE.md">
+    <a href="https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md">
       <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="license" />
     </a>
-    <a href="https://github.com/idealvin/co/releases">
-      <img src="https://img.shields.io/github/release/idealvin/co.svg?style=flat-square" alt="Github All Releases" />
+    <a href="https://github.com/idealvin/cocoyaxi/releases">
+      <img src="https://img.shields.io/github/release/idealvin/cocoyaxi.svg?style=flat-square" alt="Github All Releases" />
     </a>
   </div>
   <div>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AWindows">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AWindows">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Windows/master.svg?style=flat-square&logo=windows" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3ALinux">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3ALinux">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Linux/master.svg?style=flat-square&logo=linux" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AmacOS">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AmacOS">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/macOS/master.svg?style=flat-square&logo=apple" alt="github-ci" />
     </a>
-    <a href="https://github.com/idealvin/co/actions?query=workflow%3AAndroid">
-      <img src="https://img.shields.io/github/workflow/status/idealvin/co/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
+    <a href="https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AAndroid">
+      <img src="https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Android/master.svg?style=flat-square&logo=android" alt="github-ci" />
     </a>
   </div>
 
@@ -28,21 +28,28 @@
 </div>
 
 
-## Basic [(English)](readme.md)
+## Cocoyaxi 的来历
 
-CO 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它实现了类似 golang 的协程、基于协程的网络编程框架、命令行参数与配置文件解析库、高性能日志库、单元测试框架、JSON 库等一系列高质量的基础组件。
+在距离地球约23光年的地方，有一颗名为**娜美克(Namake)**的行星，娜美克星有一大两小三个太阳。娜美克星人以编程为生，他们按编程水平将所有人分成九个等级，水平最低的三个等级会被送往其他星球发展编程技术。这些外派的娜美克星人，必须通过一个github上的项目，**集齐至少10000个赞**，才能重返娜美克星。
+
+若干年前，两个娜美克星人 [ruki](https://github.com/waruqi) 和 [alvin](https://github.com/idealvin)，被发配到地球上。为了早日回到娜美克星，ruki 开发了一个超级好用的构建工具 [xmake](https://github.com/xmake-io/xmake)，该名字就是取自 Namake，仅用一个发音相似的x取代了na。而与此同时，alvin 开发了一个 go-style 的 C++ 协程库 [cocoyaxi](https://github.com/idealvin/cocoyaxi)，该名字则取自 ruki 和 alvin 在娜美克星上居住的**可可亚西村**。
+
+
+## 简介 [(English)](readme.md)
+
+cocoyaxi 是一个优雅、高效的 C++ 基础库，支持 Linux, Windows 与 Mac 等平台，它包含 **go-style 协程**、基于协程的网络编程框架、命令行参数与配置文件解析库、高性能日志库、单元测试框架、JSON 库等一系列高质量的基础组件。
 
 
 
 
 ## 赞助
 
-如果您喜欢 CO，可以考虑[赞助 CO](https://github.com/sponsors/idealvin)，或者[给作者来杯咖啡](https://idealvin.gitee.io/cn/about/sponsor/)，非常感谢🙏
+如果您喜欢 cocoyaxi，可以考虑[赞助 cocoyaxi](https://github.com/sponsors/idealvin)，或者[给作者来杯咖啡](https://idealvin.gitee.io/cn/about/sponsor/)，非常感谢🙏
 
 
 ### 特别赞助商
 
-CO 由如下企业特别赞助，在此深表感谢！
+cocoyaxi 由如下企业特别赞助，在此深表感谢！
 
 <a href="https://www.oneflow.org/index.html">
 <img src="https://idealvin.github.io/images/sponsor/oneflow.png" width="210" height="150">
@@ -64,7 +71,7 @@ CO 由如下企业特别赞助，在此深表感谢！
 
 ### 协程
 
-CO 实现了类似 [golang](https://github.com/golang/go) 的协程，它有如下特性：
+cocoyaxi 实现了类似 [golang](https://github.com/golang/go) 的协程，它有如下特性：
 
 - 多线程调度，默认线程数为系统 CPU 核数。
 - 共享栈，同一线程中的协程共用若干个栈(大小默认为 1MB)，内存占用低，Linux 上的测试显示 1000 万协程只用了 2.8G 内存(仅供参考)。
@@ -133,7 +140,7 @@ DEF_main(argc, argv) {
 
 **channel 的读写操作必须在协程中进行**，因此上述代码中用 `DEF_main` 定义 main 函数，让 main 函数中的代码也运行在协程中。
 
-代码中的 channel 对象在栈上，而 CO 采用的是共享栈实现方式，一个协程栈上的数据可能被其他协程覆盖，**协程间一般不能直接通过栈上的数据通信**，因此代码中的 lambda 采用了**按值捕获**的方式，将 channel 拷贝了一份，传递到新建的协程中。channel 的拷贝操作只是将内部引用计数加 1，几乎不会对性能造成影响。
+代码中的 channel 对象在栈上，而 cocoyaxi 采用的是共享栈实现方式，一个协程栈上的数据可能被其他协程覆盖，**协程间一般不能直接通过栈上的数据通信**，因此代码中的 lambda 采用了**按值捕获**的方式，将 channel 拷贝了一份，传递到新建的协程中。channel 的拷贝操作只是将内部引用计数加 1，几乎不会对性能造成影响。
 
 创建 channel 时可以像下面这样加上超时时间：
 
@@ -143,7 +150,7 @@ co::Chan<int> ch(8, 1000);
 
 channel 读写操作结束后，可以调用 `co::timeout()` 判断是否超时，这种方式比 golang 中基于 select 的实现方式更简单。
 
-CO 中的 channel 基于内存拷贝实现，传递的数据类型可以是内置类型、指针类型，或者**拷贝操作具有简单的内存拷贝语义的结构体类型**。像 `std::string` 或 STL 中的容器类型，拷贝操作不是简单的内存拷贝，一般不能直接在 channel 中传递，详情见 [co::Chan 参考文档](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
+cocoyaxi 中的 channel 基于内存拷贝实现，传递的数据类型可以是内置类型、指针类型，或者**拷贝操作具有简单的内存拷贝语义的结构体类型**。像 `std::string` 或 STL 中的容器类型，拷贝操作不是简单的内存拷贝，一般不能直接在 channel 中传递，详情见 [co::Chan 参考文档](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
 
 
 #### waitgroup
@@ -175,7 +182,7 @@ DEF_main(argc, argv) {
 
 ### 网络编程
 
-CO 提供了一套协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。另外，CO 也实现了更高层的网络编程组件，包括 [TCP](https://idealvin.github.io/cn/co/net/tcp/)、[HTTP](https://idealvin.github.io/cn/co/net/http/) 以及基于 [JSON](https://idealvin.github.io/cn/co/json/) 的 [RPC](https://idealvin.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。这里只简单的展示一下 HTTP 的用法，其余的可以查看参考文档。
+cocoyaxi 提供了一套协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。另外，cocoyaxi 也实现了更高层的网络编程组件，包括 [TCP](https://idealvin.github.io/cn/co/net/tcp/)、[HTTP](https://idealvin.github.io/cn/co/net/http/) 以及基于 [JSON](https://idealvin.github.io/cn/co/json/) 的 [RPC](https://idealvin.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。这里只简单的展示一下 HTTP 的用法，其余的可以查看参考文档。
 
 
 **静态 web server**
@@ -246,7 +253,7 @@ go(f);
 
 ### co/flag
 
-[co/flag](https://idealvin.github.io/cn/co/flag/) 是一个简单易用的命令行参数与配置文件解析库，CO 中的一些组件会用它定义配置项。
+[co/flag](https://idealvin.github.io/cn/co/flag/) 是一个简单易用的命令行参数与配置文件解析库，cocoyaxi 中的一些组件会用它定义配置项。
 
 co/flag 为每个配置项提供一个默认值，在没有配置参数的情况下，程序可以按默认配置运行。用户也可以从**命令行或配置文件**传入配置参数，在需要配置文件时，可以执行 `./exe -mkconf` **自动生成配置文件**。
 
@@ -289,7 +296,7 @@ int main(int argc, char** argv) {
 
 ### co/log
 
-[co/log](https://idealvin.github.io/cn/co/log/) 是一个内存友好的高性能本地日志系统，程序运行稳定后，打印日志不需要分配内存。CO 中的一些组件会用它打印日志。
+[co/log](https://idealvin.github.io/cn/co/log/) 是一个内存友好的高性能本地日志系统，程序运行稳定后，打印日志不需要分配内存。cocoyaxi 中的一些组件会用它打印日志。
 
 co/log 将日志分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**。用户可以像下面这样打印不同级别的日志：
 
@@ -346,7 +353,7 @@ co/log 速度非常快，在程序运行稳定后，几乎不需要内存分配�
 
 ### co/unitest
 
-[co/unitest](https://idealvin.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，CO 中的很多组件会用它写单元测试代码，为 CO 的稳定性提供了保障。
+[co/unitest](https://idealvin.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，cocoyaxi 中的很多组件会用它写单元测试代码，为 cocoyaxi 的稳定性提供了保障。
 
 ```cpp
 #include "co/unitest.h"
@@ -379,7 +386,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-[co/unitest](https://github.com/idealvin/co/tree/master/unitest) 目录下面是 CO 中的单元测试代码，编译后可执行下述命令运行：
+[unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest) 目录下面是 cocoyaxi 中的单元测试代码，编译后可执行下述命令运行：
 
 ```sh
 xmake r unitest -a   # 运行所有单元测试用例
@@ -391,23 +398,23 @@ xmake r unitest -os  # 仅运行 os 单元中的测试用例
 
 ## 代码构成
 
-- [co/include](https://github.com/idealvin/co/tree/master/include)  
+- [include](https://github.com/idealvin/cocoyaxi/tree/master/include)  
 
-  `libco` 的头文件。
+  cocoyaxi 的头文件。
 
-- [co/src](https://github.com/idealvin/co/tree/master/src)  
+- [src](https://github.com/idealvin/cocoyaxi/tree/master/src)  
 
-  `libco` 的源代码。
+  cocoyaxi 的源代码。
 
-- [co/test](https://github.com/idealvin/co/tree/master/test)  
+- [test](https://github.com/idealvin/cocoyaxi/tree/master/test)  
 
   一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
 
-- [co/unitest](https://github.com/idealvin/co/tree/master/unitest)  
+- [unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest)  
 
   一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
-- [co/gen](https://github.com/idealvin/co/tree/master/gen)  
+- [gen](https://github.com/idealvin/cocoyaxi/tree/master/gen)  
 
   代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
 
@@ -424,15 +431,15 @@ xmake r unitest -os  # 仅运行 os 单元中的测试用例
 
 ### xmake
 
-co 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
+cocoyaxi 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具。
 
 
 #### 快速上手
 
 ```sh
-# 所有命令都在 co 根目录执行，后面不再说明
+# 所有命令都在 cocoyaxi 根目录执行，后面不再说明
 xmake       # 默认构建 libco
-xmake -a    # 构建所有项目 (libco, gen, co/test, co/unitest)
+xmake -a    # 构建所有项目 (libco, gen, test, unitest)
 ```
 
 
@@ -464,7 +471,7 @@ xmake install -o /usr/local   # 安装到 /usr/local 目录
 #### 从 xmake repo 安装 libco
 
 ```sh
-xrepo install -f "openssl=true,libcurl=true" co
+xrepo install -f "openssl=true,libcurl=true" cocoyaxi
 ```
 
 
@@ -505,10 +512,10 @@ make -j8
 #### 从 vcpkg 安装 libco
 
 ```sh
-vcpkg install co:x64-windows
+vcpkg install cocoyaxi:x64-windows
 
 # 启用 HTTP & SSL
-vcpkg install co[libcurl,openssl]:x64-windows
+vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
 ```
 
 
@@ -516,15 +523,15 @@ vcpkg install co[libcurl,openssl]:x64-windows
 
 ## License
 
-The MIT license. co 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/co/blob/master/LICENSE.md)。
+The MIT license. cocoyaxi 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md)。
 
 
 
 
 ## 特别致谢
 
-- [co/context](https://github.com/idealvin/co/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
-- co 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
+- [co/context](https://github.com/idealvin/cocoyaxi/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+- cocoyaxi 英文参考文档，由 [Leedehai](https://github.com/Leedehai)(1-10)，[daidai21](https://github.com/daidai21)(11-15) 与 [google](https://translate.google.cn/) 翻译，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
 
