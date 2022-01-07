@@ -30,4 +30,4 @@ jobs:
           xmake r flag -xy
           xmake r unitest -a -co_sched_num=4
           xmake f -m debug -a ${{ matrix.arch }}
-          xmake -a
+          xmake
