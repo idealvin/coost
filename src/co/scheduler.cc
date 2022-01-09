@@ -86,7 +86,7 @@ void SchedulerImpl::resume(Coroutine* co) {
     }
 
     if (from.priv) {
-        // yiled() was called in the coroutine, update context for it
+        // yield() was called in the coroutine, update context for it
         assert(_running == from.priv);
         _running->ctx = from.ctx;
         CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id;
