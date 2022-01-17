@@ -1,5 +1,10 @@
-cmake_minimum_required(VERSION 3.10)
-project(co)
+cmake_minimum_required(VERSION 3.12)
+
+if(POLICY CMP0090)
+    cmake_policy(SET CMP0090 NEW)
+endif()
+
+project(co VERSION 2.0.3)
 
 if(MSVC)
     enable_language(C CXX ASM_MASM)
@@ -12,6 +17,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 if(MSVC)
     add_compile_options(/W4 /fp:fast /EHsc)
@@ -61,5 +68,5 @@ endif()
 
 install(
     DIRECTORY include/co
-    DESTINATION include
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )

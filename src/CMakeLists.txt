@@ -35,32 +35,18 @@ else()
     )
 endif()
 
+add_library(cocoyaxi::co ALIAS co)
+
 
 if(WITH_LIBCURL)
-    find_package(OpenSSL 1.1.0 REQUIRED)
-    find_package(ZLIB REQUIRED)
     find_package(CURL REQUIRED)
-    if(CURL_FOUND)
-        message(STATUS "found openssl, include: ${OPENSSL_INCLUDE_DIR}, lib: ${OPENSSL_LIBRARIES}")
-        message(STATUS "found zlib ${ZLIB_VERSION_STRING}, include: ${ZLIB_INCLUDE_DIR}, lib: ${ZLIB_LIBRARIES}")
-        message(STATUS "found libcurl ${CURL_VERSION_STRING}, include: ${CURL_INCLUDE_DIR}, lib: ${CURL_LIBRARIES}")
-        target_compile_definitions(co PRIVATE HAS_OPENSSL)
-        target_compile_definitions(co PRIVATE HAS_LIBCURL)
-        target_include_directories(co PRIVATE ${CURL_INCLUDE_DIR})
-        target_include_directories(co PRIVATE ${OPENSSL_INCLUDE_DIR})
-        target_include_directories(co PRIVATE ${ZLIB_INCLUDE_DIR})
-        target_link_libraries(co PRIVATE ${CURL_LIBRARIES})
-        target_link_libraries(co PRIVATE ${ZLIB_LIBRARIES})
-        target_link_libraries(co PRIVATE ${OPENSSL_LIBRARIES})
-    endif()
-elseif(WITH_OPENSSL)
+    target_compile_definitions(co PRIVATE HAS_LIBCURL)
+    target_link_libraries(co PRIVATE CURL::libcurl)
+endif()
+if(WITH_LIBCURL OR WITH_OPENSSL)
     find_package(OpenSSL 1.1.0 REQUIRED)
-    if(OPENSSL_FOUND)
-        message(STATUS "found openssl, include: ${OPENSSL_INCLUDE_DIR}, lib: ${OPENSSL_LIBRARIES}")
-        target_compile_definitions(co PRIVATE HAS_OPENSSL)
-        target_include_directories(co PRIVATE ${OPENSSL_INCLUDE_DIR})
-        target_link_libraries(co PRIVATE ${OPENSSL_LIBRARIES})
-    endif()
+    target_compile_definitions(co PRIVATE HAS_OPENSSL)
+    target_link_libraries(co PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
 if(FPIC)
@@ -69,6 +55,12 @@ if(FPIC)
     endif()
 endif()
 
+find_package(Threads REQUIRED)
+target_link_libraries(co PUBLIC Threads::Threads)
+
+if(UNIX AND NOT APPLE)
+    target_link_libraries(co PRIVATE dl)
+endif()
 
 if(WIN32)
     if(MSVC)
@@ -85,9 +77,7 @@ if(WIN32)
     endif()
     target_compile_definitions(co PRIVATE WIN32_LEAN_AND_MEAN)
     target_compile_definitions(co PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
-    if(NOT MSVC)
-        target_link_libraries(co PUBLIC ws2_32)
-    endif()
+    target_link_libraries(co PUBLIC ws2_32)
 else()
     include(CheckIncludeFiles)
     include(CheckIncludeFileCXX)
@@ -100,17 +90,89 @@ else()
     if(HAS_CXXABI)
         target_compile_definitions(co PRIVATE HAS_CXXABI_H)
     endif()
-
-    if(NOT ANDROID)
-        target_link_libraries(co PUBLIC pthread)
-        target_link_libraries(co PRIVATE dl)
-    endif()
 endif()
 
 
 install(
     TARGETS co
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
+    EXPORT cocoyaxiExport
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# pkgconfig file
+if(WIN32)
+    string(APPEND CO_PKG_EXTRA_LIBS " -lws2_32")
+else()
+    if(UNIX AND NOT APPLE)
+        string(APPEND CO_PKG_EXTRA_LIBS " -lpthread")
+        if(NOT BUILD_SHARED_LIBS)
+            string(APPEND CO_PKG_EXTRA_LIBS " -ldl")
+        endif()
+    endif()
+    if(HAS_BACKTRACE)
+        string(APPEND CO_PKG_EXTRA_LIBS " -lbacktrace")
+    endif()
+endif()
+if(WITH_LIBCURL)
+    string(APPEND CO_PKG_REQUIRES " libcurl")
+endif()
+if(WITH_LIBCURL OR WITH_OPENSSL)
+    string(APPEND CO_PKG_REQUIRES " openssl >= 1.1.0")
+endif()
+
+configure_file(
+    ${PROJECT_SOURCE_DIR}/cmake/cocoyaxi.pc.in
+    cocoyaxi.pc
+    @ONLY
+)
+
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxi.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
+
+# CMake config file
+
+set(CO_CMAKE_CONFIG_DEPS "find_dependency(Threads)\n")
+if(WITH_LIBCURL)
+    string(APPEND CO_CMAKE_CONFIG_DEPS "find_dependency(CURL)\n")
+endif()
+if(WITH_LIBCURL OR WITH_OPENSSL)
+    string(APPEND CO_CMAKE_CONFIG_DEPS "find_dependency(OpenSSL 1.1.0)\n")
+endif()
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/cocoyaxiConfig.cmake.in
+    cocoyaxiConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+)
+
+write_basic_package_version_file(
+    cocoyaxiConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+export(
+    EXPORT cocoyaxiExport
+    NAMESPACE cocoyaxi::
+    FILE cocoyaxiTargets.cmake
+)
+
+install(
+    EXPORT cocoyaxiExport
+    NAMESPACE cocoyaxi::
+    FILE cocoyaxiTargets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxiConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxiConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+)
+
+export(PACKAGE cocoyaxi)
