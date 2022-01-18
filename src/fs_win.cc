@@ -7,7 +7,7 @@
 #ifdef _MSC_VER
 #pragma warning (disable:4800)
 #endif
-#include <Windows.h>
+#include <windows.h>
 
 namespace fs {
 
