@@ -1,11 +1,5 @@
 file(GLOB_RECURSE CC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
-if(BUILD_SHARED_LIBS)
-    set(LIBKIND SHARED)
-else()
-    set(LIBKIND STATIC)
-endif()
-
 # source files
 if(WIN32)
     set(ASM_FILES co/context/context_x64.asm)
@@ -18,7 +12,7 @@ if(WIN32)
         set(ASM_FILES co/context/context.S)
     endif()
 
-    add_library(co ${LIBKIND}
+    add_library(co
         ${CC_FILES}
         ${ASM_FILES}
         log/StackWalker.cpp
@@ -29,7 +23,7 @@ if(WIN32)
         co/detours/disasm.cpp
     )
 else()
-    add_library(co ${LIBKIND}
+    add_library(co
         ${CC_FILES}
         co/context/context.S
     )
