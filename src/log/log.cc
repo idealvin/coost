@@ -412,13 +412,11 @@ inline uint32 LevelLogger::get_day_from_path(const fastring& path) {
     return 0;
 }
 
-// compress log file in another thread
+// compress log file
 inline void LevelLogger::compress_rotated_log(const fastring& path) {
-    Thread([path]() {
-        fastring cmd(path.size() + 8);
-        cmd.append("xz ").append(path);
-        os::system(cmd);
-    }).detach();
+    fastring cmd(path.size() + 8);
+    cmd.append("xz ").append(path);
+    os::system(cmd);
 }
 
 bool LevelLogger::open_log_file(int level) {
