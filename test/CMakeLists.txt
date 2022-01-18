@@ -12,4 +12,6 @@ foreach(TEST_FILE ${ALL_TEST_FILES})
     )
 
     target_link_libraries(${TEST_TARGET}_test PRIVATE co)
+
+    add_test(NAME ${TEST_TARGET}_test COMMAND ${TEST_TARGET}_test)
 endforeach(TEST_FILE ${ALL_TEST_FILES})

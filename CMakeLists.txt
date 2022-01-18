@@ -56,6 +56,7 @@ endif()
 add_subdirectory(src)
 
 if(BUILD_ALL)
+    enable_testing()
     add_subdirectory(gen)
     add_subdirectory(unitest)
     add_subdirectory(test)
