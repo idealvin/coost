@@ -47,6 +47,11 @@ if(WITH_LIBCURL OR WITH_OPENSSL)
     find_package(OpenSSL 1.1.0 REQUIRED)
     target_compile_definitions(co PRIVATE HAS_OPENSSL)
     target_link_libraries(co PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    if(WIN32)
+        # FindOpenSSL.cmake shipped in CMake < 3.21.0 doesn't properly propagate
+        # crypt32. We should also handle ws2_32 but cocoyaxi link to it later.
+        target_link_libraries(co PRIVATE crypt32)
+    endif()
 endif()
 
 target_compile_features(co PUBLIC cxx_std_11)
@@ -56,11 +61,10 @@ if(FPIC)
 endif()
 
 find_package(Threads REQUIRED)
-target_link_libraries(co PUBLIC Threads::Threads)
-
-if(UNIX AND NOT APPLE)
-    target_link_libraries(co PRIVATE dl)
-endif()
+target_link_libraries(co
+    PUBLIC Threads::Threads
+    PRIVATE ${CMAKE_DL_LIBS}
+)
 
 if(WIN32)
     if(MSVC)
