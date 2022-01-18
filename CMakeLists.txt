@@ -42,7 +42,7 @@ option(BUILD_ALL "Build all projects" OFF)
 
 # vs runtime, use MT
 if(MSVC)
-    option(STATIC_VS_CRT "use /MT or /MTd" ON)
+    option(STATIC_VS_CRT "use /MT or /MTd" OFF)
 
     if(STATIC_VS_CRT)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
