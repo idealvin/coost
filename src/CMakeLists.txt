@@ -37,6 +37,11 @@ target_include_directories(co
         $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+set_target_properties(co PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+)
+
 if(WITH_LIBCURL)
     find_package(CURL REQUIRED)
     target_compile_definitions(co PRIVATE HAS_LIBCURL)
