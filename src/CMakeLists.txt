@@ -108,6 +108,12 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+## license
+install(
+    FILES ${PROJECT_SOURCE_DIR}/LICENSE.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
 ## pkgconfig file
 if(WIN32)
     string(APPEND CO_PKG_EXTRA_LIBS " -lws2_32")
