@@ -1,20 +1,20 @@
 # Build co library
-file(GLOB_RECURSE CC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
+file(GLOB_RECURSE CO_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
+
+if(MSVC)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(ASM_FILES co/context/context_x86.asm)
+    else()
+        set(ASM_FILES co/context/context_x64.asm)
+    endif()
+    set_property(SOURCE ${ASM_FILES} PROPERTY LANGUAGE ASM_MASM)
+else()
+    set(ASM_FILES co/context/context.S)
+endif()
+list(APPEND CO_SRC_FILES ${ASM_FILES})
 
 if(WIN32)
-    set(ASM_FILES co/context/context_x64.asm)
-    if(MSVC)
-        if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-            set(ASM_FILES co/context/context_x86.asm)
-        endif()
-        set_property(SOURCE ${ASM_FILES} PROPERTY LANGUAGE ASM_MASM)
-    else()
-        set(ASM_FILES co/context/context.S)
-    endif()
-
-    add_library(co
-        ${CC_FILES}
-        ${ASM_FILES}
+    list(APPEND CO_SRC_FILES
         log/StackWalker.cpp
         co/detours/creatwth.cpp
         co/detours/detours.cpp
@@ -22,13 +22,9 @@ if(WIN32)
         co/detours/modules.cpp
         co/detours/disasm.cpp
     )
-else()
-    add_library(co
-        ${CC_FILES}
-        co/context/context.S
-    )
 endif()
 
+add_library(co ${CO_SRC_FILES})
 add_library(cocoyaxi::co ALIAS co)
 
 target_include_directories(co
