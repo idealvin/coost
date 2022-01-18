@@ -1,4 +1,3 @@
-list(APPEND LIBS_TO_LINK co)
 file(GLOB_RECURSE ALL_TEST_FILES "*.cc")
 
 foreach(TEST_FILE ${ALL_TEST_FILES})
@@ -12,7 +11,5 @@ foreach(TEST_FILE ${ALL_TEST_FILES})
         PROPERTIES OUTPUT_NAME ${TEST_TARGET}
     )
 
-    target_link_libraries(${TEST_TARGET}_test
-        ${LIBS_TO_LINK}
-    )
+    target_link_libraries(${TEST_TARGET}_test PRIVATE co)
 endforeach(TEST_FILE ${ALL_TEST_FILES})
