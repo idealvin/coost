@@ -44,9 +44,7 @@ if(WITH_LIBCURL OR WITH_OPENSSL)
 endif()
 
 if(FPIC)
-    if(NOT MSVC)
-        target_compile_options(co PRIVATE -fPIC)
-    endif()
+    set_target_properties(co PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 find_package(Threads REQUIRED)
