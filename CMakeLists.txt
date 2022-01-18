@@ -53,8 +53,6 @@ if(MSVC)
     endif()
 endif()
 
-
-include_directories(include)
 add_subdirectory(src)
 
 if(BUILD_ALL)

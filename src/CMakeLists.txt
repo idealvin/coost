@@ -31,6 +31,11 @@ endif()
 
 add_library(cocoyaxi::co ALIAS co)
 
+target_include_directories(co
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 if(WITH_LIBCURL)
     find_package(CURL REQUIRED)
