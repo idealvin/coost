@@ -60,8 +60,3 @@ if(BUILD_ALL)
     add_subdirectory(unitest)
     add_subdirectory(test)
 endif()
-
-install(
-    DIRECTORY include/co
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)

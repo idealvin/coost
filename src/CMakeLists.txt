@@ -1,6 +1,6 @@
+# Build co library
 file(GLOB_RECURSE CC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
-# source files
 if(WIN32)
     set(ASM_FILES co/context/context_x64.asm)
     if(MSVC)
@@ -91,7 +91,9 @@ else()
     endif()
 endif()
 
+# Installation
 
+## library & public headers
 install(
     TARGETS co
     EXPORT cocoyaxiExport
@@ -100,7 +102,12 @@ install(
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# pkgconfig file
+install(
+    DIRECTORY ${PROJECT_SOURCE_DIR}/include/co
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+## pkgconfig file
 if(WIN32)
     string(APPEND CO_PKG_EXTRA_LIBS " -lws2_32")
 else()
@@ -132,8 +139,7 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
-# CMake config file
-
+## CMake config file
 set(CO_CMAKE_CONFIG_DEPS "find_dependency(Threads)\n")
 if(WITH_LIBCURL)
     string(APPEND CO_CMAKE_CONFIG_DEPS "find_dependency(CURL)\n")
