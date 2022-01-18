@@ -56,11 +56,10 @@ if(FPIC)
 endif()
 
 find_package(Threads REQUIRED)
-target_link_libraries(co PUBLIC Threads::Threads)
-
-if(UNIX AND NOT APPLE)
-    target_link_libraries(co PRIVATE dl)
-endif()
+target_link_libraries(co
+    PUBLIC Threads::Threads
+    PRIVATE ${CMAKE_DL_LIBS}
+)
 
 if(WIN32)
     if(MSVC)
