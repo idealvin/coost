@@ -12,7 +12,6 @@ else()
     enable_language(C CXX ASM)
 endif()
 
-set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
 include(GNUInstallDirs)

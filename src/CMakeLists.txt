@@ -43,6 +43,8 @@ if(WITH_LIBCURL OR WITH_OPENSSL)
     target_link_libraries(co PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
+target_compile_features(co PUBLIC cxx_std_11)
+
 if(FPIC)
     set_target_properties(co PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
