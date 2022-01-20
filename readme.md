@@ -430,7 +430,7 @@ xmake f -k shared
 xmake -v
 ```
 
-#### 5.2.3 Build with mingw on Windows
+#### 5.2.3 Build with mingw
 
 ```sh
 xmake f -p mingw
@@ -438,11 +438,11 @@ xmake -v
 ```
 
 
-#### 5.2.4 Enable HTTP & SSL features
+#### 5.2.4 Enable HTTP/SSL features
 
 ```sh
 xmake f --with_libcurl=true --with_openssl=true
-xmake -a
+xmake -v
 ```
 
 
@@ -456,7 +456,7 @@ xmake install -o /usr/local  # install to the /usr/local directory
 ```
 
 
-#### 5.2.6 Install libco from xmake repo
+#### 5.2.6 Install libco from xrepo
 
 ```sh
 xrepo install -f "openssl=true,libcurl=true" cocoyaxi
@@ -466,10 +466,10 @@ xrepo install -f "openssl=true,libcurl=true" cocoyaxi
 
 ### 5.3 Build with cmake
 
-[izhengfan](https://github.com/izhengfan) helped to provide cmake support:
+[izhengfan](https://github.com/izhengfan) helped to provide cmake support, [SpaceIm](https://github.com/SpaceIm) improved it and made it perfect.
 
 
-#### 5.3.1 Build libco by default
+#### 5.3.1 Build libco
 
 ```sh
 mkdir build && cd build
@@ -487,13 +487,12 @@ make -j8
 ```
 
 
-#### 5.3.3 Enable HTTP & SSL features
+#### 5.3.3 Enable HTTP/SSL features
 
 ```sh
 mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake .. -DWITH_LIBCURL=ON -DWITH_OPENSSL=ON
 make -j8
-make install
 ```
 
 
@@ -501,6 +500,7 @@ make install
 
 ```sh
 cmake .. -DBUILD_SHARED_LIBS=ON
+make -j8
 ```
 
 
@@ -513,11 +513,21 @@ vcpkg install cocoyaxi:x64-windows
 vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
 ```
 
+
 #### 5.3.6 Install libco from conan
 
 ```sh
 conan install cocoyaxi
 ```
+
+
+#### 5.3.7 Find cocoyaxi in Cmake
+
+```cmake
+find_package(cocoyaxi REQUIRED CONFIG)
+target_link_libraries(userTarget cocoyaxi::co)
+```
+
 
 
 
@@ -534,3 +544,4 @@ The MIT license. cocoyaxi contains codes from some other projects, which have th
 - The early English documents of co are translated by [Leedehai](https://github.com/Leedehai) and [daidai21](https://github.com/daidai21), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!
+- [SpaceIm](https://github.com/SpaceIm) has improved the cmake building scripts, and provided support for `find_package`. Really great help, thank you!

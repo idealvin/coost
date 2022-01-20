@@ -424,7 +424,7 @@ xmake -a    # 构建所有项目 (libco, gen, test, unitest)
 ```
 
 
-#### 5.2.2 Windows 平台基于 mingw 构建
+#### 5.2.2 基于 mingw 构建
 
 ```sh
 xmake f -p mingw
@@ -449,7 +449,7 @@ xmake install -o /usr/local   # 安装到 /usr/local 目录
 ```
 
 
-#### 5.2.5 从 xmake repo 安装 libco
+#### 5.2.5 从 xrepo 安装 libco
 
 ```sh
 xrepo install -f "openssl=true,libcurl=true" cocoyaxi
@@ -459,7 +459,7 @@ xrepo install -f "openssl=true,libcurl=true" cocoyaxi
 
 ### 5.3 用 cmake 构建
 
-[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持:  
+[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持，[SpaceIm](https://github.com/SpaceIm) 进一步完善了 cmake 脚本。
 
 
 #### 5.3.1 构建 libco
@@ -481,16 +481,24 @@ make install
 ```
 
 
-#### 5.3.3 启用 HTTP & SSL (需要 openssl 1.1.0 或以上版本)
+#### 5.3.3 启用 HTTP/SSL 特性
 
 ```sh
 mkdir build && cd build
-cmake .. -DBUILD_ALL=ON -DWITH_LIBCURL=ON
+cmake .. -DWITH_LIBCURL=ON -DWITH_OPENSSL=ON
 make -j8
 ```
 
 
-#### 5.3.4 从 vcpkg 安装 libco
+#### 5.3.4 构建动态库
+
+```sh
+cmake .. -DBUILD_SHARED_LIBS=ON
+make -j8
+```
+
+
+#### 5.3.5 从 vcpkg 安装 libco
 
 ```sh
 vcpkg install cocoyaxi:x64-windows
@@ -500,11 +508,20 @@ vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
 ```
 
 
-#### 5.3.5 从 conan 安装 libco
+#### 5.3.6 从 conan 安装 libco
 
 ```sh
 conan install cocoyaxi
 ```
+
+
+#### 5.3.7 Cmake 中查找 cocoyaxi 包
+
+```cmake
+find_package(cocoyaxi REQUIRED CONFIG)
+target_link_libraries(userTarget cocoyaxi::co)
+```
+
 
 
 
@@ -521,4 +538,5 @@ The MIT license. cocoyaxi 包含了一些其他项目的代码，可能使用了
 - [Leedehai](https://github.com/Leedehai) 与 [daidai21](https://github.com/daidai21) 早期帮忙将 co 的中文参考文档翻译成英文，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
+- [SpaceIm](https://github.com/SpaceIm) 完善了 cmake 构建脚本，提供了 `find_package` 的支持，特别表示感谢！
 
