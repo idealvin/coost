@@ -1,11 +1,13 @@
 #pragma once
 
+#include "def.h"
+
 #include <functional>
 #include <type_traits>
 
 namespace co {
 
-class Closure {
+class __codec Closure {
   public:
     Closure() = default;
     virtual ~Closure() = default;

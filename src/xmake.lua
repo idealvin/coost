@@ -27,6 +27,15 @@ target("libco")
         add_packages("openssl")
     end 
 
+    if is_kind("shared") then
+        set_symbols("hidden")
+        add_defines("BUILDING_CO_SHARED")
+        set_configvar("COCOYAXI_SHARED", 1)
+    else
+        set_configvar("COCOYAXI_SHARED", 0)
+    end
+    add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
+
     if is_plat("windows", "mingw") then
         add_defines("WIN32_LEAN_AND_MEAN")
         add_defines("_WINSOCK_DEPRECATED_NO_WARNINGS")
@@ -37,14 +46,6 @@ target("libco")
         add_files("co/detours/modules.cpp")
         add_files("co/detours/disasm.cpp")
         if is_plat("windows") then
-            if is_kind("shared") then
-                add_defines("BUILDING_CO_DLL")
-                set_configvar("USING_CO_DLL", 1)
-            else
-                set_configvar("USING_CO_DLL", 0)
-            end
-            add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
-
             if is_arch("x64") then
                 add_files("co/context/context_x64.asm")
             else
