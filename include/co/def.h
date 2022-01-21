@@ -49,24 +49,19 @@ typedef uint64_t uint64;
 
 #include "config.h"
 
-// __codef: define global variables
-// __codec: declare classes, functions, global variables
-// Do not use __codef and __codec outside of cocoyaxi.
+// __codec: used to declare exported symbols in shared co
+// Do not use (or reuse outside of cocoyaxi) this definiton  yourself
 #if COCOYAXI_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED
-      #define __codef __declspec(dllexport)
       #define __codec __declspec(dllexport)
     #else
-      #define __codef
       #define __codec __declspec(dllimport)
     #endif
   #else
     #ifdef BUILDING_CO_SHARED
-      #define __codef __attribute__((visibility("default")))
       #define __codec __attribute__((visibility("default")))
     #else
-      #define __codef
       #define __codec __attribute__((visibility("default")))
     #endif
   #endif
