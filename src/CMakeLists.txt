@@ -66,21 +66,28 @@ target_link_libraries(co
     PRIVATE ${CMAKE_DL_LIBS}
 )
 
+if(BUILD_SHARED_LIBS)
+    set_target_properties(co
+        PROPERTIES
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
+    )
+    target_compile_definitions(co PRIVATE BUILDING_CO_SHARED)
+    set(COCOYAXI_SHARED 1)
+else()
+    set(COCOYAXI_SHARED 0)
+endif()
+configure_file(
+    "${PROJECT_SOURCE_DIR}/include/co/config.h.in"
+    "${PROJECT_SOURCE_DIR}/include/co/config.h"
+)
+
 if(WIN32)
-    if(MSVC)
-        if(BUILD_SHARED_LIBS)
-            target_compile_definitions(co PRIVATE BUILDING_CO_DLL)
-            set(USING_CO_DLL 1)
-        else()
-            set(USING_CO_DLL 0)
-        endif()
-        configure_file(
-            "${PROJECT_SOURCE_DIR}/include/co/config.h.in"
-            "${PROJECT_SOURCE_DIR}/include/co/config.h"
-        )
-    endif()
-    target_compile_definitions(co PRIVATE WIN32_LEAN_AND_MEAN)
-    target_compile_definitions(co PRIVATE _WINSOCK_DEPRECATED_NO_WARNINGS)
+    target_compile_definitions(co
+        PRIVATE
+            WIN32_LEAN_AND_MEAN
+            _WINSOCK_DEPRECATED_NO_WARNINGS
+    )
     target_link_libraries(co PUBLIC ws2_32)
 else()
     include(CheckIncludeFiles)

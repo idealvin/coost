@@ -61,8 +61,8 @@ inline void mutex_unlock(mutex_t* m)   { int r = pthread_mutex_unlock(m); assert
 inline bool mutex_try_lock(mutex_t* m) { return pthread_mutex_trylock(m) == 0; }
 
 typedef pthread_cond_t cond_t;
-void cond_init(cond_t* c);
-bool cond_wait(cond_t* c, mutex_t* m, uint32 ms);
+__codec void cond_init(cond_t* c);
+__codec bool cond_wait(cond_t* c, mutex_t* m, uint32 ms);
 inline void cond_destroy(cond_t* c)          { pthread_cond_destroy(c); }
 inline void cond_wait(cond_t* c, mutex_t* m) { pthread_cond_wait(c, m); }
 inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
@@ -70,7 +70,7 @@ inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
 typedef pthread_t thread_t;
 typedef void* (*thread_fun_t)(void*);
 #define _CO_DEF_THREAD_FUN(f, p) static void* f(void* p)
-uint32 thread_id();
+__codec uint32 thread_id();
 inline void thread_start(thread_t* t, thread_fun_t f, void* p) { int r = pthread_create(t, 0, f, p); assert(r == 0); }
 inline void thread_join(thread_t t)                            { pthread_join(t, 0); }
 inline void thread_detach(thread_t t)                          { pthread_detach(t); }
