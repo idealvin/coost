@@ -1,5 +1,6 @@
 #pragma once
 
+#include "def.h"
 #include "fastring.h"
 #include <vector>
 
@@ -30,7 +31,7 @@ __codec void add_flag(
 } // namespace xx
 } // namespace flag
 
-#define _CO_DEC_FLAG(type, name) extern type FLG_##name
+#define _CO_DEC_FLAG(type, name) __codec extern type FLG_##name
 
 // Declare a flag.
 // DEC_string(s);  ->  extern fastring FLG_s;
@@ -40,10 +41,10 @@ __codec void add_flag(
 #define DEC_uint32(name)  _CO_DEC_FLAG(uint32, name)
 #define DEC_uint64(name)  _CO_DEC_FLAG(uint64, name)
 #define DEC_double(name)  _CO_DEC_FLAG(double, name)
-#define DEC_string(name)  extern fastring FLG_##name
+#define DEC_string(name)  __codec extern fastring FLG_##name
 
 #define _CO_DEF_FLAG(type, id, name, value, help) \
-    __codef type FLG_##name = []() { \
+    type FLG_##name = []() { \
         ::flag::xx::add_flag(id, #name, #value, help, __FILE__, __LINE__, &FLG_##name); \
         return value; \
     }()
@@ -58,10 +59,10 @@ __codec void add_flag(
 #define DEF_double(name, value, help)  _CO_DEF_FLAG(double, 'd', name, value, help)
 
 #define DEF_string(name, value, help) \
-    __codef fastring FLG_##name = []() { \
+    fastring FLG_##name = []() { \
         ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, &FLG_##name); \
         return value; \
     }()
 
-__codec DEC_string(help);
-__codec DEC_string(config);
+DEC_string(help);
+DEC_string(config);
