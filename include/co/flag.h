@@ -58,7 +58,7 @@ __codec void add_flag(
 #define DEF_double(name, value, help)  _CO_DEF_FLAG(double, 'd', name, value, help)
 
 #define DEF_string(name, value, help) \
-    fastring FLG_##name = []() { \
+    __codef fastring FLG_##name = []() { \
         ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, &FLG_##name); \
         return value; \
     }()
