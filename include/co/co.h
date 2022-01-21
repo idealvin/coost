@@ -13,8 +13,6 @@
 #include "./co/wait_group.h"
 #include <vector>
 
-DEC_bool(disable_co_exit);
-
 namespace co {
 
 /**
@@ -127,6 +125,7 @@ inline void go(F&& f, T* t, P&& p) {
  *   - DEF_main can be used to ensure code in main function also runs in coroutine. 
  */
 #define DEF_main(argc, argv) \
+DEC_bool(disable_co_exit); \
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
     co::init(argc, argv); \
