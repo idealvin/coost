@@ -29,7 +29,6 @@
 DEC_uint32(co_sched_num);
 DEC_uint32(co_stack_size);
 DEC_bool(co_debug_log);
-DEC_bool(disable_co_exit);
 
 #define CO_DBG_LOG DLOG_IF(FLG_co_debug_log)
 
