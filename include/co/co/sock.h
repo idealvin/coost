@@ -39,7 +39,7 @@ inline void set_error(int e) { errno = e; }
 #endif
 
 // get string of a error number (thread-safe)
-__codec const char* strerror(int e);
+__coapi const char* strerror(int e);
 
 // get string of the current error number (thread-safe)
 inline const char* strerror() {
@@ -56,7 +56,7 @@ inline const char* strerror() {
  * @return        a non-blocking (also overlapped on windows) socket on success, 
  *                or -1 on error.
  */
-__codec sock_t socket(int domain, int type, int proto);
+__coapi sock_t socket(int domain, int type, int proto);
 
 /**
  * create a TCP socket suitable for coroutine programing
@@ -100,7 +100,7 @@ inline sock_t udp_socket(int domain=AF_INET) {
  * 
  * @return    0 on success, -1 on error.
  */
-__codec int close(sock_t fd, int ms = 0);
+__coapi int close(sock_t fd, int ms = 0);
 
 /**
  * shutdown a socket 
@@ -112,7 +112,7 @@ __codec int close(sock_t fd, int ms = 0);
  * 
  * @return    0 on success, -1 on error.
  */
-__codec int shutdown(sock_t fd, char c = 'b');
+__coapi int shutdown(sock_t fd, char c = 'b');
 
 /**
  * bind an address to a socket
@@ -123,7 +123,7 @@ __codec int shutdown(sock_t fd, char c = 'b');
  * 
  * @return         0 on success, -1 on error.
  */
-__codec int bind(sock_t fd, const void* addr, int addrlen);
+__coapi int bind(sock_t fd, const void* addr, int addrlen);
 
 /**
  * listen on a socket
@@ -134,7 +134,7 @@ __codec int bind(sock_t fd, const void* addr, int addrlen);
  * 
  * @return         0 on success, -1 on error.
  */
-__codec int listen(sock_t fd, int backlog = 1024);
+__coapi int listen(sock_t fd, int backlog = 1024);
 
 /**
  * accept a connection on a socket 
@@ -149,7 +149,7 @@ __codec int listen(sock_t fd, int backlog = 1024);
  * @return         a non-blocking (also overlapped on windows) socket on success,  
  *                 or -1 on error.
  */
-__codec sock_t accept(sock_t fd, void* addr, int* addrlen);
+__coapi sock_t accept(sock_t fd, void* addr, int* addrlen);
 
 /**
  * connect to an address 
@@ -165,7 +165,7 @@ __codec sock_t accept(sock_t fd, void* addr, int* addrlen);
  * 
  * @return         0 on success, -1 on timeout or error.
  */
-__codec int connect(sock_t fd, const void* addr, int addrlen, int ms = -1);
+__coapi int connect(sock_t fd, const void* addr, int addrlen, int ms = -1);
 
 /**
  * recv data from a socket 
@@ -183,7 +183,7 @@ __codec int connect(sock_t fd, const void* addr, int addrlen, int ms = -1);
  * @return     bytes recieved on success, -1 on timeout or error, 0 will be returned 
  *             if fd is a stream socket and the peer has closed the connection.
  */
-__codec int recv(sock_t fd, void* buf, int n, int ms = -1);
+__coapi int recv(sock_t fd, void* buf, int n, int ms = -1);
 
 /**
  * recv n bytes from a socket 
@@ -202,7 +202,7 @@ __codec int recv(sock_t fd, void* buf, int n, int ms = -1);
  * @return     n on success, -1 on timeout or error, 0 will be returned if the peer 
  *             close the connection.
  */
-__codec int recvn(sock_t fd, void* buf, int n, int ms = -1);
+__coapi int recvn(sock_t fd, void* buf, int n, int ms = -1);
 
 /**
  * recv data from a socket 
@@ -225,7 +225,7 @@ __codec int recvn(sock_t fd, void* buf, int n, int ms = -1);
  * @return          bytes recieved on success, -1 on timeout or error, 0 will be returned 
  *                  if fd is a stream socket and the peer has closed the connection.
  */
-__codec int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, int ms = -1);
+__coapi int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, int ms = -1);
 
 /**
  * send n bytes on a socket 
@@ -242,7 +242,7 @@ __codec int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, 
  * 
  * @return     n on success, or -1 on error. 
  */
-__codec int send(sock_t fd, const void* buf, int n, int ms = -1);
+__coapi int send(sock_t fd, const void* buf, int n, int ms = -1);
 
 /**
  * send n bytes on a socket 
@@ -262,7 +262,7 @@ __codec int send(sock_t fd, const void* buf, int n, int ms = -1);
  * 
  * @return          n on success, -1 on timeout or error. 
  */
-__codec int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int addrlen, int ms = -1);
+__coapi int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int addrlen, int ms = -1);
 
 #ifdef _WIN32
 /**
@@ -356,7 +356,7 @@ inline int reset_tcp_socket(sock_t fd, int ms=0) {
 /**
  * set option O_NONBLOCK on a socket 
  */
-__codec void set_nonblock(sock_t fd);
+__coapi void set_nonblock(sock_t fd);
 
 #else
 /**

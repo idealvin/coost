@@ -49,23 +49,18 @@ typedef uint64_t uint64;
 
 #include "config.h"
 
-// __codec: used to declare exported symbols in shared co
+// __coapi: used to export symbols in shared co
 // Do not use (or reuse outside of cocoyaxi) this definiton  yourself
 #if COCOYAXI_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED
-      #define __codec __declspec(dllexport)
+      #define __coapi __declspec(dllexport)
     #else
-      #define __codec __declspec(dllimport)
+      #define __coapi __declspec(dllimport)
     #endif
   #else
-    #ifdef BUILDING_CO_SHARED
-      #define __codec __attribute__((visibility("default")))
-    #else
-      #define __codec __attribute__((visibility("default")))
-    #endif
+    #define __coapi __attribute__((visibility("default")))
   #endif
 #else
-  #define __codef
-  #define __codec
+  #define __coapi
 #endif

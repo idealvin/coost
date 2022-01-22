@@ -17,7 +17,7 @@ namespace co {
  *   - NOTE: Each thread holds its own pool, users SHOULD call pop() and push() 
  *     in the same thread.
  */
-class __codec Pool {
+class __coapi Pool {
   public:
     // default constructor without ccb and dcb 
     Pool();

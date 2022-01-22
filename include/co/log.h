@@ -16,17 +16,17 @@ namespace log {
  *   - log::init() should be called once at the beginning of main(). 
  *   - It is safe to call log::init() for multiple times. 
  */
-__codec void init();
+__coapi void init();
 
 /**
  * close the log library 
  *   - write all buffered logs to destination.
  *   - stop the logging thread.
  */
-__codec void exit();
+__coapi void exit();
 
 // deprecated since v2.0.2, use log::exit() instead.
-__codec void close();
+__coapi void close();
 
 /**
  * set a callback for writing logs
@@ -35,14 +35,14 @@ __codec void close();
  *   - The callback has 2 parameters, a pointer to the log buffer and its length. 
  *     The buffer may contain more than one logs.
  */
-__codec void set_write_cb(const std::function<void(const void*, size_t)>& cb);
+__coapi void set_write_cb(const std::function<void(const void*, size_t)>& cb);
 
 /**
  * set a callback for writing a single log
  *   - Similar to set_write_cb, but the callback writes a single log each time. 
  *     It may be useful when users want to send logs by UDP.
  */
-__codec void set_single_write_cb(const std::function<void(const void*, size_t)>& cb);
+__coapi void set_single_write_cb(const std::function<void(const void*, size_t)>& cb);
 
 namespace xx {
 
@@ -54,7 +54,7 @@ enum LogLevel {
     fatal = 4
 };
 
-class __codec LevelLogSaver {
+class __coapi LevelLogSaver {
   public:
     LevelLogSaver(const char* file, int len, unsigned int line, int level);
     ~LevelLogSaver();
@@ -66,7 +66,7 @@ class __codec LevelLogSaver {
     size_t _n;
 };
 
-class __codec FatalLogSaver {
+class __coapi FatalLogSaver {
   public:
     FatalLogSaver(const char* file, int len, unsigned int line);
     ~FatalLogSaver();

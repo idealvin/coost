@@ -173,7 +173,7 @@ struct Queue {
 
 } // xx
 
-class __codec Json {
+class __coapi Json {
   public:
     enum Type {
         kNull = 0,

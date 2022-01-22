@@ -7,7 +7,7 @@
 
 namespace co {
 
-class __codec Closure {
+class __coapi Closure {
   public:
     Closure() = default;
     virtual ~Closure() = default;

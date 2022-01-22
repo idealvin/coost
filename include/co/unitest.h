@@ -10,9 +10,9 @@
 
 namespace unitest {
 
-__codec void run_all_tests();
+__coapi void run_all_tests();
 
-__codec void push_failed_msg(const fastring& test_name, const fastring& case_name,
+__coapi void push_failed_msg(const fastring& test_name, const fastring& case_name,
                      const char* file, int line, const fastring& msg);
 
 class Test {
@@ -29,7 +29,7 @@ class Test {
     void operator=(const Test&);
 };
 
-struct __codec TestSaver {
+struct __coapi TestSaver {
     TestSaver(Test* test);
 };
 
@@ -49,7 +49,7 @@ class Case {
 };
 
 #ifdef _WIN32
-struct __codec Color {
+struct __coapi Color {
     Color(const char* s, int i);
 
     union {
@@ -58,13 +58,13 @@ struct __codec Color {
     };
 };
 
-__codec std::ostream& operator<<(std::ostream&, const Color&);
+__coapi std::ostream& operator<<(std::ostream&, const Color&);
 
-extern const Color __codec red;
-extern const Color __codec green;
-extern const Color __codec blue;
-extern const Color __codec yellow;
-extern const Color __codec default_color;
+extern const Color __coapi red;
+extern const Color __coapi green;
+extern const Color __coapi blue;
+extern const Color __coapi yellow;
+extern const Color __coapi default_color;
 
 #else
 struct Color {};

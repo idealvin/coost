@@ -21,12 +21,12 @@ inline int dtoa(double v, char* buf) {
 
 // unsigned integer to hex string, return length of the result
 //   - 255 -> "0xff"
-__codec int u32toh(uint32 v, char* buf);
-__codec int u64toh(uint64 v, char* buf);
+__coapi int u32toh(uint32 v, char* buf);
+__coapi int u64toh(uint64 v, char* buf);
 
 // integer to ascii string, return length of the result
-__codec int u32toa(uint32 v, char* buf);
-__codec int u64toa(uint64 v, char* buf);
+__coapi int u32toa(uint32 v, char* buf);
+__coapi int u64toa(uint64 v, char* buf);
 
 inline int i32toa(int32 v, char* buf) {
     if (v >= 0) return u32toa((uint32)v, buf);
@@ -94,7 +94,7 @@ inline int ptoh(const void* p, char* buf) {
     return xx::ptoh<sizeof(p)>(p, buf);
 }
 
-class __codec stream {
+class __coapi stream {
   public:
     constexpr stream() noexcept
         : _cap(0), _size(0), _p(0) {

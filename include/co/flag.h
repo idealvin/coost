@@ -12,18 +12,18 @@ namespace flag {
 
 // Parse command line flags or config file specified by -config.
 // Return non-flag elements.
-__codec std::vector<fastring> init(int argc, const char** argv);
+__coapi std::vector<fastring> init(int argc, const char** argv);
 
 inline std::vector<fastring> init(int argc, char** argv) {
     return flag::init(argc, (const char**)argv);
 }
 
 // Initialize with a config file.
-__codec void init(const fastring& path);
+__coapi void init(const fastring& path);
 
 namespace xx {
 
-__codec void add_flag(
+__coapi void add_flag(
     char type, const char* name, const char* value, const char* help, 
     const char* file, int line, void* addr
 );
@@ -31,7 +31,7 @@ __codec void add_flag(
 } // namespace xx
 } // namespace flag
 
-#define _CO_DEC_FLAG(type, name) __codec extern type FLG_##name
+#define _CO_DEC_FLAG(type, name) __coapi extern type FLG_##name
 
 // Declare a flag.
 // DEC_string(s);  ->  extern fastring FLG_s;
@@ -41,7 +41,7 @@ __codec void add_flag(
 #define DEC_uint32(name)  _CO_DEC_FLAG(uint32, name)
 #define DEC_uint64(name)  _CO_DEC_FLAG(uint64, name)
 #define DEC_double(name)  _CO_DEC_FLAG(double, name)
-#define DEC_string(name)  __codec extern fastring FLG_##name
+#define DEC_string(name)  __coapi extern fastring FLG_##name
 
 #define _CO_DEF_FLAG(type, id, name, value, help) \
     type FLG_##name = []() { \

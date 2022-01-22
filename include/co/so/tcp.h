@@ -11,7 +11,7 @@ namespace tcp {
  *     was accepted. DO NOT create tcp::Connection by yourself.
  *   - If tcp::Server is a SSL server, data will be transfered by SSL.
  */
-struct __codec Connection final {
+struct __coapi Connection final {
     // normal TCP connection
     Connection(int sock);
 
@@ -87,7 +87,7 @@ struct __codec Connection final {
  *   - Support ssl (openssl 1.1.0+ required).
  *   - One coroutine per connection. 
  */
-class __codec Server final {
+class __coapi Server final {
   public:
     Server();
     ~Server();
@@ -152,7 +152,7 @@ class __codec Server final {
  *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
  *     may be established. 
  */
-class __codec Client final {
+class __coapi Client final {
   public:
     /**
      * the constructor

@@ -10,7 +10,7 @@
 #include <string>
 #include <ostream>
 
-class __codec fastring : public fast::stream {
+class __coapi fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
 
