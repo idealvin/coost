@@ -31,7 +31,7 @@ __coapi void add_flag(
 } // namespace xx
 } // namespace flag
 
-#define _CO_DEC_FLAG(type, name) __coapi extern type FLG_##name
+#define _CO_DEC_FLAG(type, name) extern type FLG_##name
 
 // Declare a flag.
 // DEC_string(s);  ->  extern fastring FLG_s;
@@ -41,7 +41,7 @@ __coapi void add_flag(
 #define DEC_uint32(name)  _CO_DEC_FLAG(uint32, name)
 #define DEC_uint64(name)  _CO_DEC_FLAG(uint64, name)
 #define DEC_double(name)  _CO_DEC_FLAG(double, name)
-#define DEC_string(name)  __coapi extern fastring FLG_##name
+#define DEC_string(name)  extern fastring FLG_##name
 
 #define _CO_DEF_FLAG(type, id, name, value, help) \
     type FLG_##name = []() { \
@@ -64,5 +64,5 @@ __coapi void add_flag(
         return value; \
     }()
 
-DEC_string(help);
-DEC_string(config);
+__coapi DEC_string(help);
+__coapi DEC_string(config);
