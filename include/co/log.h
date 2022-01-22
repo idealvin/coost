@@ -5,8 +5,8 @@
 #include "atomic.h"
 #include <functional>
 
-DEC_bool(cout);
-DEC_int32(min_log_level);
+__coapi DEC_bool(cout);
+__coapi DEC_int32(min_log_level);
 
 namespace ___ {
 namespace log {
