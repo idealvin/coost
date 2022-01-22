@@ -21,6 +21,9 @@ inline std::vector<fastring> init(int argc, char** argv) {
 // Initialize with a config file.
 __coapi void init(const fastring& path);
 
+// Set value of a flag, return error message if failed.
+__coapi fastring set_value(const fastring& name, const fastring& value);
+
 namespace xx {
 
 __coapi void add_flag(
