@@ -66,3 +66,4 @@ __coapi void add_flag(
 
 __coapi DEC_string(help);
 __coapi DEC_string(config);
+__coapi DEC_string(version);

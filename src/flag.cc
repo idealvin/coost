@@ -7,6 +7,7 @@
 
 DEF_string(help, "", ">>.help info");
 DEF_string(config, "", ">>.path of config file");
+DEF_string(version, "", ">>.version of the program");
 DEF_bool(mkconf, false, ">>.generate config file");
 DEF_bool(daemon, false, ">>#0 run program as a daemon");
 
@@ -237,12 +238,16 @@ void show_all_flags() {
 }
 
 // if FLG_help is empty, this is equal to show_flags()
-void show_help() {
+inline void show_help() {
     if (FLG_help.empty()) {
         show_flags();
     } else {
         COUT << FLG_help;
     }
+}
+
+inline void show_version() {
+    if (!FLG_version.empty()) COUT << FLG_version;
 }
 
 fastring format_str(const fastring& s) {
@@ -395,6 +400,11 @@ std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
         const fastring& arg = args[0];
         if (arg == "--help") {
             show_help();
+            exit(0);
+        }
+
+        if (arg == "--version") {
+            show_version();
             exit(0);
         }
 
