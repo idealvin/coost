@@ -10,13 +10,13 @@
 #include "co/time.h"
 #include <memory>
 
-DEF_int32(rpc_max_msg_size, 8 << 20, "#2 max size of rpc message, default: 8M");
-DEF_int32(rpc_recv_timeout, 1024, "#2 recv timeout in ms");
-DEF_int32(rpc_send_timeout, 1024, "#2 send timeout in ms");
-DEF_int32(rpc_conn_timeout, 3000, "#2 connect timeout in ms");
-DEF_int32(rpc_conn_idle_sec, 180, "#2 connection may be closed if no data was recieved for n seconds");
-DEF_int32(rpc_max_idle_conn, 128, "#2 max idle connections");
-DEF_bool(rpc_log, true, "#2 enable rpc log if true");
+DEF_int32(rpc_max_msg_size, 8 << 20, ">>#2 max size of rpc message, default: 8M");
+DEF_int32(rpc_recv_timeout, 1024, ">>#2 recv timeout in ms");
+DEF_int32(rpc_send_timeout, 1024, ">>#2 send timeout in ms");
+DEF_int32(rpc_conn_timeout, 3000, ">>#2 connect timeout in ms");
+DEF_int32(rpc_conn_idle_sec, 180, ">>#2 connection may be closed if no data was recieved for n seconds");
+DEF_int32(rpc_max_idle_conn, 128, ">>#2 max idle connections");
+DEF_bool(rpc_log, true, ">>#2 enable rpc log if true");
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 

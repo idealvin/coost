@@ -15,7 +15,7 @@
 #include <windows.h>
 #endif
 
-DEF_bool(a, false, ".Run all tests if true");
+DEF_bool(a, false, ">>.Run all tests if true");
 
 namespace unitest {
 using std::cout;

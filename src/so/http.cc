@@ -18,15 +18,15 @@
 #include <curl/curl.h>
 #endif
 
-DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
-DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
-DEF_uint32(http_timeout, 3000, "#2 send or recv timeout in ms for http client");
-DEF_uint32(http_conn_timeout, 3000, "#2 connect timeout in ms for http client");
-DEF_uint32(http_recv_timeout, 3000, "#2 recv timeout in ms for http server");
-DEF_uint32(http_send_timeout, 3000, "#2 send timeout in ms for http server");
-DEF_uint32(http_conn_idle_sec, 180, "#2 http server may close the connection if no data was recieved for n seconds");
-DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections for http server");
-DEF_bool(http_log, true, "#2 enable http server log if true");
+DEF_uint32(http_max_header_size, 4096, ">>#2 max size of http header");
+DEF_uint32(http_max_body_size, 8 << 20, ">>#2 max size of http body, default: 8M");
+DEF_uint32(http_timeout, 3000, ">>#2 send or recv timeout in ms for http client");
+DEF_uint32(http_conn_timeout, 3000, ">>#2 connect timeout in ms for http client");
+DEF_uint32(http_recv_timeout, 3000, ">>#2 recv timeout in ms for http server");
+DEF_uint32(http_send_timeout, 3000, ">>#2 send timeout in ms for http server");
+DEF_uint32(http_conn_idle_sec, 180, ">>#2 http server may close the connection if no data was recieved for n seconds");
+DEF_uint32(http_max_idle_conn, 128, ">>#2 max idle connections for http server");
+DEF_bool(http_log, true, ">>#2 enable http server log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
 

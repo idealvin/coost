@@ -10,8 +10,8 @@
 #include "detours/detours.h"
 #include <Mswsock.h>
 
-DEF_bool(hook_log, false, "#1 enable log for hook if true");
-DEF_bool(disable_hook_sleep, false, "#1 disable hook sleep if true");
+DEF_bool(hook_log, false, ">>#1 enable log for hook if true");
+DEF_bool(disable_hook_sleep, false, ">>#1 disable hook sleep if true");
 
 #define HOOKLOG DLOG_IF(FLG_hook_log)
 

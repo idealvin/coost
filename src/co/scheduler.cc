@@ -1,10 +1,10 @@
 #include "scheduler.h"
 #include "co/os.h"
 
-DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
-DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
-DEF_bool(co_debug_log, false, "#1 enable debug log for coroutine library");
-DEF_bool(disable_co_exit, false, ".disable co::exit if true");
+DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, default: os::cpunum()");
+DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
+DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
+DEF_bool(disable_co_exit, false, ">>.disable co::exit if true");
 
 namespace co {
 

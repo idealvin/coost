@@ -6,7 +6,7 @@
 #include "co/str.h"
 #include "co/time.h"
 
-DEF_int32(ssl_handshake_timeout, 3000, "#2 ssl handshake timeout in ms");
+DEF_int32(ssl_handshake_timeout, 3000, ">>#2 ssl handshake timeout in ms");
 
 namespace tcp {
 
