@@ -569,4 +569,46 @@ fastring set_value(const fastring& name, const fastring& value) {
     return xx::set_flag_value(name, value);
 }
 
+bool set_bool_value(const fastring& name, bool value) {
+    auto flag = xx::find_flag(name);
+    if (flag && flag->type == xx::TYPE_bool) {
+        *static_cast<bool*>(flag->addr) = value;
+        return true;
+    }
+    return false;
+}
+
+bool set_int_value(const fastring& name, int value) {
+    auto flag = xx::find_flag(name);
+    if (flag) {
+        const char t = flag->type;
+        if (t == xx::TYPE_int32 || t == xx::TYPE_uint32) {
+            *static_cast<int32*>(flag->addr) = (int32)value;
+            return true;
+        } else if (t == xx::TYPE_int64 || t == xx::TYPE_uint64) {
+            *static_cast<int64*>(flag->addr) = (int64)value;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool set_double_value(const fastring& name, double value) {
+    auto flag = xx::find_flag(name);
+    if (flag && flag->type == xx::TYPE_double) {
+        *static_cast<double*>(flag->addr) = value;
+        return true;
+    }
+    return false;
+}
+
+bool set_string_value(const fastring& name, const fastring& value) {
+    auto flag = xx::find_flag(name);
+    if (flag && flag->type == xx::TYPE_string) {
+        *static_cast<fastring*>(flag->addr) = value;
+        return true;
+    }
+    return false;
+}
+
 } // namespace flag
