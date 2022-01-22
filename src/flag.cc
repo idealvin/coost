@@ -5,10 +5,10 @@
 #include "co/str.h"
 #include <map>
 
-DEF_string(help, "", ".help info");
-DEF_string(config, "", ".path of config file");
-DEF_bool(mkconf, false, ".generate config file");
-DEF_bool(daemon, false, "#0 run program as a daemon");
+DEF_string(help, "", ">>.help info");
+DEF_string(config, "", ">>.path of config file");
+DEF_bool(mkconf, false, ">>.generate config file");
+DEF_bool(daemon, false, ">>#0 run program as a daemon");
 
 namespace flag {
 namespace xx {
@@ -23,12 +23,13 @@ struct Flag {
     const char* type_str() const;
 
     char type;
+    bool inco;          // flag inside co (comment starts with >>)
     const char* name;
     const char* value;  // default value
     const char* help;   // help info
     const char* file;   // file where the flag is defined
     int line;           // line of the file where the flag is defined
-    int lv;             // level: 0-9 for co, 10-99 for users
+    int lv;             // level: 0-9
     void* addr;         // point to the flag variable
 };
 
@@ -47,18 +48,19 @@ const char TYPE_double = 'd';
 
 Flag::Flag(char type, const char* name, const char* value, const char* help, 
            const char* file, int line, void* addr)
-    : type(type), name(name), value(value), help(help),
-      file(file), line(line), lv(10), addr(addr) {
-    // get level(0-99) at the beginning of help
-    const char* const h = help;
-    if (h[0] == '#' && '0' <= h[1] && h[1] <= '9') {
-        if (h[2] == ' ' || h[2] == '\0') {
-            lv = h[1] - '0';
-            help += 2 + !!h[2];
-        } else if ('0' <= h[2] && h[2] <= '9' && (h[3] == ' ' || h[3] == '\0')) {
-            lv = (h[1] - '0') * 10 + (h[2] - '0');
-            help += 3 + !!h[3];
-        }
+    : type(type), inco(false), name(name), value(value), help(help),
+      file(file), line(line), lv(5), addr(addr) {
+    // flag defined in co
+    if (help[0] == '>' && help[1] == '>') {
+        this->inco = true;
+        this->help += 2;
+    }
+
+    // get level(0-9) at the beginning of help
+    const char* const h = this->help;
+    if (h[0] == '#' && '0' <= h[1] && h[1] <= '9' && (h[2] == ' ' || h[2] == '\0')) {
+        lv = h[1] - '0';
+        this->help += 2 + !!h[2];
     }
 }
 
@@ -219,37 +221,28 @@ fastring set_bool_flags(const fastring& name) {
     return fastring();
 }
 
-void show_flags_info() {
+// show user flags
+void show_flags() {
+    for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
+        const auto& flag = it->second;
+        if (!flag.inco && flag.help[0] != '\0') COUT << flag.to_string();
+    }
+}
+
+void show_all_flags() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
         const auto& flag = it->second;
         if (flag.help[0] != '\0') COUT << flag.to_string();
     }
 }
 
-void show_help_info(const fastring& exe) {
-    if (!FLG_help.empty()) {
+// if FLG_help is empty, this is equal to show_flags()
+void show_help() {
+    if (FLG_help.empty()) {
+        show_flags();
+    } else {
         COUT << FLG_help;
-        return;
     }
-
-    fastring s(exe);
-  #ifdef _WIN32
-    if (s.size() > 1 && s[1] == ':') {
-        size_t p = s.rfind('/');
-        if (p == s.npos) p = s.rfind('\\');
-        if (p != s.npos) s = "./" + s.substr(p + 1);
-    }
-  #endif
-    COUT << "usage:\n"
-         << "    " << s << " --                   print flags info\n"
-         << "    " << s << " --help               print help info\n"
-         << "    " << s << " --mkconf             generate config file\n"
-         << "    " << s << " --daemon             run as a daemon (Linux)\n"
-         << "    " << s << " xx.conf              run with config file\n"
-         << "    " << s << " config=xx.conf       run with config file\n"
-         << "    " << s << " -x -i=8k -s=ok       run with commandline flags\n"
-         << "    " << s << " -x -i 8k -s ok       run with commandline flags\n"
-         << "    " << s << " x=true i=8192 s=ok   run with commandline flags\n";
 }
 
 fastring format_str(const fastring& s) {
@@ -398,18 +391,21 @@ std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
         args.push_back(fastring(argv[i]));
     }
 
-    fastring exe(argv[0]);
-
-    if (args.size() == 1) {
+    if (args.size() == 1 && args[0].starts_with("--")) {
         const fastring& arg = args[0];
-
         if (arg == "--help") {
-            show_help_info(exe);
+            show_help();
             exit(0);
         }
 
-        if (arg.find_first_not_of('-') == arg.npos) {
-            show_flags_info();
+        if (arg == "--flags") {
+            show_flags();
+            exit(0);
+        }
+
+        // arg == "--" or arg == "--allflags"
+        if (arg.size() == 2 || arg == "--allflags") {
+            show_all_flags();
             exit(0);
         }
     }
