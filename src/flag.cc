@@ -34,8 +34,8 @@ struct Flag {
     void* addr;         // point to the flag variable
 };
 
-inline std::map<fastring, Flag>& gFlags() {
-    static std::map<fastring, Flag> flags; // <name, flag>
+inline std::map<fastring, Flag*>& gFlags() {
+    static std::map<fastring, Flag*> flags; // <name, flag>
     return flags;
 }
 
@@ -165,21 +165,20 @@ inline fastring Flag::to_string() const {
 void add_flag(
     char type, const char* name, const char* value, const char* help, 
     const char* file, int line, void* addr) {
-    auto r = gFlags().insert(
-        std::make_pair(fastring(name), Flag(type, name, value, help, file, line, addr))
-    );
+    auto r = gFlags().insert(std::make_pair(
+        fastring(name), co::new_static<Flag>(type, name, value, help, file, line, addr)
+    ));
 
     if (!r.second) {
         COUT << "multiple definitions of flag: " << name
-             << ", from " << r.first->second.file << " and " << file;
+             << ", from " << r.first->second->file << " and " << file;
         exit(0);
     }
 }
 
 inline Flag* find_flag(const fastring& name) {
     auto it = gFlags().find(name);
-    if (it != gFlags().end()) return &it->second;
-    return NULL;
+    return it != gFlags().end() ? it->second : NULL;
 }
 
 // Return error message on any error.
@@ -225,14 +224,14 @@ fastring set_bool_flags(const fastring& name) {
 // show user flags
 void show_flags() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
-        const auto& flag = it->second;
+        const auto& flag = *it->second;
         if (!flag.inco && flag.help[0] != '\0') COUT << flag.to_string();
     }
 }
 
 void show_all_flags() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
-        const auto& flag = it->second;
+        const auto& flag = *it->second;
         if (flag.help[0] != '\0') COUT << flag.to_string();
     }
 }
@@ -267,7 +266,7 @@ void mkconf(const fastring& exe) {
     // Order flags by lv, file, line.  <lv, <file, <line, flag>>>
     std::map<int, std::map<fastring, std::map<int, Flag*>>> flags;
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
-        Flag* f = &it->second;
+        Flag* f = it->second;
         if (f->help[0] == '.' || f->help[0] == '\0') continue; // ignore hidden flags.
         flags[f->lv][fastring(f->file)][f->line] = f;
     }

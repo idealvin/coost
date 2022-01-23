@@ -2,6 +2,7 @@
 
 #include "def.h"
 #include "fastring.h"
+#include "alloc.h"
 #include <vector>
 
 // co/flag is a library similar to Google's gflags.
@@ -56,7 +57,7 @@ __coapi void add_flag(
 #define DEC_uint32(name)  _CO_DEC_FLAG(uint32, name)
 #define DEC_uint64(name)  _CO_DEC_FLAG(uint64, name)
 #define DEC_double(name)  _CO_DEC_FLAG(double, name)
-#define DEC_string(name)  extern fastring FLG_##name
+#define DEC_string(name)  extern fastring& FLG_##name
 
 #define _CO_DEF_FLAG(type, id, name, value, help) \
     type FLG_##name = []() { \
@@ -74,9 +75,10 @@ __coapi void add_flag(
 #define DEF_double(name, value, help)  _CO_DEF_FLAG(double, 'd', name, value, help)
 
 #define DEF_string(name, value, help) \
-    fastring FLG_##name = []() { \
-        ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, &FLG_##name); \
-        return value; \
+    fastring& FLG_##name = *[]() { \
+        auto _##name = ::co::new_static<fastring>(value); \
+        ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, _##name); \
+        return _##name; \
     }()
 
 __coapi DEC_string(help);
