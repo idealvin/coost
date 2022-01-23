@@ -19,7 +19,7 @@ DEF_int64(max_log_file_size, 256 << 20, "max size of log file, default: 256MB");
 DEF_uint32(max_log_file_num, 8, "max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, "max size of log buffer, default: 32MB");
 DEF_bool(cout, false, "also logging to terminal");
-
+     
 namespace ___ {
 namespace log {
 namespace xx {
