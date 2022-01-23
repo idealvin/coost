@@ -163,18 +163,14 @@ rpcgen hello_world.proto
 
 `proto` 文件格式可以参考 [co/test/rpc/hello_world.proto](https://github.com/idealvin/co/blob/master/test/rpc/hello_world.proto)。
 
-
 ## 贡献代码
 
 1. `co/base` 目录下修改或新增代码，确保 `base` 库编译通过.
 2. 若有必要，在 `co/unitest/base` 目录下修改或新增单元测试用例，确保单元测试全部通过.
 3. 若有必要，在 `co/test` 目录下修改或新增测试代码.
 
-
 ## 友情合作
 
 - 有问题请提交到 [github](https://github.com/idealvin/co/).
 - 赞助、商务合作请联系 `idealvin@qq.com`.
 - 捐他一个亿！请用微信扫 [co.pdf](https://code.aliyun.com/idealvin/docs/blob/59670150eb60b1ce11361fb8b45ee68923b41e9f/pdf/co.pdf) 中的二维码.
-
-
