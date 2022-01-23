@@ -11,7 +11,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
-
+     
 DEF_string(log_dir, "logs", "log dir, will be created if not exists");
 DEF_string(log_file_name, "", "name of log file, using exename if empty");
 DEF_int32(min_log_level, 0, "write logs at or above this level");
