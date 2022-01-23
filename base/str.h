@@ -1,5 +1,5 @@
 #pragma once
-
+     
 #include "fastream.h"
 #include <string>
 #include <vector>
