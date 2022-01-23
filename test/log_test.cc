@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
         COUT << "All logs written to file in " << write_to_file << " us";
 
     } else {
-        // usage of other logs
+        // usage of other logs. 
         DLOG << "This is DLOG (debug).. " << 23;
         LOG  << "This is LOG  (info).. " << 23;
         WLOG << "This is WLOG (warning).. " << 23;
