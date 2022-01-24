@@ -41,7 +41,7 @@ namespace xx {
 
 __coapi void add_flag(
     char type, const char* name, const char* value, const char* help, 
-    const char* file, int line, void* addr
+    const char* file, int line, void* addr, const char* alias
 );
 
 } // namespace xx
@@ -59,25 +59,25 @@ __coapi void add_flag(
 #define DEC_double(name)  _CO_DEC_FLAG(double, name)
 #define DEC_string(name)  extern fastring& FLG_##name
 
-#define _CO_DEF_FLAG(type, id, name, value, help) \
+#define _CO_DEF_FLAG(type, id, name, value, help, ...) \
     type FLG_##name = []() { \
-        ::flag::xx::add_flag(id, #name, #value, help, __FILE__, __LINE__, &FLG_##name); \
+        ::flag::xx::add_flag(id, #name, #value, help, __FILE__, __LINE__, &FLG_##name, ""#__VA_ARGS__); \
         return value; \
     }()
 
 // Define a flag.
 // DEF_int32(i, 23, "xxx");  ->  int32 FLG_i = 23
-#define DEF_bool(name, value, help)    _CO_DEF_FLAG(bool,   'b', name, value, help)
-#define DEF_int32(name, value, help)   _CO_DEF_FLAG(int32,  'i', name, value, help)
-#define DEF_int64(name, value, help)   _CO_DEF_FLAG(int64,  'I', name, value, help)
-#define DEF_uint32(name, value, help)  _CO_DEF_FLAG(uint32, 'u', name, value, help)
-#define DEF_uint64(name, value, help)  _CO_DEF_FLAG(uint64, 'U', name, value, help)
-#define DEF_double(name, value, help)  _CO_DEF_FLAG(double, 'd', name, value, help)
+#define DEF_bool(name, value, help, ...)    _CO_DEF_FLAG(bool,   'b', name, value, help, __VA_ARGS__)
+#define DEF_int32(name, value, help, ...)   _CO_DEF_FLAG(int32,  'i', name, value, help, __VA_ARGS__)
+#define DEF_int64(name, value, help, ...)   _CO_DEF_FLAG(int64,  'I', name, value, help, __VA_ARGS__)
+#define DEF_uint32(name, value, help, ...)  _CO_DEF_FLAG(uint32, 'u', name, value, help, __VA_ARGS__)
+#define DEF_uint64(name, value, help, ...)  _CO_DEF_FLAG(uint64, 'U', name, value, help, __VA_ARGS__)
+#define DEF_double(name, value, help, ...)  _CO_DEF_FLAG(double, 'd', name, value, help, __VA_ARGS__)
 
-#define DEF_string(name, value, help) \
+#define DEF_string(name, value, help, ...) \
     fastring& FLG_##name = *[]() { \
         auto _##name = ::co::new_static<fastring>(value); \
-        ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, _##name); \
+        ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, _##name, ""#__VA_ARGS__); \
         return _##name; \
     }()
 

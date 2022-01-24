@@ -6,7 +6,7 @@
 #include <map>
 
 DEF_string(help, "", ">>.help info");
-DEF_string(config, "", ">>.path of config file");
+DEF_string(config, "", ">>.path of config file", conf);
 DEF_string(version, "", ">>.version of the program");
 DEF_bool(mkconf, false, ">>.generate config file");
 DEF_bool(daemon, false, ">>#0 run program as a daemon");
@@ -15,7 +15,7 @@ namespace flag {
 namespace xx {
 
 struct Flag {
-    Flag(char type, const char* name, const char* value, const char* help, 
+    Flag(char type, const char* name, const char* alias, const char* value, const char* help, 
          const char* file, int line, void* addr);
 
     fastring set_value(const fastring& v);
@@ -26,6 +26,7 @@ struct Flag {
     char type;
     bool inco;          // flag inside co (comment starts with >>)
     const char* name;
+    const char* alias;  // alias for this flag
     const char* value;  // default value
     const char* help;   // help info
     const char* file;   // file where the flag is defined
@@ -47,10 +48,10 @@ const char TYPE_uint32 = 'u';
 const char TYPE_uint64 = 'U';
 const char TYPE_double = 'd';
 
-Flag::Flag(char type, const char* name, const char* value, const char* help, 
-           const char* file, int line, void* addr)
-    : type(type), inco(false), name(name), value(value), help(help),
-      file(file), line(line), lv(5), addr(addr) {
+Flag::Flag(char type, const char* name, const char* alias, const char* value, 
+           const char* help, const char* file, int line, void* addr)
+    : type(type), inco(false), name(name), alias(alias), value(value),
+      help(help), file(file), line(line), lv(5), addr(addr) {
     // flag defined in co
     if (help[0] == '>' && help[1] == '>') {
         this->inco = true;
@@ -164,15 +165,27 @@ inline fastring Flag::to_string() const {
 
 void add_flag(
     char type, const char* name, const char* value, const char* help, 
-    const char* file, int line, void* addr) {
-    auto r = gFlags().insert(std::make_pair(
-        fastring(name), co::new_static<Flag>(type, name, value, help, file, line, addr)
-    ));
+    const char* file, int line, void* addr, const char* alias) {
+    auto f = co::new_static<Flag>(type, name, alias, value, help, file, line, addr);
+    auto r = gFlags().insert(std::make_pair(fastring(name), f));
 
     if (!r.second) {
         COUT << "multiple definitions of flag: " << name
              << ", from " << r.first->second->file << " and " << file;
         exit(0);
+    }
+
+    if (alias[0]) {
+        auto v = str::split(alias, ',');
+        for (auto& x : v) {
+            x.strip();
+            auto r = gFlags().insert(std::make_pair(x, f));
+            if (!r.second) {
+                COUT << "alias " << name << " as " << x << " failed, flag " 
+                     << x << " already exists in " << r.first->second->file;
+                exit(0);
+            }
+        }
     }
 }
 
@@ -224,15 +237,19 @@ fastring set_bool_flags(const fastring& name) {
 // show user flags
 void show_flags() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
-        const auto& flag = *it->second;
-        if (!flag.inco && flag.help[0] != '\0') COUT << flag.to_string();
+        const auto& f = *it->second;
+        if (!f.inco && *f.help && (!*f.alias || it->first == f.name)) {
+            COUT << f.to_string();
+        }
     }
 }
 
 void show_all_flags() {
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
-        const auto& flag = *it->second;
-        if (flag.help[0] != '\0') COUT << flag.to_string();
+        const auto& f = *it->second;
+        if (*f.help && (!*f.alias || it->first == f.name)) {
+            COUT << f.to_string();
+        }
     }
 }
 
@@ -424,6 +441,7 @@ std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
     std::vector<fastring> v = analyze(args, kv, bools);
 
     auto it = kv.find("config");
+    if (it == kv.end()) it = kv.find("conf");
     if (it != kv.end()) {
         FLG_config = it->second;
     } else if (!v.empty()) {
