@@ -24,8 +24,8 @@ class __coapi Cout {
         this->mutex().unlock();
     }
 
-    std::mutex& mutex() {
-        static std::mutex kMtx;
+    std::recursive_mutex& mutex() {
+        static std::recursive_mutex kMtx;
         return kMtx;
     }
 
