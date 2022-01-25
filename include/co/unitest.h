@@ -1,22 +1,20 @@
 #pragma once
 
 #include "flag.h"
+#include "color.h"
 #include "fastring.h"
-
 #include <memory>
-#include <iostream>
 
-// co/unitest is a C++ unit test framework similar to google's gtests.
+// co/unitest is an unit test framework similar to google's gtests.
 
 namespace unitest {
 
 __coapi void run_all_tests();
 
-__coapi void push_failed_msg(const fastring& test_name, const fastring& case_name,
-                     const char* file, int line, const fastring& msg);
+__coapi void push_failed_msg(const fastring& test_name, const fastring& case_name, 
+                             const char* file, int line, const fastring& msg);
 
-class Test {
-  public:
+struct Test {
     Test() = default;
     virtual ~Test() = default;
 
@@ -24,17 +22,14 @@ class Test {
     virtual bool enabled() = 0;
     virtual const fastring& name() = 0;
 
-  private:
-    Test(const Test&);
-    void operator=(const Test&);
+    DISALLOW_COPY_AND_ASSIGN(Test);
 };
 
 struct __coapi TestSaver {
     TestSaver(Test* test);
 };
 
-class Case {
-  public:
+struct Case {
     Case(const fastring& name)
         : _name(name) {
         std::cout << " case " << _name << ':' << std::endl;
@@ -48,65 +43,28 @@ class Case {
     fastring _name;
 };
 
-#ifdef _WIN32
-struct __coapi Color {
-    Color(const char* s, int i);
-
-    union {
-        int i;
-        const char* s;
-    };
-};
-
-__coapi std::ostream& operator<<(std::ostream&, const Color&);
-
-extern const Color __coapi red;
-extern const Color __coapi green;
-extern const Color __coapi blue;
-extern const Color __coapi yellow;
-extern const Color __coapi default_color;
-
-#else
-struct Color {};
-inline void operator<<(std::ostream&, const Color&) {}
-
-const char* const red = "\033[38;5;1m";
-const char* const green = "\033[38;5;2m";
-const char* const blue = "\033[38;5;12m";
-const char* const yellow = "\033[38;5;3m"; // or 11
-const char* const default_color = "\033[39m";
-#endif
-
 } // namespace unitest
 
 // define a test unit
 #define DEF_test(_name_) \
-    DEF_bool(_name_, false, "enable this test if true."); \
+    DEF_bool(_name_, false, "enable this test if true"); \
     using std::cout; \
     using std::endl; \
-    using unitest::operator<<; \
     \
     struct _UTest_##_name_ : public unitest::Test { \
         _UTest_##_name_() : _name(#_name_) {} \
-        \
         virtual ~_UTest_##_name_() {} \
         \
         virtual void run(); \
-        \
-        virtual bool enabled() { \
-            return FLG_##_name_; \
-        } \
-        \
-        virtual const fastring& name() { \
-            return _name; \
-        } \
+        virtual bool enabled() { return FLG_##_name_; } \
+        virtual const fastring& name() { return _name; } \
         \
       private: \
         fastring _name; \
         std::unique_ptr<unitest::Case> _current_case; \
     }; \
     \
-    static unitest::TestSaver _UT_Sav_test_##_name_(new _UTest_##_name_()); \
+    static unitest::TestSaver _UT_sav_test_##_name_(new _UTest_##_name_()); \
     \
     void _UTest_##_name_::run()
 
@@ -120,14 +78,12 @@ const char* const default_color = "\033[39m";
     } \
     \
     if (x) { \
-        cout << unitest::green << "  EXPECT(" << #x << ") passed" \
-             << unitest::default_color << endl; \
-        \
+        cout << color::green << "  EXPECT(" << #x << ") passed" \
+             << color::deflt << endl; \
     } else { \
         fastring _U_s(32); \
         _U_s << "EXPECT(" << #x << ") failed"; \
-        \
-        cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
+        cout << color::red << "  " << _U_s << color::deflt << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
     } \
 }
@@ -142,17 +98,16 @@ const char* const default_color = "\033[39m";
     auto _U_y = (y); \
     \
     if (_U_x op _U_y) { \
-        cout << unitest::green \
+        cout << color::green \
              << "  EXPECT_" << opname << "(" << #x << ", " << #y << ") passed"; \
         if (strcmp("==", #op) != 0) cout << ": " << _U_x << " vs " << _U_y; \
-        cout << unitest::default_color << endl; \
+        cout << color::deflt << endl; \
         \
     } else { \
         fastring _U_s(128); \
         _U_s << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " \
              << _U_x << " vs " << _U_y; \
-        \
-        cout << unitest::red << "  " << _U_s << unitest::default_color << endl; \
+        cout << color::red << "  " << _U_s << color::deflt << endl; \
         unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
     } \
 }
