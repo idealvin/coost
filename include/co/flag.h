@@ -11,7 +11,7 @@
 
 namespace flag {
 
-// Parse command line flags or config file specified by -config.
+// Parse command line flags and config file specified by -config.
 // Return non-flag elements.
 __coapi std::vector<fastring> init(int argc, const char** argv);
 
@@ -23,21 +23,11 @@ inline std::vector<fastring> init(int argc, char** argv) {
 __coapi void init(const fastring& path);
 
 // Set value for a flag of any type, return error message if failed.
+// It is not thread-safe. 
 __coapi fastring set_value(const fastring& name, const fastring& value);
 
-// Set value for a bool flag, return false if failed.
-__coapi bool set_bool_value(const fastring& name, bool value);
-
-// Set value for an integer flag, return false if failed.
-__coapi bool set_int_value(const fastring& name, int value);
-
-// Set value for a double flag, return false if failed.
-__coapi bool set_double_value(const fastring& name, double value);
-
-// Set value for a string flag, return false if failed.
-__coapi bool set_string_value(const fastring& name, const fastring& value);
-
 // Add alias for a flag, @new_name must be a literal string.
+// It is not thread-safe and should be used before calling flag::init().
 __coapi bool alias(const char* name, const char* new_name);
 
 namespace xx {

@@ -128,7 +128,7 @@ inline void go(F&& f, T* t, P&& p) {
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
     co::init(argc, argv); \
-    flag::set_bool_value("disable_co_exit", true); \
+    flag::set_value("disable_co_exit", "true"); \
     int r; \
     co::WaitGroup wg; \
     wg.add(); \
@@ -137,7 +137,7 @@ int main(int argc, char** argv) { \
         wg.done(); \
     }); \
     wg.wait(); \
-    flag::set_bool_value("disable_co_exit", false); \
+    flag::set_value("disable_co_exit", "false"); \
     co::exit(); \
     return r; \
 } \
