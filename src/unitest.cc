@@ -3,8 +3,6 @@
 #include <vector>
 #include <map>
 
-DEF_bool(a, false, ">>.Run all tests if true");
-
 namespace unitest {
 
 inline std::vector<Test*>& gTests() {
@@ -41,20 +39,36 @@ void push_failed_msg(const fastring& test_name, const fastring& case_name,
 }
 
 void run_all_tests() {
-    std::vector<Test*>& tests = gTests();
-    int n = 0;
     Timer t;
+    int n = 0;
+    auto& tests = gTests();
 
-    for (size_t i = 0; i < tests.size(); ++i) {
-        Test* test = tests[i];
-        if (FLG_a || test->enabled()) {
+    std::vector<Test*> enabled;
+    for (auto& test : tests) {
+        if (test->enabled()) enabled.push_back(test);
+    }
+
+    // enable all by default
+    if (enabled.empty()) { /* run all tests by default */
+        n = tests.size();
+        for (auto& test : tests) {
             cout << "> begin test: " << test->name() << endl;
             t.restart();
             test->run();
             cout << "< test " << test->name() << " done in " << t.us() << " us" << endl;
-            ++n;
+            delete test;
         }
-        delete test;
+
+    } else {
+        n = enabled.size();
+        for (auto& test: enabled) {
+            cout << "> begin test: " << test->name() << endl;
+            t.restart();
+            test->run();
+            cout << "< test " << test->name() << " done in " << t.us() << " us" << endl;
+        }
+
+        for (auto& test: tests) delete test;
     }
 
     TMap& failed = failed_tests();
@@ -62,7 +76,7 @@ void run_all_tests() {
         if (n > 0) {
             cout << color::green << "\nCongratulations! All tests passed!" << color::deflt << endl;
         } else {
-            cout << "Done nothing. Try running with -a!" << endl;
+            cout << "No test found. Done nothing." << endl;
         }
 
     } else {
