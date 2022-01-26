@@ -1,7 +1,7 @@
 #pragma once
 
 #include "flag.h"
-#include "color.h"
+#include "cout.h"
 #include "fastring.h"
 #include <memory>
 
@@ -32,7 +32,7 @@ struct __coapi TestSaver {
 struct Case {
     Case(const fastring& name)
         : _name(name) {
-        std::cout << " case " << _name << ':' << std::endl;
+        cout << " case " << _name << ':' << endl;
     }
 
     const fastring& name() const {
@@ -48,8 +48,6 @@ struct Case {
 // define a test unit
 #define DEF_test(_name_) \
     DEF_bool(_name_, false, "enable this test if true"); \
-    using std::cout; \
-    using std::endl; \
     \
     struct _UTest_##_name_ : public unitest::Test { \
         _UTest_##_name_() : _name(#_name_) {} \

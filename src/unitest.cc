@@ -6,8 +6,6 @@
 DEF_bool(a, false, ">>.Run all tests if true");
 
 namespace unitest {
-using std::cout;
-using std::endl;
 
 inline std::vector<Test*>& gTests() {
     static std::vector<Test*> tests;
