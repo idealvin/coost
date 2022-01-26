@@ -48,7 +48,6 @@ void run_all_tests() {
         if (test->enabled()) enabled.push_back(test);
     }
 
-    // enable all by default
     if (enabled.empty()) { /* run all tests by default */
         n = tests.size();
         for (auto& test : tests) {
