@@ -749,13 +749,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     auto& preq = *(http_req_t**) &req;
     auto& pres = *(http_res_t**) &res;
 
-    /**
-     *   夜半独饮        Drink alone at midnight
-     *  人迷代码中，         Lost in the code,  
-     *  坑深不知处。            where am I?
-     *  god来相助，         God comes to help,
-     *  bug挂上树。       bugs hang on the tree.
-     */
+    // Why humans have such a stupid design on the HTTP protocol?
     god::bless_no_bugs();
 
     r = atomic_inc(&_conn_num);
@@ -824,19 +818,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 }
 
             } else { /* chunked Transfer-Encoding */
-                /**
-                 *    Bug, Bug,                          Bug, Bug,
-                 *    你真了不得，                your birds are not available.
-                 *  五行大山压不住你，      Five lines of mountains can't hold you down,
-                 *    蹦出个孙行者。             jumps out a segmentation fault.
-                 * 
-                 *   纵你有广大神通，                  So powerful you are,
-                 *   难逃如来佛掌中。       you can't escape from the palm of the Buddha.
-                 *   六字真言显威灵，          The six syllable Mantra put in the code,
-                 *   从此bug去无踪。               nowhere to find a bug any more.
-                 */
-                god::om_mani_padme_hum();
-
                 bool expect_100_continue = strcmp(preq->header("Expect"), "100-continue") == 0;
                 size_t x, o, i, n = 0;
                 fastring s(128);

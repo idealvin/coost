@@ -4,10 +4,6 @@
 
 namespace god {
 
-inline void om_mani_padme_hum() {}
-
-inline void fast_fast_biu_biu() {}
-
 inline void bless_no_bugs() {}
 
 inline void give_me_a_raise() {}
