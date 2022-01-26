@@ -237,9 +237,14 @@ fastring set_bool_flags(const fastring& name) {
 
 // show user flags
 void show_flags() {
+    bool the_first_one = true;
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
         const auto& f = *it->second;
         if (!f.inco && *f.help && (!*f.alias || it->first == f.name)) {
+            if (the_first_one) {
+                the_first_one = false;
+                cout << "flags:\n";
+            }
             f.print();
         }
     }
@@ -268,7 +273,6 @@ inline void show_help() {
          << "\t" << "$exe --mkconf             # generate config file\n"
          << "\t" << "$exe -conf xx.conf        # run with config file\n\n";
 
-    cout << "flags:\n";
     show_flags();
 }
 
