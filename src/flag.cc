@@ -235,8 +235,7 @@ fastring set_bool_flags(const fastring& name) {
     return fastring();
 }
 
-// show user flags
-void show_flags() {
+void show_user_flags() {
     bool the_first_one = true;
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
         const auto& f = *it->second;
@@ -245,6 +244,16 @@ void show_flags() {
                 the_first_one = false;
                 cout << "flags:\n";
             }
+            f.print();
+        }
+    }
+}
+
+void show_co_flags() {
+    cout << "flags:\n";
+    for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
+        const auto& f = *it->second;
+        if (f.inco && *f.help && (!*f.alias || it->first == f.name)) {
             f.print();
         }
     }
@@ -260,7 +269,7 @@ void show_all_flags() {
     }
 }
 
-// if FLG_help is empty, this is equal to show_flags()
+// print FLG_help first if it is not empty, then print usage and user flags
 inline void show_help() {
     if (!FLG_help.empty()) {
         cout << FLG_help << endl;
@@ -270,10 +279,10 @@ inline void show_help() {
     cout << "usage:  " << color::blue << "$exe [-flag] [value]\n" << color::deflt
          << "\t" << "$exe -x -i 8k -s ok       # bool x=true, int i=8192, string s=\"ok\"\n"
          << "\t" << "$exe --                   # print all flags\n"
-         << "\t" << "$exe --mkconf             # generate config file\n"
+         << "\t" << "$exe -mkconf              # generate config file\n"
          << "\t" << "$exe -conf xx.conf        # run with config file\n\n";
 
-    show_flags();
+    show_user_flags();
 }
 
 inline void show_version() {
@@ -440,6 +449,11 @@ std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
 
         if (arg == "--version") {
             show_version();
+            exit(0);
+        }
+
+        if (arg == "--cocoyaxi") {
+            show_co_flags();
             exit(0);
         }
     }
