@@ -36,8 +36,8 @@ struct Flag {
 };
 
 inline std::map<fastring, Flag*>& gFlags() {
-    static std::map<fastring, Flag*> flags; // <name, flag>
-    return flags;
+    static auto flags = co::new_static<std::map<fastring, Flag*>>();
+    return *flags;
 }
 
 const char TYPE_string = 's';
