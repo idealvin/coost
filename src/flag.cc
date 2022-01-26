@@ -628,4 +628,15 @@ bool set_string_value(const fastring& name, const fastring& value) {
     return false;
 }
 
+bool alias(const char* name, const char* new_name) {
+    auto flag = xx::find_flag(name);
+    if (!flag || !*new_name) return false;
+
+    auto r = xx::gFlags().insert(std::make_pair(fastring(new_name), flag));
+    if (!r.second) return false; // new_name already exists
+
+    flag->alias = new_name;
+    return true;
+}
+
 } // namespace flag

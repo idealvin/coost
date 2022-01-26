@@ -37,6 +37,9 @@ __coapi bool set_double_value(const fastring& name, double value);
 // Set value for a string flag, return false if failed.
 __coapi bool set_string_value(const fastring& name, const fastring& value);
 
+// Add alias for a flag, @new_name must be a literal string.
+__coapi bool alias(const char* name, const char* new_name);
+
 namespace xx {
 
 __coapi void add_flag(
