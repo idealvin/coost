@@ -28,21 +28,23 @@ __coapi void exit();
 // deprecated since v2.0.2, use log::exit() instead.
 __coapi void close();
 
-/**
- * set a callback for writing logs
- *   - By default, logs will be written into a file. Users can set a callback to 
- *     write logs to different destinations.
- *   - The callback has 2 parameters, a pointer to the log buffer and its length. 
- *     The buffer may contain more than one logs.
- */
-__coapi void set_write_cb(const std::function<void(const void*, size_t)>& cb);
+enum {
+    splitlogs = 1,
+    log2local = 2,
+};
 
 /**
- * set a callback for writing a single log
- *   - Similar to set_write_cb, but the callback writes a single log each time. 
- *     It may be useful when users want to send logs by UDP.
+ * set a callback for writing logs
+ *   - By default, logs will be written into a local file. Users can set a callback to 
+ *     write logs to different destinations.
+ * 
+ * @param cb     The callback, takes 2 params, a pointer to the log buffer, and its length.
+ * @param flags  Formed by ORing any of the following values:
+ *               - log::splitlogs: split logs in the log buffer, and write one by one, 
+ *                 which is useful when users want to send logs by UDP.
+ *               - log::log2local: also log to local file
  */
-__coapi void set_single_write_cb(const std::function<void(const void*, size_t)>& cb);
+__coapi void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags=0);
 
 namespace xx {
 
