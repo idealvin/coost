@@ -59,7 +59,8 @@ __coapi void add_flag(
     }()
 
 // Define a flag.
-// DEF_int32(i, 23, "xxx");  ->  int32 FLG_i = 23
+// DEF_int32(i, 23, "xxx");         ->  int32 FLG_i = 23
+// DEF_bool(debug, false, "x", d);  ->  define a flag with an alias
 #define DEF_bool(name, value, help, ...)    _CO_DEF_FLAG(bool,   'b', name, value, help, __VA_ARGS__)
 #define DEF_int32(name, value, help, ...)   _CO_DEF_FLAG(int32,  'i', name, value, help, __VA_ARGS__)
 #define DEF_int64(name, value, help, ...)   _CO_DEF_FLAG(int64,  'I', name, value, help, __VA_ARGS__)
