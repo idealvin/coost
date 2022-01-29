@@ -81,6 +81,7 @@ class LogTime {
   public:
     LogTime() : _start(0) {
         memset(_buf, 0, sizeof(_buf));
+        this->update();
     }
 
     void update();
@@ -141,7 +142,7 @@ class LevelLogger {
     void write(fastream* fs);
     void thread_fun();
     void compress_log_file(const fastring& path);
-    uint32 get_day_from_path(const fastring& path);
+    uint32 day_in_path(const fastring& path);
 
   private:
     ::Mutex _log_mutex;
@@ -180,7 +181,7 @@ LevelLogger::LevelLogger()
 }
 
 bool LevelLogger::start() {
-    // ensure max_log_buffer_size >= 1M, max_log_size >= 256 
+    // check config, ensure max_log_buffer_size >= 1M, max_log_size >= 256 
     auto& bs = FLG_max_log_buffer_size;
     auto& ls = FLG_max_log_size;
     if (bs < (1 << 20)) bs = (1 << 20);
@@ -376,20 +377,10 @@ inline void log2stderr(const char* s, size_t n) {
 }
 
 // get day from xx_0808_15_30_08.123.log
-inline uint32 LevelLogger::get_day_from_path(const fastring& path) {
-    if (path.size() > 21) {
-        union {
-            uint32 x;
-            uint8 p[4]; 
-        };
-        const char* q = path.data() + path.size() - 21;
-        p[0] = (uint8)q[0];
-        p[1] = (uint8)q[1];
-        p[2] = (uint8)q[2];
-        p[3] = (uint8)q[3];
-        return x;
-    }
-    return 0;
+inline uint32 LevelLogger::day_in_path(const fastring& path) {
+    uint32 x = 0;
+    if (path.size() > 21) god::byte_cp<4>(&x, path.data() + path.size() - 21);
+    return x;
 }
 
 // compress log file
@@ -440,7 +431,7 @@ bool LevelLogger::open_log_file(int level) {
         if (!new_file) {
             if (!_old_paths.empty()) {
                 auto& path = _old_paths.back();
-                if (fs::fsize(_log_path) >= FLG_max_log_file_size || this->get_day_from_path(path) != _day) {
+                if (fs::fsize(_log_path) >= FLG_max_log_file_size || this->day_in_path(path) != _day) {
                     fs::rename(_log_path, path); // rename xx.log to xx_0808_15_30_08.123.log
                     if (FLG_log_compress) this->compress_log_file(path);
                     new_file = true;

@@ -44,6 +44,15 @@ inline bool byte_eq(const void* p, const void* q) {
     return *(const T*)p == *(const T*)q;
 }
 
+template <int N>
+inline void byte_cp(void* dst, const void* src) {
+    byte_cp<N - 1>(dst, src);
+    *((char*)dst + N - 1) = *((const char*)src + N - 1);
+}
+
+template <>
+inline void byte_cp<0>(void* dst, const void* src) {}
+
 // remove lvalue or rvalue reference
 template <typename T>
 using remove_ref_t = typename std::remove_reference<T>::type;
