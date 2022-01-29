@@ -12,21 +12,10 @@ namespace ___ {
 namespace log {
 
 /**
- * initialize the log library and start the logging thread 
- *   - log::init() should be called once at the beginning of main(). 
- *   - It is safe to call log::init() for multiple times. 
- */
-__coapi void init();
-
-/**
- * close the log library 
- *   - write all buffered logs to destination.
- *   - stop the logging thread.
+ * stop the logging thread and write all buffered logs to destination.
+ *   - This function will be automatically called at exit.
  */
 __coapi void exit();
-
-// deprecated since v2.0.2, use log::exit() instead.
-__coapi void close();
 
 enum {
     splitlogs = 1,

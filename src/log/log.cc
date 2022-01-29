@@ -178,6 +178,10 @@ Cleanup::~Cleanup() {
 LevelLogger::LevelLogger()
     : _log_event(true, false), _log_buf(1 << 20), _logs(1 << 20),
       _log_path(256), _stop(0), _write_flags(0) {
+  #ifndef _WIN32
+    if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
+    if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
+  #endif
 }
 
 bool LevelLogger::start() {
@@ -773,23 +777,8 @@ FatalLogSaver::~FatalLogSaver() {
 
 } // namespace xx
 
-static std::once_flag init_flag;
-
-void init() {
-    std::call_once(init_flag, [](){
-      #ifndef _WIN32
-        if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
-        if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
-      #endif
-    });
-}
-
 void exit() {
     xx::global().level_logger->stop();
-}
-
-void close() {
-    log::exit();
 }
 
 void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {

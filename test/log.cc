@@ -19,7 +19,6 @@ int nested_log() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
 
     if (FLG_perf) {
         // test performance by writting 100W logs
@@ -31,7 +30,7 @@ int main(int argc, char** argv) {
         }
         int64 write_to_cache = t.us();
 
-        log::close();
+        log::exit();
         int64 write_to_file = t.us();
 
         COUT << "All logs written to cache in " << write_to_cache << " us";
@@ -47,6 +46,5 @@ int main(int argc, char** argv) {
         LOG << "hello " << nested_log() << "  " << nested_log();
     }
 
-    log::exit();
     return 0;
 }

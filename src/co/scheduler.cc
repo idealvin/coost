@@ -268,33 +268,23 @@ inline SchedulerManager* scheduler_manager() {
     return &kSchedMgr;
 }
 
-inline bool& need_exit_log() {
-    static bool kExitLog = false;
-    return kExitLog;
-}
-
 void init() {
     (void) scheduler_manager();
 }
 
 void init(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
-    need_exit_log() = true;
     co::init();
 }
 
 void init(const char* config) {
     flag::init(config);
-    log::init();
-    need_exit_log() = true;
     co::init();
 }
 
 void exit() {
     if (!FLG_disable_co_exit) {
         scheduler_manager()->stop();
-        if (need_exit_log()) log::exit();
     }
 }
 
