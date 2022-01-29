@@ -4,6 +4,7 @@
 #include "co/str.h"
 #include "co/path.h"
 #include "co/time.h"
+#include "co/alloc.h"
 #include "co/thread.h"
 #include "../co/hook.h"
 #include "stack_trace.h"
@@ -15,6 +16,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <thread>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -42,37 +44,48 @@ namespace ___ {
 namespace log {
 namespace xx {
 
-// handler for SIGINT SIGTERM SIGQUIT
-void on_signal(int sig);
+class LogTime;
+class FailureHandler;
+class LevelLogger;
 
-// handler for SIGSEGV SIGABRT SIGFPE SIGBUS SIGILL
-void on_failure(int sig);
+// collection of global variables or objects
+struct Global {
+    Global();
+    ~Global() = delete;
 
-#ifdef _WIN32
-// handler for win32 exceptions
-LONG WINAPI on_exception(PEXCEPTION_POINTERS p);
-#endif
+    bool check_failed;
+    fastring* stmp;
+    LogTime* log_time;
+    FailureHandler* failure_handler;
+    LevelLogger* level_logger;
+};
 
+inline Global& global() {
+    static Global* g = co::new_static<Global>();
+    return *g;
+}
+
+// do cleanup at exit
+struct Cleaner {
+    ~Cleaner();
+};
+
+enum {
+    t_len = 17, // length of time: "0723 17:00:00.123"
+    t_min = 8,  // position of minute
+    t_sec = t_min + 3,
+    t_ms = t_sec + 3,
+};
+
+// time string for the logs
 class LogTime {
   public:
-    // start byte of minute, second, ms in _buf: "0723 17:00:00.123"
-    enum {
-        b_min = 8,
-        b_sec = b_min + 3,
-        b_ms  = b_sec + 3,
-        b_max = b_ms + 3
-    };
-
     LogTime() : _start(0) {
         memset(_buf, 0, sizeof(_buf));
-        this->update();
     }
-
-    ~LogTime() = default;
 
     void update();
     const char* get() const { return _buf; }
-    const int size() const { return b_max; }
 
   private:
     time_t _start;
@@ -80,26 +93,17 @@ class LogTime {
     char _buf[24]; // 0723 17:00:00.123
 };
 
-class LevelLogger {
+void on_signal(int sig);  // handler for SIGINT SIGTERM SIGQUIT
+void on_failure(int sig); // handler for SIGSEGV SIGABRT SIGFPE SIGBUS SIGILL
+
+#ifdef _WIN32
+LONG WINAPI on_exception(PEXCEPTION_POINTERS p); // handler for win32 exceptions
+#endif
+
+class FailureHandler {
   public:
-    LevelLogger();
-    ~LevelLogger();
-
-    struct Config {
-        Config() : max_log_buffer_size(32 << 20), max_log_size(4096) {}
-        fastring log_dir;
-        fastring log_path_base;
-        uint32 max_log_buffer_size;
-        int32 max_log_size;
-    };
-
-    void init();
-
-    void stop(bool signal_safe=false);
-
-    void push(char* s, size_t n);
-
-    void push_fatal_log(fastream* log);
+    FailureHandler();
+    ~FailureHandler();
 
     void on_signal(int sig);
     void on_failure(int sig);
@@ -108,122 +112,88 @@ class LevelLogger {
     int on_exception(PEXCEPTION_POINTERS p); // for windows only
   #endif
 
+  private:
+    log::StackTrace* _stack_trace;
+    std::map<int, os::sig_handler_t> _old_handlers;
+  #ifdef _WIN32
+    void* _ex_handler; // exception handler for windows
+  #endif
+};
+
+class LevelLogger {
+  public:
+    LevelLogger();
+    ~LevelLogger() = delete;
+
+    bool start();
+    void stop(bool signal_safe=false);
+
+    void push(char* s, size_t n);
+    void push_fatal_log(fastream* log);
+
+    fs::file& open_fatal_log_file();
+
     void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags);
 
   private:
+    bool check_log_file_config();
+
     bool open_log_file(int level=0);
     void write(fastream* fs);
-    void call_write_cb(const void* buf, size_t size);
     void thread_fun();
-    void compress_rotated_log(const fastring& path);
+    void compress_log_file(const fastring& path);
     uint32 get_day_from_path(const fastring& path);
 
   private:
-    Mutex _log_mutex;
+    ::Mutex _log_mutex;
     SyncEvent _log_event;
     std::unique_ptr<Thread> _log_thread;
-    std::unique_ptr<fastream> _fs;
-    std::unique_ptr<Config> _config;
-    fs::file _file;
-    fastring _path; // path of log file
-    fastring _stmp;
-    std::deque<fastring> _old_paths;
-    std::function<void(const void*, size_t)> _write_cb;
-    int _write_flags;
+    fastream _log_buf;  // logs will be pushed to this buffer
+    fastream _logs;     // to swap out logs in _log_buf
+    fs::file _log_file;
+    fastring _log_path;
+    fastring _log_path_base; // prefix of log path: log_dir/log_file_name 
+    std::deque<fastring> _old_paths; // paths of old log files
 
-    LogTime _log_time;
-    char _t[24];
-    uint32 _day;
-    int _stop;
-    bool _check_failed;
-    std::unique_ptr<co::StackTrace> _stack_trace;
-    std::map<int, os::sig_handler_t> _old_handlers;
-    void* _ex_handler; // exception handler for windows
+    char _log_time[24]; // "0723 17:00:00.123"
+    uint32 _day;        // the first 4 bytes of _log_time
+    int _stop;          // 0: init, 1: stopping, 2: logging thread stopped, 3: final
+
+    std::function<void(const void*, size_t)> _write_cb; // user callback for writing logs
+    int _write_flags; // flags for the write callback
 };
 
+Global::Global()
+    : check_failed(false) {
+    stmp = co::new_static<fastring>(4096);
+    log_time = co::new_static<LogTime>();
+    level_logger = co::new_static<LevelLogger>();
+    failure_handler = co::new_static<FailureHandler>();
+}
+
+Cleaner::~Cleaner() {
+    global().level_logger->stop();
+}
+
 LevelLogger::LevelLogger()
-    : _log_event(true, false), _fs(new fastream(1 << 20)), _path(256),
-      _write_flags(0), _stop(0), _check_failed(false), _ex_handler(0) {
-    _config.reset(new Config);
-    _log_time.update();
-    memcpy(_t, _log_time.get(), 24);
-    _day = *(uint32*)_t;
-
-    _stack_trace.reset(co::new_stack_trace());
-    _old_handlers[SIGINT] = os::signal(SIGINT, xx::on_signal);
-    _old_handlers[SIGTERM] = os::signal(SIGTERM, xx::on_signal);
-
-  #ifdef _WIN32
-    _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
-    // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
-    // not work for other threads. Use AddVectoredExceptionHandler instead.
-    _ex_handler = AddVectoredExceptionHandler(1, xx::on_exception);
-  #else
-    const int x = SA_RESTART | SA_ONSTACK;
-    _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
-    _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure, x);
-    _old_handlers[SIGSEGV] = os::signal(SIGSEGV, xx::on_failure, x);
-    _old_handlers[SIGFPE] = os::signal(SIGFPE, xx::on_failure, x);
-    _old_handlers[SIGBUS] = os::signal(SIGBUS, xx::on_failure, x);
-    _old_handlers[SIGILL] = os::signal(SIGILL, xx::on_failure, x);
-    os::signal(SIGPIPE, SIG_IGN); // ignore SIGPIPE
-  #endif
+    : _log_event(true, false), _log_buf(1 << 20), _logs(1 << 20),
+      _log_path(256), _stop(0), _write_flags(0) {
 }
 
-LevelLogger::~LevelLogger() {
-    this->stop();
-    os::signal(SIGINT, SIG_DFL);
-    os::signal(SIGTERM, SIG_DFL);
-    os::signal(SIGABRT, SIG_DFL);
-  #ifdef _WIN32
-    if (_ex_handler) {
-        RemoveVectoredExceptionHandler(_ex_handler);
-        _ex_handler = NULL;
-    }
-  #else
-    os::signal(SIGSEGV, SIG_DFL);
-    os::signal(SIGFPE, SIG_DFL);
-    os::signal(SIGBUS, SIG_DFL);
-    os::signal(SIGILL, SIG_DFL);
-  #endif
-}
+bool LevelLogger::start() {
+    // ensure max_log_buffer_size >= 1M, max_log_size >= 256 
+    auto& bs = FLG_max_log_buffer_size;
+    auto& ls = FLG_max_log_size;
+    if (bs < (1 << 20)) bs = (1 << 20);
+    if (ls < 256) ls = 256;
+    if ((uint32)ls > (bs >> 2)) ls = (int32)(bs >> 2);
 
-void LevelLogger::init() {
-    fastring s = FLG_log_file_name;
-    s.remove_tail(".log");
-    if (s.empty()) s = os::exename();
-    s.remove_tail(".exe");
+    global().log_time->update();
+    memcpy(_log_time, global().log_time->get(), 24);
+    _day = *(uint32*)_log_time;
 
-    // log dir, create if not exists.
-    _config->log_dir = path::clean(str::replace(FLG_log_dir, "\\", "/"));
-    if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
-
-    // prefix of log file path
-    _config->log_path_base = path::join(_config->log_dir, s);
-
-    // read paths of old log files
-    s.clear();
-    s.append(_config->log_path_base).append("_old.log");
-    fs::file f(s.c_str(), 'r');
-    if (f) {
-        auto v = str::split(f.read(f.size()), '\n');
-        _old_paths.insert(_old_paths.end(), v.begin(), v.end());
-    }
-
-    _path.reserve(_config->log_path_base.size() + 32);
-    _stmp.reserve((_config->log_path_base.size() + 32) * FLG_max_log_file_num);
-
-    auto& nbuf = _config->max_log_buffer_size;
-    nbuf = FLG_max_log_buffer_size;
-    if (nbuf < (1 << 20)) nbuf = (1 << 20);
-
-    auto& nlog = _config->max_log_size;
-    nlog = FLG_max_log_size;
-    if (nlog < 128) nlog = 128;
-    if ((uint32)nlog >= (nbuf >> 1)) nlog = (int32)((nbuf >> 1) - 1);
-  
-    // start the logging thread
     _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
+    return true;
 }
 
 inline void LevelLogger::set_write_cb(
@@ -252,10 +222,10 @@ void LevelLogger::stop(bool signal_safe) {
             _log_event.signal();
             if (_log_thread != NULL) _log_thread->join();
 
-            MutexGuard g(_log_mutex);
-            if (!_fs->empty()) {
-                this->write(_fs.get());
-                _fs->clear();
+            ::MutexGuard g(_log_mutex);
+            if (!_log_buf.empty()) {
+                this->write(&_log_buf);
+                _log_buf.clear();
             }
 
             atomic_swap(&_stop, 3);
@@ -268,11 +238,16 @@ void LevelLogger::stop(bool signal_safe) {
         //   http://man7.org/linux/man-pages/man7/signal-safety.7.html
         if (x == 0) {
             // wait until the logging thread stopped
-            while (_stop != 2) signal_safe_sleep(1);
+            if (_log_thread != NULL) {
+                while (_stop != 2) signal_safe_sleep(1);
+            }
 
-            if (!_fs->empty()) {
-                this->write(_fs.get());
-                _fs->clear();
+            // it may be not safe if logs are still being pushed to _log_buf, 
+            // sleep 1 ms here
+            signal_safe_sleep(1);
+            if (!_log_buf.empty()) {
+                this->write(&_log_buf);
+                _log_buf.clear();
             }
 
             atomic_swap(&_stop, 3);
@@ -283,54 +258,53 @@ void LevelLogger::stop(bool signal_safe) {
 }
 
 void LevelLogger::thread_fun() {
-    std::unique_ptr<fastream> fs(new fastream(1024*1024));
+    auto& log_time = *global().log_time;
 
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
 
-        _log_time.update();
+        log_time.update();
         {
-            MutexGuard g(_log_mutex);
-            memcpy(_t, _log_time.get(), _log_time.size());
-            if (!_fs->empty()) _fs.swap(fs);
+            ::MutexGuard g(_log_mutex);
+            memcpy(_log_time, log_time.get(), t_len);
+            if (!_log_buf.empty()) _log_buf.swap(_logs);
             if (signaled) _log_event.reset();
         }
 
-        if (!fs->empty()) {
-            this->write(fs.get());
-            fs->clear();
+        if (!_logs.empty()) {
+            this->write(&_logs);
+            _logs.clear();
         }
     }
 
     atomic_swap(&_stop, 2);
 }
 
-void LevelLogger::write(fastream* fs) {
+void LevelLogger::write(fastream* logs) {
     // log to local file
     if (!_write_cb || (_write_flags & log::log2local)) {
-        auto& f = _file;
         if (FLG_log_daily) {
-            const uint32 day = *(uint32*)_t;
-            if (_day != day) { _day = day; f.close(); }
+            const uint32 day = *(uint32*)_log_time;
+            if (_day != day) { _day = day; _log_file.close(); }
         }
 
-        if (f || this->open_log_file()) {
-            f.write(fs->data(), fs->size());
+        if (_log_file || this->open_log_file()) {
+            _log_file.write(logs->data(), logs->size());
         }
 
-        if (f && (!f.exists() || f.size() >= FLG_max_log_file_size)) {
-            f.close();
+        if (_log_file && (!_log_file.exists() || _log_file.size() >= FLG_max_log_file_size)) {
+            _log_file.close();
         }
     }
 
     // write logs through the write callback
     if (_write_cb) {
         if (!(_write_flags & log::splitlogs)) { /* write all logs through a single call */
-            _write_cb(fs->data(), fs->size());
+            _write_cb(logs->data(), logs->size());
         } else { /* split logs and write one by one */
-            const char* b = fs->data();
-            const char* e = b + fs->size();
+            const char* b = logs->data();
+            const char* e = b + logs->size();
             const char* s;
             while (b < e) {
                 s = (const char*) memchr(b, '\n', e - b);
@@ -345,33 +319,36 @@ void LevelLogger::write(fastream* fs) {
         }
     }
 
-    // log to terminal
-    if (FLG_cout) fwrite(fs->data(), 1, fs->size(), stderr);
+    // log to stderr
+    if (FLG_cout) fwrite(logs->data(), 1, logs->size(), stderr);
 }
 
 void LevelLogger::push(char* s, size_t n) {
-    if (unlikely(n > _config->max_log_size)) {
-        n = _config->max_log_size;
-        char* const p = s + n - 4;
-        p[0] = '.';
-        p[1] = '.';
-        p[2] = '.';
-        p[3] = '\n';
-    }
-    {
-        MutexGuard g(_log_mutex);
-        memcpy(*s != '<' ? s + 1 : s + 5, _t, _log_time.size()); // log time
-
-        if (unlikely(_fs->size() + n >= _config->max_log_buffer_size)) {
-            const char* p = strchr(_fs->data() + (_fs->size() >> 1) + 7, '\n');
-            const size_t len = _fs->data() + _fs->size() - p - 1;
-            memcpy((char*)(_fs->data()), "......\n", 7);
-            memcpy((char*)(_fs->data()) + 7, p + 1, len);
-            _fs->resize(len + 7);
+    static bool ks = this->start();
+    if (!_stop) {
+        if (unlikely(n > (uint32)FLG_max_log_size)) {
+            n = FLG_max_log_size;
+            char* const p = s + n - 4;
+            p[0] = '.';
+            p[1] = '.';
+            p[2] = '.';
+            p[3] = '\n';
         }
+        {
+            ::MutexGuard g(_log_mutex);
+            memcpy(*s != '<' ? s + 1 : s + 5, _log_time, t_len); // log time
 
-        _fs->append(s, n);
-        if (_fs->size() > (_fs->capacity() >> 1)) _log_event.signal();
+            if (unlikely(_log_buf.size() + n >= FLG_max_log_buffer_size)) {
+                const char* p = strchr(_log_buf.data() + (_log_buf.size() >> 1) + 7, '\n');
+                const size_t len = _log_buf.data() + _log_buf.size() - p - 1;
+                memcpy((char*)(_log_buf.data()), "......\n", 7);
+                memcpy((char*)(_log_buf.data()) + 7, p + 1, len);
+                _log_buf.resize(len + 7);
+            }
+
+            _log_buf.append(s, n);
+            if (_log_buf.size() > (_log_buf.capacity() >> 1)) _log_event.signal();
+        }
     }
 }
 
@@ -379,19 +356,19 @@ void LevelLogger::push_fatal_log(fastream* log) {
     this->stop();
 
     char* const s = (char*) log->data();
-    memcpy(*s != '<' ? s + 1 : s + 5, _t, _log_time.size());
+    memcpy(*s != '<' ? s + 1 : s + 5, _log_time, t_len);
     this->write(log);
     if (!FLG_cout) fwrite(log->data(), 1, log->size(), stderr);
 
     if (this->open_log_file(fatal)) {
-        _file.write(log->data(), log->size());
+        _log_file.write(log->data(), log->size());
     }
 
-    atomic_swap(&_check_failed, true);
+    atomic_swap(&global().check_failed, true);
     abort();
 }
 
-inline void write_to_stderr(const char* s, size_t n) {
+inline void log2stderr(const char* s, size_t n) {
   #ifdef _WIN32
     auto r = ::fwrite(s, 1, n, stderr); (void)r;
   #else
@@ -402,53 +379,88 @@ inline void write_to_stderr(const char* s, size_t n) {
 // get day from xx_0808_15_30_08.123.log
 inline uint32 LevelLogger::get_day_from_path(const fastring& path) {
     if (path.size() > 21) {
-        uint32 x;
-        memcpy(&x, path.data() + path.size() - 21, 4);
+        union {
+            uint32 x;
+            uint8 p[4]; 
+        };
+        const char* q = path.data() + path.size() - 21;
+        p[0] = (uint8)q[0];
+        p[1] = (uint8)q[1];
+        p[2] = (uint8)q[2];
+        p[3] = (uint8)q[3];
         return x;
     }
     return 0;
 }
 
 // compress log file
-inline void LevelLogger::compress_rotated_log(const fastring& path) {
+inline void LevelLogger::compress_log_file(const fastring& path) {
     fastring cmd(path.size() + 8);
     cmd.append("xz ").append(path);
     os::system(cmd);
 }
 
-bool LevelLogger::open_log_file(int level) {
-    const fastring& path_base = _config->log_path_base;
-    if (!fs::exists(_config->log_dir)) fs::mkdir(_config->log_dir, true);
+bool LevelLogger::check_log_file_config () {
+    // log dir, create if not exists.
+    FLG_log_dir = path::clean(FLG_log_dir.replace("\\", "/"));
 
-    _path.clear();
-    _stmp.clear();
+    // log file name, use process name by default
+    fastring s = FLG_log_file_name;
+    s.remove_tail(".log");
+    if (s.empty()) s = os::exename();
+    s.remove_tail(".exe");
+
+    // prefix of log file path
+    _log_path_base = path::join(FLG_log_dir, s);
+    _log_path.reserve(_log_path_base.size() + 32);
+
+    // paths of old log files
+    s.clear();
+    s.append(_log_path_base).append("_old.log");
+    fs::file f(s.c_str(), 'r');
+    if (f) {
+        auto v = str::split(f.read(f.size()), '\n');
+        _old_paths.insert(_old_paths.end(), v.begin(), v.end());
+    }
+
+    return true;
+}
+
+bool LevelLogger::open_log_file(int level) {
+    static bool _chk = this->check_log_file_config();
+    auto& g = global();
+    auto& s = *g.stmp;
+
+    if (!fs::exists(FLG_log_dir)) fs::mkdir(FLG_log_dir, true);
+    _log_path.clear();
 
     if (level < xx::fatal) {
-        _path.append(path_base).append(".log");
+        _log_path.append(_log_path_base).append(".log");
 
-        bool need_create_new_file = !fs::exists(_path);
-        if (!need_create_new_file) {
+        bool new_file = !fs::exists(_log_path);
+        if (!new_file) {
             if (!_old_paths.empty()) {
                 auto& path = _old_paths.back();
-                if (fs::fsize(_path) >= FLG_max_log_file_size || this->get_day_from_path(path) != _day) {
-                    fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
-                    if (FLG_log_compress) this->compress_rotated_log(path);
-                    need_create_new_file = true;
+                if (fs::fsize(_log_path) >= FLG_max_log_file_size || this->get_day_from_path(path) != _day) {
+                    fs::rename(_log_path, path); // rename xx.log to xx_0808_15_30_08.123.log
+                    if (FLG_log_compress) this->compress_log_file(path);
+                    new_file = true;
                 }
             } else {
-                need_create_new_file = true;
+                new_file = true;
             }
         }
       
-        if (_file.open(_path.c_str(), 'a') && need_create_new_file) {
+        if (_log_file.open(_log_path.c_str(), 'a') && new_file) {
             char t[24] = { 0 }; // 0723 17:00:00.123
-            memcpy(t, _log_time.get(), _log_time.size());
-            for (int i = 0; i < _log_time.size(); ++i) {
+            memcpy(t, g.log_time->get(), t_len);
+            for (int i = 0; i < t_len; ++i) {
                 if (t[i] == ' ' || t[i] == ':') t[i] = '_';
             }
 
-            _stmp.append(path_base).append('_').append(t).append(".log");
-            _old_paths.push_back(_stmp);
+            s.clear();
+            s.append(_log_path_base).append('_').append(t).append(".log");
+            _old_paths.push_back(s);
 
             while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
                 if (FLG_log_compress) _old_paths.front().append(".xz");
@@ -456,87 +468,138 @@ bool LevelLogger::open_log_file(int level) {
                 _old_paths.pop_front();
             }
 
-            _stmp.resize(path_base.size());
-            _stmp.append("_old.log");
-            fs::file f(_stmp.c_str(), 'w');
+            s.resize(_log_path_base.size());
+            s.append("_old.log");
+            fs::file f(s.c_str(), 'w');
             if (f) {
-                _stmp.clear();
-                for (auto& s : _old_paths) _stmp << s << '\n';
-                f.write(_stmp);
+                s.clear();
+                for (auto& x : _old_paths) s << x << '\n';
+                f.write(s);
             }
         }
 
     } else {
-        _path.append(path_base).append(".fatal");
-        _file.open(_path.c_str(), 'a');
+        _log_path.append(_log_path_base).append(".fatal");
+        _log_file.open(_log_path.c_str(), 'a');
     }
 
-    if (!_file) {
-        _stmp.clear();
-        _stmp << "cann't open the file: " << _path << '\n';
-        write_to_stderr(_stmp.data(), _stmp.size());
+    if (!_log_file) {
+        s.clear();
+        s << "cann't open the file: " << _log_path << '\n';
+        log2stderr(s.data(), s.size());
         return false;
     }
-
     return true;
 }
 
-void LevelLogger::on_signal(int sig) {
-    this->stop(true);
+fs::file& LevelLogger::open_fatal_log_file() {
+    this->open_log_file(fatal);
+    if (_log_file) {
+        auto& g = global();
+        if (!g.check_failed) {
+            auto& s = *g.stmp; s.clear();
+            if (FLG_syslog) s << "<10>";
+            s << 'F' << _log_time << "] ";
+            _log_file.write(s);
+        }
+    }
+    return _log_file;
+}
+
+FailureHandler::FailureHandler()
+    : _stack_trace(log::stack_trace()) {
+    _old_handlers[SIGINT] = os::signal(SIGINT, xx::on_signal);
+    _old_handlers[SIGTERM] = os::signal(SIGTERM, xx::on_signal);
+
+  #ifdef _WIN32
+    _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
+    // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
+    // not work for other threads. Use AddVectoredExceptixx::onHandler instead.
+    _ex_handler = AddVectoredExceptionHandler(1, xx::on_exception);
+  #else
+    const int x = SA_RESTART | SA_ONSTACK;
+    _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
+    _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure, x);
+    _old_handlers[SIGSEGV] = os::signal(SIGSEGV, xx::on_failure, x);
+    _old_handlers[SIGFPE] = os::signal(SIGFPE, xx::on_failure, x);
+    _old_handlers[SIGBUS] = os::signal(SIGBUS, xx::on_failure, x);
+    _old_handlers[SIGILL] = os::signal(SIGILL, xx::on_failure, x);
+    os::signal(SIGPIPE, SIG_IGN); // ignore SIGPIPE
+  #endif
+}
+
+FailureHandler::~FailureHandler() {
+    os::signal(SIGINT, SIG_DFL);
+    os::signal(SIGTERM, SIG_DFL);
+    os::signal(SIGABRT, SIG_DFL);
+  #ifdef _WIN32
+    if (_ex_handler) {
+        RemoveVectoredExceptionHandler(_ex_handler);
+        _ex_handler = NULL;
+    }
+  #else
+    os::signal(SIGSEGV, SIG_DFL);
+    os::signal(SIGFPE, SIG_DFL);
+    os::signal(SIGBUS, SIG_DFL);
+    os::signal(SIGILL, SIG_DFL);
+  #endif
+}
+
+void FailureHandler::on_signal(int sig) {
+    global().level_logger->stop(true);
     os::signal(sig, _old_handlers[sig]);
     raise(sig);
 }
 
-void LevelLogger::on_failure(int sig) {
-    this->stop(true);
-    this->open_log_file(fatal);
-    _stmp.clear();
-    if (!_check_failed) {
-        if (FLG_syslog) _stmp << "<10>";
-        _stmp << 'F' << _t << "] ";
-    }
+void FailureHandler::on_failure(int sig) {
+    auto& g = global();
+    g.level_logger->stop(true);
+
+    auto& f = g.level_logger->open_fatal_log_file();
+    auto& s = *g.stmp; s.clear();
 
     switch (sig) {
       case SIGABRT:
-        if (!_check_failed) _stmp << "SIGABRT: aborted\n";
+        if (!g.check_failed) s << "SIGABRT: aborted\n";
         break;
     #ifndef _WIN32
       case SIGSEGV:
-        _stmp << "SIGSEGV: segmentation fault\n";
+        s << "SIGSEGV: segmentation fault\n";
         break;
       case SIGFPE:
-        _stmp << "SIGFPE: floating point exception\n";
+        s << "SIGFPE: floating point exception\n";
         break;
       case SIGBUS:
-        _stmp << "SIGBUS: bus error\n";
+        s << "SIGBUS: bus error\n";
         break;
       case SIGILL:
-        _stmp << "SIGILL: illegal instruction\n";
+        s << "SIGILL: illegal instruction\n";
         break;
     #endif
       default:
-        _stmp << "caught unexpected signal\n";
+        s << "caught unexpected signal\n";
         break;
     }
 
-    if (!_stmp.empty()) {
-        if (_file) _file.write(_stmp.data(), _stmp.size());
-        write_to_stderr(_stmp.data(), _stmp.size());
+    if (!s.empty()) {
+        if (f) f.write(s);
+        log2stderr(s.data(), s.size());
     }
 
     if (_stack_trace) _stack_trace->dump_stack(
-        &_file, _check_failed ? 7 : (sig == SIGABRT ? 4 : 3)
+        &f, g.check_failed ? 7 : (sig == SIGABRT ? 4 : 3)
     );
-    if (_file) { _file.write('\n'); _file.close(); }
+    if (f) { f.write('\n'); f.close(); }
 
     os::signal(sig, _old_handlers[sig]);
     raise(sig);
 }
 
 #ifdef _WIN32
-int LevelLogger::on_exception(PEXCEPTION_POINTERS p) {
-    _stmp.clear();
+int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
+    auto& g = global();
     const char* err = NULL;
+
     switch (p->ExceptionRecord->ExceptionCode) {
       case EXCEPTION_ACCESS_VIOLATION:
         err = "Error: EXCEPTION_ACCESS_VIOLATION";
@@ -588,82 +651,31 @@ int LevelLogger::on_exception(PEXCEPTION_POINTERS p) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    this->stop();
-    this->open_log_file(fatal);
+    g.level_logger->stop();
+    auto& f = g.level_logger->open_fatal_log_file();
 
-    _stmp.clear();
-    if (FLG_syslog) _stmp << "<10>";
-    _stmp << 'F' << _t << "] " << err << '\n';
-    if (_file) _file.write(_stmp.data(), _stmp.size());
-    write_to_stderr(_stmp.data(), _stmp.size());
+    auto& s = *g.stmp; s.clear();
+    s  << err << '\n';
+    if (f) f.write(s);
+    log2stderr(s.data(), s.size());
 
-    if (_stack_trace) _stack_trace->dump_stack(&_file, 6);
-    if (_file) { _file.write('\n'); _file.close(); }
+    if (_stack_trace) _stack_trace->dump_stack(&f, 6);
+    if (f) { f.write('\n'); f.close(); }
 
     return EXCEPTION_EXECUTE_HANDLER;
 }
+
+LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
+    global().failure_handler->on_exception(p);
+}
 #endif
 
-inline LevelLogger* level_logger() {
-    static LevelLogger logger;
-    return &logger;
-}
-
 void on_signal(int sig) {
-    level_logger()->on_signal(sig);
+    global().failure_handler->on_signal(sig);
 }
 
 void on_failure(int sig) {
-    level_logger()->on_failure(sig);
-}
-
-#ifdef _WIN32
-LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
-    return level_logger()->on_exception(p);
-}
-#endif
-
-inline fastream& log_stream() {
-    static __thread fastream* kLogStream = 0;
-    if (kLogStream) return *kLogStream;
-    return *(kLogStream = new fastream(256));
-}
-
-LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int level)
-    : _s(log_stream()) {
-    _n = _s.size();
-    if (!FLG_syslog) {
-        _s.resize(_n + 18); // make room for level and time: I0523 17:00:00.123
-        _s[_n] = "DIWE"[level];
-    } else {
-        _s.resize(_n + 22); // make room for level and time: I0523 17:00:00.123
-        static const char* kHeader[] = { "<15>D", "<14>I", "<12>W", "<11>E" };
-        memcpy((char*)_s.data() + _n, kHeader[level], 5);
-    }
-    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
-}
-
-LevelLogSaver::~LevelLogSaver() {
-    _s << '\n';
-    level_logger()->push((char*)_s.data() + _n, _s.size() - _n);
-    _s.resize(_n);
-}
-
-FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
-    : _s(log_stream()) {
-    if (!FLG_syslog) {
-        _s.resize(18);
-        _s.front() = 'F';
-    } else {
-        _s.resize(22);
-        memcpy((char*)_s.data(), "<10>F", 5);
-    }
-    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
-}
-
-FatalLogSaver::~FatalLogSaver() {
-    _s << '\n';
-    level_logger()->push_fatal_log(&_s);
+    global().failure_handler->on_failure(sig);
 }
 
 void LogTime::update() {
@@ -690,15 +702,15 @@ void LogTime::update() {
         _start = now_sec;
         if (_tm.tm_sec < 60) {
             char* p = (char*)(tb60 + _tm.tm_sec);
-            _buf[b_sec] = p[0];
-            _buf[b_sec + 1] = p[1];
+            _buf[t_sec] = p[0];
+            _buf[t_sec + 1] = p[1];
         } else {
             _tm.tm_min++;
             _tm.tm_sec -= 60;
-            *(uint16*)(_buf + b_min) = tb60[_tm.tm_min];
+            *(uint16*)(_buf + t_min) = tb60[_tm.tm_min];
             char* p = (char*)(tb60 + _tm.tm_sec);
-            _buf[b_sec] = p[0];
-            _buf[b_sec + 1] = p[1];
+            _buf[t_sec] = p[0];
+            _buf[t_sec + 1] = p[1];
         }
         goto set_ms;
     }
@@ -717,7 +729,7 @@ void LogTime::update() {
   set_ms:
     {
         uint32 ms = (uint32)(now_ms - _start * 1000);
-        char* p = _buf + b_ms;
+        char* p = _buf + t_ms;
         uint32 x = ms / 100;
         p[0] = (char)('0' + x);
         ms -= x * 100;
@@ -725,6 +737,48 @@ void LogTime::update() {
         p[1] = (char)('0' + x);
         p[2] = (char)('0' + (ms - x * 10));
     }
+}
+
+inline fastream& log_stream() {
+    static __thread fastream* kls = 0;
+    return kls ? *kls : *(kls = new fastream(256));
+}
+
+LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int level)
+    : _s(log_stream()) {
+    _n = _s.size();
+    if (!FLG_syslog) {
+        _s.resize(_n + (t_len + 1)); // make room for: "I0523 17:00:00.123"
+        _s[_n] = "DIWE"[level];
+    } else {
+        _s.resize(_n + (t_len + 5)); // make room for: "<1x>I0523 17:00:00.123"
+        static const char* kHeader[] = { "<15>D", "<14>I", "<12>W", "<11>E" };
+        memcpy((char*)_s.data() + _n, kHeader[level], 5);
+    }
+    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+}
+
+LevelLogSaver::~LevelLogSaver() {
+    _s << '\n';
+    global().level_logger->push((char*)_s.data() + _n, _s.size() - _n);
+    _s.resize(_n);
+}
+
+FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
+    : _s(log_stream()) {
+    if (!FLG_syslog) {
+        _s.resize(t_len + 1);
+        _s.front() = 'F';
+    } else {
+        _s.resize(t_len + 5);
+        memcpy((char*)_s.data(), "<10>F", 5);
+    }
+    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+}
+
+FatalLogSaver::~FatalLogSaver() {
+    _s << '\n';
+    global().level_logger->push_fatal_log(&_s);
 }
 
 } // namespace xx
@@ -737,12 +791,11 @@ void init() {
         if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
         if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
       #endif
-        xx::level_logger()->init();
     });
 }
 
 void exit() {
-    xx::level_logger()->stop();
+    xx::global().level_logger->stop();
 }
 
 void close() {
@@ -750,7 +803,7 @@ void close() {
 }
 
 void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {
-    xx::level_logger()->set_write_cb(cb, flags);
+    xx::global().level_logger->set_write_cb(cb, flags);
 }
 
 } // namespace log

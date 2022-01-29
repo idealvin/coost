@@ -749,9 +749,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     auto& preq = *(http_req_t**) &req;
     auto& pres = *(http_res_t**) &res;
 
-    // Why humans have such a stupid design on the HTTP protocol?
     god::bless_no_bugs();
-
     r = atomic_inc(&_conn_num);
     DLOG << "http conn num: " << r;
 
