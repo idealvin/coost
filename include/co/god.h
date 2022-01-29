@@ -40,7 +40,7 @@ inline T b8(T n) {
  * whether the first sizeof(T) bytes are equal
  */
 template <typename T>
-inline bool bytes_eq(const void* p, const void* q) {
+inline bool byte_eq(const void* p, const void* q) {
     return *(const T*)p == *(const T*)q;
 }
 
