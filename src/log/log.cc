@@ -44,6 +44,10 @@ namespace ___ {
 namespace log {
 namespace xx {
 
+// do cleanup at exit
+struct Cleanup { ~Cleanup(); };
+Cleanup _gc;
+
 class LogTime;
 class FailureHandler;
 class LevelLogger;
@@ -64,11 +68,6 @@ inline Global& global() {
     static Global* g = co::new_static<Global>();
     return *g;
 }
-
-// do cleanup at exit
-struct Cleaner {
-    ~Cleaner();
-};
 
 enum {
     t_len = 17, // length of time: "0723 17:00:00.123"
@@ -171,7 +170,7 @@ Global::Global()
     failure_handler = co::new_static<FailureHandler>();
 }
 
-Cleaner::~Cleaner() {
+Cleanup::~Cleanup() {
     global().level_logger->stop();
 }
 
