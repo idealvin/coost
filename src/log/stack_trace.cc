@@ -3,15 +3,18 @@
 
 // We do not support stack trace on IOS, ANDROID
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__) || !defined(HAS_BACKTRACE_H)
-namespace co {
+namespace ___ {
+namespace log {
 
-StackTrace* new_stack_trace() { return 0; }
+StackTrace* stack_trace() { return 0; }
 
-} // co
+} // log
+} // ___
 
 #else
 #include "co/fs.h"
 #include "co/os.h"
+#include "co/alloc.h"
 #include "co/fastream.h"
 #include "../co/hook.h"
 #include <string.h>
@@ -22,7 +25,8 @@ StackTrace* new_stack_trace() { return 0; }
 #include <cxxabi.h>
 #endif
 
-namespace co {
+namespace ___ {
+namespace log {
 
 inline void write_to_stderr(const char* s, size_t n) {
     auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
@@ -39,6 +43,7 @@ class StackTraceImpl : public StackTrace {
         memset(_buf, 0, 4096);
         memset((char*)_fs.data(), 0, _fs.capacity());
         (void) _exe.c_str();
+        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
     }
 
     virtual ~StackTraceImpl() {
@@ -65,9 +70,9 @@ class StackTraceImpl : public StackTrace {
     fastring _exe;
 };
 
-StackTrace* new_stack_trace() {
-    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
-    return new StackTraceImpl;
+StackTrace* stack_trace() {
+    static auto kst = co::new_static<StackTraceImpl>();
+    return kst;
 }
 
 #ifdef HAS_CXXABI_H
@@ -126,7 +131,8 @@ void StackTraceImpl::dump_stack(void* f, int skip) {
     backtrace_full(state, skip, backtrace_cb, error_cb, (void*)&ud);
 }
 
-} // co
+} // log
+} // ___
 #endif
 
 #endif

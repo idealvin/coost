@@ -3,11 +3,13 @@
 #include "stack_trace.h"
 #include "StackWalker.hpp"
 #include "co/fs.h"
+#include "co/alloc.h"
 
 #include <stdio.h>
 #include <string.h>
 
-namespace co {
+namespace ___ {
+namespace log {
 
 class StackTraceImpl : public StackTrace, StackWalker {
   public:
@@ -44,10 +46,12 @@ class StackTraceImpl : public StackTrace, StackWalker {
     int _skip;
 };
 
-StackTrace* new_stack_trace() {
-    return new StackTraceImpl;
+StackTrace* stack_trace() {
+    static auto kst = co::new_static<StackTraceImpl>();
+    return kst;
 }
 
-} // co
+} // log
+} // ___
 
 #endif
