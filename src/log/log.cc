@@ -2,26 +2,19 @@
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/str.h"
-#include "co/path.h"
 #include "co/time.h"
 #include "co/alloc.h"
 #include "co/thread.h"
 #include "../co/hook.h"
 #include "stack_trace.h"
 
-#include <time.h>
-#include <string>
-#include <vector>
-#include <deque>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <thread>
-
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/select.h>
 #endif
+#include <time.h>
+#include <deque>
+#include <map>
 
 #ifdef _MSC_VER
 #pragma warning (disable:4722)
@@ -103,9 +96,7 @@ class LogTime {
 // the local file that logs will be written to
 class LogFile {
   public:
-    LogFile()
-        : _path(256), _path_base(256), _exename(os::exename()), _day(0) {
-    }
+    LogFile() : _path(256), _path_base(256), _exename(os::exename()), _day(0) {}
 
     fs::file& open(int level=0);
     void write(const char* p, size_t n);
@@ -153,7 +144,7 @@ class FailureHandler {
 
 class LevelLogger {
   public:
-    LevelLogger() : _log_event(true, false), _stop(0), _write_flags(0) {}
+    LevelLogger() : _log_event(true, false), _log_thread(0), _stop(0), _write_flags(0) {}
     ~LevelLogger() = delete;
 
     bool start();
@@ -174,7 +165,7 @@ class LevelLogger {
   private:
     ::Mutex _log_mutex;
     SyncEvent _log_event;
-    std::unique_ptr<Thread> _log_thread;
+    Thread* _log_thread;
     fastream _log_buf;  // logs will be pushed to this buffer
     fastream _logs;     // to swap out logs in _log_buf
     char _log_time[24]; // "0723 17:00:00.123"
@@ -213,7 +204,7 @@ bool LevelLogger::start() {
 
     _log_buf.reserve(1 << 20);
     _logs.reserve(1 << 20);
-    _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
+    _log_thread = co::new_static<Thread>(&LevelLogger::thread_fun, this);
     return true;
 }
 
@@ -439,7 +430,8 @@ fs::file& LogFile::open(int level) {
         if (!new_file) {
             if (!_old_paths.empty()) {
                 auto& path = _old_paths.back();
-                if (fs::fsize(_path) >= FLG_max_log_file_size || this->day_in_path(path) != _day) {
+                if (fs::fsize(_path) >= FLG_max_log_file_size || (
+                    FLG_log_daily && this->day_in_path(path) != _day)) {
                     fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
                     if (FLG_log_compress) this->compress_file(path);
                     new_file = true;
@@ -542,14 +534,14 @@ FailureHandler::~FailureHandler() {
 }
 
 void FailureHandler::on_signal(int sig) {
-    global().level_logger->stop(true);
+    if (global().level_logger) global().level_logger->stop(true);
     os::signal(sig, _old_handlers[sig]);
     raise(sig);
 }
 
 void FailureHandler::on_failure(int sig) {
     auto& g = global();
-    g.level_logger->stop(true);
+    if (g.level_logger) g.level_logger->stop(true);
 
     auto& f = g.log_file->open(fatal);
     auto& s = *g.s; s.clear();
@@ -651,7 +643,7 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    g.level_logger->stop();
+    if (g.level_logger) g.level_logger->stop();
     auto& f = g.log_file->open(fatal);
     auto& s = *g.s; s.clear();
     if (FLG_syslog) s << "<10>";
