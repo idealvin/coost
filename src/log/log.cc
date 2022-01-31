@@ -44,11 +44,8 @@ namespace ___ {
 namespace log {
 namespace xx {
 
-// do cleanup at exit
-struct Cleanup { ~Cleanup(); };
-Cleanup _gc;
-
 class LogTime;
+class LogFile;
 class FailureHandler;
 class LevelLogger;
 
@@ -58,8 +55,9 @@ struct Global {
     ~Global() = delete;
 
     bool check_failed;
-    fastring* stmp;
+    fastring* s; // cache
     LogTime* log_time;
+    LogFile* log_file;
     FailureHandler* failure_handler;
     LevelLogger* level_logger;
 };
@@ -69,16 +67,24 @@ inline Global& global() {
     return *g;
 }
 
-enum {
-    t_len = 17, // length of time: "0723 17:00:00.123"
-    t_min = 8,  // position of minute
-    t_sec = t_min + 3,
-    t_ms = t_sec + 3,
+// do cleanup at exit
+struct Cleanup {
+    Cleanup() { (void) global(); }
+    ~Cleanup(); 
 };
 
-// time string for the logs
+static Cleanup _gc;
+
+// time string for the logs: "0723 17:00:00.123"
 class LogTime {
   public:
+    enum {
+        t_len = 17, // length of time 
+        t_min = 8,  // position of minute
+        t_sec = t_min + 3,
+        t_ms = t_sec + 3,
+    };
+
     LogTime() : _start(0) {
         memset(_buf, 0, sizeof(_buf));
         this->update();
@@ -86,11 +92,36 @@ class LogTime {
 
     void update();
     const char* get() const { return _buf; }
+    uint32 day() const { return *(uint32*)_buf; }
 
   private:
     time_t _start;
     struct tm _tm;
-    char _buf[24]; // 0723 17:00:00.123
+    char _buf[24]; // save the time string
+};
+
+// the local file that logs will be written to
+class LogFile {
+  public:
+    LogFile()
+        : _path(256), _path_base(256), _exename(os::exename()), _day(0) {
+    }
+
+    fs::file& open(int level=0);
+    void write(const char* p, size_t n);
+
+  private:
+    bool check_config(bool signal_safe);
+    uint32 day_in_path(const fastring& path);
+    void compress_file(const fastring& path);
+
+  private:
+    fs::file _file;
+    fastring _path;
+    fastring _path_base; // prefix of the log path: log_dir/log_file_name 
+    fastring _exename;   // use exename as log_file_name by default
+    std::deque<fastring> _old_paths; // paths of old log files
+    uint32 _day;
 };
 
 void on_signal(int sig);  // handler for SIGINT SIGTERM SIGQUIT
@@ -122,27 +153,23 @@ class FailureHandler {
 
 class LevelLogger {
   public:
-    LevelLogger();
+    LevelLogger() : _log_event(true, false), _stop(0), _write_flags(0) {}
     ~LevelLogger() = delete;
 
     bool start();
     void stop(bool signal_safe=false);
 
     void push(char* s, size_t n);
-    void push_fatal_log(fastream* log);
+    void push_fatal_log(char* s, size_t n);
 
-    fs::file& open_fatal_log_file();
-
-    void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags);
+    void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {
+        _write_cb = cb;
+        _write_flags = flags;
+    }
 
   private:
-    bool check_log_file_config();
-
-    bool open_log_file(int level=0);
-    void write(fastream* fs);
+    void write_logs(const char* p, size_t n);
     void thread_fun();
-    void compress_log_file(const fastring& path);
-    uint32 day_in_path(const fastring& path);
 
   private:
     ::Mutex _log_mutex;
@@ -150,38 +177,27 @@ class LevelLogger {
     std::unique_ptr<Thread> _log_thread;
     fastream _log_buf;  // logs will be pushed to this buffer
     fastream _logs;     // to swap out logs in _log_buf
-    fs::file _log_file;
-    fastring _log_path;
-    fastring _log_path_base; // prefix of log path: log_dir/log_file_name 
-    std::deque<fastring> _old_paths; // paths of old log files
-
     char _log_time[24]; // "0723 17:00:00.123"
-    uint32 _day;        // the first 4 bytes of _log_time
     int _stop;          // 0: init, 1: stopping, 2: logging thread stopped, 3: final
-
+    int _write_flags;   // flags for the write callback
     std::function<void(const void*, size_t)> _write_cb; // user callback for writing logs
-    int _write_flags; // flags for the write callback
 };
 
 Global::Global()
-    : check_failed(false) {
-    stmp = co::new_static<fastring>(4096);
-    log_time = co::new_static<LogTime>();
-    level_logger = co::new_static<LevelLogger>();
-    failure_handler = co::new_static<FailureHandler>();
-}
-
-Cleanup::~Cleanup() {
-    global().level_logger->stop();
-}
-
-LevelLogger::LevelLogger()
-    : _log_event(true, false), _log_buf(1 << 20), _logs(1 << 20),
-      _log_path(256), _stop(0), _write_flags(0) {
+    : check_failed(false), level_logger(NULL) {
   #ifndef _WIN32
     if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
     if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
   #endif
+    s = co::new_static<fastring>(4096);
+    log_time = co::new_static<LogTime>();
+    log_file = co::new_static<LogFile>();
+    failure_handler = co::new_static<FailureHandler>();
+    level_logger = co::new_static<LevelLogger>();
+}
+
+Cleanup::~Cleanup() {
+    global().level_logger->stop();
 }
 
 bool LevelLogger::start() {
@@ -194,17 +210,11 @@ bool LevelLogger::start() {
 
     global().log_time->update();
     memcpy(_log_time, global().log_time->get(), 24);
-    _day = *(uint32*)_log_time;
 
+    _log_buf.reserve(1 << 20);
+    _logs.reserve(1 << 20);
     _log_thread.reset(new Thread(&LevelLogger::thread_fun, this));
     return true;
-}
-
-inline void LevelLogger::set_write_cb(
-    const std::function<void(const void*, size_t)>& cb, int flags
-) {
-    _write_cb = cb;
-    _write_flags = flags;
 }
 
 void signal_safe_sleep(int ms) {
@@ -228,7 +238,7 @@ void LevelLogger::stop(bool signal_safe) {
 
             ::MutexGuard g(_log_mutex);
             if (!_log_buf.empty()) {
-                this->write(&_log_buf);
+                this->write_logs(_log_buf.data(), _log_buf.size());
                 _log_buf.clear();
             }
 
@@ -250,7 +260,7 @@ void LevelLogger::stop(bool signal_safe) {
             // sleep 1 ms here
             signal_safe_sleep(1);
             if (!_log_buf.empty()) {
-                this->write(&_log_buf);
+                this->write_logs(_log_buf.data(), _log_buf.size());
                 _log_buf.clear();
             }
 
@@ -262,22 +272,20 @@ void LevelLogger::stop(bool signal_safe) {
 }
 
 void LevelLogger::thread_fun() {
-    auto& log_time = *global().log_time;
-
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
 
-        log_time.update();
+        global().log_time->update();
         {
             ::MutexGuard g(_log_mutex);
-            memcpy(_log_time, log_time.get(), t_len);
+            memcpy(_log_time, global().log_time->get(), LogTime::t_len);
             if (!_log_buf.empty()) _log_buf.swap(_logs);
             if (signaled) _log_event.reset();
         }
 
         if (!_logs.empty()) {
-            this->write(&_logs);
+            this->write_logs(_logs.data(), _logs.size());
             _logs.clear();
         }
     }
@@ -285,30 +293,19 @@ void LevelLogger::thread_fun() {
     atomic_swap(&_stop, 2);
 }
 
-void LevelLogger::write(fastream* logs) {
+void LevelLogger::write_logs(const char* p, size_t n) {
     // log to local file
     if (!_write_cb || (_write_flags & log::log2local)) {
-        if (FLG_log_daily) {
-            const uint32 day = *(uint32*)_log_time;
-            if (_day != day) { _day = day; _log_file.close(); }
-        }
-
-        if (_log_file || this->open_log_file()) {
-            _log_file.write(logs->data(), logs->size());
-        }
-
-        if (_log_file && (!_log_file.exists() || _log_file.size() >= FLG_max_log_file_size)) {
-            _log_file.close();
-        }
+        global().log_file->write(p, n);
     }
 
     // write logs through the write callback
     if (_write_cb) {
-        if (!(_write_flags & log::splitlogs)) { /* write all logs through a single call */
-            _write_cb(logs->data(), logs->size());
+        if (!(_write_flags & log::splitlogs)) { /* write all logs once */
+            _write_cb(p, n);
         } else { /* split logs and write one by one */
-            const char* b = logs->data();
-            const char* e = b + logs->size();
+            const char* b = p;
+            const char* e = b + n;
             const char* s;
             while (b < e) {
                 s = (const char*) memchr(b, '\n', e - b);
@@ -324,7 +321,7 @@ void LevelLogger::write(fastream* logs) {
     }
 
     // log to stderr
-    if (FLG_cout) fwrite(logs->data(), 1, logs->size(), stderr);
+    if (FLG_cout) fwrite(p, 1, n, stderr);
 }
 
 void LevelLogger::push(char* s, size_t n) {
@@ -340,7 +337,7 @@ void LevelLogger::push(char* s, size_t n) {
         }
         {
             ::MutexGuard g(_log_mutex);
-            memcpy(*s != '<' ? s + 1 : s + 5, _log_time, t_len); // log time
+            memcpy(*s != '<' ? s + 1 : s + 5, _log_time, LogTime::t_len); // log time
 
             if (unlikely(_log_buf.size() + n >= FLG_max_log_buffer_size)) {
                 const char* p = strchr(_log_buf.data() + (_log_buf.size() >> 1) + 7, '\n');
@@ -356,17 +353,13 @@ void LevelLogger::push(char* s, size_t n) {
     }
 }
 
-void LevelLogger::push_fatal_log(fastream* log) {
+void LevelLogger::push_fatal_log(char* s, size_t n) {
     this->stop();
+    memcpy(*s != '<' ? s + 1 : s + 5, global().log_time->get(), LogTime::t_len);
 
-    char* const s = (char*) log->data();
-    memcpy(*s != '<' ? s + 1 : s + 5, _log_time, t_len);
-    this->write(log);
-    if (!FLG_cout) fwrite(log->data(), 1, log->size(), stderr);
-
-    if (this->open_log_file(fatal)) {
-        _log_file.write(log->data(), log->size());
-    }
+    this->write_logs(s, n);
+    if (!FLG_cout) fwrite(s, 1, n, stderr);
+    if (global().log_file->open(fatal)) global().log_file->write(s, n);
 
     atomic_swap(&global().check_failed, true);
     abort();
@@ -381,63 +374,74 @@ inline void log2stderr(const char* s, size_t n) {
 }
 
 // get day from xx_0808_15_30_08.123.log
-inline uint32 LevelLogger::day_in_path(const fastring& path) {
+inline uint32 LogFile::day_in_path(const fastring& path) {
     uint32 x = 0;
-    if (path.size() > 21) god::byte_cp<4>(&x, path.data() + path.size() - 21);
+    const int n = LogTime::t_len + 4;
+    if (path.size() > n) god::byte_cp<4>(&x, path.data() + path.size() - n);
     return x;
 }
 
-// compress log file
-inline void LevelLogger::compress_log_file(const fastring& path) {
+// compress log file with the xz command
+inline void LogFile::compress_file(const fastring& path) {
     fastring cmd(path.size() + 8);
     cmd.append("xz ").append(path);
     os::system(cmd);
 }
 
-bool LevelLogger::check_log_file_config () {
-    // log dir, create if not exists.
-    FLG_log_dir = path::clean(FLG_log_dir.replace("\\", "/"));
+bool LogFile::check_config (bool signal_safe) {
+    auto& s = *global().s;
+
+    // log dir, backslash to slash
+    for (size_t i = 0; i < FLG_log_dir.size(); ++i) {
+        if (FLG_log_dir[i] == '\\') FLG_log_dir[i] = '/';
+    }
 
     // log file name, use process name by default
-    fastring s = FLG_log_file_name;
-    s.remove_tail(".log");
-    if (s.empty()) s = os::exename();
+    s.clear();
+    if (FLG_log_file_name.empty()) {
+        s.append(_exename);
+    } else {
+        s.append(FLG_log_file_name);
+        s.remove_tail(".log");
+    }
     s.remove_tail(".exe");
 
     // prefix of log file path
-    _log_path_base = path::join(FLG_log_dir, s);
-    _log_path.reserve(_log_path_base.size() + 32);
+    _path_base << FLG_log_dir << '/' << s;
 
-    // paths of old log files
-    s.clear();
-    s.append(_log_path_base).append("_old.log");
-    fs::file f(s.c_str(), 'r');
-    if (f) {
-        auto v = str::split(f.read(f.size()), '\n');
-        _old_paths.insert(_old_paths.end(), v.begin(), v.end());
+    // read paths of old log files
+    if (!signal_safe) {
+        s.clear();
+        s.append(_path_base).append("_old.log");
+        fs::file f(s.c_str(), 'r');
+        if (f) {
+            auto v = str::split(f.read(f.size()), '\n');
+            _old_paths.insert(_old_paths.end(), v.begin(), v.end());
+        }
     }
 
+    _day = global().log_time->day();
     return true;
 }
 
-bool LevelLogger::open_log_file(int level) {
-    static bool _chk = this->check_log_file_config();
+fs::file& LogFile::open(int level) {
+    static bool _chk = this->check_config(level == fatal);
     auto& g = global();
-    auto& s = *g.stmp;
+    auto& s = *g.s;
 
     if (!fs::exists(FLG_log_dir)) fs::mkdir(FLG_log_dir, true);
-    _log_path.clear();
+    _path.clear();
 
     if (level < xx::fatal) {
-        _log_path.append(_log_path_base).append(".log");
+        _path.append(_path_base).append(".log");
 
-        bool new_file = !fs::exists(_log_path);
+        bool new_file = !fs::exists(_path);
         if (!new_file) {
             if (!_old_paths.empty()) {
                 auto& path = _old_paths.back();
-                if (fs::fsize(_log_path) >= FLG_max_log_file_size || this->day_in_path(path) != _day) {
-                    fs::rename(_log_path, path); // rename xx.log to xx_0808_15_30_08.123.log
-                    if (FLG_log_compress) this->compress_log_file(path);
+                if (fs::fsize(_path) >= FLG_max_log_file_size || this->day_in_path(path) != _day) {
+                    fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
+                    if (FLG_log_compress) this->compress_file(path);
                     new_file = true;
                 }
             } else {
@@ -445,15 +449,15 @@ bool LevelLogger::open_log_file(int level) {
             }
         }
       
-        if (_log_file.open(_log_path.c_str(), 'a') && new_file) {
+        if (_file.open(_path.c_str(), 'a') && new_file) {
             char t[24] = { 0 }; // 0723 17:00:00.123
-            memcpy(t, g.log_time->get(), t_len);
-            for (int i = 0; i < t_len; ++i) {
+            memcpy(t, g.log_time->get(), LogTime::t_len);
+            for (int i = 0; i < LogTime::t_len; ++i) {
                 if (t[i] == ' ' || t[i] == ':') t[i] = '_';
             }
 
             s.clear();
-            s.append(_log_path_base).append('_').append(t).append(".log");
+            s.append(_path_base).append('_').append(t).append(".log");
             _old_paths.push_back(s);
 
             while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
@@ -462,7 +466,7 @@ bool LevelLogger::open_log_file(int level) {
                 _old_paths.pop_front();
             }
 
-            s.resize(_log_path_base.size());
+            s.resize(_path_base.size());
             s.append("_old.log");
             fs::file f(s.c_str(), 'w');
             if (f) {
@@ -473,31 +477,29 @@ bool LevelLogger::open_log_file(int level) {
         }
 
     } else {
-        _log_path.append(_log_path_base).append(".fatal");
-        _log_file.open(_log_path.c_str(), 'a');
+        _path.append(_path_base).append(".fatal");
+        _file.open(_path.c_str(), 'a');
     }
 
-    if (!_log_file) {
+    if (!_file) {
         s.clear();
-        s << "cann't open the file: " << _log_path << '\n';
+        s << "cann't open the file: " << _path << '\n';
         log2stderr(s.data(), s.size());
-        return false;
     }
-    return true;
+    return _file;
 }
 
-fs::file& LevelLogger::open_fatal_log_file() {
-    this->open_log_file(fatal);
-    if (_log_file) {
-        auto& g = global();
-        if (!g.check_failed) {
-            auto& s = *g.stmp; s.clear();
-            if (FLG_syslog) s << "<10>";
-            s << 'F' << _log_time << "] ";
-            _log_file.write(s);
-        }
+void LogFile::write(const char* p, size_t n) {
+    if (FLG_log_daily) {
+        const uint32 day = global().log_time->day();
+        if (_day != day) { _day = day; _file.close(); }
     }
-    return _log_file;
+
+    if (_file || this->open()) {
+        _file.write(p, n);
+        const uint64 size = _file.size(); // -1 if not exists
+        if (size >= (uint64)FLG_max_log_file_size) _file.close();
+    }
 }
 
 FailureHandler::FailureHandler()
@@ -549,8 +551,12 @@ void FailureHandler::on_failure(int sig) {
     auto& g = global();
     g.level_logger->stop(true);
 
-    auto& f = g.level_logger->open_fatal_log_file();
-    auto& s = *g.stmp; s.clear();
+    auto& f = g.log_file->open(fatal);
+    auto& s = *g.s; s.clear();
+    if (!g.check_failed) {
+        if (FLG_syslog) s << "<10>";
+        s << 'F' << g.log_time->get() << "] ";
+    }
 
     switch (sig) {
       case SIGABRT:
@@ -646,10 +652,10 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
     }
 
     g.level_logger->stop();
-    auto& f = g.level_logger->open_fatal_log_file();
-
-    auto& s = *g.stmp; s.clear();
-    s  << err << '\n';
+    auto& f = g.log_file->open(fatal);
+    auto& s = *g.s; s.clear();
+    if (FLG_syslog) s << "<10>";
+    s << 'F' << g.log_time->get() << "] " << err << '\n';
     if (f) f.write(s);
     log2stderr(s.data(), s.size());
 
@@ -684,9 +690,9 @@ void LogTime::update() {
     static uint16* tb60 = []() {
         static uint16 tb[60];
         for (int i = 0; i < 60; ++i) {
-            char* p = (char*) &tb[i];
-            p[0] = (char)('0' + i / 10);
-            p[1] = (char)('0' + i % 10);
+            uint8* p = (uint8*) &tb[i];
+            p[0] = (uint8)('0' + i / 10);
+            p[1] = (uint8)('0' + i % 10);
         }
         return tb;
     }();
@@ -695,9 +701,9 @@ void LogTime::update() {
     if (_tm.tm_min < 59 || _tm.tm_sec < 60) {
         _start = now_sec;
         if (_tm.tm_sec < 60) {
-            char* p = (char*)(tb60 + _tm.tm_sec);
-            _buf[t_sec] = p[0];
-            _buf[t_sec + 1] = p[1];
+            int8* p = (int8*)(tb60 + _tm.tm_sec);
+            _buf[t_sec] = (char)p[0];
+            _buf[t_sec + 1] = (char)p[1];
         } else {
             _tm.tm_min++;
             _tm.tm_sec -= 60;
@@ -742,10 +748,10 @@ LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int l
     : _s(log_stream()) {
     _n = _s.size();
     if (!FLG_syslog) {
-        _s.resize(_n + (t_len + 1)); // make room for: "I0523 17:00:00.123"
+        _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
         _s[_n] = "DIWE"[level];
     } else {
-        _s.resize(_n + (t_len + 5)); // make room for: "<1x>I0523 17:00:00.123"
+        _s.resize(_n + (LogTime::t_len + 5)); // make room for: "<1x>I0523 17:00:00.123"
         static const char* kHeader[] = { "<15>D", "<14>I", "<12>W", "<11>E" };
         memcpy((char*)_s.data() + _n, kHeader[level], 5);
     }
@@ -761,10 +767,10 @@ LevelLogSaver::~LevelLogSaver() {
 FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
     : _s(log_stream()) {
     if (!FLG_syslog) {
-        _s.resize(t_len + 1);
+        _s.resize(LogTime::t_len + 1);
         _s.front() = 'F';
     } else {
-        _s.resize(t_len + 5);
+        _s.resize(LogTime::t_len + 5);
         memcpy((char*)_s.data(), "<10>F", 5);
     }
     (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
@@ -772,7 +778,7 @@ FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
 
 FatalLogSaver::~FatalLogSaver() {
     _s << '\n';
-    global().level_logger->push_fatal_log(&_s);
+    global().level_logger->push_fatal_log((char*)_s.data(), _s.size());
 }
 
 } // namespace xx
