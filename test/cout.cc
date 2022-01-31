@@ -28,6 +28,5 @@ int main(int argc, char** argv) {
     go(g);
 
     wg.wait();
-    co::exit();
     return 0;
 }

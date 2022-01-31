@@ -94,7 +94,7 @@ void client_with_pool() {
 }
 
 int main(int argc, char** argv) {
-    co::init(argc, argv);
+    flag::init(argc, argv);
     FLG_cout = true;
     gPool = new co::Pool(
         []() {
@@ -120,7 +120,6 @@ int main(int argc, char** argv) {
 
     sleep::sec(2);
     s.exit();
-    co::exit();
     delete gPool;
     return 0;
 }

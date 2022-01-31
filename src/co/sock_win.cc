@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
 #include "scheduler.h"
+#include "co/alloc.h"
 #include <ws2spi.h>
 #include <unordered_map>
 
@@ -328,10 +329,10 @@ class Error {
     thread_ptr<T> _p;
 };
 
-const char* strerror(int err) {
-    if (err == ETIMEDOUT || err == WSAETIMEDOUT) return "Timed out.";
-    static co::Error e;
-    return e.strerror(err);
+const char* strerror(int e) {
+    if (e == ETIMEDOUT || e == WSAETIMEDOUT) return "Timed out.";
+    static auto ke = co::new_static<co::Error>();
+    return ke->strerror(e);
 }
 
 bool _can_skip_iocp_on_success() {
@@ -359,12 +360,9 @@ bool _can_skip_iocp_on_success() {
     return true;
 }
 
-namespace sock {
-
-void init() {
+void init_sock() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
-    (void) co::strerror(0);
 
     sock_t fd = ::socket(AF_INET, SOCK_STREAM, 0);
     CHECK_NE(fd, INVALID_SOCKET) << "create socket error: " << co::strerror();
@@ -402,16 +400,12 @@ void init() {
 
     ::closesocket(fd);
     can_skip_iocp_on_success = co::_can_skip_iocp_on_success();
-
-    co::hook::init();
 }
 
-void exit() {
-    co::hook::exit();
+void cleanup_sock() {
     WSACleanup();
 }
 
-} // sock
 } // co
 
 #if defined(_MSC_VER) && defined(BUILDING_CO_SHARED)

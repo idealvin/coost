@@ -1,8 +1,20 @@
 #ifdef _WIN32
-
 #include "hook.h"
+
+#ifdef _CO_DISABLE_HOOK
+namespace co {
+
+void init_hook() {}
+void cleanup_hook() {}
+void disable_hook_sleep() {}
+void enable_hook_sleep() {}
+
+} // co
+
+#else
 #include "scheduler.h"
 #include "co/co.h"
+#include "co/alloc.h"
 #include "co/defer.h"
 #include "co/flag.h"
 #include "co/log.h"
@@ -11,12 +23,10 @@
 #include <Mswsock.h>
 
 DEF_bool(hook_log, false, ">>#1 enable log for hook if true");
-DEF_bool(disable_hook_sleep, false, ">>#1 disable hook sleep if true");
 
 #define HOOKLOG DLOG_IF(FLG_hook_log)
 
 namespace co {
-
 extern bool can_skip_iocp_on_success;
 
 class HookCtx {
@@ -87,22 +97,22 @@ class HookCtx {
 class Hook {
   public:
     // _tb(14, 17) can hold 2^31=2G sockets
-    Hook() : _tb(14, 17) {}
+    Hook() : tb(14, 17), hook_sleep(true) {}
     ~Hook() = default;
 
     HookCtx& get_hook_ctx(sock_t s) {
-        return _tb[(size_t)s];
+        return tb[(size_t)s];
     }
 
-  private:
-    Table<HookCtx> _tb;
+    bool hook_sleep;
+    Table<HookCtx> tb;
 };
 
 } // co
 
 inline co::Hook& gHook() {
-    static co::Hook hook;
-    return hook;
+    static auto hook = co::new_static<co::Hook>();
+    return *hook;
 }
 
 extern "C" {
@@ -157,7 +167,7 @@ void WINAPI hook_Sleep(
     DWORD a0
 ) {
     HOOKLOG << "hook_Sleep: " << a0;
-    if (!co::gSched || FLG_disable_hook_sleep) return CO_RAW_API(Sleep)(a0);
+    if (!co::gSched || !gHook().hook_sleep) return CO_RAW_API(Sleep)(a0);
     co::gSched->sleep(a0);
 }
 
@@ -1193,9 +1203,6 @@ WSASendMsg_fp_t get_WSASendMsg_fp() {
 } // extern "C"
 
 namespace co {
-namespace hook {
-
-static bool _dummy = !!&gHook();
 
 inline void detour_attach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
     LONG l = DetourAttach(ppbReal, pbMine);
@@ -1210,7 +1217,7 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 #define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 #define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 
-void init() {
+void init_hook() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     attach_hook(Sleep);
@@ -1244,10 +1251,9 @@ void init() {
     attach_hook(GetQueuedCompletionStatus);
     attach_hook(GetQueuedCompletionStatusEx);
     DetourTransactionCommit();
-    (void) gHook();
 }
 
-void exit() {
+void cleanup_hook() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     detach_hook(Sleep);
@@ -1284,14 +1290,13 @@ void exit() {
 }
 
 void disable_hook_sleep() {
-    atomic_swap(&FLG_disable_hook_sleep, true);
+    atomic_swap(&gHook().hook_sleep, false);
 }
 
 void enable_hook_sleep() {
-    atomic_swap(&FLG_disable_hook_sleep, false);
+    atomic_swap(&gHook().hook_sleep, true);
 }
 
-} // hook
 } // co
 
 #undef attach_hook
@@ -1299,4 +1304,5 @@ void enable_hook_sleep() {
 #undef do_hard_hook
 #undef HOOKLOG
 
+#endif // _CO_DISABLE_HOOK
 #endif // #ifdef _WIN32

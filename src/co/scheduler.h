@@ -34,6 +34,12 @@ DEC_bool(co_debug_log);
 
 namespace co {
 
+void init_sock();
+void cleanup_sock();
+
+void init_hook();
+void cleanup_hook();
+
 struct Coroutine;
 typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
 
@@ -375,14 +381,11 @@ class SchedulerManager {
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
 };
 
-bool is_stopped();
+inline bool& is_active() {
+    static bool ka = false;
+    return ka;
+}
 
 extern __thread SchedulerImpl* gSched;
 
-namespace sock {
-
-void init();
-void exit();
-
-} // sock
 } // co

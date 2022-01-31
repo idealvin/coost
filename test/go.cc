@@ -49,7 +49,7 @@ class T {
 };
 
 int main(int argc, char** argv) {
-    co::init(argc, argv);
+    flag::init(argc, argv);
     FLG_cout = true;
 
     std::string s("s222");
@@ -87,6 +87,5 @@ int main(int argc, char** argv) {
     go([]() { LOG << "[]()"; });
 
     co::sleep(100);
-    co::exit();
     return 0;
 }

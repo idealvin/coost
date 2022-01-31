@@ -1,10 +1,10 @@
 #include "scheduler.h"
+#include "co/alloc.h"
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, default: os::cpunum()");
 DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
 DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
-DEF_bool(disable_co_exit, false, ">>.disable co::exit if true");
 
 namespace co {
 
@@ -28,7 +28,7 @@ SchedulerImpl::~SchedulerImpl() {
 void SchedulerImpl::stop() {
     if (atomic_swap(&_stop, true) == false) {
         _epoll->signal();
-        _ev.wait();
+        _ev.wait(32); // wait at most 32ms
     }
 }
 
@@ -214,20 +214,9 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     return (int) (_timer.begin()->first - now_ms);
 }
 
-inline bool& initialized() {
-    static bool kInitialized = false;
-    return kInitialized;
-}
-
-inline bool& stopped() {
-    static bool kStopped = true;
-    return kStopped;
-}
-
-bool is_stopped() { return stopped(); }
-
 SchedulerManager::SchedulerManager() {
-    co::sock::init();
+    co::init_sock();
+    co::init_hook();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
@@ -241,51 +230,39 @@ SchedulerManager::SchedulerManager() {
         _scheds.push_back(s);
     }
 
-    stopped() = false;
-    initialized() = true;
+    is_active() = true;
 }
 
 SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
-    co::sock::exit();
-    stopped() = true;
-    initialized() = false;
 }
+
+inline SchedulerManager* scheduler_manager() {
+    static auto ksm = co::new_static<SchedulerManager>();
+    return ksm;
+}
+
+struct Cleanup {
+    ~Cleanup() {
+        if (is_active()) {
+            scheduler_manager()->stop();
+            co::cleanup_hook();
+            co::cleanup_sock();
+        }
+    }
+};
+
+static Cleanup _gc;
 
 void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
-    stopped() = true;
+    atomic_swap(&is_active(), false);
 }
 
 void Scheduler::go(Closure* cb) {
     ((SchedulerImpl*)this)->add_new_task(cb);
-}
-
-inline SchedulerManager* scheduler_manager() {
-    static SchedulerManager kSchedMgr;
-    return &kSchedMgr;
-}
-
-void init() {
-    (void) scheduler_manager();
-}
-
-void init(int argc, char** argv) {
-    flag::init(argc, argv);
-    co::init();
-}
-
-void init(const char* config) {
-    flag::init(config);
-    co::init();
-}
-
-void exit() {
-    if (!FLG_disable_co_exit) {
-        scheduler_manager()->stop();
-    }
 }
 
 void go(Closure* cb) {
@@ -303,7 +280,7 @@ Scheduler* next_scheduler() {
 }
 
 int scheduler_num() {
-    if (initialized()) return (int) scheduler_manager()->all_schedulers().size();
+    if (is_active()) return (int) scheduler_manager()->all_schedulers().size();
     return os::cpunum();
 }
 
@@ -351,10 +328,6 @@ bool timeout() {
 bool on_stack(const void* p) {
     CHECK(gSched) << "MUST be called in coroutine..";
     return gSched->on_stack(p);
-}
-
-void stop() {
-    return co::exit();
 }
 
 } // co

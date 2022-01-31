@@ -210,9 +210,9 @@ bool LevelLogger::start() {
 
 void signal_safe_sleep(int ms) {
   #ifdef _WIN32
-    co::hook::disable_hook_sleep();
+    co::disable_hook_sleep();
     ::Sleep(ms);
-    co::hook::enable_hook_sleep();
+    co::enable_hook_sleep();
   #else
     struct timeval tv = { 0, ms * 1000 };
     CO_RAW_API(select)(0, 0, 0, 0, &tv);

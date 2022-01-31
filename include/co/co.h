@@ -16,41 +16,6 @@
 namespace co {
 
 /**
- * initialize the coroutine library
- *   - It will not call `flat::init()` or `log::init()`.
- */
-__coapi void init();
-
-/**
- * This is equal to:
- *   ```cpp
- *   flag::init(argc, argv);
- *   log::init();
- *   co::init();
- *   ```
- */
-__coapi void init(int argc, char** argv);
-
-/**
- * This is equal to:
- *   ```cpp
- *   flag::init(config);
- *   log::init();
- *   co::init();
- *   ```
- */
-__coapi void init(const char* config);
-
-/**
- * The same as co::stop(), stop all schedulers.
- *   - If you are using co.dll on windows, it is better to call co::exit() manaully 
- *     at end of the main function, or the program may hang forever at exit.
- *   - It will also call `log::exit()` after the schedulers are stopped, if you have 
- *     called `co::init(argc, argv)` or `co::init(config)` before.
- */
-__coapi void exit();
-
-/**
  * add a task, which will run as a coroutine 
  *   - It is thread-safe and can be called from anywhere. 
  *   - Closure created by new_closure() will delete itself after Closure::run() 
@@ -127,8 +92,7 @@ inline void go(F&& f, T* t, P&& p) {
 #define DEF_main(argc, argv) \
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
-    co::init(argc, argv); \
-    flag::set_value("disable_co_exit", "true"); \
+    flag::init(argc, argv); \
     int r; \
     co::WaitGroup wg; \
     wg.add(); \
@@ -137,8 +101,6 @@ int main(int argc, char** argv) { \
         wg.done(); \
     }); \
     wg.wait(); \
-    flag::set_value("disable_co_exit", "false"); \
-    co::exit(); \
     return r; \
 } \
 int _co_main(int argc, char** argv)
@@ -292,12 +254,6 @@ __coapi bool timeout();
  *   - It MUST be called in a coroutine. 
  */
 __coapi bool on_stack(const void* p);
-
-/**
- * stop all coroutine schedulers 
- *   - It is safe to call stop() from anywhere. 
- */
-__coapi void stop();
 
 } // namespace co
 

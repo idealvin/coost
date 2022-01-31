@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "scheduler.h"
+#include "co/alloc.h"
 #include <unordered_map>
 
 namespace co {
@@ -246,9 +247,9 @@ class Error {
             return _p->err.data() + it->second;
         } else {
             uint32 pos = (uint32) _p->err.size();
-            static ::Mutex mtx;
+            static auto kmtx = co::new_static<::Mutex>();
             {
-                ::MutexGuard g(mtx);
+                ::MutexGuard g(*kmtx);
                 _p->err.append(::strerror(e)).append('\0');
             }
             _p->pos[e] = pos;
@@ -260,24 +261,15 @@ class Error {
     thread_ptr<T> _p;
 };
 
-const char* strerror(int err) {
-    if (err == ETIMEDOUT) return "Timed out";
-    static co::Error e;
-    return e.strerror(err);
+const char* strerror(int e) {
+    if (e == ETIMEDOUT) return "Timed out";
+    static auto ke = co::new_static<co::Error>();
+    return ke->strerror(e);
 }
 
-namespace sock {
+void init_sock() {}
+void cleanup_sock() {}
 
-void init() {
-    (void) co::strerror(0);
-    co::hook::init();
-}
-
-void exit() {
-    co::hook::exit();
-}
-
-} // sock
 } // co
 
 #endif
