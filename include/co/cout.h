@@ -48,10 +48,7 @@ struct __coapi Cout {
     Cout(const char* file, unsigned int line);
     ~Cout();
 
-    fastream& stream() {
-        static fastream kStream(128);
-        return kStream;
-    }
+    fastream& stream();
 };
 
 } // xx
