@@ -115,7 +115,6 @@ void test_ping() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
     FLG_ssl = !FLG_key.empty() && !FLG_ca.empty();
 

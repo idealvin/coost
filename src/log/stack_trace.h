@@ -21,5 +21,3 @@ StackTrace* stack_trace();
 
 } // log
 } // ___
-
-using namespace ___;

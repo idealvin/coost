@@ -29,12 +29,12 @@ DEF_test(god) {
         EXPECT_EQ(god::b8(32), 4);
     }
 
-    DEF_case(bytes_eq) {
+    DEF_case(byteseq) {
         if (sizeof(uint32) == 4) {
             const char p[] = "abcdxxxx";
             const char q[] = "abcdyyyy";
-            EXPECT(god::bytes_eq<uint32>(p, q));
-            EXPECT(!god::bytes_eq<uint64>(p, q));
+            EXPECT(god::byte_eq<uint32>(p, q));
+            EXPECT(!god::byte_eq<uint64>(p, q));
         }
     }
 

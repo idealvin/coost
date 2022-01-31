@@ -658,7 +658,7 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
 }
 
 LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
-    global().failure_handler->on_exception(p);
+    return global().failure_handler->on_exception(p);
 }
 #endif
 

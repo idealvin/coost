@@ -24,7 +24,6 @@ co::maybe<fastring> ffastring(int v) {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
 
     {
         auto a = fvoid(0);
