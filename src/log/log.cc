@@ -420,7 +420,7 @@ fs::file& LogFile::open(int level) {
     auto& g = global();
     auto& s = *g.s;
 
-    if (!fs::exists(FLG_log_dir)) fs::mkdir(FLG_log_dir, true);
+    if (!fs::exists(FLG_log_dir)) fs::mkdir((char*)FLG_log_dir.c_str(), true);
     _path.clear();
 
     if (level < xx::fatal) {

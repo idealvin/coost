@@ -54,6 +54,26 @@ bool mkdir(const char* path, bool p) {
     }
 }
 
+bool mkdir(char* path, bool p) {
+    if (!p) return CreateDirectoryA(path, 0);
+
+    char* s = (char*) strrchr(path, '/');
+    if (s == 0) s = (char*) strrchr(path, '\\');
+    if (s == 0) return CreateDirectoryA(path, 0);
+
+    char c = *s;
+    *s = '\0';
+
+    if (fs::exists(path)) {
+        *s = c;
+        return CreateDirectoryA(path, 0);
+    } else {
+        bool x = fs::mkdir(path, true);
+        *s = c;
+        return x ? CreateDirectoryA(path, 0) : false;
+    }
+}
+
 // rf = false  ->  rm or rmdir
 // rf = true   ->  rm -rf
 bool remove(const char* path, bool rf) {

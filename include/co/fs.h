@@ -20,6 +20,9 @@ __coapi int64 fsize(const char* path);
 // p = true   ->  mkdir -p
 __coapi bool mkdir(const char* path, bool p = false);
 
+// async-signal-safe version
+__coapi bool mkdir(char* path, bool p);
+
 // rf = false  ->  rm or rmdir
 // rf = true   ->  rm -rf
 __coapi bool remove(const char* path, bool rf = false);

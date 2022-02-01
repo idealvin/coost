@@ -19,20 +19,17 @@ bool exists(const char* path) {
 
 bool isdir(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return false;
-    return S_ISDIR(attr.st_mode);
+    return ::lstat(path, &attr) == 0 && S_ISDIR(attr.st_mode);
 }
 
 int64 mtime(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return -1;
-    return attr.st_mtime;
+    return ::lstat(path, &attr) == 0 ? attr.st_mtime : -1;
 }
 
 int64 fsize(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return -1;
-    return attr.st_size;
+    return ::lstat(path, &attr) == 0 ? attr.st_size : -1;
 }
 
 // p = false  ->  mkdir
@@ -41,7 +38,7 @@ bool mkdir(const char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
     const char* s = strrchr(path, '/');
-    if (s == 0) return ::mkdir(path, 0755) == 0;
+    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
 
     fastring parent(path, s - path);
     
@@ -49,6 +46,23 @@ bool mkdir(const char* path, bool p) {
         return ::mkdir(path, 0755) == 0;
     } else {
         return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
+    }
+}
+
+bool mkdir(char* path, bool p) {
+    if (!p) return ::mkdir(path, 0755) == 0;
+
+    char* s = (char*) strrchr(path, '/');
+    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
+
+    *s = '\0';
+    if (fs::exists(path)) {
+        *s = '/';
+        return ::mkdir(path, 0755) == 0;
+    } else {
+        bool x = fs::mkdir(path, true);
+        *s = '/';
+        return x ? ::mkdir(path, 0755) == 0 : false;
     }
 }
 
