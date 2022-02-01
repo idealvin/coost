@@ -117,15 +117,26 @@ HANDLE open(const char* path, char mode) {
 } // xx
 
 struct fctx {
+    union {
+        uint32 n;
+        HANDLE _;
+    };
     HANDLE fd;
-    fastring path;
 };
 
+file::file(size_t n) : _p(0) {
+    _p = malloc(n + sizeof(fctx) + 1); assert(_p);
+    fctx* p = (fctx*)_p;
+    p->n = n;
+    p->fd = nullfd;
+    *(char*)(p + 1) = '\0';
+}
+
 file::~file() {
-    if (!_p) return;
-    this->close();
-    delete (fctx*) _p;
-    _p = 0;
+    if (_p) {
+        this->close();
+        free(_p); _p = 0;
+    }
 }
 
 file::operator bool() const {
@@ -133,23 +144,32 @@ file::operator bool() const {
     return p && p->fd != nullfd;
 }
 
-const fastring& file::path() const {
-    fctx* p = (fctx*) _p;
-    if (p) return p->path;
-    static fastring kPath;
-    return kPath;
+const char* file::path() const {
+    return _p ? ((char*)_p + sizeof(fctx)) : "";
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
-    fctx* p = (fctx*) _p;
-    if (!p) _p = (p = new fctx);
-    p->path = path;
-    return (p->fd = xx::open(path, mode)) != nullfd;
+    if (!path || !*path) return false;
+
+    const uint32 len = (uint32)strlen(path);
+    fctx* p = (fctx*)_p;
+
+    if (!p || p->n < len) {
+        _p = realloc(_p, len + sizeof(fctx) + 1); assert(_p);
+        p = (fctx*)_p;
+        memcpy(p + 1, path, len + 1);
+        p->n = len;
+    } else {
+        memcpy(p + 1, path, len + 1);
+    }
+
+    p->fd = xx::open(path, mode);
+    return p->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*) _p;
+    fctx* p = (fctx*)_p;
     if (!p || p->fd == nullfd) return;
     CloseHandle(p->fd);
     p->fd = nullfd;

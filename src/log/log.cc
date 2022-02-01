@@ -96,7 +96,11 @@ class LogTime {
 // the local file that logs will be written to
 class LogFile {
   public:
-    LogFile() : _path(256), _path_base(256), _exename(os::exename()), _day(0) {}
+    LogFile()
+        : _file(255), _path(256), _path_base(256),
+          _exename(os::exename()), _day(0) {
+        _file.open("", 'a');
+    }
 
     fs::file& open(int level=0);
     void write(const char* p, size_t n);

@@ -111,49 +111,65 @@ int open(const char* path, char mode) {
 } // xx
 
 struct fctx {
+    uint32 n;
     int fd;
-    fastring path;
 };
 
+file::file(size_t n) : _p(0) {
+    _p = malloc(n + sizeof(fctx) + 1); assert(_p);
+    fctx* p = (fctx*)_p;
+    p->n = n;
+    p->fd = nullfd;
+    *(char*)(p + 1) = '\0';
+}
+
 file::~file() {
-    if (!_p) return;
-    this->close();
-    delete (fctx*) _p;
-    _p = 0;
+    if (_p) {
+        this->close();
+        free(_p); _p = 0;
+    }
 }
 
 file::operator bool() const {
-    fctx* p = (fctx*) _p;
+    fctx* p = (fctx*)_p;
     return p && p->fd != nullfd;
 }
 
-
-const fastring& file::path() const {
-    fctx* p = (fctx*) _p;
-    if (p) return p->path;
-    static char kEmptyPath[sizeof(fastring)] = { 0 };
-    return *(fastring*)kEmptyPath;
+const char* file::path() const {
+    return _p ? ((char*)_p + sizeof(fctx)) : "";
 }
 
 bool file::open(const char* path, char mode) {
     // make sure CO_RAW_API(close, read, write) are not NULL
-    static bool kHookInit = []() {
+    static bool kx = []() {
         if (CO_RAW_API(close) == 0) ::close(-1);
         if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
         if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
         return true;
     }();
-    (void) kHookInit;
+    (void) kx;
 
     this->close();
-    fctx* p = (fctx*) _p;
-    if (!p) _p = (p = new fctx);
-    p->path = path;
-    return (p->fd = xx::open(path, mode)) != nullfd;
+    if (!path || !*path) return false;
+
+    const uint32 len = (uint32)strlen(path);
+    fctx* p = (fctx*)_p;
+
+    if (!p || p->n < len) {
+        _p = realloc(_p, len + sizeof(fctx) + 1); assert(_p);
+        p = (fctx*)_p;
+        memcpy(p + 1, path, len + 1);
+        p->n = len;
+    } else {
+        memcpy(p + 1, path, len + 1);
+    }
+
+    p->fd = xx::open(path, mode);
+    return p->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*) _p;
+    fctx* p = (fctx*)_p;
     if (!p || p->fd == nullfd) return;
     while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
     p->fd = nullfd;

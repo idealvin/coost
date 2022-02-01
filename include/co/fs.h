@@ -110,14 +110,19 @@ class __coapi file {
     file() : _p(0) {}
     ~file();
 
-    file(const char* path, char mode) : _p(0) {
+    // @n: reserve n bytes of memory for the path
+    explicit file(size_t n);
+
+    explicit file(const char* path, char mode) : _p(0) {
         this->open(path, mode);
     }
 
     file(const fastring& path, char mode)    : file(path.c_str(), mode) {}
     file(const std::string& path, char mode) : file(path.c_str(), mode) {}
 
-    file(file&& f) { _p = f._p; f._p = 0; }
+    file(file&& f) : _p(f._p) {
+        f._p = 0;
+    }
 
     file(const file& x) = delete;
     void operator=(const file& x) = delete;
@@ -129,7 +134,7 @@ class __coapi file {
         return !(bool)(*this);
     }
 
-    const fastring& path() const;
+    const char* path() const;
 
     int64 size()  const { return fs::fsize (this->path()); }
     bool exists() const { return fs::exists(this->path()); }

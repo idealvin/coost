@@ -5,12 +5,17 @@ namespace test {
 
 DEF_test(fs) {
     DEF_case(file) {
+        fs::file fx(128);
+        EXPECT_EQ(fastring(), fx.path());
+
         fs::file fo("xxx", 'w');
         EXPECT(fo);
         fo.write("99999");
         EXPECT_EQ(fo.size(), 5);
+        EXPECT_EQ(fastring("xxx"), fo.path());
         fo.close();
 
+        EXPECT(!fo.open("", 'a'));
         fo.open("xxx", 'm');
         EXPECT(fo);
         EXPECT_EQ(fo.size(), 5);
