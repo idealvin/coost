@@ -98,7 +98,7 @@ class LogFile {
   public:
     LogFile()
         : _file(255), _path(256), _path_base(256),
-          _exename(os::exename()), _day(0) {
+          _exename(os::exename()), _day(0), _checked(false) {
         _file.open("", 'a');
     }
 
@@ -117,6 +117,7 @@ class LogFile {
     fastring _exename;   // use exename as log_file_name by default
     std::deque<fastring> _old_paths; // paths of old log files
     uint32 _day;
+    bool _checked;
 };
 
 void on_signal(int sig);  // handler for SIGINT SIGTERM SIGQUIT
@@ -420,7 +421,11 @@ bool LogFile::check_config (bool signal_safe) {
 }
 
 fs::file& LogFile::open(int level) {
-    static bool _chk = this->check_config(level == fatal);
+    if (!_checked) {
+        this->check_config(level == fatal);
+        _checked = true;
+    }
+
     auto& g = global();
     auto& s = *g.s;
 
