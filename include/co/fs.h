@@ -113,7 +113,7 @@ class __coapi file {
     // @n: reserve n bytes of memory for the path
     explicit file(size_t n);
 
-    explicit file(const char* path, char mode) : _p(0) {
+    file(const char* path, char mode) : _p(0) {
         this->open(path, mode);
     }
 
