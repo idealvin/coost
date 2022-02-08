@@ -27,8 +27,8 @@ class Table {
     }
 
     ~Table() {
-        for (size_t i = 0; i < _i; ++i) free(_v[i]);
-        free(_v);
+        for (size_t i = 0; i < _i; ++i) ::free(_v[i]);
+        ::free(_v);
     }
 
     Table(const Table&) = delete;

@@ -22,7 +22,7 @@ SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
 SchedulerImpl::~SchedulerImpl() {
     this->stop();
     delete _epoll;
-    free(_stack);
+    ::free(_stack);
 }
 
 void SchedulerImpl::stop() {
@@ -128,7 +128,7 @@ void SchedulerImpl::loop() {
                     ((SchedulerImpl*)co->s)->add_ready_task(co);
                 }
             } else {
-                free(info);
+                ::free(info);
             }
           #elif defined(__linux__)
             int32 rco = 0, wco = 0;

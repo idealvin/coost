@@ -101,7 +101,7 @@ Event::Event() {
 Event::~Event() {
     if (_p && atomic_dec(_p) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
-        free(_p);
+        ::free(_p);
     }
 }
 
@@ -124,7 +124,7 @@ WaitGroup::WaitGroup() {
 WaitGroup::~WaitGroup() {
     if (_p && atomic_dec(_p) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
-        free(_p);
+        ::free(_p);
     }
 }
 
@@ -202,7 +202,7 @@ Mutex::Mutex() {
 Mutex::~Mutex() {
     if (_p && atomic_dec(_p) == 0) {
         ((MutexImpl*)(_p + 2))->~MutexImpl();
-        free(_p);
+        ::free(_p);
     }
 }
 
@@ -321,7 +321,7 @@ Pool::Pool() {
 Pool::~Pool() {
     if (_p && atomic_dec(_p) == 0) {
         ((PoolImpl*)(_p + 2))->~PoolImpl();
-        free(_p);
+        ::free(_p);
     }
 }
 
@@ -358,7 +358,7 @@ class PipeImpl {
     }
 
     ~PipeImpl() {
-        free(_buf);
+        ::free(_buf);
     }
 
     void read(void* p);
@@ -428,7 +428,7 @@ void PipeImpl::read(void* p) {
 
             if (!s->timeout()) {
                 if (w->buf != p) memcpy(p, w->buf, _blk_size);
-                free(w);
+                ::free(w);
             }
 
             co->waitx = 0;
@@ -452,7 +452,7 @@ void PipeImpl::read(void* p) {
                     return;
 
                 } else { /* timeout */
-                    free(w);
+                    ::free(w);
                 }
             }
 
@@ -488,7 +488,7 @@ void PipeImpl::write(const void* p) {
                     ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
                     return;
                 } else { /* timeout */
-                    free(w);
+                    ::free(w);
                 }
             }
 
@@ -511,7 +511,7 @@ void PipeImpl::write(const void* p) {
             if (_ms != (uint32)-1) s->add_timer(_ms);
             s->yield();
 
-            if (!s->timeout()) free(w);
+            if (!s->timeout()) ::free(w);
             co->waitx = 0;
         }
     }
@@ -526,7 +526,7 @@ Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
 Pipe::~Pipe() {
     if (_p && atomic_dec(_p) == 0) {
         ((PipeImpl*)(_p + 2))->~PipeImpl();
-        free(_p);
+        ::free(_p);
     }
 }
 

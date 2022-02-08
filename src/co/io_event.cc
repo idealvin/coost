@@ -50,7 +50,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
 IoEvent::~IoEvent() {
     if (!_timeout) {
         if (_to && _info->n > 0) memcpy(_to, _info->buf.buf, _info->n);
-        free(_info);
+        ::free(_info);
     } 
     gSched->running()->waitx = 0;
 }
