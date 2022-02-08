@@ -1,5 +1,4 @@
 #include "co/cout.h"
-#include "co/alloc.h"
 #include <mutex>
 
 #ifdef _WIN32
@@ -66,7 +65,10 @@ namespace co {
 namespace xx {
 
 inline std::recursive_mutex& mutex() {
-    static auto kmtx = co::new_static<std::recursive_mutex>();
+    static auto kmtx = []() {
+        static char kbuf[sizeof(std::recursive_mutex)];
+        return new (kbuf) std::recursive_mutex();
+    }();
     return *kmtx;
 }
 
@@ -87,7 +89,10 @@ Cout::~Cout() {
 }
 
 fastream& Cout::stream() {
-    static auto ks = co::new_static<fastream>(128);
+    static auto ks = []() {
+        static char kbuf[sizeof(fastream)];
+        return new (kbuf) fastream(128);
+    }();
     return *ks;
 }
 
