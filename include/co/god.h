@@ -14,7 +14,14 @@ inline void give_me_a_raise() {}
 template <typename T, typename V>
 inline T swap(T* p, V v) {
     T x = *p;
-    if (x != (T)v) *p = (T)v;
+    *p = (T)v;
+    return x;
+}
+
+template <typename T, typename V>
+inline T fetch_add(T* p, V v) {
+    T x = *p;
+    *p += v;
     return x;
 }
 
