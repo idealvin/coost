@@ -74,17 +74,19 @@ inline std::recursive_mutex& mutex() {
 
 Cout::Cout() {
     mutex().lock();
+    _n = this->stream().size();
 }
 
 Cout::Cout(const char* file, unsigned int line) {
     mutex().lock();
+    _n = this->stream().size();
     this->stream() << file << ':' << line << ']' << ' ';
 }
 
 Cout::~Cout() {
     auto& s = this->stream().append('\n');
-    ::fwrite(s.data(), 1, s.size(), stderr);
-    s.clear();
+    ::fwrite(s.data() + _n, 1, s.size() - _n, stderr);
+    s.resize(_n);
     mutex().unlock();
 }
 

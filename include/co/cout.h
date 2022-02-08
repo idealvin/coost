@@ -49,6 +49,7 @@ struct __coapi Cout {
     ~Cout();
 
     fastream& stream();
+    size_t _n;
 };
 
 } // xx
