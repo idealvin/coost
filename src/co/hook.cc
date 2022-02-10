@@ -312,9 +312,10 @@ int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     auto& ctx = gHook().get_hook_ctx(fd);
     
     if (request == FIONBIO) {
-        int v = *(int*)va_arg(args, void*);
+        void* arg = va_arg(args, void*);
+        int v = *(int*)arg;
         va_end(args);
-        r = CO_RAW_API(ioctl)(fd, request, v);
+        r = CO_RAW_API(ioctl)(fd, request, arg);
         if (r != -1 && ctx.is_sock_or_pipe()) {
             ctx.set_non_blocking(v);
             HOOKLOG << "hook ioctl FIONBIO, fd: " << fd << ", non_block: " << v; 
