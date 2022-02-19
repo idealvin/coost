@@ -1,5 +1,6 @@
 #pragma once
 
+#include "def.h"
 #include <type_traits>
 
 namespace god {
@@ -23,6 +24,30 @@ inline T fetch_add(T* p, V v) {
     T x = *p;
     *p += v;
     return x;
+}
+
+// @align must be power of 2
+template <typename X, typename A>
+inline X align_up(X x, A align) {
+    const X o = static_cast<X>(align) - 1;
+    return (x + o) & ~o;
+}
+
+template <typename X, typename A>
+inline X* align_up(X* x, A align) {
+    return (X*) align_up((size_t)x, align);
+}
+
+// @align must be power of 2
+template <typename X, typename A>
+inline X align_down(X x, A align) {
+    const X o = static_cast<X>(align) - 1;
+    return x & ~o;
+}
+
+template <typename X, typename A>
+inline X* align_down(X* x, A align) {
+    return (X*) align_down((size_t)x, align);
 }
 
 /**
