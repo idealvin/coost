@@ -3,6 +3,12 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#if SIZE_MAX == UINT64_MAX
+#define __arch64 1
+#else
+#define __arch32 1
+#endif
+
 typedef int8_t  int8;
 typedef int16_t int16;
 typedef int32_t int32;
@@ -48,6 +54,7 @@ typedef uint64_t uint64;
 #define  unlikely(x)  (x)
 #endif
 
+// generated from config.h.in
 #include "config.h"
 
 // __coapi: used to export symbols in shared co
