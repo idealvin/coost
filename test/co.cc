@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     FLG_cout = true;
 
     // print scheduler pointers
-    auto& s = co::all_schedulers();
+    auto& s = co::schedulers();
     for (size_t i = 0; i < s.size(); ++i) {
         LOG << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
     }

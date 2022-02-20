@@ -279,7 +279,7 @@ inline void PoolImpl::push(void* p) {
 // clear() blocks untils all the coroutines are done.
 void PoolImpl::clear() {
     if (co::is_active()) {
-        auto& scheds = co::all_schedulers();
+        auto& scheds = co::schedulers();
         WaitGroup wg;
         wg.add((uint32)scheds.size());
 

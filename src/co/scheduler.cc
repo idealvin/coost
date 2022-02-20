@@ -269,7 +269,7 @@ void go(Closure* cb) {
     ((SchedulerImpl*) scheduler_manager()->next_scheduler())->add_new_task(cb);
 }
 
-const std::vector<Scheduler*>& all_schedulers() {
+const std::vector<Scheduler*>& schedulers() {
     return scheduler_manager()->all_schedulers();
 }
 

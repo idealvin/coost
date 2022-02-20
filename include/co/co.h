@@ -135,7 +135,7 @@ class __coapi Scheduler {
  *   
  * @return  a reference of an array, which stores pointers to all the Schedulers
  */
-__coapi const std::vector<Scheduler*>& all_schedulers();
+__coapi const std::vector<Scheduler*>& schedulers();
 
 /**
  * get the current scheduler
