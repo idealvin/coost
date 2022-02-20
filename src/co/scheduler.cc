@@ -14,15 +14,15 @@ SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
     : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num), 
       _stack_size(stack_size), _running(0), _co_pool(), 
       _stop(false), _timeout(false) {
-    _epoll = new Epoll(id);
+    _epoll = co::new_fixed<Epoll>(id);
     _stack = (Stack*) calloc(8, sizeof(Stack));
     _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
 SchedulerImpl::~SchedulerImpl() {
     this->stop();
-    delete _epoll;
-    ::free(_stack);
+    co::delete_fixed(_epoll);
+    co::free(_stack, _stack_size);
 }
 
 void SchedulerImpl::stop() {
@@ -54,7 +54,7 @@ void SchedulerImpl::resume(Coroutine* co) {
     Stack* s = &_stack[co->sid];
     _running = co;
     if (s->p == 0) {
-        s->p = (char*) malloc(_stack_size);
+        s->p = (char*) co::alloc(_stack_size);
         s->top = s->p + _stack_size;
         s->co = co;
     }
@@ -98,8 +98,8 @@ void SchedulerImpl::resume(Coroutine* co) {
 
 void SchedulerImpl::loop() {
     gSched = this;
-    std::vector<Closure*> new_tasks;
-    std::vector<Coroutine*> ready_tasks;
+    co::vector<Closure*> new_tasks;
+    co::vector<Coroutine*> ready_tasks;
 
     while (!_stop) {
         int n = _epoll->wait(_wait_ms);
@@ -184,7 +184,7 @@ void SchedulerImpl::loop() {
     _ev.signal();
 }
 
-uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
+uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();
@@ -269,8 +269,8 @@ void go(Closure* cb) {
     ((SchedulerImpl*) scheduler_manager()->next_scheduler())->add_new_task(cb);
 }
 
-const std::vector<Scheduler*>& schedulers() {
-    return scheduler_manager()->all_schedulers();
+const co::vector<Scheduler*>& schedulers() {
+    return scheduler_manager()->schedulers();
 }
 
 Scheduler* scheduler() { return gSched; }
@@ -280,7 +280,7 @@ Scheduler* next_scheduler() {
 }
 
 int scheduler_num() {
-    if (is_active()) return (int) scheduler_manager()->all_schedulers().size();
+    if (is_active()) return (int) scheduler_manager()->schedulers().size();
     return os::cpunum();
 }
 

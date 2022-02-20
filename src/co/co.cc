@@ -220,7 +220,7 @@ bool Mutex::try_lock() const {
 
 class PoolImpl {
   public:
-    typedef std::vector<void*> V;
+    typedef co::vector<void*> V;
 
     PoolImpl()
         : _pools(co::scheduler_num()), _maxcap((size_t)-1) {
@@ -242,7 +242,7 @@ class PoolImpl {
     size_t size() const;
 
   private:
-    std::vector<V*> _pools;
+    co::vector<V*> _pools;
     size_t _maxcap;
     std::function<void*()> _ccb;
     std::function<void(void*)> _dcb;

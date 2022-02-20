@@ -2,6 +2,7 @@
 
 #include "err.h"
 #include "fastring.h"
+#include "stl/vector.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -22,11 +23,11 @@ namespace str {
  * @param c  the delimiter, either a single character or a null-terminated string.
  * @param n  max split times, 0 or -1 for unlimited.
  */
-__coapi std::vector<fastring> split(const char* s, char c, uint32 n=0);
-__coapi std::vector<fastring> split(const fastring& s, char c, uint32 n=0);
-__coapi std::vector<fastring> split(const char* s, const char* c, uint32 n=0);
+__coapi co::vector<fastring> split(const char* s, char c, uint32 n=0);
+__coapi co::vector<fastring> split(const fastring& s, char c, uint32 n=0);
+__coapi co::vector<fastring> split(const char* s, const char* c, uint32 n=0);
 
-inline std::vector<fastring> split(const fastring& s, const char* c, uint32 n=0) {
+inline co::vector<fastring> split(const fastring& s, const char* c, uint32 n=0) {
     return split(s.c_str(), c, n);
 }
 
@@ -165,6 +166,12 @@ inline fastring dbg(const std::pair<K, V>& x) {
 // convert std::vector to a debug string
 template<typename T>
 inline fastring dbg(const std::vector<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '[', ']');
+}
+
+// convert co::vector to a debug string
+template<typename T>
+inline fastring dbg(const co::vector<T>& v) {
     return xx::dbg(v.begin(), v.end(), '[', ']');
 }
 

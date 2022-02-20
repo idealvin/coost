@@ -9,8 +9,8 @@
 
 namespace str {
 
-std::vector<fastring> split(const char* s, char c, uint32 maxsplit) {
-    std::vector<fastring> v;
+co::vector<fastring> split(const char* s, char c, uint32 maxsplit) {
+    co::vector<fastring> v(8);
 
     const char* p;
     const char* from = s;
@@ -25,8 +25,8 @@ std::vector<fastring> split(const char* s, char c, uint32 maxsplit) {
     return v;
 }
 
-std::vector<fastring> split(const fastring& s, char c, uint32 maxsplit) {
-    std::vector<fastring> v;
+co::vector<fastring> split(const fastring& s, char c, uint32 maxsplit) {
+    co::vector<fastring> v(8);
 
     const char* p;
     const char* from = s.data();
@@ -42,8 +42,8 @@ std::vector<fastring> split(const fastring& s, char c, uint32 maxsplit) {
     return v;
 }
 
-std::vector<fastring> split(const char* s, const char* c, uint32 maxsplit) {
-    std::vector<fastring> v;
+co::vector<fastring> split(const char* s, const char* c, uint32 maxsplit) {
+    co::vector<fastring> v(8);
 
     const char* p;
     const char* from = s;

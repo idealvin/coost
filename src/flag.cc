@@ -351,10 +351,10 @@ void mkconf(const fastring& exe) {
 // @kv:     for -a=b, or -a b, or a=b
 // @bools:  for -a, -xyz
 // return non-flag elements (etc. hello, -8, -8k, -, --, --- ...)
-std::vector<fastring> analyze(
-    const std::vector<fastring>& args, std::map<fastring, fastring>& kv, std::vector<fastring>& bools
+co::vector<fastring> analyze(
+    const co::vector<fastring>& args, std::map<fastring, fastring>& kv, co::vector<fastring>& bools
 ) {
-    std::vector<fastring> res;
+    co::vector<fastring> res;
 
     for (size_t i = 0; i < args.size(); ++i) {
         const fastring& arg = args[i];
@@ -427,10 +427,10 @@ std::vector<fastring> analyze(
 
 void parse_config(const fastring& config);
 
-std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
-    if (argc <= 1) return std::vector<fastring>();
+co::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
+    if (argc <= 1) return co::vector<fastring>();
 
-    std::vector<fastring> args;
+    co::vector<fastring> args;
     for (int i = 1; i < argc; ++i) {
         args.push_back(fastring(argv[i]));
     }
@@ -459,8 +459,8 @@ std::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
     }
 
     std::map<fastring, fastring> kv;
-    std::vector<fastring> bools;
-    std::vector<fastring> v = analyze(args, kv, bools);
+    co::vector<fastring> bools;
+    co::vector<fastring> v = analyze(args, kv, bools);
 
     auto it = kv.find("config");
     if (it == kv.end()) it = kv.find("conf");
@@ -530,7 +530,7 @@ fastring remove_quotes_and_comments(const fastring& s) {
     return str::strip(s.substr(0, p < q ? p : q), " \t", 'r');
 }
 
-fastring getline(std::vector<fastring>& lines, size_t& n) {
+fastring getline(co::vector<fastring>& lines, size_t& n) {
     fastring line;
 
     while (n < lines.size()) {
@@ -588,8 +588,8 @@ void parse_config(const fastring& config) {
 
 } // namespace xx
 
-std::vector<fastring> init(int argc, const char** argv) {
-    std::vector<fastring> v = xx::parse_command_line_flags(argc, argv);
+co::vector<fastring> init(int argc, const char** argv) {
+    co::vector<fastring> v = xx::parse_command_line_flags(argc, argv);
 
     if (FLG_mkconf) {
         xx::mkconf(argv[0]);

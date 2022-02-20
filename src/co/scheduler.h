@@ -157,8 +157,8 @@ class TaskManager {
     }
 
     void get_all_tasks(
-        std::vector<Closure*>& new_tasks,
-        std::vector<Coroutine*>& ready_tasks
+        co::vector<Closure*>& new_tasks,
+        co::vector<Coroutine*>& ready_tasks
     ) {
         ::MutexGuard g(_mtx);
         if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
@@ -167,8 +167,8 @@ class TaskManager {
  
   private:
     ::Mutex _mtx;
-    std::vector<Closure*> _new_tasks;
-    std::vector<Coroutine*> _ready_tasks;
+    co::vector<Closure*> _new_tasks;
+    co::vector<Coroutine*> _ready_tasks;
 };
 
 inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
@@ -196,7 +196,7 @@ class TimerManager {
 
     // return time(ms) to wait for the next timeout.
     // all timedout coroutines will be pushed into @res.
-    uint32 check_timeout(std::vector<Coroutine*>& res);
+    uint32 check_timeout(co::vector<Coroutine*>& res);
 
   private:
     std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
@@ -369,14 +369,14 @@ class SchedulerManager {
         return _scheds[now::us() % _scheds.size()];
     }
 
-    const std::vector<Scheduler*>& all_schedulers() const {
+    const co::vector<Scheduler*>& schedulers() const {
         return _scheds;
     }
 
     void stop();
 
   private:
-    std::vector<Scheduler*> _scheds;
+    co::vector<Scheduler*> _scheds;
     uint32 _n;  // index, initialized as -1
     uint32 _r;  // 2^32 % sched_num
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;

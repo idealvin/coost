@@ -3,7 +3,7 @@
 #include "def.h"
 #include "fastring.h"
 #include "alloc.h"
-#include <vector>
+#include "stl/vector.h"
 
 // co/flag is a library similar to Google's gflags.
 // A flag is in fact a global variable, and value can be passed to it
@@ -13,9 +13,9 @@ namespace flag {
 
 // Parse command line flags and config file specified by -config.
 // Return non-flag elements.
-__coapi std::vector<fastring> init(int argc, const char** argv);
+__coapi co::vector<fastring> init(int argc, const char** argv);
 
-inline std::vector<fastring> init(int argc, char** argv) {
+inline co::vector<fastring> init(int argc, char** argv) {
     return flag::init(argc, (const char**)argv);
 }
 

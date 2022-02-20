@@ -91,7 +91,7 @@ DEF_test(co) {
         );
 
         int n = co::scheduler_num();
-        std::vector<int> vi(n);
+        co::vector<int> vi(n);
 
         co::WaitGroup wg;
         wg.add(n);

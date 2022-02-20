@@ -4,6 +4,7 @@
 #include "closure.h"
 #include "flag.h"
 #include "log.h"
+#include "stl/vector.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"
@@ -11,7 +12,6 @@
 #include "./co/chan.h"
 #include "./co/io_event.h"
 #include "./co/wait_group.h"
-#include <vector>
 
 namespace co {
 
@@ -135,7 +135,7 @@ class __coapi Scheduler {
  *   
  * @return  a reference of an array, which stores pointers to all the Schedulers
  */
-__coapi const std::vector<Scheduler*>& schedulers();
+__coapi const co::vector<Scheduler*>& schedulers();
 
 /**
  * get the current scheduler
@@ -160,7 +160,7 @@ __coapi Scheduler* next_scheduler();
  * get number of schedulers 
  *   - scheduler id is from 0 to scheduler_num() - 1. 
  *   - This function may be used to implement scheduler-local storage:  
- *                std::vector<T> xx(co::scheduler_num());  
+ *                co::vector<T> xx(co::scheduler_num());  
  *     xx[co::scheduler_id()] can be used in a coroutine to access the storage for 
  *     the current scheduler thread.
  * 

@@ -412,7 +412,7 @@ bool LogFile::check_config (bool signal_safe) {
         fs::file f(s.c_str(), 'r');
         if (f) {
             auto v = str::split(f.read(f.size()), '\n');
-            _old_paths.insert(_old_paths.end(), v.begin(), v.end());
+            for (auto& x : v) _old_paths.push_back(std::move(x));
         }
     }
 
