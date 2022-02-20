@@ -29,7 +29,7 @@ class __coapi fastring : public fast::stream {
     ~fastring() = default;
 
     fastring(const void* s, size_t n)
-        : fast::stream(n ? memcpy(malloc(n + 1), s, n) : 0, n, n ? n + 1 : 0) {
+        : fast::stream(n ? memcpy(co::alloc(n + 1), s, n) : 0, n, n ? n + 1 : 0) {
     }
 
     fastring(const char* s)
@@ -45,7 +45,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring(size_t n, char c)
-        : fast::stream(memset(malloc(n + 1), c, n), n, n + 1) {
+        : fast::stream(memset(co::alloc(n + 1), c, n), n, n + 1) {
     }
 
     fastring(char c, size_t n) : fastring(n, c) {}
@@ -58,8 +58,26 @@ class __coapi fastring : public fast::stream {
         return (fastring&) fast::stream::operator=(std::move(s));
     }
 
-    fastring& operator=(const fastring& s);
-    fastring& operator=(const std::string& s);
+    fastring& operator=(const fastring& s) {
+        if (&s != this) {
+            _size = s.size();
+            if (_size > 0) {
+                this->reserve(_size + 1);
+                memcpy(_p, s.data(), _size);
+            }
+        }
+        return *this;
+    }
+
+    fastring& operator=(const std::string& s) {
+        _size = s.size();
+        if (_size > 0) {
+            this->reserve(_size + 1);
+            memcpy(_p, s.data(), _size);
+        }
+        return *this;
+    }
+
     fastring& operator=(const char* s);
 
     fastring& append(const void* p, size_t n);

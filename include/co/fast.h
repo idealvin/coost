@@ -1,12 +1,10 @@
 #pragma once
 
 #include "def.h"
+#include "alloc.h"
 #include "__/dtoa_milo.h"
 
 #include <assert.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <new>
 #include <type_traits>
@@ -101,7 +99,7 @@ class __coapi stream {
     }
     
     explicit stream(size_t cap)
-        : _cap(cap), _size(0), _p((char*) malloc(cap)) {
+        : _cap(cap), _size(0), _p((char*)co::alloc(cap)) {
     }
 
     stream(void* p, size_t size, size_t cap) noexcept
@@ -109,7 +107,7 @@ class __coapi stream {
     }
 
     ~stream() {
-        if (_p) free(_p);
+        if (_p) co::free(_p, _cap);
     }
 
     stream(const stream&) = delete;
@@ -123,7 +121,7 @@ class __coapi stream {
 
     stream& operator=(stream&& s) {
         if (&s != this) {
-            if (_p) free(_p);
+            if (_p) co::free(_p, _cap);
             new (this) stream(std::move(s));
         }
         return *this;
@@ -161,20 +159,21 @@ class __coapi stream {
 
     void reserve(size_t n) {
         if (_cap < n) {
-            _p = (char*) realloc(_p, n); assert(_p);
+            _p = (char*) co::realloc(_p, _cap, n); assert(_p);
             _cap = n;
         }
     }
 
     void reset() {
-        if (_p) { free(_p); _p = 0; }
+        if (_p) { co::free(_p, _cap); _p = 0; }
         _cap = _size = 0;
     }
 
     void ensure(size_t n) {
         if (_cap < _size + n) {
+            const size_t old_cap = _cap;
             _cap += ((_cap >> 1) + n);
-            _p = (char*) realloc(_p, _cap); assert(_p);
+            _p = (char*) co::realloc(_p, old_cap, _cap); assert(_p);
         }
     }
 
