@@ -1,16 +1,14 @@
 #pragma once
 
 #include "../god.h"
-#include <stdlib.h>
+#include "../alloc.h"
 #include <string.h>
 #include <assert.h>
-#include <new>
-#include <utility>
 #include <initializer_list>
 
 namespace co {
 
-template <typename T>
+template <typename T, typename Alloc=co::default_allocator>
 class vector {
   public:
     vector() noexcept
@@ -24,11 +22,11 @@ class vector {
      * @param cap  capacity of the vector.
      */
     explicit vector(size_t cap)
-        : _cap(cap), _size(0), _p((T*) ::malloc(sizeof(T) * cap)) {
+        : _cap(cap), _size(0), _p((T*) Alloc::alloc(sizeof(T) * cap)) {
     }
 
     vector(size_t n, const T& x)
-        : _cap(n), _size(n), _p((T*) ::malloc(sizeof(T) * n)) {
+        : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T(x);
     }
 
@@ -44,7 +42,7 @@ class vector {
 
     // co::vector<int> v = { 1, 2, 3 };
     vector(std::initializer_list<T> x)
-        : _cap(x.size()), _size(0), _p((T*) ::malloc(sizeof(T) * _cap)) {
+        : _cap(x.size()), _size(0), _p((T*) Alloc::alloc(sizeof(T) * _cap)) {
         for (const auto& e : x) new (_p + _size++) T(e);
     }
 
@@ -100,7 +98,7 @@ class vector {
 
     void reserve(size_t n) {
         if (_cap < n) {
-            _p = (T*) ::realloc(_p, sizeof(T) * n); assert(_p);
+            _p = (T*) Alloc::realloc(_p, sizeof(T) * _cap, sizeof(T) * n); assert(_p);
             _cap = n;
         }
     }
@@ -115,7 +113,7 @@ class vector {
         this->_resize(n, B<god::is_trivially_destructible<T>()>());
     }
 
-    // destroy all elements and ::free the memory
+    // destroy all elements and free the memory
     void reset() {
         this->_reset(B<god::is_trivially_destructible<T>()>());
     }
@@ -126,16 +124,18 @@ class vector {
 
     void push_back(const T& x) {
         if (unlikely(_cap == _size)) {
+            const size_t old_cap = _cap;
             _cap += (_cap >> 1) + 1;
-            _p = (T*) ::realloc(_p, sizeof(T) * _cap); assert(_p);
+            _p = (T*) Alloc::realloc(_p, sizeof(T) * old_cap, sizeof(T) * _cap); assert(_p);
         }
         new (_p + _size++) T(x);
     }
 
     void push_back(T&& x) {
         if (unlikely(_cap == _size)) {
+            const size_t old_cap = _cap;
             _cap += (_cap >> 1) + 1;
-            _p = (T*) ::realloc(_p, sizeof(T) * _cap); assert(_p);
+            _p = (T*) Alloc::realloc(_p, sizeof(T) * old_cap, sizeof(T) * _cap); assert(_p);
         }
         new (_p + _size++) T(std::move(x));
     }
@@ -156,10 +156,7 @@ class vector {
 
     // append n elements from an array
     void push_back(T* p, size_t n) {
-        if (_cap < _size + n) {
-            _cap += n;
-            _p = (T*) ::realloc(_p, sizeof(T) * _cap); assert(_p);
-        }
+        this->reserve(_size + n);
         this->_push_back(p, n, B<god::is_trivially_copyable<T>()>());
     }
 
@@ -247,13 +244,13 @@ class vector {
     void _make_vector(const vector& x, B<true>) {
         _cap = _size = x.size();
         const size_t n = sizeof(T) * _cap;
-        _p = (T*) ::malloc(n);
+        _p = (T*) Alloc::alloc(n);
         memcpy(_p, x._p, n);
     }
 
     void _make_vector(const vector& x, B<false>) {
         _cap = _size = x.size();
-        _p = (T*) ::malloc(sizeof(T) * _cap);
+        _p = (T*) Alloc::alloc(sizeof(T) * _cap);
         for (size_t i = 0; i < _cap; ++i) new (_p + i) T(x[i]);
     }
 
@@ -279,7 +276,7 @@ class vector {
 
     void _reset(B<true>) {
         if (_p) {
-            ::free(_p); _p = 0;
+            Alloc::free(_p, _cap * sizeof(T)); _p = 0;
             _cap = _size = 0;
         }
     }
@@ -287,7 +284,7 @@ class vector {
     void _reset(B<false>) {
         if (_p) {
             for (size_t i = 0; i < _size; ++i) _p[i].~T();
-            ::free(_p); _p = 0;
+            Alloc::free(_p, _cap * sizeof(T)); _p = 0;
             _cap = _size = 0;
         }
     }
