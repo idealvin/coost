@@ -1,6 +1,7 @@
 #pragma once
 
 #include "def.h"
+#include "alloc.h"
 
 #include <functional>
 #include <type_traits>
@@ -21,66 +22,62 @@ template<typename F>
 class Function0 : public Closure {
   public:
     Function0(F&& f) : _f(std::forward<F>(f)) {}
+    virtual ~Function0() = default;
 
     virtual void run() {
         _f();
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     typename std::remove_reference<F>::type _f;
-
-    virtual ~Function0() {}
 };
 
 template<typename F>
 class Function0p : public Closure {
   public:
     Function0p(F* f) : _f(f) {}
+    virtual ~Function0p() = default;
 
     virtual void run() {
         (*_f)();
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     typename std::remove_reference<F>::type* _f;
-
-    virtual ~Function0p() {}
 };
 
 template<typename F, typename P>
 class Function1 : public Closure {
   public:
     Function1(F&& f, P&& p) : _f(std::forward<F>(f)), _p(std::forward<P>(p)) {}
+    virtual ~Function1() = default;
 
     virtual void run() {
         _f(_p);
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     typename std::remove_reference<F>::type _f;
     typename std::remove_reference<P>::type _p;
-
-    virtual ~Function1() {}
 };
 
 template<typename F, typename P>
 class Function1p : public Closure {
   public:
     Function1p(F* f, P&& p) : _f(f), _p(std::forward<P>(p)) {}
+    virtual ~Function1p() = default;
 
     virtual void run() {
         (*_f)(_p);
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     typename std::remove_reference<F>::type* _f;
     typename std::remove_reference<P>::type _p;
-
-    virtual ~Function1p() {}
 };
 
 template<typename T>
@@ -89,17 +86,16 @@ class Method0 : public Closure {
     typedef void (T::*F)();
 
     Method0(F f, T* o) : _f(f), _o(o) {}
+    virtual ~Method0() = default;
 
     virtual void run() {
         (_o->*_f)();
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     F _f;
     T* _o;
-
-    virtual ~Method0() {}
 };
 
 template<typename F, typename T, typename P>
@@ -108,18 +104,18 @@ class Method1 : public Closure {
     Method1(F&& f, T* o, P&& p)
         : _f(std::forward<F>(f)), _o(o), _p(std::forward<P>(p)) {
     }
+    
+    virtual ~Method1() = default;
 
     virtual void run() {
         (_o->*_f)(_p);
-        delete this;
+        co::delete_fixed(this);
     }
 
   private:
     typename std::remove_reference<F>::type _f;
     T* _o;
     typename std::remove_reference<P>::type _p;
-
-    virtual ~Method1() {}
 };
 
 } // xx
@@ -129,7 +125,7 @@ class Method1 : public Closure {
  */
 template<typename F>
 inline Closure* new_closure(F&& f) {
-    return new xx::Function0<F>(std::forward<F>(f));
+    return co::new_fixed<xx::Function0<F>>(std::forward<F>(f));
 }
 
 /**
@@ -137,7 +133,7 @@ inline Closure* new_closure(F&& f) {
  */
 template<typename F>
 inline Closure* new_closure(F* f) {
-    return new xx::Function0p<F>(f);
+    return co::new_fixed<xx::Function0p<F>>(f);
 }
 
 /**
@@ -148,7 +144,7 @@ inline Closure* new_closure(F* f) {
  */
 template<typename F, typename P>
 inline Closure* new_closure(F&& f, P&& p) {
-    return new xx::Function1<F, P>(std::forward<F>(f), std::forward<P>(p));
+    return co::new_fixed<xx::Function1<F, P>>(std::forward<F>(f), std::forward<P>(p));
 }
 
 /**
@@ -159,7 +155,7 @@ inline Closure* new_closure(F&& f, P&& p) {
  */
 template<typename F, typename P>
 inline Closure* new_closure(F* f, P&& p) {
-    return new xx::Function1p<F, P>(f, std::forward<P>(p));
+    return co::new_fixed<xx::Function1p<F, P>>(f, std::forward<P>(p));
 }
 
 /**
@@ -170,7 +166,7 @@ inline Closure* new_closure(F* f, P&& p) {
  */
 template<typename T>
 inline Closure* new_closure(void (T::*f)(), T* o) {
-    return new xx::Method0<T>(f, o);
+    return co::new_fixed<xx::Method0<T>>(f, o);
 }
 
 /**
@@ -185,7 +181,7 @@ inline Closure* new_closure(void (T::*f)(), T* o) {
  */
 template<typename F, typename T, typename P>
 inline Closure* new_closure(F&& f, T* o, P&& p) {
-    return new xx::Method1<F, T, P>(std::forward<F>(f), o, std::forward<P>(p));
+    return co::new_fixed<xx::Method1<F, T, P>>(std::forward<F>(f), o, std::forward<P>(p));
 }
 
 } // co
