@@ -385,6 +385,7 @@ void* Alloc::alloc(size_t n) {
 }
 
 inline void Alloc::free(void* p, size_t n) {
+    if (unlikely(!p)) return;
     if (n <= 2048) {
         auto ma = (MemAlloc*) god::align_down(p, 32 * 1024);
         ma->free(p);
@@ -397,7 +398,7 @@ inline void Alloc::free(void* p, size_t n) {
 }
 
 void* Alloc::realloc(void* p, size_t o, size_t n) {
-    if (!p) return this->alloc(n);
+    if (unlikely(!p)) return this->alloc(n);
     CHECK_LT(o, n) << "realloc error, new size must be greater than old size..";
 
     if (o <= 2048) {
@@ -472,6 +473,7 @@ inline void* Alloc::alloc_fixed(size_t n) {
 }
 
 inline void Alloc::free_fixed(void* p, size_t n) {
+    if (unlikely(!p)) return;
     if (n <= 2048) {
         auto ma = (MemAlloc*) god::align_down(p, 32 * 1024);
         ma->free(p);

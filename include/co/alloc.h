@@ -67,7 +67,7 @@ struct static_allocator {
 
     // we do not need free & realloc for static allocator
     static void free(void*, size_t) {}
-    static void* realloc(void*, size_t, size_t) {}
+    static void* realloc(void*, size_t, size_t) { return 0; }
 };
 
 struct fixed_allocator {
@@ -80,7 +80,7 @@ struct fixed_allocator {
     }
 
     // we do not need realloc for fixed-size allocator
-    static void* realloc(void*, size_t, size_t) {}
+    static void* realloc(void*, size_t, size_t) { return 0; }
 };
 
 struct default_allocator {
