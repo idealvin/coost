@@ -1,5 +1,6 @@
 #ifdef _WIN32
 #include "co/fs.h"
+#include "co/alloc.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -125,9 +126,10 @@ struct fctx {
 };
 
 file::file(size_t n) : _p(0) {
-    _p = malloc(n + sizeof(fctx) + 1); assert(_p);
+    const size_t x = n + sizeof(fctx) + 1;
+    _p = co::alloc(x); assert(_p);
     fctx* p = (fctx*)_p;
-    p->n = n;
+    p->n = (uint32)x;
     p->fd = nullfd;
     *(char*)(p + 1) = '\0';
 }
@@ -135,7 +137,8 @@ file::file(size_t n) : _p(0) {
 file::~file() {
     if (_p) {
         this->close();
-        free(_p); _p = 0;
+        co::free(_p, ((fctx*)_p)->n);
+        _p = 0;
     }
 }
 
@@ -152,16 +155,17 @@ bool file::open(const char* path, char mode) {
     this->close();
     if (!path || !*path) return false;
 
-    const uint32 len = (uint32)strlen(path);
+    const uint32 n = (uint32)strlen(path) + 1;
+    const uint32 x = n + sizeof(fctx);
     fctx* p = (fctx*)_p;
 
-    if (!p || p->n < len) {
-        _p = realloc(_p, len + sizeof(fctx) + 1); assert(_p);
+    if (!p || p->n < x) {
+        _p = co::realloc(_p, p ? p->n : 0, x); assert(_p);
         p = (fctx*)_p;
-        memcpy(p + 1, path, len + 1);
-        p->n = len;
+        memcpy(p + 1, path, n);
+        p->n = x;
     } else {
-        memcpy(p + 1, path, len + 1);
+        memcpy(p + 1, path, n);
     }
 
     p->fd = xx::open(path, mode);
@@ -170,9 +174,10 @@ bool file::open(const char* path, char mode) {
 
 void file::close() {
     fctx* p = (fctx*)_p;
-    if (!p || p->fd == nullfd) return;
-    CloseHandle(p->fd);
-    p->fd = nullfd;
+    if (p && p->fd != nullfd) {
+        CloseHandle(p->fd);
+        p->fd = nullfd;
+    }
 }
 
 void file::seek(int64 off, int whence) {
