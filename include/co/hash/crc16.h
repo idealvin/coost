@@ -1,10 +1,6 @@
 #pragma once
 
 #include "../fastring.h"
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
-#include <string>
 
 __coapi uint16_t crc16(const void* s, size_t n, uint16_t crc);
 

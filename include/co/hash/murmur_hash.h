@@ -7,8 +7,6 @@
 #pragma once
 
 #include "../def.h"
-#include <stddef.h>
-#include <string.h>
 
 /**
  * 32 bit murmur hash 

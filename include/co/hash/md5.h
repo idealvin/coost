@@ -25,7 +25,6 @@
 #pragma once
 
 #include "../fastring.h"
-#include <string>
 
 typedef struct {
     uint32 lo, hi;
