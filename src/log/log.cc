@@ -63,7 +63,7 @@ inline Global& global() {
 // do cleanup at exit
 struct Cleanup {
     Cleanup() { (void) global(); }
-    ~Cleanup(); 
+    ~Cleanup();
 };
 
 static Cleanup _gc;

@@ -5,12 +5,15 @@
 #endif
 
 #include "co/co.h"
+#include "co/alloc.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/time.h"
 #include "co/closure.h"
 #include "co/thread.h"
 #include "co/fastream.h"
+#include "co/stl/table.h"
+#include "co/stl/vector.h"
 #include "context/context.h"
 
 #if defined(_WIN32)
@@ -23,7 +26,6 @@
 
 #include <assert.h>
 #include <memory>
-#include <vector>
 #include <map>
 
 DEC_uint32(co_sched_num);
@@ -68,7 +70,7 @@ enum co_state_t : uint8 {
 };
 
 struct Coroutine {
-    Coroutine() = delete;
+    Coroutine() { memset(this, 0, sizeof(*this)); }
     ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
 
     uint32 id;         // coroutine id
@@ -78,7 +80,7 @@ struct Coroutine {
     void* waitx;       // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
 
-    // for saving stack data for this coroutine
+    // for saving stack data of this coroutine
     union { fastream stack; char _dummy1[sizeof(fastream)]; };
     union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
 
@@ -110,8 +112,7 @@ class Copool {
 
     Coroutine* pop() {
         if (!_ids.empty()) {
-            auto& co = _tb[_ids.back()];
-            _ids.pop_back();
+            auto& co = _tb[_ids.pop_back()];
             co.state = st_init;
             co.ctx = 0;
             co.stack.clear();
@@ -134,8 +135,8 @@ class Copool {
     }
 
   private:
-    co::Table<Coroutine> _tb;
-    std::vector<int> _ids; // id of available coroutines in the table
+    co::table<Coroutine> _tb;
+    co::vector<int> _ids; // id of available coroutines in the table
     int _id;
 };
 

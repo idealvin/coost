@@ -1,10 +1,10 @@
 #include "co/unitest.h"
-#include "co/table.h"
+#include "co/stl/table.h"
 
 namespace test {
 
 DEF_test(table) {
-    co::Table<int> tb(3, 3); // 8 x 8
+    co::table<int> tb(3, 3); // 8 x 8
     EXPECT_EQ(tb[0], 0);
     EXPECT_EQ(tb[7], 0);
     tb[3] = 3;

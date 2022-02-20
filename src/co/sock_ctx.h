@@ -1,8 +1,9 @@
 #pragma once
 
 #include "co/def.h"
-#include "co/table.h"
+#include "co/alloc.h"
 #include "co/atomic.h"
+#include "co/stl/table.h"
 #include <string.h>
 
 namespace co {
@@ -123,8 +124,8 @@ class SockCtx {
 #endif
 
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static Table<SockCtx> s_sock_ctx_tb(14, 17);
-    return s_sock_ctx_tb[sock];
+    static auto& k_sock_ctx_tb = *co::new_fixed<co::table<SockCtx>>(14, 17);
+    return k_sock_ctx_tb[sock];
 }
 
 } // co
