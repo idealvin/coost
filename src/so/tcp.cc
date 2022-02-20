@@ -1,5 +1,6 @@
 #include "co/co.h"
 #include "co/god.h"
+#include "co/alloc.h"
 #include "co/so/tcp.h"
 #include "co/so/ssl.h"
 #include "co/log.h"
@@ -362,11 +363,11 @@ Client::Client(const char* ip, int port, bool use_ssl)
     if (!ip || !*ip) ip = "127.0.0.1";
     const size_t n = strlen(ip) + 1;
     if (!use_ssl) {
-        _ip = (char*) malloc(n);
+        _ip = (char*) co::alloc(n);
         memcpy(_ip, ip, n);
     } else {
         const int h = sizeof(void*) * 2;
-        _ip = ((char*)malloc(h + n)) + h;
+        _ip = ((char*)co::alloc(h + n)) + h;
         memcpy(_ip, ip, n);
         _s[-1] = _s[-2] = 0;
     }
@@ -375,7 +376,9 @@ Client::Client(const char* ip, int port, bool use_ssl)
 Client::~Client() {
     this->close();
     if (_ip) {
-        free(!_use_ssl ? _ip : (_ip - sizeof(void*) * 2));
+        const size_t n = strlen(_ip) + 1;
+        const int h = sizeof(void*) * 2;
+        !_use_ssl ? co::free(_ip, n) : co::free(_ip - h, n + h);
         _ip = 0;
     }
 }
