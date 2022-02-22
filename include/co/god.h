@@ -156,10 +156,17 @@ inline constexpr bool is_scalar() {
     return std::is_scalar<T>::value;
 }
 
+#if defined(__GNUC__) && __GNUC__ < 5
+template <typename T>
+inline constexpr bool is_trivially_copyable() {
+    return __has_trivial_copy(T);
+}
+#else
 template <typename T>
 inline constexpr bool is_trivially_copyable() {
     return std::is_trivially_copyable<T>::value;
 }
+#endif
 
 template <typename T>
 inline constexpr bool is_trivially_destructible() {
