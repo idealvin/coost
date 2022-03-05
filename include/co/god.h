@@ -26,6 +26,34 @@ inline T fetch_add(T* p, V v) {
     return x;
 }
 
+template <typename T, typename V>
+inline T fetch_sub(T* p, V v) {
+    T x = *p;
+    *p -= v;
+    return x;
+}
+
+template <typename T, typename V>
+inline T fetch_and(T* p, V v) {
+    T x = *p;
+    *p &= (T)v;
+    return x;
+}
+
+template <typename T, typename V>
+inline T fetch_or(T* p, V v) {
+    T x = *p;
+    *p |= (T)v;
+    return x;
+}
+
+template <typename T, typename V>
+inline T fetch_xor(T* p, V v) {
+    T x = *p;
+    *p ^= (T)v;
+    return x;
+}
+
 // @align must be power of 2
 template <typename X, typename A>
 inline X align_up(X x, A align) {
