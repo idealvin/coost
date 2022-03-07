@@ -125,7 +125,7 @@ void Kqueue::handle_ev_pipe() {
             break;
         }
     }
-    atomic_swap(&_signaled, 0);
+    atomic_store(&_signaled, 0, mo_release);
 }
 
 } // co

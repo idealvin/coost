@@ -38,7 +38,7 @@ class Epoll {
 
     // write one byte to the pipe to wake up the epoll.
     void signal(char c = 'x') {
-        if (atomic_compare_swap(&_signaled, false, true) == false) {
+        if (atomic_compare_swap(&_signaled, false, true, mo_acquire, mo_acquire) == false) {
             const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
@@ -53,9 +53,9 @@ class Epoll {
   private:
     int _ep;
     int _pipe_fds[2];
+    int _signaled;
     int _sched_id;
     epoll_event* _ev;
-    bool _signaled;
 };
 
 } // co

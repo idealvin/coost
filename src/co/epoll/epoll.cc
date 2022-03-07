@@ -3,7 +3,7 @@
 
 namespace co {
 
-Epoll::Epoll(int sched_id) : _sched_id(sched_id), _signaled(false) {
+Epoll::Epoll(int sched_id) : _signaled(0), _sched_id(sched_id) {
     _ep = epoll_create(1024);
     CHECK_NE(_ep, -1) << "epoll create error: " << co::strerror();
     co::set_cloexec(_ep);
@@ -21,7 +21,7 @@ Epoll::Epoll(int sched_id) : _sched_id(sched_id), _signaled(false) {
 
 Epoll::~Epoll() {
     this->close();
-    if (_ev) { free(_ev); _ev = 0; }
+    if (_ev) { ::free(_ev); _ev = 0; }
 }
 
 bool Epoll::add_ev_read(int fd, int32 co_id) {
@@ -143,7 +143,7 @@ void Epoll::handle_ev_pipe() {
             break;
         }
     }
-    atomic_swap(&_signaled, false);
+    atomic_store(&_signaled, 0, mo_release);
 }
 
 } // co

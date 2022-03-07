@@ -21,7 +21,7 @@ class __coapi Event {
 
     // copy constructor, allow co::Event to be captured by value in lambda.
     Event(const Event& e) : _p(e._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Event&) = delete;

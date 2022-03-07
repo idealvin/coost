@@ -99,7 +99,7 @@ Event::Event() {
 }
 
 Event::~Event() {
-    if (_p && atomic_dec(_p) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
         ::free(_p);
     }
@@ -122,19 +122,19 @@ WaitGroup::WaitGroup() {
 }
 
 WaitGroup::~WaitGroup() {
-    if (_p && atomic_dec(_p) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
         ::free(_p);
     }
 }
 
 void WaitGroup::add(uint32 n) const {
-    atomic_add(_p + 1, n);
+    atomic_add(_p + 1, n, mo_relaxed);
 }
 
 void WaitGroup::done() const {
-    CHECK_GT(*(_p + 1), (uint32)0);
-    if (atomic_dec(_p + 1) == 0) ((EventImpl*)(_p + 2))->signal();
+    CHECK_GT(atomic_load(_p + 1, mo_relaxed), (uint32)0);
+    if (atomic_dec(_p + 1, mo_acq_rel) == 0) ((EventImpl*)(_p + 2))->signal();
 }
 
 void WaitGroup::wait() const {
@@ -200,7 +200,7 @@ Mutex::Mutex() {
 }
 
 Mutex::~Mutex() {
-    if (_p && atomic_dec(_p) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((MutexImpl*)(_p + 2))->~MutexImpl();
         ::free(_p);
     }
@@ -319,7 +319,7 @@ Pool::Pool() {
 }
 
 Pool::~Pool() {
-    if (_p && atomic_dec(_p) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((PoolImpl*)(_p + 2))->~PoolImpl();
         ::free(_p);
     }
@@ -524,7 +524,7 @@ Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
 }
 
 Pipe::~Pipe() {
-    if (_p && atomic_dec(_p) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((PipeImpl*)(_p + 2))->~PipeImpl();
         ::free(_p);
     }

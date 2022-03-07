@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../def.h"
+#include "../atomic.h"
 
 namespace co {
 namespace xx {
@@ -16,7 +17,7 @@ class __coapi Pipe {
 
     // copy constructor, allow co::Pipe to be captured by value in lambda.
     Pipe(const Pipe& p) : _p(p._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Pipe&) = delete;

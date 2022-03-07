@@ -363,8 +363,8 @@ class SchedulerManager {
     ~SchedulerManager();
 
     Scheduler* next_scheduler() {
-        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
-        uint32 n = atomic_inc(&_n);
+        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n, mo_relaxed) & _s];
+        uint32 n = atomic_inc(&_n, mo_relaxed);
         if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
         return _scheds[now::us() % _scheds.size()];
     }

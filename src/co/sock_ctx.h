@@ -17,7 +17,7 @@ class SockCtx {
     bool has_event() const { return _x; }
 
     int add_event() {
-        return atomic_compare_swap(&_x, 0, (uint16)0x0101);
+        return atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
     }
 
     void del_ev_read()  { _s.r = 0; }
@@ -102,7 +102,7 @@ class SockCtx {
     bool has_ev_write() const { return _s.w; }
 
     void add_event() {
-        atomic_compare_swap(&_x, 0, (uint16)0x0101);
+        atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
     }
 
     void add_ev_read()  { _s.r = 1; }

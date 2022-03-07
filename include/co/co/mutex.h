@@ -18,7 +18,7 @@ class __coapi Mutex {
     Mutex(Mutex&& m) : _p(m._p) { m._p = 0; }
 
     Mutex(const Mutex& m) : _p(m._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Mutex&) = delete;

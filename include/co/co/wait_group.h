@@ -16,7 +16,7 @@ class __coapi WaitGroup {
 
     // copy constructor, allow WaitGroup to be captured by value in lambda.
     WaitGroup(const WaitGroup& wg) : _p(wg._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const WaitGroup&) = delete;

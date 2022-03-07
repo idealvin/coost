@@ -68,14 +68,14 @@ class HookCtx {
     static const uint8 f_non_sock_stream = 8;
 
     void set_shut_read() {
-        if (atomic_or(&_s.flags, f_shut_read) & f_shut_write) this->clear();
+        if (atomic_or(&_s.flags, f_shut_read, mo_acq_rel) & f_shut_write) this->clear();
     }
 
     void set_shut_write() {
-        if (atomic_or(&_s.flags, f_shut_write) & f_shut_read) this->clear();
+        if (atomic_or(&_s.flags, f_shut_write, mo_acq_rel) & f_shut_read) this->clear();
     }
 
-    void set_skip_iocp()         { atomic_or(&_s.flags, f_skip_iocp); }
+    void set_skip_iocp()         { atomic_or(&_s.flags, f_skip_iocp, mo_acq_rel); }
     bool has_skip_iocp() const   { return _s.flags & f_skip_iocp; }
     void set_non_sock_stream()   { _s.flags |= f_non_sock_stream; }
     bool is_sock_stream() const  { return !(_s.flags & f_non_sock_stream); }
@@ -1290,11 +1290,11 @@ void cleanup_hook() {
 }
 
 void disable_hook_sleep() {
-    atomic_swap(&gHook().hook_sleep, false);
+    atomic_store(&gHook().hook_sleep, mo_release);
 }
 
 void enable_hook_sleep() {
-    atomic_swap(&gHook().hook_sleep, true);
+    atomic_swap(&gHook().hook_sleep, mo_release);
 }
 
 } // co

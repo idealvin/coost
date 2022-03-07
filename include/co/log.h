@@ -123,11 +123,11 @@ using namespace ___;
 
 #define _CO_LOG_EVERY_N(n, what) \
     static unsigned int _co_log_counter_name = 0; \
-    if (atomic_fetch_inc(&_co_log_counter_name) % (n) == 0) what
+    if (atomic_fetch_inc(&_co_log_counter_name, mo_relaxed) % (n) == 0) what
 
 #define _CO_LOG_FIRST_N(n, what) \
     static int _co_log_counter_name = 0; \
-    if (_co_log_counter_name < (n) && atomic_fetch_inc(&_co_log_counter_name) < (n)) what
+    if (_co_log_counter_name < (n) && atomic_fetch_inc(&_co_log_counter_name, mo_relaxed) < (n)) what
 
 #define DLOG_EVERY_N(n) _CO_LOG_EVERY_N(n, DLOG)
 #define  LOG_EVERY_N(n) _CO_LOG_EVERY_N(n, LOG)

@@ -60,11 +60,11 @@ class HookCtx {
     static const uint8 f_shut_write = 2;
 
     void set_shut_read() {
-        if (atomic_or(&_s.flags, f_shut_read) & f_shut_write) this->clear();
+        if (atomic_or(&_s.flags, f_shut_read, mo_acq_rel) & f_shut_write) this->clear();
     }
 
     void set_shut_write() {
-        if (atomic_or(&_s.flags, f_shut_write) & f_shut_read) this->clear();
+        if (atomic_or(&_s.flags, f_shut_write, mo_acq_rel) & f_shut_read) this->clear();
     }
 
     void set_sock_or_pipe() { _s.so = 1; }
@@ -167,7 +167,7 @@ _CO_DEF_RAW_API(kevent);
 
 
 #define hook_api(f) \
-    if (!CO_RAW_API(f)) atomic_set(&CO_RAW_API(f), dlsym(RTLD_NEXT, #f))
+    if (!CO_RAW_API(f)) atomic_store(&CO_RAW_API(f), dlsym(RTLD_NEXT, #f), mo_relaxed)
 
 #define do_hook(f, ev, ms) \
     do { \
@@ -937,15 +937,15 @@ void init_hook() {
 }
 
 void cleanup_hook() {
-    atomic_swap(&gHook().hook_sleep, false);
+    atomic_store(&gHook().hook_sleep, false, mo_release);
 }
 
 void disable_hook_sleep() {
-    atomic_swap(&gHook().hook_sleep, false);
+    atomic_store(&gHook().hook_sleep, false, mo_release);
 }
 
 void enable_hook_sleep() {
-    atomic_swap(&gHook().hook_sleep, true);
+    atomic_store(&gHook().hook_sleep, true, mo_release);
 }
 
 } // co

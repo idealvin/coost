@@ -39,7 +39,7 @@ class __coapi Pool {
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
     Pool(const Pool& p) : _p(p._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Pool&) = delete;

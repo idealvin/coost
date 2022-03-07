@@ -26,7 +26,7 @@ SchedulerImpl::~SchedulerImpl() {
 }
 
 void SchedulerImpl::stop() {
-    if (atomic_swap(&_stop, true) == false) {
+    if (atomic_swap(&_stop, true, mo_acq_rel) == false) {
         _epoll->signal();
         _ev.wait(32); // wait at most 32ms
     }
@@ -194,7 +194,7 @@ uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
         Coroutine* co = it->second;
         if (co->it != _timer.end()) co->it = _timer.end();
         if (!co->waitx) {
-            if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
+            if (co->state == st_init || atomic_swap(&co->state, st_init, mo_acq_rel) == st_wait) {
                 res.push_back(co);
             }
         } else {
@@ -258,7 +258,7 @@ void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
-    atomic_swap(&is_active(), false);
+    atomic_swap(&is_active(), false, mo_acq_rel);
 }
 
 void Scheduler::go(Closure* cb) {

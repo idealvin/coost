@@ -328,7 +328,7 @@ inline uint32 _pow2_align(uint32 n) {
 void* Alloc::alloc(size_t n) {
     void* p = 0;
     if (n <= 2 * 1024) {
-        const uint32 u = (n > 16 ? _pow2_align(n) : 16) >> 4;
+        const uint32 u = (uint32)((n > 16 ? _pow2_align(n) : 16) >> 4);
         if (_ma_32kd && (p = _ma_32kd->alloc(u))) goto _end;
 
         if (_mb_1md && (_ma_32kd = _mb_1md->make_mem_alloc(4, 2048, _id))) {

@@ -51,7 +51,7 @@ class Iocp {
     }
 
     void signal() {
-        if (atomic_compare_swap(&_signaled, false, true) == false) {
+        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
             const BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
             ELOG_IF(!r) << "PostQueuedCompletionStatus error: " << co::strerror();
         }
@@ -60,12 +60,12 @@ class Iocp {
     const OVERLAPPED_ENTRY& operator[](int i) const { return _ev[i]; }
     void* user_data(const OVERLAPPED_ENTRY& ev) { return ev.lpOverlapped; }
     bool is_ev_pipe(const OVERLAPPED_ENTRY& ev) { return ev.lpOverlapped == 0; }
-    void handle_ev_pipe() { atomic_swap(&_signaled, false); }
+    void handle_ev_pipe() { atomic_store(&_signaled, 0, mo_release); }
 
   private:
     HANDLE _iocp;
     OVERLAPPED_ENTRY* _ev;
-    bool _signaled;
+    int _signaled;
     int _sched_id;
 };
 
