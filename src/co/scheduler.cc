@@ -106,7 +106,9 @@ void SchedulerImpl::loop() {
         if (_stop) break;
 
         if (unlikely(n == -1)) {
-            ELOG << "epoll wait error: " << co::strerror();
+            if (errno != EINTR) {
+                ELOG << "epoll wait error: " << co::strerror();
+            }
             continue;
         }
 
