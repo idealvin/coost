@@ -57,13 +57,13 @@ struct curl_ctx_t {
     ~curl_ctx_t() {
         if (l) { curl_slist_free_all(l); l = 0; }
         if (easy) { curl_easy_cleanup(easy); easy = 0; }
-        if (arr) { free(arr); arr = 0; }
+        if (arr) { ::free(arr); arr = 0; }
     }
 
     void add_header(uint32 k) {
         if (arr_cap < arr_size + 2) {
             arr_cap += 32;
-            arr = (uint32*)realloc(arr, arr_cap << 2);
+            arr = (uint32*)::realloc(arr, arr_cap << 2);
             assert(arr != NULL);
         }
         arr[arr_size++] = k;
@@ -118,7 +118,7 @@ struct curl_global {
 
 Client::Client(const char* serv_url) {
     static curl_global g;
-    _ctx = (curl_ctx_t*) calloc(1, sizeof(curl_ctx_t));
+    _ctx = (curl_ctx_t*) ::calloc(1, sizeof(curl_ctx_t));
     _ctx->easy = curl_easy_init();
 
     auto& s = _ctx->serv_url;
@@ -135,11 +135,11 @@ Client::Client(const char* serv_url) {
 }
 
 Client::~Client() {
-    if (_ctx) { _ctx->~curl_ctx_t(); free(_ctx); _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); ::free(_ctx); _ctx = NULL; }
 }
 
 void Client::close() {
-    if (_ctx) { _ctx->~curl_ctx_t(); free(_ctx); _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); ::free(_ctx); _ctx = NULL; }
 }
 
 inline void Client::append_header(const char* s) {
@@ -497,7 +497,7 @@ inline void http_req_t::clear() {
 inline void http_req_t::add_header(uint32 k, uint32 v) {
     if (arr_cap < arr_size + 2) {
         arr_cap += 32;
-        arr = (uint32*)realloc(arr, arr_cap << 2);
+        arr = (uint32*)::realloc(arr, arr_cap << 2);
         assert(arr != NULL);
     }
     arr[arr_size++] = k;
@@ -551,8 +551,8 @@ const char* Req::body() const {
 Req::~Req() {
     if (_p) {
         _p->url.~fastring();
-        free(_p->arr);
-        free(_p);
+        ::free(_p->arr);
+        ::free(_p);
         _p = 0;
     }
 }
@@ -568,7 +568,7 @@ void Res::set_body(const void* s, size_t n) {
 Res::~Res() {
     if (_p) {
         _p->header.~fastring();
-        free(_p);
+        ::free(_p);
         _p = 0;
     }
 }
@@ -787,8 +787,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             HTTPLOG << "http recv req: " << buf->data();
 
             // parse http header
-            if (preq == 0) preq = (http_req_t*) calloc(1, sizeof(http_req_t));
-            if (pres == 0) pres = (http_res_t*) calloc(1, sizeof(http_res_t));
+            if (preq == 0) preq = (http_req_t*) ::calloc(1, sizeof(http_req_t));
+            if (pres == 0) pres = (http_res_t*) ::calloc(1, sizeof(http_res_t));
 
             r = parse_http_req(buf, preq);
             if (r != 0) { /* parse error */
