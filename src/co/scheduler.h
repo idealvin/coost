@@ -8,12 +8,11 @@
 #include "co/alloc.h"
 #include "co/flag.h"
 #include "co/log.h"
+#include "co/stl.h"
 #include "co/time.h"
 #include "co/closure.h"
 #include "co/thread.h"
 #include "co/fastream.h"
-#include "co/table.h"
-#include "co/vector.h"
 #include "context/context.h"
 
 #if defined(_WIN32)
@@ -43,7 +42,7 @@ void init_hook();
 void cleanup_hook();
 
 struct Coroutine;
-typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
+typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
 
 /**
  * coroutine state 
@@ -199,8 +198,8 @@ class TimerManager {
     uint32 check_timeout(co::vector<Coroutine*>& res);
 
   private:
-    std::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
-    std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
+    co::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
+    co::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
 struct Stack {
