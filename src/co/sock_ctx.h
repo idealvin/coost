@@ -3,7 +3,7 @@
 #include "co/def.h"
 #include "co/alloc.h"
 #include "co/atomic.h"
-#include "co/stl/table.h"
+#include "co/table.h"
 #include <string.h>
 
 namespace co {

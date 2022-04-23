@@ -4,7 +4,7 @@
 #include "closure.h"
 #include "flag.h"
 #include "log.h"
-#include "stl/vector.h"
+#include "vector.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"

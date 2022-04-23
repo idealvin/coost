@@ -2,7 +2,7 @@
 
 #include "err.h"
 #include "fastring.h"
-#include "stl/vector.h"
+#include "vector.h"
 #include <string>
 #include <vector>
 #include <map>

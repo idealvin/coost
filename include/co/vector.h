@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../god.h"
-#include "../alloc.h"
+#include "god.h"
+#include "alloc.h"
 #include <string.h>
 #include <assert.h>
 #include <initializer_list>
@@ -124,18 +124,18 @@ class vector {
 
     void push_back(const T& x) {
         if (unlikely(_cap == _size)) {
-            const size_t old_cap = _cap;
+            const size_t cap = _cap;
             _cap += (_cap >> 1) + 1;
-            _p = (T*) Alloc::realloc(_p, sizeof(T) * old_cap, sizeof(T) * _cap); assert(_p);
+            _p = (T*) Alloc::realloc(_p, sizeof(T) * cap, sizeof(T) * _cap); assert(_p);
         }
         new (_p + _size++) T(x);
     }
 
     void push_back(T&& x) {
         if (unlikely(_cap == _size)) {
-            const size_t old_cap = _cap;
+            const size_t cap = _cap;
             _cap += (_cap >> 1) + 1;
-            _p = (T*) Alloc::realloc(_p, sizeof(T) * old_cap, sizeof(T) * _cap); assert(_p);
+            _p = (T*) Alloc::realloc(_p, sizeof(T) * cap, sizeof(T) * _cap); assert(_p);
         }
         new (_p + _size++) T(std::move(x));
     }
@@ -276,7 +276,7 @@ class vector {
 
     void _reset(B<true>) {
         if (_p) {
-            Alloc::free(_p, _cap * sizeof(T)); _p = 0;
+            Alloc::free(_p, sizeof(T) * _cap); _p = 0;
             _cap = _size = 0;
         }
     }
@@ -284,7 +284,7 @@ class vector {
     void _reset(B<false>) {
         if (_p) {
             for (size_t i = 0; i < _size; ++i) _p[i].~T();
-            Alloc::free(_p, _cap * sizeof(T)); _p = 0;
+            Alloc::free(_p, sizeof(T) * _cap); _p = 0;
             _cap = _size = 0;
         }
     }

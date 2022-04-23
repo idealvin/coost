@@ -3,7 +3,7 @@
 #include "def.h"
 #include "fastring.h"
 #include "alloc.h"
-#include "stl/vector.h"
+#include "vector.h"
 
 // co/flag is a library similar to Google's gflags.
 // A flag is in fact a global variable, and value can be passed to it

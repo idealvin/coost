@@ -12,8 +12,8 @@
 #include "co/closure.h"
 #include "co/thread.h"
 #include "co/fastream.h"
-#include "co/stl/table.h"
-#include "co/stl/vector.h"
+#include "co/table.h"
+#include "co/vector.h"
 #include "context/context.h"
 
 #if defined(_WIN32)

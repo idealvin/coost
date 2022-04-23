@@ -18,7 +18,7 @@ void enable_hook_sleep() {}
 #include "co/defer.h"
 #include "co/flag.h"
 #include "co/log.h"
-#include "co/stl/table.h"
+#include "co/table.h"
 #include "detours/detours.h"
 #include <Mswsock.h>
 

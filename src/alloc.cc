@@ -2,7 +2,7 @@
 #include "co/atomic.h"
 #include "co/god.h"
 #include "co/log.h"
-#include "co/stl/vector.h"
+#include "co/vector.h"
 #include <mutex>
 
 #ifdef _WIN32
