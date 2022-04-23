@@ -91,13 +91,13 @@ DEF_test(co) {
         );
 
         int n = co::scheduler_num();
-        co::vector<int> vi(n);
+        co::vector<int> vi(n, 0);
 
         co::WaitGroup wg;
         wg.add(n);
 
         for (int i = 0; i < n; ++i) {
-            go([wg, p, i, &vi]() {
+            go([wg, p, i]() {
                 co::PoolGuard<int> g(p);
                 *g = i;
                 wg.done();

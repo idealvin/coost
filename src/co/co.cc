@@ -223,11 +223,11 @@ class PoolImpl {
     typedef co::vector<void*> V;
 
     PoolImpl()
-        : _pools(co::scheduler_num()), _maxcap((size_t)-1) {
+        : _pools(co::scheduler_num(), NULL), _maxcap((size_t)-1) {
     }
 
     PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(co::scheduler_num()), _maxcap(cap), 
+        : _pools(co::scheduler_num(), NULL), _maxcap(cap), 
           _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
     }
 
@@ -252,7 +252,7 @@ inline void* PoolImpl::pop() {
     CHECK(gSched) << "must be called in coroutine..";
     auto& v = _pools[gSched->id()];
     if (v == NULL) v = co::make<V>(1024);
-    if (!v->empty()) {
+    if (v && !v->empty()) {
         return v->pop_back();
     } else {
         return _ccb ? _ccb() : 0;
