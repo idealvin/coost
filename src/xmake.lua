@@ -28,7 +28,7 @@ target("libco")
     end 
 
     if is_kind("shared") then
-        set_symbols("hidden")
+        set_symbols("debug", "hidden")
         add_defines("BUILDING_CO_SHARED")
         set_configvar("COCOYAXI_SHARED", 1)
     else
