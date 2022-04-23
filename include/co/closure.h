@@ -26,7 +26,7 @@ class Function0 : public Closure {
 
     virtual void run() {
         _f();
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -41,7 +41,7 @@ class Function0p : public Closure {
 
     virtual void run() {
         (*_f)();
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -56,7 +56,7 @@ class Function1 : public Closure {
 
     virtual void run() {
         _f(_p);
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -72,7 +72,7 @@ class Function1p : public Closure {
 
     virtual void run() {
         (*_f)(_p);
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -90,7 +90,7 @@ class Method0 : public Closure {
 
     virtual void run() {
         (_o->*_f)();
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -109,7 +109,7 @@ class Method1 : public Closure {
 
     virtual void run() {
         (_o->*_f)(_p);
-        co::delete_fixed(this);
+        co::del(this);
     }
 
   private:
@@ -125,7 +125,7 @@ class Method1 : public Closure {
  */
 template<typename F>
 inline Closure* new_closure(F&& f) {
-    return co::new_fixed<xx::Function0<F>>(std::forward<F>(f));
+    return co::make<xx::Function0<F>>(std::forward<F>(f));
 }
 
 /**
@@ -133,7 +133,7 @@ inline Closure* new_closure(F&& f) {
  */
 template<typename F>
 inline Closure* new_closure(F* f) {
-    return co::new_fixed<xx::Function0p<F>>(f);
+    return co::make<xx::Function0p<F>>(f);
 }
 
 /**
@@ -144,7 +144,7 @@ inline Closure* new_closure(F* f) {
  */
 template<typename F, typename P>
 inline Closure* new_closure(F&& f, P&& p) {
-    return co::new_fixed<xx::Function1<F, P>>(std::forward<F>(f), std::forward<P>(p));
+    return co::make<xx::Function1<F, P>>(std::forward<F>(f), std::forward<P>(p));
 }
 
 /**
@@ -155,7 +155,7 @@ inline Closure* new_closure(F&& f, P&& p) {
  */
 template<typename F, typename P>
 inline Closure* new_closure(F* f, P&& p) {
-    return co::new_fixed<xx::Function1p<F, P>>(f, std::forward<P>(p));
+    return co::make<xx::Function1p<F, P>>(f, std::forward<P>(p));
 }
 
 /**
@@ -166,7 +166,7 @@ inline Closure* new_closure(F* f, P&& p) {
  */
 template<typename T>
 inline Closure* new_closure(void (T::*f)(), T* o) {
-    return co::new_fixed<xx::Method0<T>>(f, o);
+    return co::make<xx::Method0<T>>(f, o);
 }
 
 /**
@@ -181,7 +181,7 @@ inline Closure* new_closure(void (T::*f)(), T* o) {
  */
 template<typename F, typename T, typename P>
 inline Closure* new_closure(F&& f, T* o, P&& p) {
-    return co::new_fixed<xx::Method1<F, T, P>>(std::forward<F>(f), o, std::forward<P>(p));
+    return co::make<xx::Method1<F, T, P>>(std::forward<F>(f), o, std::forward<P>(p));
 }
 
 } // co
