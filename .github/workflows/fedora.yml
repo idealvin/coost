@@ -33,6 +33,7 @@ jobs:
         run: |
           xmake f -k shared
           xmake -a
+          xmake -b unitest
           xmake r unitest -co_sched_num=4
           xmake f -m debug
           xmake

@@ -27,6 +27,7 @@ jobs:
         run: |
           xmake f -k shared -a ${{ matrix.arch }}
           xmake -a
+          xmake -b unitest
           xmake r unitest -co_sched_num=4
           xmake f -m debug -a ${{ matrix.arch }}
           xmake
