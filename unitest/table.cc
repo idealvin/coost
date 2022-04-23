@@ -1,5 +1,5 @@
 #include "co/unitest.h"
-#include "co/stl/table.h"
+#include "co/table.h"
 
 namespace test {
 
