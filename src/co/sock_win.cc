@@ -331,7 +331,7 @@ class Error {
 
 const char* strerror(int e) {
     if (e == ETIMEDOUT || e == WSAETIMEDOUT) return "Timed out.";
-    static auto ke = co::new_static<co::Error>();
+    static auto ke = co::static_new<co::Error>();
     return ke->strerror(e);
 }
 

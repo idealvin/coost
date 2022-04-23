@@ -71,7 +71,7 @@ class StackTraceImpl : public StackTrace {
 };
 
 StackTrace* stack_trace() {
-    static auto kst = co::new_static<StackTraceImpl>();
+    static auto kst = co::static_new<StackTraceImpl>();
     return kst;
 }
 

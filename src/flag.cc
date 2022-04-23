@@ -36,7 +36,7 @@ struct Flag {
 };
 
 inline std::map<fastring, Flag*>& gFlags() {
-    static auto flags = co::new_static<std::map<fastring, Flag*>>();
+    static auto flags = co::static_new<std::map<fastring, Flag*>>();
     return *flags;
 }
 
@@ -167,7 +167,7 @@ inline void Flag::print() const {
 void add_flag(
     char type, const char* name, const char* value, const char* help, 
     const char* file, int line, void* addr, const char* alias) {
-    auto f = co::new_static<Flag>(type, name, alias, value, help, file, line, addr);
+    auto f = co::static_new<Flag>(type, name, alias, value, help, file, line, addr);
     auto r = gFlags().insert(std::make_pair(fastring(name), f));
 
     if (!r.second) {

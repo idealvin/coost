@@ -56,7 +56,7 @@ struct Global {
 };
 
 inline Global& global() {
-    static Global* g = co::new_static<Global>();
+    static Global* g = co::static_new<Global>();
     return *g;
 }
 
@@ -185,11 +185,11 @@ Global::Global()
     if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
     if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
   #endif
-    s = co::new_static<fastring>(4096);
-    log_time = co::new_static<LogTime>();
-    log_file = co::new_static<LogFile>();
-    failure_handler = co::new_static<FailureHandler>();
-    level_logger = co::new_static<LevelLogger>();
+    s = co::static_new<fastring>(4096);
+    log_time = co::static_new<LogTime>();
+    log_file = co::static_new<LogFile>();
+    failure_handler = co::static_new<FailureHandler>();
+    level_logger = co::static_new<LevelLogger>();
 }
 
 Cleanup::~Cleanup() {
@@ -209,7 +209,7 @@ bool LevelLogger::start() {
 
     _log_buf.reserve(1 << 20);
     _logs.reserve(1 << 20);
-    _log_thread = co::new_static<Thread>(&LevelLogger::thread_fun, this);
+    _log_thread = co::static_new<Thread>(&LevelLogger::thread_fun, this);
     return true;
 }
 

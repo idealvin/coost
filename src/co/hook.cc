@@ -100,22 +100,22 @@ class Hook {
 } // co
 
 inline co::Hook& gHook() {
-    static auto hook = co::new_static<co::Hook>();
+    static auto hook = co::static_new<co::Hook>();
     return *hook;
 }
 
 inline struct hostent* gHostEnt() {
-    static auto ents = co::new_static<std::vector<struct hostent>>(co::scheduler_num());
+    static auto ents = co::static_new<std::vector<struct hostent>>(co::scheduler_num());
     return &(*ents)[co::gSched->id()];
 }
 
 inline co::Mutex& gDnsMutex_t() {
-    static auto mtxs = co::new_static<std::vector<co::Mutex>>(co::scheduler_num());
+    static auto mtxs = co::static_new<std::vector<co::Mutex>>(co::scheduler_num());
     return (*mtxs)[co::gSched->id()];
 }
 
 inline co::Mutex& gDnsMutex_g() {
-    static auto mtx = co::new_static<co::Mutex>();
+    static auto mtx = co::static_new<co::Mutex>();
     return *mtx;
 }
 

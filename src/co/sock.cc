@@ -247,7 +247,7 @@ class Error {
             return _p->err.data() + it->second;
         } else {
             uint32 pos = (uint32) _p->err.size();
-            static auto kmtx = co::new_static<::Mutex>();
+            static auto kmtx = co::static_new<::Mutex>();
             {
                 ::MutexGuard g(*kmtx);
                 _p->err.append(::strerror(e)).append('\0');
@@ -263,7 +263,7 @@ class Error {
 
 const char* strerror(int e) {
     if (e == ETIMEDOUT) return "Timed out";
-    static auto ke = co::new_static<co::Error>();
+    static auto ke = co::static_new<co::Error>();
     return ke->strerror(e);
 }
 
