@@ -25,7 +25,7 @@ jobs:
 
       - name: Tests
         run: |
-          xmake f -a ${{ matrix.arch }}
+          xmake f -k shared -a ${{ matrix.arch }}
           xmake -a
           xmake r unitest -co_sched_num=4
           xmake f -m debug -a ${{ matrix.arch }}

@@ -1,12 +1,11 @@
 #include "co/unitest.h"
 #include "co/time.h"
-#include <vector>
-#include <map>
+#include "co/stl.h"
 
 namespace unitest {
 
-inline std::vector<Test*>& gTests() {
-    static std::vector<Test*> tests;
+inline co::vector<Test*>& gTests() {
+    static co::vector<Test*> tests(32);
     return tests;
 }
 
@@ -24,8 +23,8 @@ struct FailedMsg {
     fastring msg;
 };
 
-typedef std::map<fastring, std::vector<FailedMsg*>> CMap; // <case_name, msgs>
-typedef std::map<fastring, CMap> TMap;                    // <test_name, cases>
+typedef co::map<fastring, co::vector<FailedMsg*>> CMap; // <case_name, msgs>
+typedef co::map<fastring, CMap> TMap;                   // <test_name, cases>
 
 inline TMap& failed_tests() {
     static TMap m;
@@ -35,7 +34,7 @@ inline TMap& failed_tests() {
 void push_failed_msg(const fastring& test_name, const fastring& case_name,
                      const char* file, int line, const fastring& msg) {
     TMap& x = failed_tests();
-    x[test_name][case_name].push_back(new FailedMsg(file, line, msg));
+    x[test_name][case_name].push_back(co::make<FailedMsg>(file, line, msg));
 }
 
 void run_all_tests() {
@@ -43,7 +42,7 @@ void run_all_tests() {
     int n = 0;
     auto& tests = gTests();
 
-    std::vector<Test*> enabled;
+    co::vector<Test*> enabled;
     for (auto& test : tests) {
         if (test->enabled()) enabled.push_back(test);
     }
@@ -55,7 +54,7 @@ void run_all_tests() {
             t.restart();
             test->run();
             cout << "< test " << test->name() << " done in " << t.us() << " us" << endl;
-            delete test;
+            co::del(test);
         }
 
     } else {
@@ -67,7 +66,7 @@ void run_all_tests() {
             cout << "< test " << test->name() << " done in " << t.us() << " us" << endl;
         }
 
-        for (auto& test: tests) delete test;
+        for (auto& test: tests) co::del(test);
     }
 
     TMap& failed = failed_tests();
@@ -98,12 +97,12 @@ void run_all_tests() {
             for (auto ct = cases.begin(); ct != cases.end(); ++ct) {
                 cout << color::red << " case " << ct->first << ":\n" << color::deflt;
 
-                std::vector<FailedMsg*>& msgs = ct->second;
+                co::vector<FailedMsg*>& msgs = ct->second;
                 for (size_t i = 0; i < msgs.size(); ++i) {
                     FailedMsg* msg = msgs[i];
                     cout << color::yellow << "  " << msg->file << ':' << msg->line << "] "
                          << color::deflt << msg->msg << '\n';
-                    delete msg;
+                    co::del(msg);
                 }
             }
 

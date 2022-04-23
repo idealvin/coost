@@ -31,6 +31,7 @@ jobs:
         env:
           XMAKE_ROOT: y
         run: |
+          xmake f -k shared
           xmake -a
           xmake r unitest -co_sched_num=4
           xmake f -m debug
