@@ -3,14 +3,14 @@
 
 namespace co {
 
+#ifdef _WIN32
 extern bool can_skip_iocp_on_success;
 
-#ifdef _WIN32
 IoEvent::IoEvent(sock_t fd, io_event_t ev)
     : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev); // add socket to IOCP
-    _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo));
+    _info = (PerIoInfo*) ::calloc(1, sizeof(PerIoInfo));
     _info->co = (void*) s->running();
     s->running()->waitx = _info;
 }
@@ -19,7 +19,7 @@ IoEvent::IoEvent(sock_t fd, int n)
     : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev_read); // add socket to IOCP
-    _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo) + n);
+    _info = (PerIoInfo*) ::calloc(1, sizeof(PerIoInfo) + n);
     _info->co = (void*) s->running();
     s->running()->waitx = _info;
 }
@@ -29,12 +29,12 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
     auto s = gSched;
     s->add_io_event(fd, ev);
     if (!s->on_stack(buf)) {
-        _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo) + n);
+        _info = (PerIoInfo*) ::calloc(1, sizeof(PerIoInfo) + n);
         _info->co = (void*) s->running();
         _info->buf.buf = (char*)buf;
         _info->buf.len = size;
     } else {
-        _info = (PerIoInfo*) calloc(1, sizeof(PerIoInfo) + n + size);
+        _info = (PerIoInfo*) ::calloc(1, sizeof(PerIoInfo) + n + size);
         _info->co = (void*) s->running();
         _info->buf.buf = _info->s + n;
         _info->buf.len = size;

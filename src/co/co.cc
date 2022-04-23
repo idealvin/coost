@@ -93,15 +93,15 @@ void EventImpl::signal() {
 
 // memory: |4(refn)|4|EventImpl|
 Event::Event() {
-    _p = (uint32*) malloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1;
-    new (_p + 2) EventImpl;
+    new (_p + 2) EventImpl();
 }
 
 Event::~Event() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
-        ::free(_p);
+        co::free(_p, sizeof(EventImpl) + 8);
     }
 }
 
@@ -115,16 +115,16 @@ void Event::signal() const {
 
 // memory: |4(refn)|4(counter)|EventImpl|
 WaitGroup::WaitGroup() {
-    _p = (uint32*) malloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
     _p[1] = 0; // counter
-    new (_p + 2) EventImpl;
+    new (_p + 2) EventImpl();
 }
 
 WaitGroup::~WaitGroup() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
-        ::free(_p);
+        co::free(_p, sizeof(EventImpl) + 8);
     }
 }
 
@@ -194,15 +194,15 @@ inline void MutexImpl::unlock() {
 
 // memory: |4(refn)|4|MutexImpl|
 Mutex::Mutex() {
-    _p = (uint32*) malloc(sizeof(MutexImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(MutexImpl) + 8);
     _p[0] = 1; // refn
-    new (_p + 2) MutexImpl;
+    new (_p + 2) MutexImpl();
 }
 
 Mutex::~Mutex() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((MutexImpl*)(_p + 2))->~MutexImpl();
-        ::free(_p);
+        co::free(_p, sizeof(MutexImpl) + 8);
     }
 }
 
@@ -246,18 +246,14 @@ class PoolImpl {
     size_t _maxcap;
     std::function<void*()> _ccb;
     std::function<void(void*)> _dcb;
-
-    V* new_pool() { V* v = new V(); v->reserve(1024); return v; }
 };
 
 inline void* PoolImpl::pop() {
     CHECK(gSched) << "must be called in coroutine..";
     auto& v = _pools[gSched->id()];
-    if (v == NULL) v = this->new_pool();
+    if (v == NULL) v = co::make<V>(1024);
     if (!v->empty()) {
-        void* p = v->back();
-        v->pop_back();
-        return p;
+        return v->pop_back();
     } else {
         return _ccb ? _ccb() : 0;
     }
@@ -267,7 +263,7 @@ inline void PoolImpl::push(void* p) {
     if (!p) return; // ignore null pointer
     CHECK(gSched) << "must be called in coroutine..";
     auto& v = _pools[gSched->id()];
-    if (v == NULL) v = this->new_pool();
+    if (v == NULL) v = co::make<V>(1024);
     if (v->size() < _maxcap || !_dcb) {
         v->push_back(p);
     } else {
@@ -288,7 +284,7 @@ void PoolImpl::clear() {
                 auto& v = this->_pools[gSched->id()];
                 if (v != NULL) {
                     if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                    delete v; v = NULL;
+                    co::del(v); v = NULL;
                 }
                 wg.done();
             });
@@ -299,7 +295,7 @@ void PoolImpl::clear() {
         for (auto& v : _pools) {
             if (v != NULL) {
                 if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                delete v; v = NULL;
+                co::del(v); v = NULL;
             }
         }
     }
@@ -313,20 +309,20 @@ inline size_t PoolImpl::size() const {
 
 // memory: |4(refn)|4|PoolImpl|
 Pool::Pool() {
-    _p = (uint32*) malloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
-    new (_p + 2) PoolImpl;
+    new (_p + 2) PoolImpl();
 }
 
 Pool::~Pool() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((PoolImpl*)(_p + 2))->~PoolImpl();
-        ::free(_p);
+        co::free(_p, sizeof(PoolImpl) + 8);
     }
 }
 
 Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = (uint32*) malloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
@@ -354,11 +350,11 @@ class PipeImpl {
     PipeImpl(uint32 buf_size, uint32 blk_size, uint32 ms)
         : _buf_size(buf_size), _blk_size(blk_size), 
           _rx(0), _wx(0), _ms(ms), _full(false) {
-        _buf = (char*) malloc(_buf_size);
+        _buf = (char*) co::alloc(_buf_size);
     }
 
     ~PipeImpl() {
-        ::free(_buf);
+        co::free(_buf, _buf_size);
     }
 
     void read(void* p);
@@ -371,17 +367,20 @@ class PipeImpl {
             void* dummy;
         };
         void* buf;
+        size_t total_size;
     };
 
     waitx* create_waitx(co::Coroutine* co, void* buf) {
         waitx* w;
         const bool on_stack = gSched->on_stack(buf);
         if (on_stack) {
-            w = (waitx*) malloc(sizeof(waitx) + _blk_size);
+            w = (waitx*) co::alloc(sizeof(waitx) + _blk_size);
             w->buf = (char*)w + sizeof(waitx);
+            w->total_size = sizeof(waitx) + _blk_size;
         } else {
-            w = (waitx*) malloc(sizeof(waitx));
+            w = (waitx*) co::alloc(sizeof(waitx));
             w->buf = buf;
+            w->total_size = sizeof(waitx);
         }
         w->co = co;
         w->state = st_init;
@@ -428,7 +427,7 @@ void PipeImpl::read(void* p) {
 
             if (!s->timeout()) {
                 if (w->buf != p) memcpy(p, w->buf, _blk_size);
-                ::free(w);
+                co::free(w, w->total_size);
             }
 
             co->waitx = 0;
@@ -452,7 +451,7 @@ void PipeImpl::read(void* p) {
                     return;
 
                 } else { /* timeout */
-                    ::free(w);
+                    co::free(w, w->total_size);
                 }
             }
 
@@ -488,7 +487,7 @@ void PipeImpl::write(const void* p) {
                     ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
                     return;
                 } else { /* timeout */
-                    ::free(w);
+                    co::free(w, w->total_size);
                 }
             }
 
@@ -511,14 +510,14 @@ void PipeImpl::write(const void* p) {
             if (_ms != (uint32)-1) s->add_timer(_ms);
             s->yield();
 
-            if (!s->timeout()) ::free(w);
+            if (!s->timeout()) co::free(w, w->total_size);
             co->waitx = 0;
         }
     }
 }
 
 Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
-    _p = (uint32*) malloc(sizeof(PipeImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PipeImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PipeImpl(buf_size, blk_size, ms);
 }
@@ -526,7 +525,7 @@ Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
 Pipe::~Pipe() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((PipeImpl*)(_p + 2))->~PipeImpl();
-        ::free(_p);
+        co::free(_p, sizeof(PipeImpl) + 8);
     }
 }
 

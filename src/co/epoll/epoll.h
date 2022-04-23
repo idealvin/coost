@@ -38,7 +38,7 @@ class Epoll {
 
     // write one byte to the pipe to wake up the epoll.
     void signal(char c = 'x') {
-        if (atomic_compare_swap(&_signaled, false, true, mo_acquire, mo_acquire) == false) {
+        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
             const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }

@@ -111,7 +111,7 @@ class Hook {
 } // co
 
 inline co::Hook& gHook() {
-    static auto hook = co::new_static<co::Hook>();
+    static auto hook = co::static_new<co::Hook>();
     return *hook;
 }
 
@@ -527,10 +527,10 @@ static LPWSABUF check_wsabufs(LPWSABUF p, DWORD n, int do_memcpy) {
     }
     if (!on_stack) return p;
 
-    LPWSABUF x = (LPWSABUF) malloc(sizeof(WSABUF) * n);
+    LPWSABUF x = (LPWSABUF) co::alloc(sizeof(WSABUF) * n);
     for (DWORD i = 0; i < n; ++i) {
         if (co::gSched->on_stack(p[i].buf)) {
-            x[i].buf = (char*) malloc(p[i].len);
+            x[i].buf = (char*) co::alloc(p[i].len);
             if (do_memcpy) memcpy(x[i].buf, p[i].buf, p[i].len);
         } else {
             x[i].buf = p[i].buf;
@@ -543,11 +543,11 @@ static LPWSABUF check_wsabufs(LPWSABUF p, DWORD n, int do_memcpy) {
 static void clean_wsabufs(LPWSABUF x, LPWSABUF p, DWORD n, int do_memcpy) {
     for (DWORD i = 0; i < n; ++i) {
         if (x[i].buf != p[i].buf) {
-            if (do_memcpy) memcpy(p[i].buf, x[i].buf, p[i].len);
-            free(x[i].buf);
+            if (do_memcpy) memcpy(p[i].buf, x[i].buf, x[i].len);
+            co::free(x[i].buf, x[i].len);
         }
     }
-    free(x);
+    co::free(x, sizeof(WSABUF) * n);
 }
 
 int WINAPI hook_recv(
@@ -902,16 +902,16 @@ static LPWSAMSG check_wsamsg(LPWSAMSG p, char c, int do_memcpy) {
     auto buf = check_wsabufs(p->lpBuffers, p->dwBufferCount, do_memcpy);
     if (!mos && !cos && buf == p->lpBuffers && (!aos || c == 's')) return p;
 
-    LPWSAMSG x = (LPWSAMSG) malloc(sizeof(*p));
+    LPWSAMSG x = (LPWSAMSG) co::alloc(sizeof(*p));
     memcpy(x, p, sizeof(*p));
 
     if (c == 'r' && aos) {
-        x->name = (LPSOCKADDR) calloc(1, sizeof(SOCKADDR_STORAGE));
+        x->name = (LPSOCKADDR) co::alloc(sizeof(SOCKADDR_STORAGE));
         x->namelen = sizeof(SOCKADDR_STORAGE);
     }
 
     if (cos) {
-        x->Control.buf = (char*) malloc(x->Control.len);
+        x->Control.buf = (char*) co::alloc(p->Control.len);
         if (do_memcpy) memcpy(x->Control.buf, p->Control.buf, p->Control.len);
     }
 
@@ -922,18 +922,21 @@ static LPWSAMSG check_wsamsg(LPWSAMSG p, char c, int do_memcpy) {
 static void clean_wsamsg(LPWSAMSG x, LPWSAMSG p, int do_memcpy) {
     if (x->name != p->name) {
         if (do_memcpy && x->namelen <= p->namelen) memcpy(p->name, x->name, x->namelen);
-        p->namelen = x->namelen;
-        free(x->name);
+        co::free(x->name, sizeof(SOCKADDR_STORAGE));
     }
+    p->namelen = x->namelen;
 
     if (x->Control.buf != p->Control.buf) {
-        if (do_memcpy) memcpy(p->Control.buf, x->Control.buf, p->Control.len);
-        free(x->Control.buf);
+        if (do_memcpy) memcpy(p->Control.buf, x->Control.buf, x->Control.len);
+        co::free(x->Control.buf, p->Control.len);
     }
+    p->Control.len = x->Control.len;
 
     if (x->lpBuffers != p->lpBuffers) {
         clean_wsabufs(x->lpBuffers, p->lpBuffers, p->dwBufferCount, do_memcpy);
     }
+
+    co::free(x, sizeof(*p));
 }
 
 int WINAPI hook_WSARecvMsg(

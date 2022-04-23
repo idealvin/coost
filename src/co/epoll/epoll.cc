@@ -16,7 +16,7 @@ Epoll::Epoll(int sched_id) : _signaled(0), _sched_id(sched_id) {
     co::set_nonblock(_pipe_fds[0]);
     CHECK(this->add_ev_read(_pipe_fds[0], 0));
 
-    _ev = (epoll_event*) calloc(1024, sizeof(epoll_event));
+    _ev = (epoll_event*) ::calloc(1024, sizeof(epoll_event));
 }
 
 Epoll::~Epoll() {

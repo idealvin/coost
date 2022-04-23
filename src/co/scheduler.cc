@@ -14,15 +14,15 @@ SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
     : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num), 
       _stack_size(stack_size), _running(0), _co_pool(), 
       _stop(false), _timeout(false) {
-    _epoll = co::new_fixed<Epoll>(id);
-    _stack = (Stack*) calloc(8, sizeof(Stack));
+    _epoll = co::make<Epoll>(id);
+    _stack = (Stack*) co::zalloc(8 * sizeof(Stack));
     _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
 SchedulerImpl::~SchedulerImpl() {
     this->stop();
-    co::delete_fixed(_epoll);
-    co::free(_stack, _stack_size);
+    co::del(_epoll);
+    co::free(_stack, 8 * sizeof(Stack));
 }
 
 void SchedulerImpl::stop() {
@@ -240,7 +240,7 @@ SchedulerManager::~SchedulerManager() {
 }
 
 inline SchedulerManager* scheduler_manager() {
-    static auto ksm = co::new_static<SchedulerManager>();
+    static auto ksm = co::static_new<SchedulerManager>();
     return ksm;
 }
 

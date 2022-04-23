@@ -11,13 +11,13 @@ Kqueue::Kqueue(int sched_id) : _signaled(0) {
     co::set_cloexec(_pipe_fds[1]);
     co::set_nonblock(_pipe_fds[0]);
     CHECK(this->add_ev_read(_pipe_fds[0], (void*)0));
-    _ev = (struct kevent*) calloc(1024, sizeof(struct kevent));
+    _ev = (struct kevent*) ::calloc(1024, sizeof(struct kevent));
     (void) sched_id;
 }
 
 Kqueue::~Kqueue() {
     this->close();
-    if (_ev) { free(_ev); _ev = 0; }
+    if (_ev) { ::free(_ev); _ev = 0; }
 }
 
 bool Kqueue::add_ev_read(int fd, void* p) {
