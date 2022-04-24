@@ -24,7 +24,7 @@ inline void* _vm_reserve(size_t n) {
 
 inline void _vm_commit(void* p, size_t n) {
     void* x = VirtualAlloc(p, n, MEM_COMMIT, PAGE_READWRITE);
-    assert(x); (void)x;
+    assert(x == p); (void)x;
 }
 
 inline void _vm_decommit(void* p, size_t n) {
@@ -320,13 +320,12 @@ class GlobalAlloc {
     _X _x[g_array_size];
 };
 
-static uint32 g_alloc_id = (uint32)-1;
-
 class ThreadAlloc {
   public:
     ThreadAlloc()
         : _lb(0), _la(0), _sad(0), _saf(0), _xlock(false), _has_xptr(false),
           _xptrs(4096), _xswap(4096) {
+        static uint32 g_alloc_id = (uint32)-1;
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
 
@@ -360,9 +359,12 @@ class ThreadAlloc {
 };
 
 
-static char g_ga_buf[sizeof(GlobalAlloc)];
-static GlobalAlloc* g_global_alloc = new (g_ga_buf) GlobalAlloc();
 __thread ThreadAlloc* g_thread_alloc = NULL;
+
+inline GlobalAlloc* galloc() {
+    static GlobalAlloc* ga = new GlobalAlloc();
+    return ga;
+}
 
 inline ThreadAlloc* thread_alloc() {
     return g_thread_alloc ? g_thread_alloc : (g_thread_alloc = new ThreadAlloc());
@@ -625,7 +627,7 @@ void* ThreadAlloc::alloc(size_t n) {
                 }
             }
 
-            auto lb = g_global_alloc->make_large_block(_id);
+            auto lb = galloc()->make_large_block(_id);
             if (lb) {
                 list_push_front(l, (DoubleLink*)lb);
                 _sad = lb->make_small_alloc();
@@ -645,7 +647,7 @@ void* ThreadAlloc::alloc(size_t n) {
                 if ((p = _la->alloc(u))) goto _end;
             }
 
-            auto la = g_global_alloc->make_large_alloc(_id);
+            auto la = galloc()->make_large_alloc(_id);
             if (la) {
                 list_push_front(l, (DoubleLink*)la);
                 p = la->alloc(u);
@@ -671,7 +673,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
                     auto lb = sa->parent();
                     if (lb->free(sa) && lb != _lb) {
                         list_erase(*(DoubleLink**)&_lb, (DoubleLink*)lb);
-                        g_global_alloc->free(lb, lb->parent(), _id);
+                        galloc()->free(lb, lb->parent(), _id);
                     }
                 }
             } else {
@@ -684,7 +686,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             if (ta == this) {
                 if (la->free(p) && la != _la) {
                     list_erase(*(DoubleLink**)&_la, (DoubleLink*)la);
-                    g_global_alloc->free(la, la->parent(), _id);
+                    galloc()->free(la, la->parent(), _id);
                 }
             } else {
                 ta->xfree(p, n);
@@ -752,7 +754,7 @@ inline void* ThreadAlloc::fixed_alloc(size_t n) {
                 }
             }
 
-            auto lb = g_global_alloc->make_large_block(_id);
+            auto lb = galloc()->make_large_block(_id);
             if (lb) {
                 list_push_front(l, (DoubleLink*)lb);
                 _saf = lb->make_small_alloc();
