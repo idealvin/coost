@@ -13,7 +13,6 @@ void enable_hook_sleep() {}
 
 #else
 #include "scheduler.h"
-#include "co/alloc.h"
 #include "co/defer.h"
 #include "co/table.h"
 #include <stdarg.h>

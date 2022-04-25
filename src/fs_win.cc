@@ -1,6 +1,6 @@
 #ifdef _WIN32
 #include "co/fs.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN

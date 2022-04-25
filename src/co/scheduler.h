@@ -5,7 +5,7 @@
 #endif
 
 #include "co/co.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 #include "co/flag.h"
 #include "co/log.h"
 #include "co/stl.h"

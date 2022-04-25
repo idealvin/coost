@@ -1,6 +1,6 @@
 #include "co/co.h"
 #include "co/god.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 #include "co/so/tcp.h"
 #include "co/so/ssl.h"
 #include "co/log.h"

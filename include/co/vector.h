@@ -1,7 +1,7 @@
 #pragma once
 
 #include "god.h"
-#include "alloc.h"
+#include "mem.h"
 #include <string.h>
 #include <assert.h>
 #include <initializer_list>

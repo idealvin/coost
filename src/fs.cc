@@ -1,7 +1,7 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 #include "./co/hook.h"
 #include <assert.h>
 #include <stdio.h>

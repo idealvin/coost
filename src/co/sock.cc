@@ -1,7 +1,6 @@
 #ifndef _WIN32
 
 #include "scheduler.h"
-#include "co/alloc.h"
 #include <unordered_map>
 
 namespace co {

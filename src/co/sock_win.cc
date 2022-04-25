@@ -1,7 +1,6 @@
 #ifdef _WIN32
 
 #include "scheduler.h"
-#include "co/alloc.h"
 #include <ws2spi.h>
 #include <unordered_map>
 

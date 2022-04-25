@@ -3,7 +3,7 @@
 #include "stack_trace.h"
 #include "StackWalker.hpp"
 #include "co/fs.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 
 #include <stdio.h>
 #include <string.h>

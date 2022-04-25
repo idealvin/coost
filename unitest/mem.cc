@@ -1,5 +1,5 @@
 #include "co/unitest.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 
 namespace test {
 

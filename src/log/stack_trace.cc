@@ -14,7 +14,7 @@ StackTrace* stack_trace() { return 0; }
 #else
 #include "co/fs.h"
 #include "co/os.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 #include "co/fastream.h"
 #include "../co/hook.h"
 #include <string.h>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "def.h"
+#include "mem.h"
 #include "fastring.h"
-#include "alloc.h"
 #include "vector.h"
 
 // co/flag is a library similar to Google's gflags.

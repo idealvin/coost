@@ -14,7 +14,6 @@ void enable_hook_sleep() {}
 #else
 #include "scheduler.h"
 #include "co/co.h"
-#include "co/alloc.h"
 #include "co/defer.h"
 #include "co/flag.h"
 #include "co/log.h"

@@ -1,7 +1,7 @@
 #include "co/tasked.h"
-#include "co/alloc.h"
-#include "co/thread.h"
+#include "co/mem.h"
 #include "co/time.h"
+#include "co/thread.h"
 #include <assert.h>
 #include <vector>
 

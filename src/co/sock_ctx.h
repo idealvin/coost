@@ -1,7 +1,7 @@
 #pragma once
 
 #include "co/def.h"
-#include "co/alloc.h"
+#include "co/mem.h"
 #include "co/atomic.h"
 #include "co/table.h"
 #include <string.h>
