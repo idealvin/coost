@@ -145,20 +145,20 @@ DEF_test(str) {
     }
 
     DEF_case(dbg) {
-        std::vector<fastring> v {
-            "xx", "yy"
-        };
-        EXPECT_EQ(str::dbg(v), "[\"xx\",\"yy\"]");
+        std::vector<fastring> v { "xx", "yy" };
+        co::vector<fastring> cv { "xx", "yy" };
+        EXPECT_EQ(str::dbg(v),  "[\"xx\",\"yy\"]");
+        EXPECT_EQ(str::dbg(cv), "[\"xx\",\"yy\"]");
 
-        std::set<int> s {
-            7, 0, 3
-        };
-        EXPECT_EQ(str::dbg(s), "{0,3,7}");
+        std::set<int> s { 7, 0, 3 };
+        co::set<int> cs { 7, 0, 3 };
+        EXPECT_EQ(str::dbg(s),  "{0,3,7}");
+        EXPECT_EQ(str::dbg(cs), "{0,3,7}");
 
-        std::map<int, int> m {
-            {1, 1}, {2, 2}, {3, 3}
-        };
-        EXPECT_EQ(str::dbg(m), "{1:1,2:2,3:3}");
+        std::map<int, int> m { {1, 1}, {2, 2}, {3, 3} };
+        co::map<int, int> cm { {1, 1}, {2, 2}, {3, 3} };
+        EXPECT_EQ(str::dbg(m),  "{1:1,2:2,3:3}");
+        EXPECT_EQ(str::dbg(cm), "{1:1,2:2,3:3}");
 
         std::map<int, fastring> ms {
             {1, "1"}, {2, "2"}, {3, "3"}

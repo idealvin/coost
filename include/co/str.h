@@ -2,7 +2,7 @@
 
 #include "err.h"
 #include "fastring.h"
-#include "vector.h"
+#include "stl.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -89,9 +89,7 @@ inline double to_double(const fastring& s)    { return to_double(s.c_str()); }
 inline double to_double(const std::string& s) { return to_double(s.c_str()); }
 
 
-/**
- * convert built-in types to string 
- */
+// convert built-in types to string 
 template<typename T>
 inline fastring from(T t) {
     fastring s(24);
@@ -181,9 +179,21 @@ inline fastring dbg(const std::set<T>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert co::set to a debug string
+template<typename T>
+inline fastring dbg(const co::set<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
 // convert std::map to a debug string
 template<typename K, typename V>
 inline fastring dbg(const std::map<K, V>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+// convert co::map to a debug string
+template<typename K, typename V>
+inline fastring dbg(const co::map<K, V>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
@@ -193,9 +203,21 @@ inline fastring dbg(const std::unordered_set<T>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert co::hash_set to a debug string
+template<typename T>
+inline fastring dbg(const co::hash_set<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
 // convert std::unordered_map to a debug string
 template<typename K, typename V>
 inline fastring dbg(const std::unordered_map<K, V>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+// convert co::hash_map to a debug string
+template<typename K, typename V>
+inline fastring dbg(const co::hash_map<K, V>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
