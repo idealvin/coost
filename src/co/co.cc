@@ -1,7 +1,5 @@
 #include "scheduler.h"
-#include <new>
-#include <deque>
-#include <unordered_set>
+#include "co/stl.h"
 
 namespace co {
 
@@ -17,8 +15,8 @@ class EventImpl {
   private:
     ::Mutex _mtx;
     co::xx::cond_t _cond;
-    std::unordered_set<Coroutine*> _co_wait;
-    std::unordered_set<Coroutine*> _co_swap;
+    co::hash_set<Coroutine*> _co_wait;
+    co::hash_set<Coroutine*> _co_swap;
     uint32 _counter;
     bool _signaled;
     bool _has_cond;
@@ -154,7 +152,7 @@ class MutexImpl {
 
   private:
     ::Mutex _mtx;
-    std::deque<Coroutine*> _co_wait;
+    co::deque<Coroutine*> _co_wait;
     bool _lock;
 };
 
@@ -389,7 +387,7 @@ class PipeImpl {
 
   private:
     ::Mutex _m;
-    std::deque<waitx*> _wq;
+    co::deque<waitx*> _wq;
     char* _buf;       // buffer
     uint32 _buf_size; // buffer size
     uint32 _blk_size; // block size

@@ -13,8 +13,6 @@
 #include <sys/select.h>
 #endif
 #include <time.h>
-#include <deque>
-#include <map>
 
 #ifdef _MSC_VER
 #pragma warning (disable:4722)
@@ -115,7 +113,7 @@ class LogFile {
     fastring _path;
     fastring _path_base; // prefix of the log path: log_dir/log_file_name 
     fastring _exename;   // use exename as log_file_name by default
-    std::deque<fastring> _old_paths; // paths of old log files
+    co::deque<fastring> _old_paths; // paths of old log files
     uint32 _day;
     bool _checked;
 };
@@ -141,7 +139,7 @@ class FailureHandler {
 
   private:
     log::StackTrace* _stack_trace;
-    std::map<int, os::sig_handler_t> _old_handlers;
+    co::map<int, os::sig_handler_t> _old_handlers;
   #ifdef _WIN32
     void* _ex_handler; // exception handler for windows
   #endif
