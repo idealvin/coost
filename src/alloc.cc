@@ -158,7 +158,7 @@ static const uint32 B = 6;
 static const uint32 g_array_size = 32;
 #else
 static const uint32 B = 5;
-static const uint32 g_array_size = 8;
+static const uint32 g_array_size = 4;
 #endif
 
 static const uint32 R = (1 << B) - 1;
