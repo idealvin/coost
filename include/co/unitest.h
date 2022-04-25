@@ -49,8 +49,8 @@ struct Case {
     DEF_bool(_name_, false, "enable this test if true"); \
     \
     struct _UTest_##_name_ : public unitest::Test { \
-        _UTest_##_name_() : _name(#_name_), _current_case(NULL) {} \
-        virtual ~_UTest_##_name_() { co::del(_current_case); } \
+        _UTest_##_name_() : _name(#_name_) {} \
+        virtual ~_UTest_##_name_() {} \
         \
         virtual void run(); \
         virtual bool enabled() { return FLG_##_name_; } \
@@ -58,7 +58,7 @@ struct Case {
         \
       private: \
         fastring _name; \
-        unitest::Case* _current_case; \
+        co::unique_ptr<unitest::Case> _current_case; \
     }; \
     \
     static unitest::TestSaver _UT_sav_test_##_name_(co::make<_UTest_##_name_>()); \
@@ -66,12 +66,12 @@ struct Case {
     void _UTest_##_name_::run()
 
 // define a test case in the current unit
-#define DEF_case(name) co::del(god::swap(&_current_case, co::make<unitest::Case>(#name)));
+#define DEF_case(name) _current_case.reset(co::make<unitest::Case>(#name));
 
 #define EXPECT(x) \
 { \
     if (_current_case == NULL) { \
-        _current_case = co::make<unitest::Case>("default"); \
+        _current_case.reset(co::make<unitest::Case>("default")); \
     } \
     \
     if (x) { \
@@ -88,7 +88,7 @@ struct Case {
 #define EXPECT_OP(x, y, op, opname) \
 { \
     if (_current_case == NULL) { \
-        _current_case = co::make<unitest::Case>("default"); \
+        _current_case.reset(co::make<unitest::Case>("default")); \
     } \
     \
     auto _U_x = (x); \

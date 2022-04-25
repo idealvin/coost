@@ -1,12 +1,14 @@
 #pragma once
 
 #include "def.h"
+#include "atomic.h"
 #include <assert.h>
 #include <cstddef>
 #include <stdlib.h>
 #include <new>
 #include <utility>
 #include <type_traits>
+#include <memory>
 
 namespace co {
 
@@ -106,16 +108,16 @@ struct stl_allocator {
     stl_allocator(const stl_allocator&) noexcept = default;
     template<class U> stl_allocator(const stl_allocator<U>&) noexcept {}
 
-#if (__cplusplus >= 201703L)  // C++17
+  #if (__cplusplus >= 201703L)  // C++17
     T* allocate(size_type n) {
         return static_cast<T*>(co::fixed_alloc(n * sizeof(T)));
     }
     T* allocate(size_type n, const void*) { return allocate(n); }
-#else
+  #else
     pointer allocate(size_type n, const void* = 0) {
         return static_cast<pointer>(co::fixed_alloc(n * sizeof(value_type)));
     }
-#endif
+  #endif
 
     void deallocate(T* p, size_type n) { co::free(p, n * sizeof(T)); }
 
@@ -145,5 +147,170 @@ template<class T1, class T2>
 inline constexpr bool operator!=(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
     return false;
 }
+
+// manage pointer created by co::make()
+//   - co::unique_ptr<int> x(co::make<int>(7));
+template<typename T>
+class unique_ptr {
+  public:
+    unique_ptr() noexcept : _p(0) {}
+    unique_ptr(std::nullptr_t) noexcept : _p(0) {}
+    explicit unique_ptr(T* p) noexcept : _p(p) {}
+
+    unique_ptr(unique_ptr&& x) noexcept : _p(x._p) {
+        x._p = 0;
+    }
+
+    ~unique_ptr() {
+        static_cast<void>(sizeof(T));
+        co::del(_p);
+    }
+
+    unique_ptr& operator=(unique_ptr&& x) noexcept {
+        if (&x != this) {
+            this->reset(x._p);
+            x._p = 0;
+        }
+        return *this;
+    }
+
+    unique_ptr& operator=(std::nullptr_t) noexcept {
+        this->reset();
+        return *this;
+    }
+
+    T* get() const noexcept { return _p; }
+
+    T* release() noexcept {
+        T* p = _p;
+        _p = 0;
+        return p;
+    }
+
+    void swap(unique_ptr& x) noexcept {
+        T* p = _p;
+        _p = x._p;
+        x._p = p;
+    }
+
+    void swap(unique_ptr&& x) noexcept {
+        x.swap(*this);
+    }
+
+    void reset(T* p = 0) noexcept {
+        if (_p != p) {
+            static_cast<void>(sizeof(T));
+            co::del(_p);
+            _p = p;
+        }
+    }
+
+    T* operator->() const {
+        assert(_p != 0);
+        return _p;
+    }
+
+    T& operator*() const {
+        assert(_p != 0);
+        return *_p;
+    }
+
+    explicit operator bool() const noexcept { return _p != 0; }
+    bool operator==(T* p) const noexcept { return _p == p; }
+    bool operator!=(T* p) const noexcept { return _p != p; }
+
+  private:
+    T* _p;
+    DISALLOW_COPY_AND_ASSIGN(unique_ptr);
+};
+
+// manage shared pointer created by co::make()
+//   - co::shared_ptr<int> x(co::make<int>(7));
+template<typename T>
+class shared_ptr {
+  public:
+    struct _X {
+        _X() : p(0), refn(1) {}
+        explicit _X(T* p) : p(p), refn(1) {}
+        T* p;
+        size_t refn;
+    };
+
+    shared_ptr() : _x(0) {}
+    shared_ptr(std::nullptr_t) : shared_ptr() {}
+    explicit shared_ptr(T* p) : _x(co::make<_X>(p)) { assert(_x); }
+
+    shared_ptr(const shared_ptr& x) noexcept {
+        _x = x._x;
+        if (_x) atomic_inc(&_x->refn, mo_relaxed);
+    }
+
+    shared_ptr(shared_ptr&& x) noexcept {
+        _x = x._x;
+        x._x = 0;
+    }
+
+    ~shared_ptr() {
+        if (_x && atomic_dec(&_x->refn, mo_acq_rel) == 0) {
+            co::del(_x->p);
+            co::del(_x);
+        } 
+    }
+
+    shared_ptr& operator=(const shared_ptr& o) {
+        if (&o != this) shared_ptr<T>(o).swap(*this);
+        return *this;
+    }
+
+    shared_ptr& operator=(shared_ptr&& o) {
+        if (&o != this) shared_ptr<T>(std::move(o)).swap(*this);
+        return *this;
+    }
+
+    T* get() const noexcept { return _x ? _x->p : 0; }
+
+    void swap(shared_ptr& o) noexcept {
+        auto x = _x;
+        _x = o._x;
+        o._x = x;
+    }
+
+    void swap(shared_ptr&& o) noexcept {
+        o.swap(*this);
+    }
+
+    void reset() {
+        if (_x && atomic_dec(&_x->refn, mo_acq_rel) == 0) {
+            co::del(_x->p);
+            co::del(_x);
+        } 
+        _x = NULL;
+    }
+
+    void reset(T* p) {
+        shared_ptr<T>(p).swap(*this);
+    }
+
+    size_t use_count() const noexcept {
+        return _x ? atomic_load(&_x->refn, mo_relaxed) : 0;
+    }
+
+    T* operator->() const {
+        assert(_x && _x->p);
+        return _x->p;
+    }
+
+    T& operator*() const {
+        assert(_x && _x->p);
+        return *(_x->p);
+    }
+
+    explicit operator bool() const noexcept { return this->get() != 0; }
+    bool operator==(T* p) const noexcept { return this->get() == p; }
+    bool operator!=(T* p) const noexcept { return this->get() != p; }
+
+  private:
+    _X* _x;
+};
 
 } // co
