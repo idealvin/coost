@@ -1,9 +1,9 @@
 #pragma once
 
 #include "def.h"
-#include <stdlib.h>
 #include <assert.h>
 #include <cstddef>
+#include <stdlib.h>
 #include <new>
 #include <utility>
 #include <type_traits>
@@ -50,8 +50,13 @@ inline T* make(Args&&... args) {
 // delete the object created by co::make()
 //   delete (T*)p  -->  co::del((T*)p)
 template <typename T>
+inline void del(T* p, size_t n) {
+    if (p) { p->~T(); co::free((void*)p, n); }
+}
+
+template <typename T>
 inline void del(T* p) {
-    if (p) { p->~T(); co::free((void*)p, sizeof(T)); }
+    co::del(p, sizeof(T));
 }
 
 
@@ -67,29 +72,6 @@ struct system_allocator {
     static void* realloc(void* p, size_t, size_t n) {
         return ::realloc(p, n);
     }
-};
-
-struct static_allocator {
-    static void* alloc(size_t n) {
-        return co::static_alloc(n);
-    }
-
-    // we do not need free & realloc for static allocator
-    static void free(void*, size_t) {}
-    static void* realloc(void*, size_t, size_t) { return 0; }
-};
-
-struct fixed_allocator {
-    static void* alloc(size_t size) {
-        return co::fixed_alloc(size);
-    }
-
-    static void free(void* p, size_t size) {
-        return co::free(p, size);
-    }
-
-    // we do not need realloc for fixed-size allocator
-    static void* realloc(void*, size_t, size_t) { return 0; }
 };
 
 struct default_allocator {
