@@ -8,7 +8,6 @@
 #include <new>
 #include <utility>
 #include <type_traits>
-#include <memory>
 
 namespace co {
 
