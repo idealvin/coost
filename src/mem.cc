@@ -794,38 +794,24 @@ void* realloc(void* p, size_t o, size_t n) {
     return xx::thread_alloc()->realloc(p, o, n);
 }
 
+#else
+void* static_alloc(size_t n) { return ::malloc(n); }
+void* fixed_alloc(size_t n) { return ::malloc(n); }
+void* alloc(size_t n) { return ::malloc(n); }
+void free(void* p, size_t) { ::free(p); }
+void* realloc(void* p, size_t, size_t n) { return ::realloc(p, n); }
+#endif
+
 void* zalloc(size_t size) {
     auto p = co::alloc(size);
     if (p) memset(p, 0, size);
     return p;
 }
 
-#else
-void* static_alloc(size_t n) {
-    return ::malloc(n);
-}
-
-void* fixed_alloc(size_t n) {
-    return ::malloc(n);
-}
-
-void* alloc(size_t n) {
-    return ::malloc(n);
-}
-
-void free(void* p, size_t) {
-    ::free(p);
-}
-
-void* realloc(void* p, size_t o, size_t n) {
-    return ::realloc(p, n);
-}
-
-void* zalloc(size_t size) {
-    auto p = ::malloc(size);
+void* fixed_zalloc(size_t size) {
+    auto p = co::fixed_alloc(size);
     if (p) memset(p, 0, size);
     return p;
 }
-#endif
 
 } // co
