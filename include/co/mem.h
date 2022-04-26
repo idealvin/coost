@@ -41,6 +41,9 @@ inline T* static_new(Args&&... args) {
 // alloc memory for fixed-size objects, do not realloc it
 __coapi void* fixed_alloc(size_t size);
 
+// like fixed_alloc(), except that the memory is zero-cleared
+__coapi void* fixed_zalloc(size_t size);
+
 // alloc memory and construct an object on it
 //   new T(args)  -->  co::make<T>(args)
 template <typename T, typename... Args>
