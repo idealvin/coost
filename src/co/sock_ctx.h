@@ -4,7 +4,6 @@
 #include "co/mem.h"
 #include "co/atomic.h"
 #include "co/table.h"
-#include <string.h>
 
 namespace co {
 
@@ -55,7 +54,7 @@ class SockCtx {
         _wev.c = co_id;
     }
 
-    void del_event() { memset(this, 0, sizeof(*this)); }
+    void del_event() { _r64 = 0; _w64 = 0; }
     void del_ev_read()  { _r64 = 0; }
     void del_ev_write() { _w64 = 0; }
 
@@ -124,7 +123,7 @@ class SockCtx {
 #endif
 
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static auto& k_sock_ctx_tb = *co::make<co::table<SockCtx>>(14, 17);
+    static auto& k_sock_ctx_tb = *co::static_new<co::table<SockCtx>>(15, 16);
     return k_sock_ctx_tb[sock];
 }
 
