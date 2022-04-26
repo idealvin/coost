@@ -129,7 +129,7 @@ void SchedulerImpl::loop() {
                     ((SchedulerImpl*)co->s)->add_ready_task(co);
                 }
             } else {
-                ::free(info);
+                co::free(info, info->mlen);
             }
           #elif defined(__linux__)
             int32 rco = 0, wco = 0;
