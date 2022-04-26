@@ -3,7 +3,6 @@
 #include "co/fs.h"
 #include "co/os.h"
 #include "co/str.h"
-#include <map>
 
 DEF_string(help, "", ">>.help info");
 DEF_string(config, "", ">>.path of config file", conf);
@@ -35,8 +34,8 @@ struct Flag {
     void* addr;         // point to the flag variable
 };
 
-inline std::map<fastring, Flag*>& gFlags() {
-    static auto flags = co::static_new<std::map<fastring, Flag*>>();
+inline co::map<fastring, Flag*>& gFlags() {
+    static auto flags = co::static_new<co::map<fastring, Flag*>>();
     return *flags;
 }
 
@@ -304,7 +303,7 @@ fastring format_str(const fastring& s) {
 
 void mkconf(const fastring& exe) {
     // Order flags by lv, file, line.  <lv, <file, <line, flag>>>
-    std::map<int, std::map<fastring, std::map<int, Flag*>>> flags;
+    co::map<int, co::map<fastring, co::map<int, Flag*>>> flags;
     for (auto it = gFlags().begin(); it != gFlags().end(); ++it) {
         Flag* f = it->second;
         if (f->help[0] == '.' || f->help[0] == '\0') continue; // ignore hidden flags.
@@ -352,7 +351,7 @@ void mkconf(const fastring& exe) {
 // @bools:  for -a, -xyz
 // return non-flag elements (etc. hello, -8, -8k, -, --, --- ...)
 co::vector<fastring> analyze(
-    const co::vector<fastring>& args, std::map<fastring, fastring>& kv, co::vector<fastring>& bools
+    const co::vector<fastring>& args, co::map<fastring, fastring>& kv, co::vector<fastring>& bools
 ) {
     co::vector<fastring> res;
 
@@ -458,7 +457,7 @@ co::vector<fastring> parse_command_line_flags(int argc, const char** argv) {
         }
     }
 
-    std::map<fastring, fastring> kv;
+    co::map<fastring, fastring> kv;
     co::vector<fastring> bools;
     co::vector<fastring> v = analyze(args, kv, bools);
 
