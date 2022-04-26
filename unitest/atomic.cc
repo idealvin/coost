@@ -122,6 +122,8 @@ DEF_test(atomic) {
         EXPECT_EQ(atomic_compare_swap(&i8, 1, 0), 1);
         EXPECT_EQ(atomic_compare_swap(&i16, 1, 0), 1);
         EXPECT_EQ(atomic_compare_swap(&i32, 1, 0), 1);
+        EXPECT_EQ(atomic_cas(&i32, 0, 1), 0);
+        EXPECT(atomic_bool_cas(&i32, 1, 0));
         EXPECT_EQ(atomic_compare_swap(&i64, 1, 0), 1);
     }
 

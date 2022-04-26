@@ -230,3 +230,21 @@ inline T atomic_fetch_xor(T* p, V v, memory_order_t mo = mo_seq_cst) {
 }
 
 #endif
+
+// the same as atomic_compare_swap
+// smo: success memory order, all
+// fmo: failure memory order, cannot be mo_release, mo_acq_rel,
+//      and cannot be stronger than smo
+template<typename T, typename O, typename V, _if_match_atomic_t<T> = 0>
+inline T atomic_cas(T* p, O o, V v, memory_order_t smo = mo_seq_cst, memory_order_t fmo = mo_seq_cst) {
+    return atomic_compare_swap(p, o, v, smo, fmo);
+}
+
+// like the atomic_cas, but return true if the swap operation is successful
+// smo: success memory order, all
+// fmo: failure memory order, cannot be mo_release, mo_acq_rel,
+//      and cannot be stronger than smo
+template<typename T, typename O, typename V, _if_match_atomic_t<T> = 0>
+inline bool atomic_bool_cas(T* p, O o, V v, memory_order_t smo = mo_seq_cst, memory_order_t fmo = mo_seq_cst) {
+    return atomic_cas(p, o, v, smo, fmo) == (T)o;
+}
