@@ -15,8 +15,7 @@ class EventImpl {
   private:
     ::Mutex _mtx;
     co::xx::cond_t _cond;
-    co::hash_set<Coroutine*> _co_wait;
-    co::hash_set<Coroutine*> _co_swap;
+    co::hash_set<co::waitx_t*> _co_wait;
     uint32 _counter;
     bool _signaled;
     bool _has_cond;
@@ -30,18 +29,24 @@ bool EventImpl::wait(uint32 ms) {
         {
             ::MutexGuard g(_mtx);
             if (_signaled) { if (_counter == 0) _signaled = false; return true; }
-            co->state = st_wait;
-            _co_wait.insert(co);
+            co->waitx = co::make_waitx(co);
+            _co_wait.insert(co->waitx);
         }
 
         if (ms != (uint32)-1) s->add_timer(ms);
         s->yield();
-        if (s->timeout()) {
-            ::MutexGuard g(_mtx);
-            _co_wait.erase(co);
+        if (!s->timeout()) {
+            co::free(co->waitx, sizeof(co::waitx_t));
+        } else {
+            bool erased;
+            {
+                ::MutexGuard g(_mtx);
+                erased = _co_wait.erase(co->waitx) == 1;
+            }
+            if (erased) co::free(co->waitx, sizeof(co::waitx_t));
         }
 
-        co->state = st_init;
+        co->waitx = nullptr;
         return !s->timeout();
 
     } else { /* not in coroutine */
@@ -65,9 +70,10 @@ bool EventImpl::wait(uint32 ms) {
 }
 
 void EventImpl::signal() {
+    co::hash_set<co::waitx_t*> co_wait;
     {
         ::MutexGuard g(_mtx);
-        if (!_co_wait.empty()) _co_wait.swap(_co_swap);
+        if (!_co_wait.empty()) _co_wait.swap(co_wait);
         if (!_signaled) {
             _signaled = true;
             if (_counter > 0) {
@@ -75,23 +81,24 @@ void EventImpl::signal() {
                 co::xx::cond_notify(&_cond);
             }
         }
-        if (_co_swap.empty()) return;
     }
 
     // Using atomic operation here, as check_timeout() in the Scheduler 
     // may also modify the state.
-    for (auto it = _co_swap.begin(); it != _co_swap.end(); ++it) {
-        Coroutine* co = *it;
-        if (atomic_compare_swap(&co->state, st_wait, st_ready) == st_wait) {
-            ((SchedulerImpl*)co->s)->add_ready_task(co);
+    for (auto it = co_wait.begin(); it != co_wait.end(); ++it) {
+        co::waitx_t* w = *it;
+        // TODO: is mo_relaxed safe here?
+        if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
+            ((SchedulerImpl*)(w->co->s))->add_ready_task(w->co);
+        } else { /* timeout */
+            co::free(w, sizeof(*w));
         }
     }
-    _co_swap.clear();
 }
 
 // memory: |4(refn)|4|EventImpl|
 Event::Event() {
-    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(EventImpl) + 8);
     _p[0] = 1;
     new (_p + 2) EventImpl();
 }
@@ -113,7 +120,7 @@ void Event::signal() const {
 
 // memory: |4(refn)|4(counter)|EventImpl|
 WaitGroup::WaitGroup() {
-    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
     _p[1] = 0; // counter
     new (_p + 2) EventImpl();
@@ -192,7 +199,7 @@ inline void MutexImpl::unlock() {
 
 // memory: |4(refn)|4|MutexImpl|
 Mutex::Mutex() {
-    _p = (uint32*) co::alloc(sizeof(MutexImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(MutexImpl) + 8);
     _p[0] = 1; // refn
     new (_p + 2) MutexImpl();
 }
@@ -221,11 +228,11 @@ class PoolImpl {
     typedef co::vector<void*> V;
 
     PoolImpl()
-        : _pools(co::scheduler_num(), NULL), _maxcap((size_t)-1) {
+        : _pools(co::scheduler_num(), nullptr), _maxcap((size_t)-1) {
     }
 
     PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(co::scheduler_num(), NULL), _maxcap(cap), 
+        : _pools(co::scheduler_num(), nullptr), _maxcap(cap), 
           _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
     }
 
@@ -249,8 +256,8 @@ class PoolImpl {
 inline void* PoolImpl::pop() {
     CHECK(gSched) << "must be called in coroutine..";
     auto& v = _pools[gSched->id()];
-    if (v == NULL) v = co::make<V>(1024);
-    if (v && !v->empty()) {
+    if (!v) { v = co::make<V>(1024); assert(v); }
+    if (!v->empty()) {
         return v->pop_back();
     } else {
         return _ccb ? _ccb() : 0;
@@ -261,7 +268,7 @@ inline void PoolImpl::push(void* p) {
     if (!p) return; // ignore null pointer
     CHECK(gSched) << "must be called in coroutine..";
     auto& v = _pools[gSched->id()];
-    if (v == NULL) v = co::make<V>(1024);
+    if (!v) { v = co::make<V>(1024); assert(v); }
     if (v->size() < _maxcap || !_dcb) {
         v->push_back(p);
     } else {
@@ -280,9 +287,9 @@ void PoolImpl::clear() {
         for (auto& s : scheds) {
             s->go([this, wg]() {
                 auto& v = this->_pools[gSched->id()];
-                if (v != NULL) {
+                if (v) {
                     if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                    co::del(v); v = NULL;
+                    co::del(v); v = nullptr;
                 }
                 wg.done();
             });
@@ -291,9 +298,9 @@ void PoolImpl::clear() {
         wg.wait();
     } else {
         for (auto& v : _pools) {
-            if (v != NULL) {
+            if (v) {
                 if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                co::del(v); v = NULL;
+                co::del(v); v = nullptr;
             }
         }
     }
@@ -307,7 +314,7 @@ inline size_t PoolImpl::size() const {
 
 // memory: |4(refn)|4|PoolImpl|
 Pool::Pool() {
-    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PoolImpl();
 }
@@ -320,7 +327,7 @@ Pool::~Pool() {
 }
 
 Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
@@ -348,7 +355,7 @@ class PipeImpl {
     PipeImpl(uint32 buf_size, uint32 blk_size, uint32 ms)
         : _buf_size(buf_size), _blk_size(blk_size), 
           _rx(0), _wx(0), _ms(ms), _full(false) {
-        _buf = (char*) co::alloc(_buf_size);
+        _buf = (char*) co::fixed_alloc(_buf_size);
     }
 
     ~PipeImpl() {
@@ -361,27 +368,27 @@ class PipeImpl {
     struct waitx {
         co::Coroutine* co;
         union {
-            uint8 state;
+            int state;
             void* dummy;
         };
         void* buf;
-        size_t total_size;
+        size_t len; // total length of the memory
     };
 
     waitx* create_waitx(co::Coroutine* co, void* buf) {
         waitx* w;
         const bool on_stack = gSched->on_stack(buf);
         if (on_stack) {
-            w = (waitx*) co::alloc(sizeof(waitx) + _blk_size);
+            w = (waitx*) co::fixed_alloc(sizeof(waitx) + _blk_size);
             w->buf = (char*)w + sizeof(waitx);
-            w->total_size = sizeof(waitx) + _blk_size;
+            w->len = sizeof(waitx) + _blk_size;
         } else {
-            w = (waitx*) co::alloc(sizeof(waitx));
+            w = (waitx*) co::fixed_alloc(sizeof(waitx));
             w->buf = buf;
-            w->total_size = sizeof(waitx);
+            w->len = sizeof(waitx);
         }
         w->co = co;
-        w->state = st_init;
+        w->state = st_wait;
         return w;
     }
 
@@ -418,14 +425,14 @@ void PipeImpl::read(void* p) {
             _m.unlock();
 
             if (co->s != s) co->s = s;
-            co->waitx = w;
+            co->waitx = (co::waitx_t*)w;
 
             if (_ms != (uint32)-1) s->add_timer(_ms);
             s->yield();
 
             if (!s->timeout()) {
                 if (w->buf != p) memcpy(p, w->buf, _blk_size);
-                co::free(w, w->total_size);
+                co::free(w, w->len);
             }
 
             co->waitx = 0;
@@ -439,7 +446,8 @@ void PipeImpl::read(void* p) {
                 waitx* w = _wq.front(); // wait for write
                 _wq.pop_front();
 
-                if (atomic_compare_swap(&w->state, st_init, st_ready) == st_init) {
+                // TODO: is mo_relaxed safe here?
+                if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                     memcpy(_buf + _wx, w->buf, _blk_size);
                     _wx += _blk_size;
                     if (_wx == _buf_size) _wx = 0;
@@ -449,7 +457,7 @@ void PipeImpl::read(void* p) {
                     return;
 
                 } else { /* timeout */
-                    co::free(w, w->total_size);
+                    co::free(w, w->len);
                 }
             }
 
@@ -479,13 +487,14 @@ void PipeImpl::write(const void* p) {
                 waitx* w = _wq.front(); // wait for read
                 _wq.pop_front();
 
-                if (atomic_compare_swap(&w->state, st_init, st_ready) == st_init) {
+                // TODO: is mo_relaxed safe here?
+                if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                     _m.unlock();
                     memcpy(w->buf, p, _blk_size);
                     ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
                     return;
                 } else { /* timeout */
-                    co::free(w, w->total_size);
+                    co::free(w, w->len);
                 }
             }
 
@@ -503,19 +512,19 @@ void PipeImpl::write(const void* p) {
             _m.unlock();
 
             if (co->s != s) co->s = s;
-            co->waitx = w;
+            co->waitx = (co::waitx_t*)w;
 
             if (_ms != (uint32)-1) s->add_timer(_ms);
             s->yield();
 
-            if (!s->timeout()) co::free(w, w->total_size);
+            if (!s->timeout()) co::free(w, w->len);
             co->waitx = 0;
         }
     }
 }
 
 Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
-    _p = (uint32*) co::alloc(sizeof(PipeImpl) + 8);
+    _p = (uint32*) co::fixed_alloc(sizeof(PipeImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PipeImpl(buf_size, blk_size, ms);
 }

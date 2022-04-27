@@ -62,21 +62,20 @@ typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
  *         st_ready <------------------------ v
  */
 enum co_state_t : uint8 {
-    st_init = 0,     // initial state
-    st_wait = 1,     // wait for an event
-    st_ready = 2,    // ready to resume
-    st_timeout = 4,  // timeout
+    st_wait = 0,     // wait for an event, DO NOT modify the value
+    st_ready = 1,    // ready to resume
+    st_timeout = 2,  // timeout
 };
+
+struct waitx_t;
 
 struct Coroutine {
     Coroutine() { memset(this, 0, sizeof(*this)); }
     ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
 
     uint32 id;         // coroutine id
-    uint8 state;       // coroutine state
-    uint8 sid;         // stack id
-    uint16 _00_;       // reserved
-    void* waitx;       // wait info
+    uint32 sid;        // stack id
+    waitx_t* waitx;    // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
 
     // for saving stack data of this coroutine
@@ -94,8 +93,15 @@ struct Coroutine {
 // header of wait info
 struct waitx_t {
     Coroutine* co;
-    union { uint8 state; void* dummy; };
+    union { int state; void* dummy; };
 };
+
+inline waitx_t* make_waitx(void* co) {
+    waitx_t* w = (waitx_t*) co::fixed_alloc(sizeof(waitx_t)); assert(w);
+    w->co = (Coroutine*)co;
+    w->state = st_wait;
+    return w;
+}
 
 // pool of Coroutine, using index as the coroutine id.
 class Copool {
@@ -112,14 +118,13 @@ class Copool {
     Coroutine* pop() {
         if (!_ids.empty()) {
             auto& co = _tb[_ids.pop_back()];
-            co.state = st_init;
             co.ctx = 0;
             co.stack.clear();
             return &co;
         } else {
             auto& co = _tb[_id];
             co.id = _id++;
-            co.sid = (uint8)(co.id & 7);
+            co.sid = (co.id & 7);
             return &co;
         }
     }

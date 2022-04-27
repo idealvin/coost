@@ -121,7 +121,8 @@ void SchedulerImpl::loop() {
           #if defined(_WIN32)
             auto info = (IoEvent::PerIoInfo*) ((void**)ev.lpOverlapped - 2);
             auto co = (Coroutine*) info->co;
-            if (atomic_compare_swap(&info->state, st_init, st_ready) == st_init) {
+            // TODO: is mo_relaxed safe here?
+            if (atomic_bool_cas(&info->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                 info->n = ev.dwNumberOfBytesTransferred;
                 if (co->s == this) {
                     this->resume(co);
@@ -195,12 +196,11 @@ uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
         Coroutine* co = it->second;
         if (co->it != _timer.end()) co->it = _timer.end();
         if (!co->waitx) {
-            if (co->state == st_init || atomic_swap(&co->state, st_init, mo_acq_rel) == st_wait) {
-                res.push_back(co);
-            }
+            res.push_back(co);
         } else {
-            auto waitx = (co::waitx_t*) co->waitx;
-            if (atomic_compare_swap(&waitx->state, st_init, st_timeout) == st_init) {
+            auto w = (co::waitx_t*) co->waitx;
+            // TODO: is mo_relaxed safe here?
+            if (atomic_bool_cas(&w->state, st_wait, st_timeout, mo_relaxed, mo_relaxed)) {
                 res.push_back(co);
             }
         }

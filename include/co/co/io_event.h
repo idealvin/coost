@@ -24,9 +24,9 @@ class __coapi IoEvent {
   public:
     struct PerIoInfo {
         // co::waitx_t:  {co, state}
-        void* co;        // Coroutine
+        void* co;      // Coroutine
         union {
-            uint8 state; // co_state_t
+            int state; // co_state_t
             void* dummy;
         };
 

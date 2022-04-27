@@ -14,7 +14,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev)
     assert(_info);
     _info->mlen = sizeof(PerIoInfo);
     _info->co = (void*) s->running();
-    s->running()->waitx = _info;
+    s->running()->waitx = (co::waitx_t*)_info;
 }
 
 IoEvent::IoEvent(sock_t fd, int n)
@@ -25,7 +25,7 @@ IoEvent::IoEvent(sock_t fd, int n)
     assert(_info);
     _info->mlen = sizeof(PerIoInfo) + n;
     _info->co = (void*) s->running();
-    s->running()->waitx = _info;
+    s->running()->waitx = (co::waitx_t*)_info;
 }
 
 IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
@@ -53,7 +53,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
             memcpy(_info->buf.buf, buf, size);
         }
     }
-    s->running()->waitx = _info;
+    s->running()->waitx = (co::waitx_t*)_info;
 }
 
 IoEvent::~IoEvent() {
