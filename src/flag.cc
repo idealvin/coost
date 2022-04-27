@@ -579,8 +579,12 @@ void parse_config(const fastring& config) {
 
         fastring err = set_flag_value(flg, val);
         if (!err.empty()) {
-            cout << err << ", at " << config << ':' << (lineno + 1) << endl;
-            exit(0);
+            if (!err.starts_with("flag not defined")) {
+                cout << err << ", at " << config << ':' << (lineno + 1) << endl;
+                exit(0);
+            } else {
+                cout << "WARNING: " << err << ", at " << config << ':' << (lineno + 1) << endl;
+            }
         }
     }
 }
