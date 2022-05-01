@@ -95,7 +95,7 @@ class LogTime {
 class LogFile {
   public:
     LogFile()
-        : _file(255), _path(256), _path_base(256),
+        : _file(256), _path(256), _path_base(256),
           _day(0), _checked(false) {
         _file.open("", 'a');
     }
@@ -172,25 +172,25 @@ class Logger {
 
   private:
     struct LevelLog {
-        LevelLog() : counter(0), bytes(0), write_cb(NULL), write_flags(0) {}
+        LevelLog() : bytes(0), counter(0), write_cb(NULL), write_flags(0) {}
         ::Mutex mtx;
         fastream buf;      // logs will be pushed to this buffer
         fastream logs;     // to swap out logs in buf
         char time_str[24]; // "0723 17:00:00.123"
-        uint32 counter;
-        uint32 bytes;
+        size_t bytes;
+        size_t counter;
         std::function<void(const void*, size_t)> write_cb;
         int write_flags;
     };
 
     struct PerTopic {
-        PerTopic() : buf(N), logs(N), file(), topic(0), counter(0), bytes(0) {}
+        PerTopic() : buf(N), logs(N), file(), topic(0), bytes(0), counter(0) {}
         fastream buf;
         fastream logs;
         LogFile file;
         const char* topic;
-        uint32 counter; // write times
-        uint32 bytes;   // write bytes
+        size_t bytes;   // write bytes
+        size_t counter; // write times
     };
 
     typedef const char* Key;
@@ -223,7 +223,6 @@ class Logger {
     Thread* _log_thread;
     int _stop; // 0: init, 1: stopping, 2: logging thread stopped, 3: final
 };
-
 
 Global::Global()
     : check_failed(false), logger(NULL) {
@@ -299,7 +298,7 @@ void Logger::stop(bool signal_safe) {
             }
         }
 
-        // it may be not safe if logs are still being pushed to _log_buf, 
+        // it may be not safe if logs are still being pushed to the buffer 
         !signal_safe ? _llog.mtx.lock() : signal_safe_sleep(1);
         if (!_llog.buf.empty()) {
             _llog.buf.swap(_llog.logs);
@@ -407,6 +406,18 @@ void Logger::write_logs(const char* p, size_t n, LogTime* t) {
 
     // log to stderr
     if (FLG_cout) fwrite(p, 1, n, stderr);
+
+    _llog.bytes += n;
+    if (++_llog.counter == 32) {
+        const size_t avg = _llog.bytes >> 5;
+        const size_t cap = _llog.logs.capacity();
+        if ((cap > N * 8) && (cap > avg * 4)) {
+            _llog.logs.reset();
+            _llog.logs.reserve(avg < (N >> 1) ? N : (avg << 1));
+        }
+        _llog.bytes = 0;
+        _llog.counter = 0;
+    }
 }
 
 void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
@@ -437,6 +448,18 @@ void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
         }
 
         if (FLG_cout) fwrite(pt->logs.data(), 1, pt->logs.size(), stderr);
+
+        pt->bytes += pt->logs.size();
+        if (++pt->counter == 32) {
+            const size_t avg = pt->bytes >> 5;
+            const size_t cap = pt->logs.capacity();
+            if ((cap > N * 8) && (cap > avg * 4)) {
+                pt->logs.reset();
+                pt->logs.reserve(avg < (N >> 1) ? N : (avg << 1));
+            }
+            pt->bytes = 0;
+            pt->counter = 0;
+        }
         pt->logs.clear();
     }
 }
@@ -502,7 +525,6 @@ void Logger::push(const char* topic, char* s, size_t n) {
             if (buf.size() > (buf.capacity() >> 1)) _log_event.signal();
         }
     }
-
 }
 
 void Logger::push_fatal_log(char* s, size_t n) {
