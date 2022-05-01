@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
         ELOG << "This is ELOG (error).. " << 23;
         //FLOG << "This is FLOG (fatal).. " << 23;
         LOG << "hello " << nested_log() << "  " << nested_log();
+        TLOG("co") << "hello co";
+        TLOG("bob") << "hello bob";
     }
 
     return 0;

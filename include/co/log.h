@@ -23,7 +23,7 @@ enum {
 };
 
 /**
- * set a callback for writing logs
+ * set a callback for writing level logs
  *   - By default, logs will be written into a local file. Users can set a callback to 
  *     write logs to different destinations.
  * 
@@ -34,6 +34,14 @@ enum {
  *               - log::log2local: also log to local file
  */
 __coapi void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags=0);
+
+/**
+ * set a callback for writing TLOGs
+ *   - Like the above version, but the callback takes 3 params, and the first param
+ *     is the topic:
+ *     void callback(const char* topic, const void* data, size_t size);
+ */
+__coapi void set_write_cb(const std::function<void(const char*, const void*, size_t)>& cb, int flags=0);
 
 namespace xx {
 
@@ -68,11 +76,29 @@ class __coapi FatalLogSaver {
     fastream& _s;
 };
 
+class __coapi TLogSaver {
+  public:
+    TLogSaver(const char* file, int len, unsigned int line, const char* topic);
+    ~TLogSaver();
+
+    fastream& stream() const { return _s; }
+
+  private:
+    fastream& _s;
+    size_t _n;
+    const char* _topic;
+};
+
 } // namespace xx
 } // namespace log
 } // namespace ___
 
 using namespace ___;
+
+// TLOG are logs grouped by the topic.
+// TLOG("xxx") << "hello xxx" << 23;
+#define TLOG(topic) log::xx::TLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__, topic).stream()
+#define TLOG_IF(topic, cond) if (cond) TLOG(topic)
 
 // DLOG  ->  debug log
 // LOG   ->  info log

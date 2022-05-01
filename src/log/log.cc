@@ -27,7 +27,6 @@ DEF_uint32(max_log_file_num, 8, ">>#0 max number of log files");
 DEF_uint32(max_log_buffer_size, 32 << 20, ">>#0 max size of log buffer, default: 32MB");
 DEF_uint32(log_flush_ms, 128, ">>#0 flush the log buffer every n ms");
 DEF_bool(cout, false, ">>#0 also logging to terminal");
-DEF_bool(syslog, false, ">>#0 add syslog header to each log if true");
 DEF_bool(log_daily, false, ">>#0 if true, enable daily log rotation");
 DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz");
 
@@ -38,7 +37,7 @@ namespace xx {
 class LogTime;
 class LogFile;
 class FailureHandler;
-class LevelLogger;
+class Logger;
 
 // collection of global variables or objects
 struct Global {
@@ -47,10 +46,11 @@ struct Global {
 
     bool check_failed;
     fastring* s; // cache
+    fastring* exename;
     LogTime* log_time;
     LogFile* log_file;
     FailureHandler* failure_handler;
-    LevelLogger* level_logger;
+    Logger* logger;
 };
 
 inline Global& global() {
@@ -96,15 +96,16 @@ class LogFile {
   public:
     LogFile()
         : _file(255), _path(256), _path_base(256),
-          _exename(os::exename()), _day(0), _checked(false) {
+          _day(0), _checked(false) {
         _file.open("", 'a');
     }
 
-    fs::file& open(int level=0);
-    void write(const char* p, size_t n);
+    fs::file& open(const char* topic, int level, LogTime* t);
+    void write(const char* p, size_t n, LogTime* t);
+    void write(const char* topic, const char* p, size_t n, LogTime* t);
 
   private:
-    bool check_config(bool signal_safe);
+    bool check_config(const char* topic, int level, LogTime* t);
     uint32 day_in_path(const fastring& path);
     void compress_file(const fastring& path);
 
@@ -112,7 +113,6 @@ class LogFile {
     fs::file _file;
     fastring _path;
     fastring _path_base; // prefix of the log path: log_dir/log_file_name 
-    fastring _exename;   // use exename as log_file_name by default
     co::deque<fastring> _old_paths; // paths of old log files
     uint32 _day;
     bool _checked;
@@ -145,69 +145,129 @@ class FailureHandler {
   #endif
 };
 
-class LevelLogger {
+class Logger {
   public:
-    LevelLogger() : _log_event(true, false), _log_thread(0), _stop(0), _write_flags(0) {}
-    ~LevelLogger() = delete;
+    static const uint32 N = 128 * 1024;
+    static const int A = 8; // array size
+
+    Logger() : _log_event(true, false), _log_thread(0), _stop(0) {}
+    ~Logger() = delete;
 
     bool start();
     void stop(bool signal_safe=false);
 
     void push(char* s, size_t n);
+    void push(const char* topic, char* s, size_t n);
     void push_fatal_log(char* s, size_t n);
 
     void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {
-        _write_cb = cb;
-        _write_flags = flags;
+        _llog.write_cb = cb;
+        _llog.write_flags = flags;
+    }
+
+    void set_write_cb(const std::function<void(const char*, const void*, size_t)>& cb, int flags) {
+        _tlog.write_cb = cb;
+        _tlog.write_flags = flags;
     }
 
   private:
-    void write_logs(const char* p, size_t n);
+    struct LevelLog {
+        LevelLog() : counter(0), bytes(0), write_cb(NULL), write_flags(0) {}
+        ::Mutex mtx;
+        fastream buf;      // logs will be pushed to this buffer
+        fastream logs;     // to swap out logs in buf
+        char time_str[24]; // "0723 17:00:00.123"
+        uint32 counter;
+        uint32 bytes;
+        std::function<void(const void*, size_t)> write_cb;
+        int write_flags;
+    };
+
+    struct PerTopic {
+        PerTopic() : buf(N), logs(N), file(), topic(0), counter(0), bytes(0) {}
+        fastream buf;
+        fastream logs;
+        LogFile file;
+        const char* topic;
+        uint32 counter; // write times
+        uint32 bytes;   // write bytes
+    };
+
+    typedef const char* Key;
+    struct Eq {
+        bool operator()(Key x, Key y) const { return x == y || strcmp(x, y) == 0; }
+    };
+    typedef co::hash_map<Key, PerTopic, std::hash<Key>, Eq> LogMap;
+
+    struct TLog {
+        TLog() : pts(8), write_cb(NULL), write_flags(0) {}
+        struct {
+            ::Mutex mtx;
+            LogMap mp; // <topic, PerTopic>
+            LogTime log_time;
+            char time_str[24];
+        } v[A];
+        co::vector<PerTopic*> pts;
+        std::function<void(const char*, const void*, size_t)> write_cb;
+        int write_flags;
+    };
+
+    void write_logs(const char* p, size_t n, LogTime* t);
+    void write_tlogs(co::vector<PerTopic*>& v, LogTime* t);
     void thread_fun();
 
   private:
-    ::Mutex _log_mutex;
+    LevelLog _llog;
+    TLog _tlog;
     SyncEvent _log_event;
     Thread* _log_thread;
-    fastream _log_buf;  // logs will be pushed to this buffer
-    fastream _logs;     // to swap out logs in _log_buf
-    char _log_time[24]; // "0723 17:00:00.123"
-    int _stop;          // 0: init, 1: stopping, 2: logging thread stopped, 3: final
-    int _write_flags;   // flags for the write callback
-    std::function<void(const void*, size_t)> _write_cb; // user callback for writing logs
+    int _stop; // 0: init, 1: stopping, 2: logging thread stopped, 3: final
 };
 
+
 Global::Global()
-    : check_failed(false), level_logger(NULL) {
+    : check_failed(false), logger(NULL) {
   #ifndef _WIN32
     if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
     if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
   #endif
     s = co::static_new<fastring>(4096);
+    exename = co::static_new<fastring>(os::exename());
     log_time = co::static_new<LogTime>();
     log_file = co::static_new<LogFile>();
     failure_handler = co::static_new<FailureHandler>();
-    level_logger = co::static_new<LevelLogger>();
+    logger = co::static_new<Logger>();
 }
 
 Cleanup::~Cleanup() {
-    global().level_logger->stop();
+    global().logger->stop();
 }
 
-bool LevelLogger::start() {
-    // check config, ensure max_log_buffer_size >= 1M, max_log_size >= 256 
-    auto& bs = FLG_max_log_buffer_size;
-    auto& ls = FLG_max_log_size;
-    if (bs < (1 << 20)) bs = (1 << 20);
-    if (ls < 256) ls = 256;
-    if ((uint32)ls > (bs >> 2)) ls = (int32)(bs >> 2);
+bool Logger::start() {
+    // check config, ensure max_log_buffer_size >= 1M, max_log_size >= 256
+    static bool x = []() {
+        auto& bs = FLG_max_log_buffer_size;
+        auto& ls = FLG_max_log_size;
+        if (bs < (1 << 20)) bs = 1 << 20;
+        if (ls < 256) ls = 256;
+        if ((uint32)ls > (bs >> 2)) ls = (int32)(bs >> 2);
+        return true;
+    }();
 
-    global().log_time->update();
-    memcpy(_log_time, global().log_time->get(), 24);
-
-    _log_buf.reserve(1 << 20);
-    _logs.reserve(1 << 20);
-    _log_thread = co::static_new<Thread>(&LevelLogger::thread_fun, this);
+    if (atomic_bool_cas(&_log_thread, (void*)0, (void*)8)) {
+        global().log_time->update();
+        memcpy(_llog.time_str, global().log_time->get(), 24);
+        _llog.buf.reserve(N);
+        _llog.buf.reserve(N);
+        for (int i = 0; i < A; ++i) {
+            memcpy(_tlog.v[i].time_str, global().log_time->get(), 24);
+        }
+        atomic_store(&_log_thread, co::static_new<Thread>(&Logger::thread_fun, this));
+    } else {
+        while (atomic_load(&_log_thread, mo_relaxed) == (Thread*)8) {
+            sleep::ms(1);
+        }
+    }
     return true;
 }
 
@@ -222,81 +282,112 @@ void signal_safe_sleep(int ms) {
   #endif
 }
 
-void LevelLogger::stop(bool signal_safe) {
+// if signal_safe is true, try to call only async-signal-safe api in this function 
+// according to:  http://man7.org/linux/man-pages/man7/signal-safety.7.html
+void Logger::stop(bool signal_safe) {
     auto x = atomic_compare_swap(&_stop, 0, 1);
-
-    if (!signal_safe) {
-        if (x == 0) {
-            _log_event.signal();
-            if (_log_thread != NULL) _log_thread->join();
-
-            ::MutexGuard g(_log_mutex);
-            if (!_log_buf.empty()) {
-                this->write_logs(_log_buf.data(), _log_buf.size());
-                _log_buf.clear();
+    if (x == 0) {
+        if (!signal_safe) {
+            if (_log_thread) {
+                _log_event.signal();
+                _log_thread->join();
             }
-
-            atomic_swap(&_stop, 3);
         } else {
-            while (_stop != 3) sleep::ms(1);
-        }
-
-    } else {
-        // Try to call only async-signal-safe api in this function according to:
-        //   http://man7.org/linux/man-pages/man7/signal-safety.7.html
-        if (x == 0) {
             // wait until the logging thread stopped
-            if (_log_thread != NULL) {
+            if (_log_thread) {
                 while (_stop != 2) signal_safe_sleep(1);
             }
-
-            // it may be not safe if logs are still being pushed to _log_buf, 
-            // sleep 1 ms here
-            signal_safe_sleep(1);
-            if (!_log_buf.empty()) {
-                this->write_logs(_log_buf.data(), _log_buf.size());
-                _log_buf.clear();
-            }
-
-            atomic_swap(&_stop, 3);
-        } else {
-            while (_stop != 3) signal_safe_sleep(1);
         }
+
+        // it may be not safe if logs are still being pushed to _log_buf, 
+        !signal_safe ? _llog.mtx.lock() : signal_safe_sleep(1);
+        if (!_llog.buf.empty()) {
+            _llog.buf.swap(_llog.logs);
+            this->write_logs(_llog.logs.data(), _llog.logs.size(), global().log_time);
+            _llog.logs.clear();
+        }
+        if (!signal_safe) _llog.mtx.unlock();
+
+        for (int i = 0; i < A; ++i) {
+            auto& v = _tlog.v[i];
+            if (!signal_safe) v.mtx.lock();
+            for (auto it = v.mp.begin(); it != v.mp.end(); ++it) {
+                auto pt = &it->second;
+                if (!pt->buf.empty()) {
+                    pt->buf.swap(pt->logs);
+                    if (!pt->topic) pt->topic = it->first;
+                    _tlog.pts.push_back(pt);
+                }
+            }
+            
+            if (!_tlog.pts.empty()) {
+                this->write_tlogs(_tlog.pts, &v.log_time);
+                _tlog.pts.clear();
+            }
+            if (!signal_safe) v.mtx.unlock();
+        }
+
+        atomic_swap(&_stop, 3);
+    } else {
+        while (_stop != 3) signal_safe_sleep(1);
     }
 }
 
-void LevelLogger::thread_fun() {
+void Logger::thread_fun() {
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
 
         global().log_time->update();
         {
-            ::MutexGuard g(_log_mutex);
-            memcpy(_log_time, global().log_time->get(), LogTime::t_len);
-            if (!_log_buf.empty()) _log_buf.swap(_logs);
-            if (signaled) _log_event.reset();
+            ::MutexGuard g(_llog.mtx);
+            memcpy(_llog.time_str, global().log_time->get(), LogTime::t_len);
+            if (!_llog.buf.empty()) _llog.buf.swap(_llog.logs);
         }
 
-        if (!_logs.empty()) {
-            this->write_logs(_logs.data(), _logs.size());
-            _logs.clear();
+        if (!_llog.logs.empty()) {
+            this->write_logs(_llog.logs.data(), _llog.logs.size(), global().log_time);
+            _llog.logs.clear();
         }
+
+        for (int i = 0; i < A; ++i) {
+            auto& v = _tlog.v[i];
+            v.log_time.update();
+            {
+                ::MutexGuard g(v.mtx);
+                memcpy(v.time_str, v.log_time.get(), LogTime::t_len);
+                for (auto it = v.mp.begin(); it != v.mp.end(); ++it) {
+                    PerTopic* pt = &it->second;
+                    if (!pt->buf.empty()) {
+                        pt->buf.swap(pt->logs);
+                        if (!pt->topic) pt->topic = it->first;
+                        _tlog.pts.push_back(pt);
+                    }
+                }
+            }
+
+            if (!_tlog.pts.empty()) {
+                this->write_tlogs(_tlog.pts, &v.log_time);
+                _tlog.pts.clear();
+            }
+        }
+
+        if (signaled) _log_event.reset();
     }
 
     atomic_swap(&_stop, 2);
 }
 
-void LevelLogger::write_logs(const char* p, size_t n) {
+void Logger::write_logs(const char* p, size_t n, LogTime* t) {
     // log to local file
-    if (!_write_cb || (_write_flags & log::log2local)) {
-        global().log_file->write(p, n);
+    if (!_llog.write_cb || (_llog.write_flags & log::log2local)) {
+        global().log_file->write(p, n, t);
     }
 
     // write logs through the write callback
-    if (_write_cb) {
-        if (!(_write_flags & log::splitlogs)) { /* write all logs once */
-            _write_cb(p, n);
+    if (_llog.write_cb) {
+        if (!(_llog.write_flags & log::splitlogs)) { /* write all logs once */
+            _llog.write_cb(p, n);
         } else { /* split logs and write one by one */
             const char* b = p;
             const char* e = b + n;
@@ -304,10 +395,10 @@ void LevelLogger::write_logs(const char* p, size_t n) {
             while (b < e) {
                 s = (const char*) memchr(b, '\n', e - b);
                 if (s) {
-                    _write_cb(b, s - b + 1);
+                    _llog.write_cb(b, s - b + 1);
                     b = s + 1;
                 } else {
-                    _write_cb(b, e - b);
+                    _llog.write_cb(b, e - b);
                     break;
                 }
             }
@@ -318,7 +409,39 @@ void LevelLogger::write_logs(const char* p, size_t n) {
     if (FLG_cout) fwrite(p, 1, n, stderr);
 }
 
-void LevelLogger::push(char* s, size_t n) {
+void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
+    for (size_t i = 0; i < v.size(); ++i) {
+        auto pt = v[i];
+        if (!_tlog.write_cb || (_tlog.write_flags & log::log2local)) {
+            pt->file.write(pt->topic, pt->logs.data(), pt->logs.size(), t);
+        }
+
+        if (_tlog.write_cb) {
+            if (!(_tlog.write_flags & log::splitlogs)) {
+                _tlog.write_cb(pt->topic, pt->logs.data(), pt->logs.size());
+            } else {
+                const char* b = pt->logs.data();
+                const char* e = b + pt->logs.size();
+                const char* s;
+                while (b < e) {
+                    s = (const char*) memchr(b, '\n', e - b);
+                    if (s) {
+                        _tlog.write_cb(pt->topic, b, s - b + 1);
+                        b = s + 1;
+                    } else {
+                        _tlog.write_cb(pt->topic, b, e - b);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (FLG_cout) fwrite(pt->logs.data(), 1, pt->logs.size(), stderr);
+        pt->logs.clear();
+    }
+}
+
+void Logger::push(char* s, size_t n) {
     static bool ks = this->start();
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
@@ -330,30 +453,66 @@ void LevelLogger::push(char* s, size_t n) {
             p[3] = '\n';
         }
         {
-            ::MutexGuard g(_log_mutex);
-            memcpy(*s != '<' ? s + 1 : s + 5, _log_time, LogTime::t_len); // log time
+            ::MutexGuard g(_llog.mtx);
+            memcpy(s + 1, _llog.time_str, LogTime::t_len); // log time
 
-            if (unlikely(_log_buf.size() + n >= FLG_max_log_buffer_size)) {
-                const char* p = strchr(_log_buf.data() + (_log_buf.size() >> 1) + 7, '\n');
-                const size_t len = _log_buf.data() + _log_buf.size() - p - 1;
-                memcpy((char*)(_log_buf.data()), "......\n", 7);
-                memcpy((char*)(_log_buf.data()) + 7, p + 1, len);
-                _log_buf.resize(len + 7);
+            auto& buf = _llog.buf;
+            if (unlikely(buf.size() + n >= FLG_max_log_buffer_size)) {
+                const char* p = strchr(buf.data() + (buf.size() >> 1) + 7, '\n');
+                const size_t len = buf.data() + buf.size() - p - 1;
+                memcpy((char*)(buf.data()), "......\n", 7);
+                memcpy((char*)(buf.data()) + 7, p + 1, len);
+                buf.resize(len + 7);
             }
 
-            _log_buf.append(s, n);
-            if (_log_buf.size() > (_log_buf.capacity() >> 1)) _log_event.signal();
+            buf.append(s, n);
+            if (buf.size() > (buf.capacity() >> 1)) _log_event.signal();
         }
     }
 }
 
-void LevelLogger::push_fatal_log(char* s, size_t n) {
-    this->stop();
-    memcpy(*s != '<' ? s + 1 : s + 5, global().log_time->get(), LogTime::t_len);
+void Logger::push(const char* topic, char* s, size_t n) {
+    static bool ks = this->start();
+    if (!_stop) {
+        if (unlikely(n > (uint32)FLG_max_log_size)) {
+            n = FLG_max_log_size;
+            char* const p = s + n - 4;
+            p[0] = '.';
+            p[1] = '.';
+            p[2] = '.';
+            p[3] = '\n';
+        }
 
-    this->write_logs(s, n);
+        auto& v = _tlog.v[murmur_hash(topic, strlen(topic)) & (A - 1)];
+        {
+            ::MutexGuard g(v.mtx);
+            memcpy(s, v.time_str, LogTime::t_len);
+
+            auto& x = v.mp[topic];
+            auto& buf = x.buf;
+            if (unlikely(buf.size() + n >= FLG_max_log_buffer_size)) {
+                const char* p = strchr(buf.data() + (buf.size() >> 1) + 7, '\n');
+                const size_t len = buf.data() + buf.size() - p - 1;
+                memcpy((char*)(buf.data()), "......\n", 7);
+                memcpy((char*)(buf.data()) + 7, p + 1, len);
+                buf.resize(len + 7);
+            }
+
+            buf.append(s, n);
+            if (buf.size() > (buf.capacity() >> 1)) _log_event.signal();
+        }
+    }
+
+}
+
+void Logger::push_fatal_log(char* s, size_t n) {
+    this->stop();
+    LogTime* const t = global().log_time;
+    memcpy(s + 1, t->get(), LogTime::t_len);
+
+    this->write_logs(s, n, t);
     if (!FLG_cout) fwrite(s, 1, n, stderr);
-    if (global().log_file->open(fatal)) global().log_file->write(s, n);
+    if (global().log_file->open(NULL, fatal, t)) global().log_file->write(s, n, t);
 
     atomic_swap(&global().check_failed, true);
     abort();
@@ -382,7 +541,7 @@ inline void LogFile::compress_file(const fastring& path) {
     os::system(cmd);
 }
 
-bool LogFile::check_config (bool signal_safe) {
+bool LogFile::check_config(const char* topic, int level, LogTime* t) {
     auto& s = *global().s;
 
     // log dir, backslash to slash
@@ -393,7 +552,7 @@ bool LogFile::check_config (bool signal_safe) {
     // log file name, use process name by default
     s.clear();
     if (FLG_log_file_name.empty()) {
-        s.append(_exename);
+        s.append(*global().exename);
     } else {
         s.append(FLG_log_file_name);
         s.remove_tail(".log");
@@ -401,10 +560,16 @@ bool LogFile::check_config (bool signal_safe) {
     s.remove_tail(".exe");
 
     // prefix of log file path
-    _path_base << FLG_log_dir << '/' << s;
+    _path_base << FLG_log_dir;
+    if (!_path_base.empty() && _path_base.back() != '/') _path_base << '/';
+    if (topic) {
+        _path_base << topic << '/' << s << '_' << topic;
+    } else {
+        _path_base << s;
+    }
 
     // read paths of old log files
-    if (!signal_safe) {
+    if (level != xx::fatal) {
         s.clear();
         s.append(_path_base).append("_old.log");
         fs::file f(s.c_str(), 'r');
@@ -414,23 +579,30 @@ bool LogFile::check_config (bool signal_safe) {
         }
     }
 
-    _day = global().log_time->day();
+    _day = t->day();
     return true;
 }
 
-fs::file& LogFile::open(int level) {
+fs::file& LogFile::open(const char* topic, int level, LogTime* t) {
     if (!_checked) {
-        this->check_config(level == fatal);
+        this->check_config(topic, level, t);
         _checked = true;
     }
 
     auto& g = global();
-    auto& s = *g.s;
+    auto& s = *g.s; s.clear();
 
-    if (!fs::exists(FLG_log_dir)) fs::mkdir((char*)FLG_log_dir.c_str(), true);
+    if (!topic) {
+        if (!fs::exists(FLG_log_dir)) fs::mkdir((char*)FLG_log_dir.c_str(), true);
+    } else {
+        s << FLG_log_dir;
+        if (!s.empty() && s.back() != '/') s << '/';
+        s << topic;
+        if (!fs::exists(s)) fs::mkdir((char*)s.c_str(), true);
+    }
+
     _path.clear();
-
-    if (level < xx::fatal) {
+    if (level != xx::fatal) {
         _path.append(_path_base).append(".log");
 
         bool new_file = !fs::exists(_path);
@@ -449,14 +621,14 @@ fs::file& LogFile::open(int level) {
         }
       
         if (_file.open(_path.c_str(), 'a') && new_file) {
-            char t[24] = { 0 }; // 0723 17:00:00.123
-            memcpy(t, g.log_time->get(), LogTime::t_len);
+            char x[24] = { 0 }; // 0723 17:00:00.123
+            memcpy(x, t->get(), LogTime::t_len);
             for (int i = 0; i < LogTime::t_len; ++i) {
-                if (t[i] == ' ' || t[i] == ':') t[i] = '_';
+                if (x[i] == ' ' || x[i] == ':') x[i] = '_';
             }
 
             s.clear();
-            s.append(_path_base).append('_').append(t).append(".log");
+            s << _path_base << '_' << x << ".log";
             _old_paths.push_back(s);
 
             while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
@@ -488,13 +660,26 @@ fs::file& LogFile::open(int level) {
     return _file;
 }
 
-void LogFile::write(const char* p, size_t n) {
+void LogFile::write(const char* p, size_t n, LogTime* t) {
     if (FLG_log_daily) {
-        const uint32 day = global().log_time->day();
+        const uint32 day = t->day();
         if (_day != day) { _day = day; _file.close(); }
     }
 
-    if (_file || this->open()) {
+    if (_file || this->open(NULL, 0, t)) {
+        _file.write(p, n);
+        const uint64 size = _file.size(); // -1 if not exists
+        if (size >= (uint64)FLG_max_log_file_size) _file.close();
+    }
+}
+
+void LogFile::write(const char* topic, const char* p, size_t n, LogTime* t) {
+    if (FLG_log_daily) {
+        const uint32 day = t->day();
+        if (_day != day) { _day = day; _file.close(); }
+    }
+
+    if (_file || this->open(topic, 0, t)) {
         _file.write(p, n);
         const uint64 size = _file.size(); // -1 if not exists
         if (size >= (uint64)FLG_max_log_file_size) _file.close();
@@ -541,19 +726,18 @@ FailureHandler::~FailureHandler() {
 }
 
 void FailureHandler::on_signal(int sig) {
-    if (global().level_logger) global().level_logger->stop(true);
+    if (global().logger) global().logger->stop(true);
     os::signal(sig, _old_handlers[sig]);
     raise(sig);
 }
 
 void FailureHandler::on_failure(int sig) {
     auto& g = global();
-    if (g.level_logger) g.level_logger->stop(true);
+    if (g.logger) g.logger->stop(true);
 
-    auto& f = g.log_file->open(fatal);
+    auto& f = g.log_file->open(NULL, fatal, g.log_time);
     auto& s = *g.s; s.clear();
     if (!g.check_failed) {
-        if (FLG_syslog) s << "<10>";
         s << 'F' << g.log_time->get() << "] ";
     }
 
@@ -650,10 +834,9 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    if (g.level_logger) g.level_logger->stop();
-    auto& f = g.log_file->open(fatal);
+    if (g.logger) g.logger->stop();
+    auto& f = g.log_file->open(NULL, fatal, g.log_time);
     auto& s = *g.s; s.clear();
-    if (FLG_syslog) s << "<10>";
     s << 'F' << g.log_time->get() << "] " << err << '\n';
     if (f) f.write(s);
     log2stderr(s.data(), s.size());
@@ -746,48 +929,54 @@ inline fastream& log_stream() {
 LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int level)
     : _s(log_stream()) {
     _n = _s.size();
-    if (!FLG_syslog) {
-        _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
-        _s[_n] = "DIWE"[level];
-    } else {
-        _s.resize(_n + (LogTime::t_len + 5)); // make room for: "<1x>I0523 17:00:00.123"
-        static const char* kHeader[] = { "<15>D", "<14>I", "<12>W", "<11>E" };
-        memcpy((char*)_s.data() + _n, kHeader[level], 5);
-    }
+    _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
+    _s[_n] = "DIWE"[level];
     (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
 }
 
 LevelLogSaver::~LevelLogSaver() {
     _s << '\n';
-    global().level_logger->push((char*)_s.data() + _n, _s.size() - _n);
+    global().logger->push((char*)_s.data() + _n, _s.size() - _n);
     _s.resize(_n);
 }
 
 FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
     : _s(log_stream()) {
-    if (!FLG_syslog) {
-        _s.resize(LogTime::t_len + 1);
-        _s.front() = 'F';
-    } else {
-        _s.resize(LogTime::t_len + 5);
-        memcpy((char*)_s.data(), "<10>F", 5);
-    }
+    _s.resize(LogTime::t_len + 1);
+    _s.front() = 'F';
     (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
 }
 
 FatalLogSaver::~FatalLogSaver() {
     _s << '\n';
-    global().level_logger->push_fatal_log((char*)_s.data(), _s.size());
+    global().logger->push_fatal_log((char*)_s.data(), _s.size());
+}
+
+TLogSaver::TLogSaver(const char* file, int len, unsigned int line, const char* topic)
+    : _s(log_stream()), _topic(topic) {
+    _n = _s.size();
+    _s.resize(_n + (LogTime::t_len)); // make room for: "0523 17:00:00.123"
+    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+}
+
+TLogSaver::~TLogSaver() {
+    _s << '\n';
+    global().logger->push(_topic, (char*)_s.data() + _n, _s.size() - _n);
+    _s.resize(_n);
 }
 
 } // namespace xx
 
 void exit() {
-    xx::global().level_logger->stop();
+    xx::global().logger->stop();
 }
 
 void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {
-    xx::global().level_logger->set_write_cb(cb, flags);
+    xx::global().logger->set_write_cb(cb, flags);
+}
+
+void set_write_cb(const std::function<void(const char*, const void*, size_t)>& cb, int flags) {
+    xx::global().logger->set_write_cb(cb, flags);
 }
 
 } // namespace log
