@@ -18,8 +18,7 @@ namespace log {
 __coapi void exit();
 
 enum {
-    splitlogs = 1,
-    log2local = 2,
+    log2local = 1,
 };
 
 /**
@@ -27,19 +26,29 @@ enum {
  *   - By default, logs will be written into a local file. Users can set a callback to 
  *     write logs to different destinations.
  * 
- * @param cb     The callback, takes 2 params, a pointer to the log buffer, and its length.
- * @param flags  Formed by ORing any of the following values:
- *               - log::splitlogs: split logs in the log buffer, and write one by one, 
- *                 which is useful when users want to send logs by UDP.
- *               - log::log2local: also log to local file
+ * @param cb
+ *   a callback takes 2 params:  void f(const void* p, size_t n);
+ *     - p points to the buffer which may contain multiple logs
+ *     - n is size of the data in the buffer
+ * 
+ * @param flags
+ *   formed by ORing any of the following values:
+ *     - log::log2local: also log to local file
  */
 __coapi void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags=0);
 
 /**
- * set a callback for writing TLOGs
- *   - Like the above version, but the callback takes 3 params, and the first param
- *     is the topic:
- *     void callback(const char* topic, const void* data, size_t size);
+ * set a callback for writing topic logs (TLOG)
+ * 
+ * @param cb
+ *   a callback takes 3 params:  void f(const char* topic, const void* p, size_t n);
+ *     - topic is useful when writing logs to something like kafka
+ *     - p points to the buffer which may contain multiple logs
+ *     - n is size of the data in the buffer
+ * 
+ * @param flags
+ *   formed by ORing any of the following values:
+ *     - log::log2local: also log to local file
  */
 __coapi void set_write_cb(const std::function<void(const char*, const void*, size_t)>& cb, int flags=0);
 

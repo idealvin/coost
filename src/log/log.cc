@@ -384,25 +384,7 @@ void Logger::write_logs(const char* p, size_t n, LogTime* t) {
     }
 
     // write logs through the write callback
-    if (_llog.write_cb) {
-        if (!(_llog.write_flags & log::splitlogs)) { /* write all logs once */
-            _llog.write_cb(p, n);
-        } else { /* split logs and write one by one */
-            const char* b = p;
-            const char* e = b + n;
-            const char* s;
-            while (b < e) {
-                s = (const char*) memchr(b, '\n', e - b);
-                if (s) {
-                    _llog.write_cb(b, s - b + 1);
-                    b = s + 1;
-                } else {
-                    _llog.write_cb(b, e - b);
-                    break;
-                }
-            }
-        }
-    }
+    if (_llog.write_cb) _llog.write_cb(p, n);
 
     // log to stderr
     if (FLG_cout) fwrite(p, 1, n, stderr);
@@ -428,23 +410,7 @@ void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
         }
 
         if (_tlog.write_cb) {
-            if (!(_tlog.write_flags & log::splitlogs)) {
-                _tlog.write_cb(pt->topic, pt->logs.data(), pt->logs.size());
-            } else {
-                const char* b = pt->logs.data();
-                const char* e = b + pt->logs.size();
-                const char* s;
-                while (b < e) {
-                    s = (const char*) memchr(b, '\n', e - b);
-                    if (s) {
-                        _tlog.write_cb(pt->topic, b, s - b + 1);
-                        b = s + 1;
-                    } else {
-                        _tlog.write_cb(pt->topic, b, e - b);
-                        break;
-                    }
-                }
-            }
+            _tlog.write_cb(pt->topic, pt->logs.data(), pt->logs.size());
         }
 
         if (FLG_cout) fwrite(pt->logs.data(), 1, pt->logs.size(), stderr);
