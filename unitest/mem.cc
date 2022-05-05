@@ -16,8 +16,8 @@ DEF_test(mem) {
         EXPECT_EQ(*x, 7);
     }
 
-    DEF_case(fixed) {
-        void* p = co::fixed_alloc(8);
+    DEF_case(small) {
+        void* p = co::alloc(8);
         EXPECT_NE(p, (void*)0);
 
         *(uint32*)p = 7;
@@ -26,16 +26,16 @@ DEF_test(mem) {
         void* x = p;
         co::free(p, 8);
 
-        p = co::fixed_alloc(72);
+        p = co::alloc(72);
         EXPECT_NE(p, (void*)0);
         EXPECT_EQ(p, x);
         co::free(p, 72);
 
-        p = co::fixed_alloc(2048);
+        p = co::alloc(2048);
         EXPECT_EQ(p, x);
         co::free(p, 2048);
 
-        p = co::fixed_alloc(4096);
+        p = co::alloc(4096);
         EXPECT_NE(p, (void*)0);
         EXPECT_NE(p, x);
         co::free(p, 4096);
@@ -45,7 +45,7 @@ DEF_test(mem) {
         co::del(v);
     }
 
-    DEF_case(deflt) {
+    DEF_case(realloc) {
         void* p;
         p = co::alloc(48);
         EXPECT_NE(p, (void*)0);

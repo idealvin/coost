@@ -31,8 +31,7 @@ void test_fun(int id) {
     v.clear();
     t.restart();
     for (int i = 0; i < N; ++i) {
-        v[i] = co::fixed_alloc(32);
-        //v[i] = co::alloc(32);
+        v[i] = co::alloc(32);
     }
     us = t.us();
     avg = us * 1000.0 / N - vavg;

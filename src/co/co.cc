@@ -98,7 +98,7 @@ void EventImpl::signal() {
 
 // memory: |4(refn)|4|EventImpl|
 Event::Event() {
-    _p = (uint32*) co::fixed_alloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1;
     new (_p + 2) EventImpl();
 }
@@ -120,7 +120,7 @@ void Event::signal() const {
 
 // memory: |4(refn)|4(counter)|EventImpl|
 WaitGroup::WaitGroup() {
-    _p = (uint32*) co::fixed_alloc(sizeof(EventImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
     _p[1] = 0; // counter
     new (_p + 2) EventImpl();
@@ -199,7 +199,7 @@ inline void MutexImpl::unlock() {
 
 // memory: |4(refn)|4|MutexImpl|
 Mutex::Mutex() {
-    _p = (uint32*) co::fixed_alloc(sizeof(MutexImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(MutexImpl) + 8);
     _p[0] = 1; // refn
     new (_p + 2) MutexImpl();
 }
@@ -314,7 +314,7 @@ inline size_t PoolImpl::size() const {
 
 // memory: |4(refn)|4|PoolImpl|
 Pool::Pool() {
-    _p = (uint32*) co::fixed_alloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PoolImpl();
 }
@@ -327,7 +327,7 @@ Pool::~Pool() {
 }
 
 Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = (uint32*) co::fixed_alloc(sizeof(PoolImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PoolImpl(std::move(ccb), std::move(dcb), cap);
 }
@@ -355,7 +355,7 @@ class PipeImpl {
     PipeImpl(uint32 buf_size, uint32 blk_size, uint32 ms)
         : _buf_size(buf_size), _blk_size(blk_size), 
           _rx(0), _wx(0), _ms(ms), _full(false) {
-        _buf = (char*) co::fixed_alloc(_buf_size);
+        _buf = (char*) co::alloc(_buf_size);
     }
 
     ~PipeImpl() {
@@ -379,11 +379,11 @@ class PipeImpl {
         waitx* w;
         const bool on_stack = gSched->on_stack(buf);
         if (on_stack) {
-            w = (waitx*) co::fixed_alloc(sizeof(waitx) + _blk_size);
+            w = (waitx*) co::alloc(sizeof(waitx) + _blk_size);
             w->buf = (char*)w + sizeof(waitx);
             w->len = sizeof(waitx) + _blk_size;
         } else {
-            w = (waitx*) co::fixed_alloc(sizeof(waitx));
+            w = (waitx*) co::alloc(sizeof(waitx));
             w->buf = buf;
             w->len = sizeof(waitx);
         }
@@ -524,7 +524,7 @@ void PipeImpl::write(const void* p) {
 }
 
 Pipe::Pipe(uint32 buf_size, uint32 blk_size, uint32 ms) {
-    _p = (uint32*) co::fixed_alloc(sizeof(PipeImpl) + 8);
+    _p = (uint32*) co::alloc(sizeof(PipeImpl) + 8);
     _p[0] = 1;
     new (_p + 2) PipeImpl(buf_size, blk_size, ms);
 }

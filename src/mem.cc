@@ -651,11 +651,11 @@ inline void* SmallAlloc::realloc(void* p, uint32 o, uint32 n) {
 }
 
 
-void* ThreadAlloc::alloc(size_t n) {
+inline void* ThreadAlloc::alloc(size_t n) {
     void* p = 0;
     SmallAlloc* sa;
     if (n <= 2048) {
-        const uint32 u = n > 16 ? (_pow2_align((uint32)n) >> 4) : 1;
+        const uint32 u = n > 16 ? (god::align_up((uint32)n, 16) >> 4) : 1;
         if (_sa && (p = _sa->alloc(u))) goto _end;
         {
             auto& l = *(DoubleLink**)&_sa;
@@ -693,7 +693,7 @@ void* ThreadAlloc::alloc(size_t n) {
         }
 
     } else if (n <= g_max_alloc_size) {
-        const uint32 u = _pow2_align((uint32)n) >> 12;
+        const uint32 u = god::align_up((uint32)n, 4096) >> 12;
         if (_la && (p = _la->alloc(u))) goto _end;
 
         {
@@ -755,29 +755,29 @@ inline void ThreadAlloc::free(void* p, size_t n) {
     }
 }
 
-void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
+inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     if (unlikely(!p)) return this->alloc(n);
     if (unlikely(o > g_max_alloc_size)) return ::realloc(p, n);
     CHECK_LT(o, n) << "realloc error, new size must be greater than old size..";
 
     if (o <= 2048) {
-        const uint32 k = (o > 16 ? _pow2_align((uint32)o) : 16);
+        const uint32 k = (o > 16 ? god::align_up((uint32)o, 16) : 16);
         if (n <= (size_t)k) return p;
 
         auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
         if (sa == _sa && n <= 2048) {
-            const uint32 l = _pow2_align((uint32)n);
+            const uint32 l = god::align_up((uint32)n, 16);
             auto x = sa->realloc(p, k >> 4, l >> 4);
             if (x) return x;
         }
 
     } else {
-        const uint32 k = _pow2_align((uint32)o);
+        const uint32 k = god::align_up((uint32)o, 4096);
         if (n <= (size_t)k) return p;
 
         auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
         if (la == _la && n <= g_max_alloc_size) {
-            const uint32 l = _pow2_align((uint32)n);
+            const uint32 l = god::align_up((uint32)n, 4096);
             auto x = la->realloc(p, k >> 12, l >> 12);
             if (x) return x;
         }
@@ -788,64 +788,11 @@ void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     return x;
 }
 
-inline void* ThreadAlloc::fixed_alloc(size_t n) {
-    void* p = 0;
-    SmallAlloc* sa;
-    if (n <= 2048) {
-        const uint32 u = n > 16 ? (god::align_up((uint32)n, 16) >> 4) : 1;
-        if (_sa && (p = _sa->alloc(u))) goto _end;
-        {
-            auto& l = *(DoubleLink**)&_sa;
-            if (l && l->next) {
-                list_move_head_back(l);
-                if ((p = _sa->alloc(u))) goto _end;
-            }
-        }
-
-        if (_lb && (sa = _lb->make_small_alloc())) {
-            list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
-            p = sa->alloc(u);
-            goto _end;
-        }
-
-        {
-            auto& l = *(DoubleLink**)&_lb;
-            if (l && l->next) {
-                list_move_head_back(l);
-                if ((sa = _lb->make_small_alloc())) {
-                    list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
-                    p = sa->alloc(u);
-                    goto _end;
-                }
-            }
-
-            auto lb = galloc()->make_large_block(_id);
-            if (lb) {
-                list_push_front(l, (DoubleLink*)lb);
-                sa = lb->make_small_alloc();
-                list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
-                p = sa->alloc(u);
-            }
-            goto _end;
-        }
-
-    } else {
-        p = this->alloc(n);
-    }
-
-  _end:
-    return p;
-}
-
 } // xx
 
 #ifndef CO_USE_SYS_MALLOC
 void* static_alloc(size_t n) {
     return xx::thread_alloc()->static_alloc(n);
-}
-
-void* fixed_alloc(size_t n) {
-    return xx::thread_alloc()->fixed_alloc(n);
 }
 
 void* alloc(size_t n) {
@@ -862,7 +809,6 @@ void* realloc(void* p, size_t o, size_t n) {
 
 #else
 void* static_alloc(size_t n) { return ::malloc(n); }
-void* fixed_alloc(size_t n) { return ::malloc(n); }
 void* alloc(size_t n) { return ::malloc(n); }
 void free(void* p, size_t) { ::free(p); }
 void* realloc(void* p, size_t, size_t n) { return ::realloc(p, n); }
@@ -870,12 +816,6 @@ void* realloc(void* p, size_t, size_t n) { return ::realloc(p, n); }
 
 void* zalloc(size_t size) {
     auto p = co::alloc(size);
-    if (p) memset(p, 0, size);
-    return p;
-}
-
-void* fixed_zalloc(size_t size) {
-    auto p = co::fixed_alloc(size);
     if (p) memset(p, 0, size);
     return p;
 }

@@ -97,7 +97,7 @@ struct waitx_t {
 };
 
 inline waitx_t* make_waitx(void* co) {
-    waitx_t* w = (waitx_t*) co::fixed_alloc(sizeof(waitx_t)); assert(w);
+    waitx_t* w = (waitx_t*) co::alloc(sizeof(waitx_t)); assert(w);
     w->co = (Coroutine*)co;
     w->state = st_wait;
     return w;

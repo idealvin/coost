@@ -10,7 +10,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev)
     : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev); // add socket to IOCP
-    _info = (PerIoInfo*) co::fixed_zalloc(sizeof(PerIoInfo));
+    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo));
     assert(_info);
     _info->mlen = sizeof(PerIoInfo);
     _info->co = (void*) s->running();
@@ -21,7 +21,7 @@ IoEvent::IoEvent(sock_t fd, int n)
     : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev_read); // add socket to IOCP
-    _info = (PerIoInfo*) co::fixed_zalloc(sizeof(PerIoInfo) + n);
+    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n);
     assert(_info);
     _info->mlen = sizeof(PerIoInfo) + n;
     _info->co = (void*) s->running();
@@ -33,14 +33,14 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
     auto s = gSched;
     s->add_io_event(fd, ev);
     if (!s->on_stack(buf)) {
-        _info = (PerIoInfo*) co::fixed_zalloc(sizeof(PerIoInfo) + n);
+        _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n);
         assert(_info);
         _info->mlen = sizeof(PerIoInfo) + n;
         _info->co = (void*) s->running();
         _info->buf.buf = (char*)buf;
         _info->buf.len = size;
     } else {
-        _info = (PerIoInfo*) co::fixed_alloc(sizeof(PerIoInfo) + n + size);
+        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n + size);
         assert(_info);
         memset(_info, 0, sizeof(PerIoInfo) + n);
         _info->mlen = sizeof(PerIoInfo) + n + size;

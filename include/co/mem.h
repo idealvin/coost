@@ -38,17 +38,11 @@ inline T* static_new(Args&&... args) {
 }
 
 
-// alloc memory for fixed-size objects, do not realloc it
-__coapi void* fixed_alloc(size_t size);
-
-// like fixed_alloc(), except that the memory is zero-cleared
-__coapi void* fixed_zalloc(size_t size);
-
 // alloc memory and construct an object on it
 //   new T(args)  -->  co::make<T>(args)
 template <typename T, typename... Args>
 inline T* make(Args&&... args) {
-    return new (co::fixed_alloc(sizeof(T))) T(std::forward<Args>(args)...);
+    return new (co::alloc(sizeof(T))) T(std::forward<Args>(args)...);
 }
 
 // delete the object created by co::make()
@@ -112,12 +106,12 @@ struct stl_allocator {
 
   #if (__cplusplus >= 201703L)  // C++17
     T* allocate(size_type n) {
-        return static_cast<T*>(co::fixed_alloc(n * sizeof(T)));
+        return static_cast<T*>(co::alloc(n * sizeof(T)));
     }
     T* allocate(size_type n, const void*) { return allocate(n); }
   #else
     pointer allocate(size_type n, const void* = 0) {
-        return static_cast<pointer>(co::fixed_alloc(n * sizeof(value_type)));
+        return static_cast<pointer>(co::alloc(n * sizeof(value_type)));
     }
   #endif
 
