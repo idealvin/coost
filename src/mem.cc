@@ -165,7 +165,7 @@ static const size_t C = (size_t)1;
 static const uint32 g_sb_bits = 15;            // bit size of small block
 static const uint32 g_lb_bits = g_sb_bits + B; // bit size of large block
 static const uint32 g_hb_bits = g_lb_bits + B; // bit size of huge block
-static const size_t g_max_alloc_size = 1u << (g_lb_bits - 4);
+static const size_t g_max_alloc_size = 1u << 17; // 128k
 
 class Bitset {
   public:
@@ -528,12 +528,11 @@ LargeAlloc::LargeAlloc(HugeBlock* parent)
 }
 
 void* LargeAlloc::try_hard_alloc(uint32 n) {
-    static_assert(M == 8, "");
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
     for (int i = M - 1; i >= 0; --i) {
-        auto x = atomic_load(&q[i], mo_relaxed);
+        const size_t x = atomic_load(&q[i], mo_relaxed);
         if (x) {
             atomic_and(&q[i], ~x, mo_relaxed);
             p[i] &= ~x;
@@ -541,6 +540,7 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
             const int r = _bs.rfind(_cur_bit);
             if (r >= lsb) break;
             _cur_bit = r >= 0 ? lsb : 0;
+            if (_cur_bit == 0) break;
         }
     }
 
@@ -599,7 +599,7 @@ void* SmallAlloc::try_hard_alloc(uint32 n) {
     size_t* const q = (size_t*)_xpbs;
 
     for (int i = M - 1; i >= 0; --i) {
-        auto x = atomic_load(&q[i], mo_relaxed);
+        const size_t x = atomic_load(&q[i], mo_relaxed);
         if (x) {
             atomic_and(&q[i], ~x, mo_relaxed);
             p[i] &= ~x;
