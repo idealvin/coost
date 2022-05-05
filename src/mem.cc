@@ -2,7 +2,6 @@
 #include "co/atomic.h"
 #include "co/god.h"
 #include "co/log.h"
-#include "co/vector.h"
 #include <mutex>
 
 #ifdef _WIN32
@@ -191,6 +190,10 @@ class Bitset {
         return -1;
     }
 
+    void atomic_set(uint32 i) {
+        atomic_or(&_s[i >> B], C << (i & R), mo_relaxed);
+    }
+
   private:
     size_t* _s;
 };
@@ -253,11 +256,15 @@ class LargeBlock {
 
 class LargeAlloc {
   public:
+    static const uint32 N = 1u << (g_lb_bits - 12);
+    static const uint32 M = (N >> 3) / sizeof(size_t);
     explicit LargeAlloc(HugeBlock* parent);
 
     // alloc n units
     void* alloc(uint32 n);
+    void* try_hard_alloc(uint32 n);
     bool free(void* p);
+    void xfree(void* p);
     void* realloc(void* p, uint32 o, uint32 n);
 
     HugeBlock* parent() const { return _parent; }
@@ -273,6 +280,10 @@ class LargeAlloc {
         Bitset _bs;
         char* _pbs;
     };
+    union {
+        Bitset _xbs;
+        char* _xpbs;
+    };
     uint32 _cur_bit;
     uint32 _max_bit;
     DISALLOW_COPY_AND_ASSIGN(LargeAlloc);
@@ -280,23 +291,33 @@ class LargeAlloc {
 
 class SmallAlloc {
   public:
+    static const uint32 N = 1u << (g_sb_bits - 4);
+    static const uint32 M = (N >> 3) / sizeof(size_t);
     explicit SmallAlloc(LargeBlock* parent);
 
     // alloc n units
     void* alloc(uint32 n);
+    void* try_hard_alloc(uint32 n);
     bool free(void* p);
+    void xfree(void* p);
     void* realloc(void* p, uint32 o, uint32 n);
 
     LargeBlock* parent() const { return _parent; }
     ThreadAlloc* thread_alloc() const { return _ta; }
 
   private:
+    SmallAlloc* _next;
+    SmallAlloc* _prev;
     LargeBlock* _parent;
     ThreadAlloc* _ta;
     char* _p; // beginning address to alloc
     union {
         Bitset _bs;
         char* _pbs;
+    };
+    union {
+        Bitset _xbs;
+        char* _xpbs;
     };
     uint32 _cur_bit;
     uint32 _max_bit;
@@ -323,39 +344,23 @@ class GlobalAlloc {
 class ThreadAlloc {
   public:
     ThreadAlloc()
-        : _lb(0), _la(0), _sad(0), _saf(0), _xlock(false), _has_xptr(false),
-          _xptrs(4096), _xswap(4096) {
+        : _lb(0), _la(0), _sa(0) {
         static uint32 g_alloc_id = (uint32)-1;
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
 
-    void* static_alloc(size_t n) { return _sa.alloc(n); }
+    void* static_alloc(size_t n) { return _ka.alloc(n); }
+    void* fixed_alloc(size_t n);
     void* alloc(size_t n);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
 
-    void* fixed_alloc(size_t n);
-    void xfree(void* p, size_t n);
-    void try_free_xptrs();
-
-    struct xptr_t {
-        xptr_t() = default;
-        xptr_t(void* p, size_t n) : p(p), n(n) {}
-        void* p;
-        size_t n;
-    };
-
   private:
-    StaticAllocator _sa;
     LargeBlock* _lb;
     LargeAlloc* _la;
-    SmallAlloc* _sad;
-    SmallAlloc* _saf;
+    SmallAlloc* _sa;
     uint32 _id;
-    bool _xlock;
-    bool _has_xptr;
-    co::vector<xptr_t, co::system_allocator> _xptrs;
-    co::vector<xptr_t, co::system_allocator> _xswap;
+    StaticAllocator _ka;
 };
 
 
@@ -516,9 +521,34 @@ inline SmallAlloc* LargeBlock::make_small_alloc() {
 
 LargeAlloc::LargeAlloc(HugeBlock* parent)
     : _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
-    _max_bit = (1u << (g_lb_bits - 12)) - 1;
+    _max_bit = N - 1;
     _p = (char*)this + 4096;
     _pbs = (char*)this + god::align_up((uint32)sizeof(*this), 16);
+    _xpbs = _pbs + (N >> 3);
+}
+
+void* LargeAlloc::try_hard_alloc(uint32 n) {
+    static_assert(M == 8, "");
+    size_t* const p = (size_t*)_pbs;
+    size_t* const q = (size_t*)_xpbs;
+
+    for (int i = M - 1; i >= 0; --i) {
+        auto x = atomic_load(&q[i], mo_relaxed);
+        if (x) {
+            atomic_and(&q[i], ~x, mo_relaxed);
+            p[i] &= ~x;
+            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+            const int r = _bs.rfind(_cur_bit);
+            if (r >= lsb) break;
+            _cur_bit = r >= 0 ? lsb : 0;
+        }
+    }
+
+    if (_cur_bit + n <= _max_bit) {
+        _bs.set(_cur_bit);
+        return _p + (god::fetch_add(&_cur_bit, n) << 12);
+    }
+    return NULL;
 }
 
 inline void* LargeAlloc::alloc(uint32 n) {
@@ -526,7 +556,7 @@ inline void* LargeAlloc::alloc(uint32 n) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 12);
     }
-    return NULL;
+    return try_hard_alloc(n);
 }
 
 inline bool LargeAlloc::free(void* p) {
@@ -536,6 +566,11 @@ inline bool LargeAlloc::free(void* p) {
     const int r = _bs.rfind(_cur_bit);
     if (r < i) _cur_bit = r >= 0 ? i : 0;
     return _cur_bit == 0;
+}
+
+inline void LargeAlloc::xfree(void* p) {
+    const uint32 i = (uint32)(((char*)p - _p) >> 12);
+    _xbs.atomic_set(i);
 }
 
 inline void* LargeAlloc::realloc(void* p, uint32 o, uint32 n) {
@@ -549,13 +584,39 @@ inline void* LargeAlloc::realloc(void* p, uint32 o, uint32 n) {
 
 
 SmallAlloc::SmallAlloc(LargeBlock* parent)
-    : _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
+    : _next(0), _prev(0), _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
     const uint32 bs_bits = (1u << (g_sb_bits - 4)); // 2048
     const uint32 n = god::align_up((uint32)sizeof(*this), 16);
-    const uint32 reserved_size = n + (bs_bits >> 3); // n + 256
+    const uint32 reserved_size = n + (bs_bits >> 2); // n + 256 * 2
     _max_bit = bs_bits - (reserved_size >> 4);
     _p = (char*)this + reserved_size;
     _pbs = (char*)this + n;
+    _xpbs = _pbs + (bs_bits >> 3);
+}
+
+void* SmallAlloc::try_hard_alloc(uint32 n) {
+    size_t* const p = (size_t*)_pbs;
+    size_t* const q = (size_t*)_xpbs;
+
+    for (int i = M - 1; i >= 0; --i) {
+        auto x = atomic_load(&q[i], mo_relaxed);
+        if (x) {
+            atomic_and(&q[i], ~x, mo_relaxed);
+            p[i] &= ~x;
+            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+            const int r = _bs.rfind(_cur_bit);
+            if (r >= lsb) break;
+            _cur_bit = r >= 0 ? lsb : 0;
+            if (_cur_bit == 0) break;
+        }
+    }
+
+    if (_cur_bit + n <= _max_bit) {
+        _bs.set(_cur_bit);
+        return _p + (god::fetch_add(&_cur_bit, n) << 4);
+    }
+    return NULL;
+   
 }
 
 inline void* SmallAlloc::alloc(uint32 n) {
@@ -563,7 +624,7 @@ inline void* SmallAlloc::alloc(uint32 n) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 4);
     }
-    return NULL;
+    return try_hard_alloc(n);
 }
 
 inline bool SmallAlloc::free(void* p) {
@@ -573,6 +634,11 @@ inline bool SmallAlloc::free(void* p) {
     const int r = _bs.rfind(_cur_bit);
     if (r < i) _cur_bit = r >= 0 ? i : 0;
     return _cur_bit == 0;
+}
+
+inline void SmallAlloc::xfree(void* p) {
+    const uint32 i = (uint32)(((char*)p - _p) >> 4);
+    _xbs.atomic_set(i);
 }
 
 inline void* SmallAlloc::realloc(void* p, uint32 o, uint32 n) {
@@ -585,35 +651,23 @@ inline void* SmallAlloc::realloc(void* p, uint32 o, uint32 n) {
 }
 
 
-inline void ThreadAlloc::xfree(void* p, size_t n) {
-    while (atomic_load(&_xlock, mo_relaxed) || atomic_swap(&_xlock, true, mo_acquire));
-    _xptrs.push_back(xptr_t(p, n));
-    if (!_has_xptr) atomic_store(&_has_xptr, true, mo_relaxed);
-    atomic_store(&_xlock, false, mo_release);
-}
-
-inline void ThreadAlloc::try_free_xptrs() {
-    if (atomic_swap(&_xlock, true, mo_acquire) == false) {
-        _xswap.swap(_xptrs);
-        atomic_store(&_has_xptr, false, mo_relaxed);
-        atomic_store(&_xlock, false, mo_release);
-        for (size_t i = 0; i < _xswap.size(); ++i) {
-            this->free(_xswap[i].p, _xswap[i].n);
-        }
-        _xswap.clear();
-    }
-}
-
 void* ThreadAlloc::alloc(size_t n) {
-    if (_has_xptr) this->try_free_xptrs();
-
     void* p = 0;
+    SmallAlloc* sa;
     if (n <= 2048) {
         const uint32 u = n > 16 ? (_pow2_align((uint32)n) >> 4) : 1;
-        if (_sad && (p = _sad->alloc(u))) goto _end;
+        if (_sa && (p = _sa->alloc(u))) goto _end;
+        {
+            auto& l = *(DoubleLink**)&_sa;
+            if (l && l->next) {
+                list_move_head_back(l);
+                if ((p = _sa->alloc(u))) goto _end;
+            }
+        }
 
-        if (_lb && (_sad = _lb->make_small_alloc())) {
-            p = _sad->alloc(u);
+        if (_lb && (sa = _lb->make_small_alloc())) {
+            list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+            p = sa->alloc(u);
             goto _end;
         }
 
@@ -621,8 +675,9 @@ void* ThreadAlloc::alloc(size_t n) {
             auto& l = *(DoubleLink**)&_lb;
             if (l && l->next) {
                 list_move_head_back(l);
-                if ((_sad = _lb->make_small_alloc())) {
-                    p = _sad->alloc(u);
+                if ((sa = _lb->make_small_alloc())) {
+                    list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                    p = sa->alloc(u);
                     goto _end;
                 }
             }
@@ -630,8 +685,9 @@ void* ThreadAlloc::alloc(size_t n) {
             auto lb = galloc()->make_large_block(_id);
             if (lb) {
                 list_push_front(l, (DoubleLink*)lb);
-                _sad = lb->make_small_alloc();
-                p = _sad->alloc(u);
+                sa = lb->make_small_alloc();
+                list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                p = sa->alloc(u);
             }
             goto _end;
         }
@@ -669,7 +725,8 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
             auto ta = sa->thread_alloc();
             if (ta == this) {
-                if (sa->free(p) && sa != _sad && sa != _saf) {
+                if (sa->free(p) && sa != _sa) {
+                    list_erase(*(DoubleLink**)&_sa, (DoubleLink*)sa);
                     auto lb = sa->parent();
                     if (lb->free(sa) && lb != _lb) {
                         list_erase(*(DoubleLink**)&_lb, (DoubleLink*)lb);
@@ -677,7 +734,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
                     }
                 }
             } else {
-                ta->xfree(p, n);
+                sa->xfree(p);
             }
 
         } else if (n <= g_max_alloc_size) {
@@ -689,7 +746,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
                     galloc()->free(la, la->parent(), _id);
                 }
             } else {
-                ta->xfree(p, n);
+                la->xfree(p);
             }
 
         } else {
@@ -708,7 +765,7 @@ void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
         if (n <= (size_t)k) return p;
 
         auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
-        if (sa == _sad && n <= 2048) {
+        if (sa == _sa && n <= 2048) {
             const uint32 l = _pow2_align((uint32)n);
             auto x = sa->realloc(p, k >> 4, l >> 4);
             if (x) return x;
@@ -732,15 +789,22 @@ void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 }
 
 inline void* ThreadAlloc::fixed_alloc(size_t n) {
-    if (_has_xptr) this->try_free_xptrs();
-
     void* p = 0;
+    SmallAlloc* sa;
     if (n <= 2048) {
         const uint32 u = n > 16 ? (god::align_up((uint32)n, 16) >> 4) : 1;
-        if (_saf && (p = _saf->alloc(u))) goto _end;
+        if (_sa && (p = _sa->alloc(u))) goto _end;
+        {
+            auto& l = *(DoubleLink**)&_sa;
+            if (l && l->next) {
+                list_move_head_back(l);
+                if ((p = _sa->alloc(u))) goto _end;
+            }
+        }
 
-        if (_lb && (_saf = _lb->make_small_alloc())) {
-            p = _saf->alloc(u);
+        if (_lb && (sa = _lb->make_small_alloc())) {
+            list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+            p = sa->alloc(u);
             goto _end;
         }
 
@@ -748,8 +812,9 @@ inline void* ThreadAlloc::fixed_alloc(size_t n) {
             auto& l = *(DoubleLink**)&_lb;
             if (l && l->next) {
                 list_move_head_back(l);
-                if ((_saf = _lb->make_small_alloc())) {
-                    p = _saf->alloc(u);
+                if ((sa = _lb->make_small_alloc())) {
+                    list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                    p = sa->alloc(u);
                     goto _end;
                 }
             }
@@ -757,8 +822,9 @@ inline void* ThreadAlloc::fixed_alloc(size_t n) {
             auto lb = galloc()->make_large_block(_id);
             if (lb) {
                 list_push_front(l, (DoubleLink*)lb);
-                _saf = lb->make_small_alloc();
-                p = _saf->alloc(u);
+                sa = lb->make_small_alloc();
+                list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                p = sa->alloc(u);
             }
             goto _end;
         }
