@@ -1,7 +1,7 @@
 #include "co/all.h"
 
 DEF_bool(s, false, "use system allocator");
-DEF_int32(n, 100000, "n times");
+DEF_int32(n, 50000, "n times");
 DEF_int32(t, 1, "thread num");
 DEF_int32(x, 97, "x");
 
@@ -100,7 +100,7 @@ void test_string() {
 }
 
 void test_vector() {
-    int N = FLG_n;
+    int N = 10000;
     fastream s(1024);
     Timer t;
     int64 us;
@@ -180,20 +180,20 @@ void test_unordered_map() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::unordered_map " << " avg: " << avg << " ns";
-    COUT << s;
+    COUT << s << '\n';
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
-    for (int i = 0; i < FLG_t; ++i) {
-        Thread(test_fun, i).detach();
-    }
-
     test_string();
     test_vector();
     test_map();
     test_unordered_map();
+
+    for (int i = 0; i < FLG_t; ++i) {
+        Thread(test_fun, i).detach();
+    }
 
     while (true) sleep::sec(8);
 
