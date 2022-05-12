@@ -28,7 +28,7 @@
 cocoyaxi 的发展离不开大家的帮助，如果您在使用或者喜欢 cocoyaxi，可以考虑赞助本项目，非常感谢🙏
 
 - [Github Sponsors](https://github.com/sponsors/idealvin)
-- [给作者来杯咖啡](https://idealvin.gitee.io/cn/about/sponsor/)
+- [给作者来杯咖啡](https://cocoyaxi.gitee.io/cn/about/sponsor/)
 
 
 **特别赞助**
@@ -36,7 +36,7 @@ cocoyaxi 的发展离不开大家的帮助，如果您在使用或者喜欢 coco
 cocoyaxi 由以下企业特别赞助，在此深表感谢🙏
 
 <a href="https://www.oneflow.org/index.html">
-<img src="https://idealvin.github.io/images/sponsor/oneflow.png" width="210" height="150">
+<img src="https://cocoyaxi.github.io/images/sponsor/oneflow.png" width="175" height="125">
 </a>
 
 
@@ -44,8 +44,8 @@ cocoyaxi 由以下企业特别赞助，在此深表感谢🙏
 
 ## 2. 参考文档
 
-- 简体中文: [github](https://idealvin.github.io/cn/about/co/) | [gitee](https://idealvin.gitee.io/cn/about/co/)
-- English: [github](https://idealvin.github.io/en/about/co/) | [gitee](https://idealvin.gitee.io/en/about/co/)
+- 简体中文: [github](https://cocoyaxi.github.io/cn/about/co/) | [gitee](https://cocoyaxi.gitee.io/cn/about/co/)
+- English: [github](https://cocoyaxi.github.io/en/about/co/) | [gitee](https://cocoyaxi.gitee.io/en/about/co/)
 
 
 
@@ -61,12 +61,12 @@ co 实现了类似 [golang goroutine](https://github.com/golang/go) 的协程，
 - 共享栈，同一线程中的协程共用若干个栈(大小默认为 1MB)，内存占用低，Linux 上的测试显示 1000 万协程只用了 2.8G 内存(仅供参考)。
 - 各协程之间为平级关系，可以在任何地方(包括在协程中)创建新的协程。
 - 支持系统 API hook (Windows/Linux/Mac)，可以直接在协程中使用三方网络库。
-- 协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)。
-- 协程同步事件 [co::Event](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent)。
-- 协程锁 [co::Mutex](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E9%94%81comutex)。
-- 协程池 [co::Pool](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E6%B1%A0copool)。
-- channel [co::Chan](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
-- waitgroup [co::WaitGroup](https://idealvin.github.io/cn/co/coroutine/#waitgroupcowaitgroup)。
+- 协程化的 [socket API](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)。
+- 协程同步事件 [co::Event](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent)。
+- 协程锁 [co::Mutex](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E9%94%81comutex)。
+- 协程池 [co::Pool](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E6%B1%A0copool)。
+- channel [co::Chan](https://cocoyaxi.github.io/cn/co/coroutine/#channelcochan)。
+- waitgroup [co::WaitGroup](https://cocoyaxi.github.io/cn/co/coroutine/#waitgroupcowaitgroup)。
 
 
 #### 3.1.1 创建协程
@@ -103,7 +103,7 @@ for (size_t i = 0; i < s.size(); ++i) {
 
 #### 3.1.2 channel
 
-[co::Chan](https://idealvin.github.io/cn/co/coroutine/#channelcochan)，类似于 golang 中的 channel，可用于在协程之间传递数据。
+[co::Chan](https://cocoyaxi.github.io/cn/co/coroutine/#channelcochan)，类似于 golang 中的 channel，可用于在协程之间传递数据。
 
 ```cpp
 #include "co/co.h"
@@ -128,12 +128,12 @@ DEF_main(argc, argv) {
 co::Chan<int> ch(8, 1000);
 ```
 
-channel 读写操作结束后，可以调用 `co::timeout()` 判断是否超时，这种方式比 golang 中基于 select 的实现方式更简单。关于 channel 的详细用法，见 [co::Chan 参考文档](https://idealvin.github.io/cn/co/coroutine/#channelcochan)。
+channel 读写操作结束后，可以调用 `co::timeout()` 判断是否超时，这种方式比 golang 中基于 select 的实现方式更简单。关于 channel 的详细用法，见 [co::Chan 参考文档](https://cocoyaxi.github.io/cn/co/coroutine/#channelcochan)。
 
 
 #### 3.1.3 waitgroup
 
-[co::WaitGroup](https://idealvin.github.io/cn/co/coroutine/#waitgroupcowaitgroup)，类似于 golang 中的 `sync.WaitGroup`，可用于等待协程或线程的退出。
+[co::WaitGroup](https://cocoyaxi.github.io/cn/co/coroutine/#waitgroupcowaitgroup)，类似于 golang 中的 `sync.WaitGroup`，可用于等待协程或线程的退出。
 
 ```cpp
 #include "co/co.h"
@@ -160,9 +160,9 @@ DEF_main(argc, argv) {
 
 ### 3.2 网络编程
 
-co 提供了一套协程化的 [socket API](https://idealvin.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
+co 提供了一套协程化的 [socket API](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
 
-co 也实现了更高层的网络编程组件，包括 [TCP](https://idealvin.github.io/cn/co/net/tcp/)、[HTTP](https://idealvin.github.io/cn/co/net/http/) 以及基于 [JSON](https://idealvin.github.io/cn/co/json/) 的 [RPC](https://idealvin.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。这里简单的展示一下 HTTP 的用法，其余的可以查看参考文档。
+co 也实现了更高层的网络编程组件，包括 [TCP](https://cocoyaxi.github.io/cn/co/net/tcp/)、[HTTP](https://cocoyaxi.github.io/cn/co/net/http/) 以及基于 [JSON](https://cocoyaxi.github.io/cn/co/json/) 的 [RPC](https://cocoyaxi.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。这里简单的展示一下 HTTP 的用法，其余的可以查看参考文档。
 
 
 #### 3.2.1 静态 web server
@@ -233,7 +233,7 @@ go(f);
 
 ### 3.3 co/flag
 
-[co/flag](https://idealvin.github.io/cn/co/flag/) 是一个类似于 [google gflags](https://github.com/gflags/gflags) 的命令行参数与配置文件解析库，但更简单易用。co 中的一些组件会用它定义配置项。
+[co/flag](https://cocoyaxi.github.io/cn/co/flag/) 是一个类似于 [google gflags](https://github.com/gflags/gflags) 的命令行参数与配置文件解析库，但更简单易用。co 中的一些组件会用它定义配置项。
 
 co/flag 为每个配置项提供一个默认值，在没有配置参数的情况下，程序可以按默认配置运行。用户也可以从**命令行或配置文件**传入配置参数，在需要配置文件时，可以执行 `./exe -mkconf` **自动生成配置文件**。
 
@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
 
 ### 3.4 co/log
 
-[co/log](https://idealvin.github.io/cn/co/log/) 是一个内存友好的高性能本地日志系统，程序运行稳定后，打印日志不需要分配内存。co 中的一些组件会用它打印日志。
+[co/log](https://cocoyaxi.github.io/cn/co/log/) 是一个内存友好的高性能本地日志系统，程序运行稳定后，打印日志不需要分配内存。co 中的一些组件会用它打印日志。
 
 co/log 将日志分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**。用户可以像下面这样打印不同级别的日志：
 
@@ -298,7 +298,7 @@ CHECK_NE(p, NULL) << "malloc failed..";
 
 CHECK 断言失败时，co/log 会打印函数调用栈信息，然后终止程序的运行。在 linux 与 macosx 上，需要安装 [libbacktrace](https://github.com/ianlancetaylor/libbacktrace)。
 
-![stack](https://idealvin.github.io/images/stack.png)
+![stack](https://cocoyaxi.github.io/images/stack.png)
 
 co/log 速度非常快，下面是一些测试结果，仅供参考：
 
@@ -333,7 +333,7 @@ co/log 速度非常快，下面是一些测试结果，仅供参考：
 
 ### 3.5 co/unitest
 
-[co/unitest](https://idealvin.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，co 中的很多组件会用它写单元测试代码，为 co 的稳定性提供了保障。
+[co/unitest](https://cocoyaxi.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，co 中的很多组件会用它写单元测试代码，为 co 的稳定性提供了保障。
 
 ```cpp
 #include "co/unitest.h"

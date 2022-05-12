@@ -27,22 +27,22 @@ English | [简体中文](readme_cn.md)
 cocoyaxi needs your help. If you are using it or like it, you may consider becoming a sponsor. Thank you very much!
 
 - [Github Sponsors](https://github.com/sponsors/idealvin)
-- [A cup of coffee](https://idealvin.github.io/en/about/sponsor/)
+- [A cup of coffee](https://cocoyaxi.github.io/en/about/sponsor/)
 
 **Special Sponsors**
 
 cocoyaxi is specially sponsored by the following companies, thank you very much!
 
 <a href="https://www.oneflow.org/index.html">
-<img src="https://idealvin.github.io/images/sponsor/oneflow.png" width="210" height="150">
+<img src="https://cocoyaxi.github.io/images/sponsor/oneflow.png" width="175" height="125">
 </a>
 
 
 
 ## 2. Documents
 
-- English: [github](https://idealvin.github.io/en/about/co/) | [gitee](https://idealvin.gitee.io/en/about/co/)
-- 简体中文: [github](https://idealvin.github.io/cn/about/co/) | [gitee](https://idealvin.gitee.io/cn/about/co/)
+- English: [github](https://cocoyaxi.github.io/en/about/co/) | [gitee](https://cocoyaxi.gitee.io/en/about/co/)
+- 简体中文: [github](https://cocoyaxi.github.io/cn/about/co/) | [gitee](https://cocoyaxi.gitee.io/cn/about/co/)
 
 
 
@@ -58,12 +58,12 @@ co has implemented a [go-style](https://github.com/golang/go) coroutine, which h
 - Shared stack, coroutines in the same thread share several stacks (the default size is 1MB), and the memory usage is low. Simple test on Linux shows that 10 millions of coroutines only take 2.8G of memory (for reference only).
 - There is a flat relationship between coroutines, and new coroutines can be created from anywhere (including in coroutines).
 - Support system API hook (Windows/Linux/Mac), you can directly use third-party network library in coroutine.
-- Coroutineized [socket API](https://idealvin.github.io/en/co/coroutine/#coroutineized-socket-api).
-- Coroutine synchronization event [co::Event](https://idealvin.github.io/en/co/coroutine/#coevent).
-- Coroutine lock [co::Mutex](https://idealvin.github.io/en/co/coroutine/#comutex).
-- Coroutine pool [co::Pool](https://idealvin.github.io/en/co/coroutine/#copool).
-- channel [co::Chan](https://idealvin.github.io/en/co/coroutine/#cochan).
-- waitgroup [co::WaitGroup](https://idealvin.github.io/en/co/coroutine/#cowaitgroup).
+- Coroutineized [socket API](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api).
+- Coroutine synchronization event [co::Event](https://cocoyaxi.github.io/en/co/coroutine/#coevent).
+- Coroutine lock [co::Mutex](https://cocoyaxi.github.io/en/co/coroutine/#comutex).
+- Coroutine pool [co::Pool](https://cocoyaxi.github.io/en/co/coroutine/#copool).
+- channel [co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan).
+- waitgroup [co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup).
 
 
 #### 3.1.1 Create a coroutine
@@ -100,7 +100,7 @@ for (size_t i = 0; i < s.size(); ++i) {
 
 #### 3.1.2 channel
 
-[co::Chan](https://idealvin.github.io/en/co/coroutine/#cochan), similar to the channel in golang, can be used to transfer data between coroutines.
+[co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan), similar to the channel in golang, can be used to transfer data between coroutines.
 
 ```cpp
 #include "co/co.h"
@@ -125,12 +125,12 @@ When creating a channel, we can add a timeout as follows:
 co::Chan<int> ch(8, 1000);
 ```
 
-After read or write operation, we can call `co::timeout()` to determine whether it has timed out. This method is simpler than the select-based implementation in golang. For detailed usage, see [Document of co::Chan](https://idealvin.github.io/en/co/coroutine/#cochan).
+After read or write operation, we can call `co::timeout()` to determine whether it has timed out. This method is simpler than the select-based implementation in golang. For detailed usage, see [Document of co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan).
 
 
 #### 3.1.3 waitgroup
 
-[co::WaitGroup](https://idealvin.github.io/en/co/coroutine/#cowaitgroup), similar to `sync.WaitGroup` in golang, can be used to wait for the exit of coroutines or threads.
+[co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup), similar to `sync.WaitGroup` in golang, can be used to wait for the exit of coroutines or threads.
 
 ```cpp
 #include "co/co.h"
@@ -157,9 +157,9 @@ DEF_main(argc, argv) {
 
 ### 3.2 network programming
 
-co provides a set of coroutineized [socket APIs](https://idealvin.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
+co provides a set of coroutineized [socket APIs](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
 
-In addition, co has also implemented higher-level network programming components, including [TCP](https://idealvin.github.io/en/co/net/tcp/), [HTTP](https://idealvin.github.io/en/co/net/http/) and [RPC](https://idealvin.github.io/en/co/net/rpc/) framework based on [JSON](https://idealvin.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs. Here is just a brief demonstration of the usage of HTTP, and the rest can be seen in the documents.
+In addition, co has also implemented higher-level network programming components, including [TCP](https://cocoyaxi.github.io/en/co/net/tcp/), [HTTP](https://cocoyaxi.github.io/en/co/net/http/) and [RPC](https://cocoyaxi.github.io/en/co/net/rpc/) framework based on [JSON](https://cocoyaxi.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs. Here is just a brief demonstration of the usage of HTTP, and the rest can be seen in the documents.
 
 
 #### 3.2.1 Static web server
@@ -230,7 +230,7 @@ go(f);
 
 ### 3.3 co/flag
 
-[co/flag](https://idealvin.github.io/en/co/flag/) is a command line and config file parser similar to [google gflags](https://github.com/gflags/gflags), but more simple and easier to use. Some components in co use it to define config items.
+[co/flag](https://cocoyaxi.github.io/en/co/flag/) is a command line and config file parser similar to [google gflags](https://github.com/gflags/gflags), but more simple and easier to use. Some components in co use it to define config items.
 
 co/flag provides a default value for each config item. Without config parameters, the program can run with the default config. Users can also pass in config parameters from **command line or config file**. When a config file is needed, users can run `./exe -mkconf` to **generate a config file**.
 
@@ -273,7 +273,7 @@ The above is an example of using co/flag. The macro at the beginning of `DEF_` i
 
 ### 3.4 co/log
 
-[co/log](https://idealvin.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in co will use it to print logs.
+[co/log](https://cocoyaxi.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in co will use it to print logs.
 
 co/log divides the log into five levels: debug, info, warning, error, and fatal. **Printing a fatal level log will terminate the program**. Users can print logs of different levels as follows:
 
@@ -295,7 +295,7 @@ CHECK_NE(p, NULL) << "malloc failed..";
 
 When the CHECK assertion failed, co/log will print the function call stack information, and then terminate the program. On linux and macosx, make sure you have installed [libbacktrace](https://github.com/ianlancetaylor/libbacktrace) on your system.
 
-![stack](https://idealvin.github.io/images/stack.png)
+![stack](https://cocoyaxi.github.io/images/stack.png)
 
 co/log is very fast. The following are some test results, for reference only:
 
@@ -330,7 +330,7 @@ co/log is very fast. The following are some test results, for reference only:
 
 ### 3.5 co/unitest
 
-[co/unitest](https://idealvin.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in co use it to write unit test code, which guarantees the stability of co.
+[co/unitest](https://cocoyaxi.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in co use it to write unit test code, which guarantees the stability of co.
 
 ```cpp
 #include "co/unitest.h"
