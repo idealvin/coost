@@ -82,18 +82,17 @@ class ServerImpl {
         if (x.is_object()) {
             for (auto it = x.begin(); it != x.end(); ++it) {
                 const char* user = it.key();
-                auto pass = it.value();
+                auto& pass = it.value();
                 if (!pass.is_string()) {
                     ELOG << "add userpass failed, user: " << user << ", password is not string..";
                     continue;
                 }
-                this->add_userpass(user, pass.get_string());
+                this->add_userpass(user, pass.as_string());
+                memset((void*)pass.as_string(), 0, pass.string_size()); // clear passwd info
             }
         } else {
             DLOG << "no userpass added..";
         }
-
-        x.safe_clear(); // clear password info in the json.
     }
 
     void on_connection(tcp::Connection conn);
@@ -152,7 +151,7 @@ void Server::exit() {
 void ServerImpl::process(const Json& req, Json& res) {
     auto service = req["service"];
     if (service.is_string()) {
-        auto s = this->find_service(service.get_string());
+        auto s = this->find_service(service.as_string());
         if (s) {
             s->process(req, res);
         } else {
@@ -217,7 +216,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
         // call rpc and send response to the client
         do {
-            res.clear();
+            res.reset();
             this->process(req, res);
 
             buf->resize(sizeof(Header));
@@ -286,8 +285,8 @@ bool ServerImpl::auth(tcp::Connection* conn) {
     Header header;
     fastream fs;
     Json req, res;
-    char buf[sizeof(json::Value)];
-    json::Value& x = *(json::Value*)buf;
+    char buf[sizeof(json::Json)];
+    json::Json& x = *(json::Json*)buf;
 
     // wait for the first req from client, timeout in 7 seconds
     do {
@@ -308,7 +307,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         if (req.is_null()) goto json_parse_err;
 
         x = req["method"];
-        if (!x.is_string() || x.get_string() != kAuth) {
+        if (!x.is_string() || x.as_string() != kAuth) {
             ELOG << "auth method not found in the req";
             return false;
         }
@@ -352,7 +351,7 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         DLOG << "rpc recv auth answer: " << fs;
 
         x = req["method"];
-        if (!x.is_string() || x.get_string() != kAuth) {
+        if (!x.is_string() || x.as_string() != kAuth) {
             ELOG << "auth method not found in the req";
             return false;
         }
@@ -363,8 +362,8 @@ bool ServerImpl::auth(tcp::Connection* conn) {
         auto user = req["username"];
         auto pass = req["md5"];
         if (!user.is_string() || !pass.is_string() || 
-            !this->check_userpass(user.get_string(), pass.get_string(), res["nonce"].get_string())) {
-            res.clear();
+            !this->check_userpass(user.as_string(), pass.as_string(), res["nonce"].as_string())) {
+            res.reset();
             res.add_member("method", "auth");
             res.add_member("err", 401);
             res.add_member("errmsg", "auth failed");
@@ -556,8 +555,8 @@ bool ClientImpl::auth() {
     Header header;
     fastream fs;
     Json req, res;
-    char buf[sizeof(json::Value)];
-    json::Value& x = *(json::Value*)buf;
+    char buf[sizeof(json::Json)];
+    json::Json& x = *(json::Json*)buf;
 
     // send the first auth req
     do {
@@ -600,7 +599,7 @@ bool ClientImpl::auth() {
         }
 
         req.add_member("username", _user);
-        req.add_member("md5", md5sum(_pass + x.get_string()));
+        req.add_member("md5", md5sum(_pass + x.as_string()));
 
         fs.resize(sizeof(header));
         req.str(fs);
@@ -633,7 +632,7 @@ bool ClientImpl::auth() {
         DLOG << "rpc recv auth res: " << fs;
 
         x = res["err"];
-        if (!x.is_int() || x.get_int() != 200) {
+        if (x.as_int() != 200) {
             ELOG << "auth failed..";
             return false;
         }

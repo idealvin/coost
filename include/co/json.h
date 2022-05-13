@@ -1,427 +1,312 @@
 #pragma once
 
-#include "fastream.h"
-#include <vector>
-#include <unordered_map>
 #ifdef _MSC_VER
 #pragma warning (disable:4200)
 #endif
 
+#include "fastream.h"
+#include <initializer_list>
+
 namespace json {
 namespace xx {
 
-// JBlock is an array of uint64.
-// json::Json will be parsed or constructed as a JBlock.
-class JBlock {
+class Array {
   public:
-    enum { N = 8 }; // block size
-    explicit JBlock(uint32 cap) {
-        if (cap < 31) cap = 31;
-        _h = (_Header*) malloc(sizeof(_Header) + cap * N);
-        _h->cap = (uint32)cap;
+    typedef void* T;
+    struct _H {
+        uint32 cap;
+        uint32 size;
+        T p[];
+    };
+
+    static const uint32 R = sizeof(_H) / sizeof(T);
+
+    explicit Array(uint32 cap) {
+        _h = (_H*) co::alloc(sizeof(_H) + sizeof(T) * cap);
+        _h->cap = cap;
         _h->size = 0;
     }
 
-    ~JBlock() {
-        free(_h);
+    Array() : Array(1024 - R) {}
+
+    ~Array() {
+        co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
     }
 
-    // alloc n block, return the index
-    uint32 alloc(uint32 n) {
-        const uint32 index = _h->size;
-        if (_h->cap < (_h->size += n)) {
-            _h->cap += ((_h->cap >> 1) + n);
-            _h = (_Header*) realloc(_h, sizeof(_Header) + _h->cap * N);
-            assert(_h);
+    T* data() const { return _h->p; }
+    //uint32 capicity() const { return _h->cap; }
+    uint32 size() const { return _h->size; }
+    bool empty() const { return this->size() == 0; }
+    void resize(uint32 n) { _h->size = n; }
+
+    T& back() const { return _h->p[this->size() - 1]; }
+    T& operator[](uint32 i) const { return _h->p[i]; }
+
+    void push_back(T v) {
+        if (_h->size == _h->cap) {
+            const uint32 n = sizeof(T) * _h->cap;
+            const uint32 o = sizeof(_H) + n;
+            _h = (_H*) co::realloc(_h, o, o + n); assert(_h);
+            _h->cap <<= 1;
         }
-        return index;
+        _h->p[_h->size++] = v;
     }
 
-    void* at(uint32 index) const {
-        return _h->p + index;
-    }
-
-    void clear() { _h->size = 0; }
-
-    void safe_clear() { memset(_h->p, 0, _h->size * N); _h->size = 0; }
-
-    void reserve(uint32 n) {
-        if (_h->cap < n) {
-            _h->cap = n;
-            _h = (_Header*) realloc(_h, sizeof(_Header) + n * N);
-            assert(_h);
-        }
-    }
-
-    void copy_from(const JBlock& m) {
-        this->reserve(m._h->size);
-        memcpy(_h + 1, m._h + 1, m._h->size * N);
-        _h->size = m._h->size;
-    }
-
-    size_t memory_size() const {
-        return sizeof(_Header) + _h->cap * N;
-    }
-
-  private:
-    friend class Json;
-    struct _Header {
-        uint32 cap;
-        uint32 size;
-        uint64 p[];
-    };
-    _Header* _h;
-};
-
-struct Stack {
-    typedef uint32 T;
-    Stack(uint32 n=256) : cap(n), size(0) {
-        p = (T*) malloc(sizeof(T) * cap);
-    }
-    ~Stack() { free(p); }
-
-    void push(T v) {
-        if (cap <= size) {
-            cap += ((cap >> 1) + 1);
-            p = (T*) realloc(p, sizeof(T) * cap);
-        }
-        p[size++] = v;
-    }
-
-    uint32 pop() {
-        return p[--size];
+    T pop_back() {
+        return _h->p[--_h->size];
     }
 
     void reset() {
-        if (cap > 8192) {
-            free(p);
-            cap = 256;
-            p = (T*) malloc(sizeof(T) * cap);
-        }
-        size = 0;
-    }
-
-    uint32 cap;
-    uint32 size;
-    T* p;
-};
-
-class JAlloc {
-  public:
-    JAlloc() : _fs(256), _stack(512) {
-        _jb.reserve(32);
-    }
-
-    ~JAlloc() {
-        for (size_t i = 0; i < _jb.size(); ++i) free(_jb[i]);
-    }
-
-    void* alloc_jblock(uint32 cap=31) {
-        void* p;
-        if (!_jb.empty()) {
-            p = _jb.back();
-            _jb.pop_back();
-            ((JBlock*)&p)->reserve(cap);
-        } else {
-            new (&p) JBlock(cap);
-        }
-        return p;
-    }
-
-    void dealloc_jblock(void* p) {
-        JBlock* jb = (JBlock*)&p;
-        if (jb->memory_size() < 8 * 1024 * 1024) {
-            jb->clear();
-            _jb.push_back(p);
-        } else {
-            free(p);
+        _h->size = 0;
+        if (_h->cap > 8192) {
+            co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
+            new(this) Array();
         }
     }
-
-    fastream& alloc_stream() { _fs.clear(); return _fs; }
-    Stack& alloc_stack()  { return _stack; } 
 
   private:
-    std::vector<void*> _jb;
-    fastream _fs;    // for parsing string
-    Stack _stack;
+    _H* _h;
 };
 
-inline JAlloc* jalloc() {
-    static __thread JAlloc* alloc = 0;
-    return alloc ? alloc : (alloc = new JAlloc);
-}
-
-// Queue holds index of elements in array and object.
-// Every array and object owns one or more Queue.
-// @next: points to the next Queue.
-struct Queue {
-    Queue(uint32 n)           : cap(n), size(0), next(0) {}
-    Queue(uint32 n, uint32 m) : cap(n), size(m), next(0) {}
-    ~Queue() = default;
-
-    void push(uint32 x)           { p[size++] = x; }
-    void push(uint32 x, uint32 y) { p[size++] = x; p[size++] = y; }
-    bool full() const { return cap <= size; }
-
-    uint32 cap;
-    uint32 size;
-    uint32 next;
-    uint32 dummy;
-    uint32 p[];
-};
+__coapi void* alloc();
+__coapi char* alloc_string(const void* p, size_t n);
 
 } // xx
 
 class __coapi Json {
   public:
-    enum Type {
-        kNull = 0,
-        kBool = 1,
-        kInt = 2,
-        kDouble = 4,
-        kString = 8,
-        kArray = 16,
-        kObject = 32,
+    enum {
+        t_bool = 1,
+        t_int = 2,
+        t_double = 4,
+        t_string = 8,
+        t_array = 16,
+        t_object = 32,
     };
 
-    friend class Parser;
-    struct TypeArray {};
-    struct TypeObject {};
-    typedef const char* Key;
-    typedef const char* S;
+    struct _obj_t {};
+    struct _arr_t {};
 
-    // A Value must be created from a Json.
-    class Value {
-      public:
-        ~Value() = default;
+    struct _H {
+        _H(bool v) noexcept : type(t_bool), b(v) {}
+        _H(int64 v) noexcept : type(t_int), i(v) {}
+        _H(double v) noexcept : type(t_double), d(v) {}
+        _H(_obj_t) noexcept : type(t_object), p(0) {}
+        _H(_arr_t) noexcept : type(t_array), p(0) {}
 
-        bool is_null()   const { return _root->_is_null(_index); }
-        bool is_bool()   const { return _root->_is_bool(_index); }
-        bool is_int()    const { return _root->_is_int(_index); }
-        bool is_double() const { return _root->_is_double(_index); }
-        bool is_string() const { return _root->_is_string(_index); }
-        bool is_array()  const { return _root->_is_array(_index); }
-        bool is_object() const { return _root->_is_object(_index); }
+        _H(const char* p) : _H(p, strlen(p)) {}
+        _H(const void* p, size_t n) : type(t_string), size((uint32)n) {
+            s = xx::alloc_string(p, n);
+        }
 
-        bool get_bool()     const { return _root->_get_bool(_index); }
-        int64 get_int64()   const { return _root->_get_int64(_index); }
-        int get_int()       const { return (int)   this->get_int64(); }
-        int32 get_int32()   const { return (int32) this->get_int64(); }
-        uint32 get_uint32() const { return (uint32)this->get_int64(); }
-        uint64 get_uint64() const { return (uint64)this->get_int64(); }
-        double get_double() const { return _root->_get_double(_index); }
-        S get_string()      const { return _root->_get_string(_index); }
-
-        void operator=(bool x)   { return _root->_set_bool(x, _index); }
-        void operator=(int64 x)  { return _root->_set_int(x, _index); }
-        void operator=(int32 x)  { return this->operator=((int64)x); }
-        void operator=(uint32 x) { return this->operator=((int64)x); }
-        void operator=(uint64 x) { return this->operator=((int64)x); }
-        void operator=(double x) { return _root->_set_double(x, _index); }
-        void operator=(S x)      { return _root->_set_string(x, strlen(x), _index); }
-        void operator=(const fastring& x)    { return _root->_set_string(x.data(), x.size(), _index); }
-        void operator=(const std::string& x) { return _root->_set_string(x.data(), x.size(), _index); }
-
-        void set_null()   { return _root->_set_null(_index); }
-        void set_array()  { return _root->_set_array(_index); }
-        void set_object() { return _root->_set_object(_index); }
-
-        void add_member(Key key, bool x)   { return _root->_add_member(key, x, _index); }
-        void add_member(Key key, int64 x)  { return _root->_add_member(key, x, _index); }
-        void add_member(Key key, int x)    { return this->add_member(key, (int64)x); }
-        void add_member(Key key, uint32 x) { return this->add_member(key, (int64)x); }
-        void add_member(Key key, uint64 x) { return this->add_member(key, (int64)x); }
-        void add_member(Key key, double x) { return _root->_add_member(key, x, _index); }
-
-        void add_member(Key key, S x, size_t n)        { return _root->_add_member(key, x, n, _index); }
-        void add_member(Key key, S x)                  { return this->add_member(key, x, strlen(x)); }
-        void add_member(Key key, const std::string& x) { return this->add_member(key, x.data(), x.size()); }
-        void add_member(Key key, const fastring& x)    { return this->add_member(key, x.data(), x.size()); }
-
-        void add_null(Key key)                  { return _root->_add_null(key, _index); }
-        Value add_array (Key key, uint32 cap=0) { return _root->_add_array (key, cap, _index); }
-        Value add_object(Key key, uint32 cap=0) { return _root->_add_object(key, cap, _index); }
-
-        void push_back(bool x)   { return _root->_push_back(x, _index); }
-        void push_back(int64 x)  { return _root->_push_back(x, _index); }
-        void push_back(int x)    { return this->push_back((int64)x); }
-        void push_back(uint32 x) { return this->push_back((int64)x); }
-        void push_back(uint64 x) { return this->push_back((int64)x); }
-        void push_back(double x) { return _root->_push_back(x, _index); }
-
-        void push_back(S x, size_t n)        { return _root->_push_back(x, n, _index); }
-        void push_back(S x)                  { return this->push_back(x, strlen(x)); }
-        void push_back(const std::string& x) { return this->push_back(x.data(), x.size()); }
-        void push_back(const fastring& x)    { return this->push_back(x.data(), x.size()); }
-
-        template <typename X, typename ...V>
-        void push_back(X x, V... v) { this->push_back(x); this->push_back(v...); }
-
-        void push_null()                { return _root->_push_null(_index); }
-        Value push_array (uint32 cap=0) { return _root->_push_array (cap, _index); }
-        Value push_object(uint32 cap=0) { return _root->_push_object(cap, _index); }
-
-        Value operator[](uint32 i) const { return _root->_at(i, _index); }
-        Value operator[](int i)    const { return this->operator[]((uint32)i); }
-        Value operator[](Key key)  const { return _root->_at(key, _index); }
-        bool has_member(Key key)   const { return _root->_has_member(key, _index); }
-        uint32 size()              const { return _root->_size(_index); }
-        uint32 string_size()       const { return _root->_string_size(_index); }
-        uint32 array_size()        const { return _root->_array_size(_index); }
-        uint32 object_size()       const { return _root->_object_size(_index); }
-
-        fastream& str(fastream& fs)     const { return _root->_Json2str(fs, false, _index); }
-        fastream& dbg(fastream& fs)     const { return _root->_Json2str(fs, true, _index); }
-        fastream& pretty(fastream& fs)  const { return _root->_Json2pretty(fs, 4, 4, _index); }
-        fastring str(uint32 cap=256)    const { fastring s(cap); this->str(*(fastream*)&s); return s; }
-        fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(*(fastream*)&s); return s; }
-        fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(*(fastream*)&s); return s; }
-
-        class iterator {
-          public:
-            iterator(Json* root, uint32 q, uint32 type)
-                : _root(root), _q(q), _i(0) {
-                _step = (type == Json::kObject ? 2 : 1);
-            }
-
-            struct End {}; // fake end
-            static const End& end() { static End kEnd; return kEnd; }
-            bool operator!=(const End&) const { return _q != 0; }
-            bool operator==(const End&) const { return _q == 0; }
-
-            iterator& operator++() {
-                xx::Queue* a = (xx::Queue*) _root->_p8(_q);
-                if ((_i += _step) >= a->size) { _q = a->next; _i = 0; }
-                return *this;
-            }
-
-            Value operator*() const { return Value(_root, ((xx::Queue*)_root->_p8(_q))->p[_i]); }
-            Key key()         const { return (Key)_root->_p8(((xx::Queue*)_root->_p8(_q))->p[_i]); }
-            Value value()     const { return Value(_root, ((xx::Queue*)_root->_p8(_q))->p[_i + 1]); }
-
-          private:
-            Json* _root;
-            uint32 _q; // index of the Queue
-            uint32 _i; // position in the Queue
-            uint32 _step;
+        uint32 type;
+        uint32 size;  // size of string
+        union {
+            bool b;   // for bool
+            int64 i;  // for int
+            double d; // for double
+            char* s;  // for string
+            void* p;  // for array and object
         };
+    };
 
-        iterator begin()           const { return _root->_begin(_index); }
-        const iterator::End& end() const { return iterator::end(); }
+    Json() noexcept : _h(0) {}
+    Json(decltype(nullptr)) noexcept : _h(0) {}
+    Json(Json&& v) noexcept : _h(v._h) { v._h = 0; }
+    Json(Json& v) noexcept : _h(v._h) { v._h = 0; }
+    ~Json() { if (_h) this->reset(); }
+
+    Json(const Json& v) = delete;
+    void operator=(const Json&) = delete;
+
+    Json& operator=(Json&& v) {
+        if (&v != this) {
+            if (_h) this->reset();
+            _h = v._h;
+            v._h = 0;
+        }
+        return *this;
+    }
+
+    Json& operator=(Json& v) {
+        return this->operator=(std::move(v));
+    }
+
+    // make a duplicate 
+    Json dup() const {
+        Json r;
+        r._h = (_H*)this->_dup();
+        return r;
+    }
+
+    Json(bool v)   : _h(new(xx::alloc()) _H(v)) {}
+    Json(double v) : _h(new(xx::alloc()) _H(v)) {}
+    Json(int64 v)  : _h(new(xx::alloc()) _H(v)) {}
+    Json(int32 v)  : Json((int64)v) {}
+    Json(uint32 v) : Json((int64)v) {}
+    Json(uint64 v) : Json((int64)v) {}
+
+    // for string type
+    Json(const void* p, size_t n) : _h(new(xx::alloc()) _H(p, n)) {}
+    Json(const char* s) : Json(s, strlen(s)) {}
+    Json(const fastring& s) : Json(s.data(), s.size()) {}
+    Json(const std::string& s) : Json(s.data(), s.size()) {}
+
+    Json(_obj_t) : _h(new(xx::alloc()) _H(_obj_t())) {}
+    Json(_arr_t) : _h(new(xx::alloc()) _H(_arr_t())) {}
+
+    // make Json from initializer_list
+    Json(std::initializer_list<Json> v);
+
+    bool is_null() const { return _h == 0; }
+    bool is_bool() const { return _h && (_h->type & t_bool); }
+    bool is_int() const { return _h && (_h->type & t_int); }
+    bool is_double() const { return _h && (_h->type & t_double); }
+    bool is_string() const { return _h && (_h->type & t_string); }
+    bool is_array() const { return _h && (_h->type & t_array); }
+    bool is_object() const { return _h && (_h->type & t_object); }
+
+    bool as_bool() const { return this->is_bool() ? _h->b : false; }
+    int64 as_int64() const { return this->is_int() ? _h->i : 0; }
+    int32 as_int32() const { return (int32) this->as_int64(); }
+    int as_int() const { return (int) this->as_int64(); }
+    double as_double() const { return this->is_double() ? _h->d : 0; }
+    const char* as_string() const { return this->is_string() ? _h->s : ""; }
+
+    inline Json& get() const { return *(Json*)this; }
+    Json& get(uint32) const;
+    Json& get(int i) const { return this->get((uint32)i); }
+    Json& get(const char*) const;
+
+    template <class T,  class ...X>
+    inline Json& get(T&& v, X&& ... x) const {
+        auto& r = this->get(std::forward<T>(v));
+        if (r.is_null()) return r;
+        return r.get(std::forward<X>(x)...);
+    }
+
+    void push_back(Json&& v) {
+        if (_h) {
+            assert(_h->type & t_array);
+            if (unlikely(!_h->p)) new(&_h->p) xx::Array(8);
+        } else {
+            _h = new(xx::alloc()) _H(_arr_t());
+            new(&_h->p) xx::Array(8);
+        }
+        _array().push_back(v._h);
+        v._h = 0;
+    }
+
+    void push_back(Json& v) {
+        this->push_back(std::move(v));
+    }
+
+    Json& operator[](uint32 i) const {
+        assert(this->is_array() && !_array().empty());
+        return *(Json*)&_array()[i];
+    }
+
+    Json& operator[](int i) const {
+        return this->operator[]((uint32)i);
+    }
+
+    // for array and object, return number of the elements.
+    // for string, return the length.
+    // for other types, return 0.
+    uint32 size() const {
+        if (_h) {
+            switch (_h->type) {
+              case t_array:
+                return _h->p ? _array().size() : 0;
+              case t_object:
+                return _h->p ? (_array().size() >> 1) : 0;
+              case t_string:
+                return _h->size;
+            }
+        }
+        return 0;
+    }
+
+    bool empty() const { return this->size() == 0; }
+
+    uint32 array_size() const {
+        if (_h && (_h->type & t_array)) {
+            return _h->p ? _array().size() : 0;
+        }
+        return 0;
+    }
+
+    uint32 object_size() const {
+        if (_h && (_h->type & t_object)) {
+            return _h->p ? (_array().size() >> 1) : 0;
+        }
+        return 0;
+    }
+
+    uint32 string_size() const {
+        return (_h && (_h->type & t_string)) ? _h->size : 0;
+    }
+
+    void add_member(const char* key, Json&& v) {
+        if (_h) {
+            assert(_h->type & t_object);
+            if (unlikely(!_h->p)) new(&_h->p) xx::Array(16);
+        } else {
+            _h = new(xx::alloc()) _H(_obj_t());
+            new(&_h->p) xx::Array(16);
+        }
+        _array().push_back(xx::alloc_string(key, strlen(key))); // key
+        _array().push_back(v._h);
+        v._h = 0;
+    }
+
+    void add_member(const char* key, Json& v) {
+        this->add_member(key, std::move(v));
+    }
+
+    bool has_member(const char* key) const;
+    Json& operator[](const char* key) const;
+
+    class iterator {
+      public:
+        typedef void* T;
+        iterator(T* p, T* e, uint32 step) : _p(p), _e(e), _step(step) {}
+
+        struct End {}; // fake end
+        static const End& end() { static End kEnd; return kEnd; }
+
+        bool operator!=(const End&) const { return _p != _e; }
+        bool operator==(const End&) const { return _p == _e; }
+        iterator& operator++() { _p += _step; return *this; }
+        iterator operator++(int) = delete;
+
+        const char* key() const { return (const char*)_p[0]; }
+        Json& value() const { return *(Json*)&_p[1]; }
+        Json& operator*() const { return *(Json*)&_p[0]; }
 
       private:
-        Json* _root;
-        uint32 _index;
-
-        friend class Json;
-        Value(Json* root, uint32 index)
-            : _root(root), _index(index) {
-        }
+        T* _p;
+        T* _e;
+        uint32 _step;
     };
 
-    Json()           : _mem(xx::jalloc()->alloc_jblock()) { _make_null(); }
-    Json(TypeArray)  : _mem(xx::jalloc()->alloc_jblock()) { _make_array(); }
-    Json(TypeObject) : _mem(xx::jalloc()->alloc_jblock()) { _make_object(); }
-    Json(Json&& r) noexcept : _mem(r._mem) { r._mem = 0; }
-    ~Json() { if (_mem) xx::jalloc()->dealloc_jblock(_mem); }
-
-    Json(const Json& r) : _mem(xx::jalloc()->alloc_jblock()) { _jb.copy_from(r._jb); }
-    Json& operator=(const Json& r) {
-        if (&r != this) { _jb.clear(); _jb.copy_from(r._jb); }
-        return *this;
+    iterator begin() const {
+        if (unlikely(!_h || !_h->p)) return iterator(0, 0, 0);
+        assert(_h->type & (t_array | t_object));
+        static_assert(t_array == 16 && t_object == 32, "");
+        auto& a = _array();
+        return iterator(a.data(), a.data() + a.size(), _h->type >> 4);
     }
 
-    Json& operator=(Json&& r) noexcept {
-        if (&r != this) {
-            if (_mem) xx::jalloc()->dealloc_jblock(_mem);
-            _mem = r._mem; r._mem = 0;
-        }
-        return *this;
-    }
-
-    void add_member(Key key, bool x)   { return this->_add_member(key, x, 0); }
-    void add_member(Key key, int64 x)  { return this->_add_member(key, x, 0); }
-    void add_member(Key key, int x)    { return this->add_member(key, (int64)x); }
-    void add_member(Key key, uint32 x) { return this->add_member(key, (int64)x); }
-    void add_member(Key key, uint64 x) { return this->add_member(key, (int64)x); }
-    void add_member(Key key, double x) { return this->_add_member(key, x, 0); }
-
-    void add_member(Key key, S x, size_t n)        { return this->_add_member(key, x, n, 0); }
-    void add_member(Key key, S x)                  { return this->add_member(key, x, strlen(x)); }
-    void add_member(Key key, const std::string& x) { return this->add_member(key, x.data(), x.size()); }
-    void add_member(Key key, const fastring& x)    { return this->add_member(key, x.data(), x.size()); }
-
-    void add_null(Key key)                  { return this->_add_null(key, 0); }
-    Value add_array (Key key, uint32 cap=0) { return this->_add_array (key, cap, 0); }
-    Value add_object(Key key, uint32 cap=0) { return this->_add_object(key, cap, 0); }
-
-    void push_back(bool x)   { return this->_push_back(x, 0); }
-    void push_back(int64 x)  { return this->_push_back(x, 0); }
-    void push_back(int x)    { return this->push_back((int64)x); }
-    void push_back(uint32 x) { return this->push_back((int64)x); }
-    void push_back(uint64 x) { return this->push_back((int64)x); }
-    void push_back(double x) { return this->_push_back(x, 0); }
-
-    void push_back(S x, size_t n)        { return this->_push_back(x, n, 0); }
-    void push_back(S x)                  { return this->push_back(x, strlen(x)); }
-    void push_back(const std::string& x) { return this->push_back(x.data(), x.size()); }
-    void push_back(const fastring& x)    { return this->push_back(x.data(), x.size()); }
-
-    template <typename X, typename ...V>
-    void push_back(X x, V... v) { this->push_back(x); this->push_back(v...); }
-
-    void push_null()                { return this->_push_null(0); }
-    Value push_array (uint32 cap=0) { return this->_push_array (cap, 0); }
-    Value push_object(uint32 cap=0) { return this->_push_object(cap, 0); }
-
-    bool is_null()   const { return this->_is_null(0); }
-    bool is_bool()   const { return this->_is_bool(0); }
-    bool is_int()    const { return this->_is_int(0); }
-    bool is_double() const { return this->_is_double(0); }
-    bool is_string() const { return this->_is_string(0); }
-    bool is_array()  const { return this->_is_array(0); }
-    bool is_object() const { return this->_is_object(0); }
-
-    bool get_bool()     const { return this->_get_bool(0); }
-    int64 get_int64()   const { return this->_get_int64(0); }
-    int get_int()       const { return (int)this->get_int64(); }
-    int32 get_int32()   const { return (int32)this->get_int64(); }
-    uint32 get_uint32() const { return (uint32)this->get_int64(); }
-    uint64 get_uint64() const { return (uint64)this->get_int64(); }
-    double get_double() const { return this->_get_double(0); }
-    S get_string()      const { return this->_get_string(0); }
-
-    void set_null()   { _jb.clear(); _make_null(); }
-    void set_array()  { _jb.clear(); _make_array(); }
-    void set_object() { _jb.clear(); _make_object(); }
-
-    void clear() { _jb.clear(); _make_null(); }
-    void safe_clear() { _jb.safe_clear(); _make_null(); }
-
-    typedef Value::iterator iterator;
-    iterator begin()           const { return this->_begin(0); }
     const iterator::End& end() const { return iterator::end(); }
-    Value operator[](uint32 i) const { return this->_at(i, 0); }
-    Value operator[](int i)    const { return this->operator[]((uint32)i); }
-    Value operator[](Key key)  const { return this->_at(key, 0); }
-    bool has_member(Key key)   const { return this->_has_member(key, 0); }
-    uint32 size()              const { return this->_size(0); }
-    uint32 string_size()       const { return this->_string_size(0); }
-    uint32 array_size()        const { return this->_array_size(0); }
-    uint32 object_size()       const { return this->_object_size(0); }
 
     // Stringify.
-    //   - str() converts Json to string without any white spaces.
-    //   - dbg() behaves the same as str() except that it will truncate the 
-    //     string type if its length is greater than 512 bytes.
+    //   - str() converts Json to minified string.
+    //   - dbg() like the str(), but will truncate long string type (> 512 bytes).
     //   - pretty() converts Json to human readable string.
-    //
-    //   - @cap  memory allocated when fastream is initialized, which can be 
-    //     used to reduce memory reallocation.
-    fastream& str(fastream& fs)     const { return this->_Json2str(fs, false, 0); }
-    fastream& dbg(fastream& fs)     const { return this->_Json2str(fs, true, 0); }
-    fastream& pretty(fastream& fs)  const { return this->_Json2pretty(fs, 4, 4, 0); }
+    fastream& str(fastream& fs)     const { return this->_json2str(fs, false); }
+    fastream& dbg(fastream& fs)     const { return this->_json2str(fs, true); }
+    fastream& pretty(fastream& fs)  const { return this->_json2pretty(fs, 4, 4); }
     fastring str(uint32 cap=256)    const { fastring s(cap); this->str(*(fastream*)&s); return s; }
     fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(*(fastream*)&s); return s; }
     fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(*(fastream*)&s); return s; }
@@ -432,197 +317,38 @@ class __coapi Json {
     bool parse_from(const fastring& s)    { return this->parse_from(s.data(), s.size()); }
     bool parse_from(const std::string& s) { return this->parse_from(s.data(), s.size()); }
 
-  private:
-    fastream& _Json2str(fastream& fs, bool debug, uint32 index) const;
-    fastream& _Json2pretty(fastream& fs, int indent, int n, uint32 index) const;
-
-    Value _at(uint32 i, uint32 index) const;
-    Value _at(Key key, uint32 index) const;
-    bool _has_member(Key key, uint32 index) const;
-    uint32 _size(uint32 index) const;
-    uint32 _array_size(uint32 index) const;
-    uint32 _object_size(uint32 index) const;
-
-    uint32 _string_size(uint32 index) const {
-        _Header* h = (_Header*) _p8(index);
-        return (h->type == kString) ? h->size : 0;
-    }
-
-    iterator _begin(uint32 index) const {
-        _Header* h = (_Header*) _p8(index);
-        if (h->type == kNull) return iterator((Json*)this, 0, kNull);
-        assert(h->type & (kObject | kArray));
-        uint32 q = h->index;
-        if (q && ((xx::Queue*)_p8(q))->size == 0) q = 0;
-        return iterator((Json*)this, q, h->type);
-    }
-
-    // _b8() calculate blocks num from bytes, _b8(15) = 2, etc.
-    // _p8() return pointer at the index, 8-byte aligned.
-    // _a8() allocate blocks according to the length.
-    uint32 _b8(size_t n) const { return (uint32)((n >> 3) + !!(n & 7)); }
-    void*  _p8(uint32 i) const { return _jb.at(i); }
-    uint32 _a8(size_t n)       { return _jb.alloc(_b8(n)); }
-    uint32 _alloc_header()     { return _jb.alloc(2); }
-
-    uint32 _make_null()           { uint32 i = _alloc_header();  new (_p8(i)) _Header(kNull); return i; }
-    uint32 _make_bool(bool x)     { uint32 i = _alloc_header(); (new (_p8(i)) _Header(kBool))->b = x; return i; }
-    uint32 _make_int(int64 x)     { uint32 i = _alloc_header(); (new (_p8(i)) _Header(kInt))->i = x; return i; }
-    uint32 _make_double(double x) { uint32 i = _alloc_header(); (new (_p8(i)) _Header(kDouble))->d = x; return i; }
-
-    uint32 _make_raw_string(const char* x, size_t n) {
-        const uint32 index = _a8(n + 1);
-        char* p = (char*)_p8(index);
-        memcpy(p, x, n);
-        p[n] = '\0';
-        return index;
-    }
-
-    uint32 _make_string(const char* s, size_t n) {
-        const uint32 head = _alloc_header();
-        const uint32 body = _make_raw_string(s, n);
-        _Header* h = new (_p8(head)) _Header(kString);
-        h->size = (uint32)n; // length of the string
-        h->index = body;     // points to the body of the string
-        return head;
-    }
-
-    uint32 _make_key(const char* x, size_t n) {
-        return _make_raw_string(x, n);
-    }
-
-    uint32 _make_key(Key key) {
-        const uint32 n = (uint32) strlen(key);
-        const uint32 index = _a8(n + 1);
-        memcpy(_p8(index), key, n + 1);
-        return index;
-    }
-
-    uint32 _make_array(uint32 cap=0) {
-        const uint32 head = _alloc_header();
-        const uint32 q = (cap == 0 ? 0 : _alloc_queue(cap));
-        (new (_p8(head)) _Header(kArray))->index = q;
-        return head;
-    }
-
-    uint32 _make_object(uint32 cap=0) {
-        const uint32 head = _alloc_header();
-        const uint32 q = (cap == 0 ? 0 : _alloc_queue(cap * 2));
-        (new (_p8(head)) _Header(kObject))->index = q;
-        return head;
-    }
-
-    bool _is_null(uint32 i)   const { return ((_Header*)_p8(i))->type == kNull; }
-    bool _is_bool(uint32 i)   const { return ((_Header*)_p8(i))->type == kBool; }
-    bool _is_int(uint32 i)    const { return ((_Header*)_p8(i))->type == kInt; }
-    bool _is_double(uint32 i) const { return ((_Header*)_p8(i))->type == kDouble; }
-    bool _is_string(uint32 i) const { return ((_Header*)_p8(i))->type == kString; }
-    bool _is_array (uint32 i) const { return ((_Header*)_p8(i))->type == kArray; }
-    bool _is_object(uint32 i) const { return ((_Header*)_p8(i))->type == kObject; }
-
-    bool _get_bool(uint32 i)     const { _Header* h = (_Header*)_p8(i); return (h->type == kBool) ? h->b : false; }
-    int64 _get_int64(uint32 i)   const { _Header* h = (_Header*)_p8(i); return (h->type == kInt) ? h->i : 0; }
-    double _get_double(uint32 i) const { _Header* h = (_Header*)_p8(i); return (h->type == kDouble) ? h->d : 0.0; }
-    S _get_string(uint32 i)      const { _Header* h = (_Header*)_p8(i); return (h->type == kString) ? (S)_p8(h->index) : ""; }
-
-    void _set_bool(bool x, uint32 i)     { (new (_p8(i)) _Header(kBool))->b = x; }
-    void _set_int(int64 x, uint32 i)     { (new (_p8(i)) _Header(kInt))->i = x; }
-    void _set_double(double x, uint32 i) { (new (_p8(i)) _Header(kDouble))->d = x; }
-
-    void _set_string(S x, size_t n, uint32 i) {
-        const uint32 index = _make_raw_string(x, n);
-        _Header* h = new (_p8(i)) _Header(kString);
-        h->index = index;
-        h->size = (uint32)n;
-    }
-
-    void _set_null  (uint32 i) { new (_p8(i)) _Header(kNull); };
-    void _set_array (uint32 i) { _Header* h = new (_p8(i)) _Header(kArray);  h->index = 0; }
-    void _set_object(uint32 i) { _Header* h = new (_p8(i)) _Header(kObject); h->index = 0; }
-
-    // add member to an object
-    //   @key:   index of key
-    //   @val:   index of value
-    //   @i:     index of the object
-    void _add_member(uint32 key, uint32 val, uint32 i);
-
-    void _add_member(Key key, bool x, uint32 i)        { return this->_add_member(_make_key(key), _make_bool(x), i); }
-    void _add_member(Key key, int64 x, uint32 i)       { return this->_add_member(_make_key(key), _make_int(x), i); }
-    void _add_member(Key key, double x, uint32 i)      { return this->_add_member(_make_key(key), _make_double(x), i); }
-    void _add_member(Key key, S x, size_t n, uint32 i) { return this->_add_member(_make_key(key), _make_string(x, n), i); }
-    void _add_null(Key key, uint32 i)                  { return this->_add_member(_make_key(key), _make_null(), i); }
-
-    Value _add_array(Key key, uint32 cap, uint32 i) {
-        uint32 a = _make_array(cap);
-        this->_add_member(_make_key(key), a, i);
-        return Value(this, a);
-    }
-
-    Value _add_object(Key key, uint32 cap, uint32 i) {
-        uint32 o = _make_object(cap);
-        this->_add_member(_make_key(key), o, i);
-        return Value(this, o);
-    }
-
-    // push element to an array
-    //   @val:   index of value
-    //   @i:     index of the array
-    void _push_back(uint32 val, uint32 i);
-
-    void _push_back(bool x, uint32 i)        { return this->_push_back(_make_bool(x), i); }
-    void _push_back(int64 x, uint32 i)       { return this->_push_back(_make_int(x), i); }
-    void _push_back(double x, uint32 i)      { return this->_push_back(_make_double(x), i); }
-    void _push_back(S x, size_t n, uint32 i) { return this->_push_back(_make_string(x, n), i); }
-    void _push_null(uint32 i)                { return this->_push_back(_make_null(), i); }
-    Value _push_array (uint32 cap, uint32 i) { uint32 a = _make_array (cap); this->_push_back(a, i); return Value(this, a); }
-    Value _push_object(uint32 cap, uint32 i) { uint32 o = _make_object(cap); this->_push_back(o, i); return Value(this, o); }
-
-    uint32 _alloc_queue(uint32 cap) {
-        uint32 index = _a8(16 + cap * sizeof(uint32));
-        new (_p8(index)) xx::Queue(cap);
-        return index;
-    }
-
-    uint32 _alloc_queue(const char* p, size_t n) {
-        const uint32 cap = (uint32)(n >> 2); // n/4
-        uint32 index = _a8(16 + n);
-        char* s = (char*) new (_p8(index)) xx::Queue(cap, cap);
-        memcpy(s + 16, p, n);
-        return index;
-    }
+    void reset();
+    void swap(Json& v) noexcept { auto h = _h; _h = v._h; v._h = h; }
+    void swap(Json&& v) noexcept { v.swap(*this); }
 
   private:
-    struct _Header {
-        _Header(Type t) : type(t) {}
-        uint32 type;
-        uint32 size;      // for string
-        union {
-            bool b;       // for bool
-            int64 i;      // for int
-            double d;     // for double
-            uint32 index; // for string, array, object
-        };
-    }; // 16 bytes
+    friend class Parser;
+    void* _dup() const;
+    xx::Array& _array() const { return *((xx::Array*)&_h->p); }
+    fastream& _json2str(fastream& fs, bool debug) const;
+    fastream& _json2pretty(fastream& fs, int indent, int n) const;
 
-    union {
-        xx::JBlock _jb;
-        void* _mem;
-    };
+  private:
+    _H* _h;
 };
 
-typedef Json::Value Value;
+// make an empty array
+inline Json array() { return Json(Json::_arr_t()); }
 
-// json::array()  creates an empty array
-// json::object() creates an empty object
-inline Json array()  { return Json(Json::TypeArray()); }
-inline Json object() { return Json(Json::TypeObject()); }
+// make an array from initializer_list
+__coapi Json array(std::initializer_list<Json> v);
+
+// make an empty object
+inline Json object() { return Json(Json::_obj_t()); }
+
+// make an object from initializer_list
+__coapi Json object(std::initializer_list<Json> v);
 
 inline Json parse(const char* s, size_t n) {
-    void* p = 0;
-    Json& r = *(Json*) &p;
-    if (r.parse_from(s, n)) return std::move(r);
-    r.set_null();
-    return std::move(r);
+    Json r;
+    if (r.parse_from(s, n)) return r;
+    r.reset();
+    return r;
 }
 
 inline Json parse(const char* s)        { return parse(s, strlen(s)); }
@@ -633,5 +359,4 @@ inline Json parse(const std::string& s) { return parse(s.data(), s.size()); }
 
 typedef json::Json Json;
 
-inline fastream& operator<<(fastream& fs, const json::Json& x)  { return x.dbg(fs); }
-inline fastream& operator<<(fastream& fs, const json::Value& x) { return x.dbg(fs); }
+inline fastream& operator<<(fastream& fs, const json::Json& x) { return x.dbg(fs); }
