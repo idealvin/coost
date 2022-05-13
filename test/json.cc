@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
 
     auto u = f();
-    auto v = f();
+    auto v = g();
     fastring s = u.str();
     COUT << s;
     COUT << v.str();
@@ -61,6 +61,8 @@ int main(int argc, char** argv) {
 
     COUT << u.str();
     COUT << u.pretty();
+    COUT << "u[\"num\"][0] = " << u.get("num", 0);
+    COUT << "u[\"o\"][\"o3\"][1] = " << u.get("o", "o3", 1);
 
     int n = 10000;
     COUT << "s.size(): " << s.size();
