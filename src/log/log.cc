@@ -194,16 +194,12 @@ class Logger {
     };
 
     typedef const char* Key;
-    struct Eq {
-        bool operator()(Key x, Key y) const { return x == y || strcmp(x, y) == 0; }
-    };
-    typedef co::hash_map<Key, PerTopic, std::hash<Key>, Eq> LogMap;
 
     struct TLog {
         TLog() : pts(8), write_cb(NULL), write_flags(0) {}
         struct {
             ::Mutex mtx;
-            LogMap mp; // <topic, PerTopic>
+            co::hash_map<Key, PerTopic> mp;
             LogTime log_time;
             char time_str[24];
         } v[A];
