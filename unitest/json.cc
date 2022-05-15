@@ -21,6 +21,8 @@ DEF_test(json) {
     DEF_case(bool) {
         Json b = true;
         EXPECT(b.is_bool());
+        EXPECT(b == true);
+        EXPECT(b != false);
         EXPECT_EQ(b.as_bool(), true);
         EXPECT_EQ(b.str(), "true");
         EXPECT_EQ(b.pretty(), "true");
@@ -37,6 +39,8 @@ DEF_test(json) {
     DEF_case(int) {
         Json i = 0;
         EXPECT(i.is_int());
+        EXPECT(i == 0);
+        EXPECT(i != 1);
         EXPECT_EQ(i.as_int(), 0);
         EXPECT_EQ(i.as_int(), 0);
         EXPECT_EQ(i.str(), "0");
@@ -48,8 +52,9 @@ DEF_test(json) {
         EXPECT_EQ(i.str(), "123");
         EXPECT_EQ(i.pretty(), "123");
 
-        Json x = (int64) 12345;
+        Json x = (int64)12345;
         EXPECT(x.is_int());
+        EXPECT(x == (int64)12345);
         EXPECT_EQ(x.as_int64(), 12345);
         EXPECT_EQ(x.as_int64(), 12345);
         EXPECT_EQ(x.str(), "12345");
@@ -62,11 +67,13 @@ DEF_test(json) {
     DEF_case(double) {
         Json d = 3.14;
         EXPECT(d.is_double());
+        EXPECT(d == 3.14);
         EXPECT_EQ(d.as_double(), 3.14);
         EXPECT_EQ(d.str(), "3.14");
         EXPECT_EQ(d.pretty(), "3.14");
 
         d = 7e-5;
+        EXPECT(d == 7e-5);
         EXPECT(d.is_double());
         EXPECT_EQ(d.as_double(), 7e-5);
 
@@ -78,6 +85,8 @@ DEF_test(json) {
     DEF_case(string) {
         Json s = "hello world";
         EXPECT(s.is_string());
+        EXPECT(s == "hello world");
+        EXPECT(s == fastring("hello world"));
         EXPECT_EQ(s.size(), 11);
         EXPECT_EQ(s.string_size(), 11);
         EXPECT_EQ(s.str(), "\"hello world\"");

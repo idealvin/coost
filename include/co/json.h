@@ -210,6 +210,25 @@ class __coapi Json {
         return this->operator[]((uint32)i);
     }
 
+    bool operator==(bool v) const { return this->is_bool() && _h->b == v; }
+    bool operator==(double v) const { return this->is_double() && _h->d == v; }
+    bool operator==(int64 v) const { return this->is_int() && _h->i == v; }
+    bool operator==(int v) const { return this->operator==((int64)v); }
+    bool operator==(uint32 v) const { return this->operator==((int64)v); }
+    bool operator==(uint64 v) const { return this->operator==((int64)v); }
+    bool operator==(const char* v) const { return this->is_string() && strcmp(_h->s, v) == 0; }
+    bool operator==(const fastring& v) const { return this->is_string() && v == _h->s; }
+    bool operator==(const std::string& v) const { return this->is_string() && v == _h->s; }
+    bool operator!=(bool v) const { return !this->operator==(v); }
+    bool operator!=(double v) const { return !this->operator==(v); }
+    bool operator!=(int64 v) const { return !this->operator==(v); }
+    bool operator!=(int v) const { return !this->operator==(v); }
+    bool operator!=(uint32 v) const { return !this->operator==(v); }
+    bool operator!=(uint64 v) const { return !this->operator==(v); }
+    bool operator!=(const char* v) const { return !this->operator==(v); }
+    bool operator!=(const fastring& v) const { return !this->operator==(v); }
+    bool operator!=(const std::string& v) const { return !this->operator==(v); }
+
     // for array and object, return number of the elements.
     // for string, return the length.
     // for other types, return 0.
