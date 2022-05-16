@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../fastring.h"
-#include <string>
 
 /**
  * base64 encode 
