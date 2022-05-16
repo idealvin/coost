@@ -22,7 +22,7 @@ inline uint32 _get_mask(uint32 x) { /* x > 1 */
 #endif
 
 inline std::mt19937& _random() {
-    static __thread std::mt19937 r(std::random_device{}());
+    static thread_local std::mt19937 r(std::random_device{}());
     return r;
 }
 
