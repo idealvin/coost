@@ -323,12 +323,15 @@ class __coapi Json {
     //   - str() converts Json to minified string.
     //   - dbg() like the str(), but will truncate long string type (> 512 bytes).
     //   - pretty() converts Json to human readable string.
-    fastream& str(fastream& fs)     const { return this->_json2str(fs, false); }
-    fastream& dbg(fastream& fs)     const { return this->_json2str(fs, true); }
-    fastream& pretty(fastream& fs)  const { return this->_json2pretty(fs, 4, 4); }
-    fastring str(uint32 cap=256)    const { fastring s(cap); this->str(*(fastream*)&s); return s; }
-    fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(*(fastream*)&s); return s; }
-    fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(*(fastream*)&s); return s; }
+    fastream& str(fastream& s)      const { return this->_json2str(s, false); }
+    fastring& str(fastring& s)      const { return (fastring&)this->str(*(fastream*)&s); }
+    fastream& dbg(fastream& s)      const { return this->_json2str(s, true); }
+    fastring& dbg(fastring& s)      const { return (fastring&)this->dbg(*(fastream*)&s); }
+    fastream& pretty(fastream& s)   const { return this->_json2pretty(s, 4, 4); }
+    fastring& pretty(fastring& s)   const { return (fastring&)this->pretty(*(fastream*)&s); }
+    fastring str(uint32 cap=256)    const { fastring s(cap); this->str(s); return s; }
+    fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(s); return s; }
+    fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(s); return s; }
 
     // Parse Json from string, inverse to stringify.
     bool parse_from(const char* s, size_t n);
