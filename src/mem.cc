@@ -62,7 +62,7 @@ inline uint32 _find_lsb(size_t x) {
 inline uint32 _pow2_align(uint32 n) {
     unsigned long r;
     _BitScanReverse(&r, n - 1);
-    return 1u << (r + 1);
+    return 2u << r;
 }
 
 #else

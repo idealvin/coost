@@ -1,8 +1,9 @@
 #pragma once
 
 #include "../json.h"
-#include "../hash.h"
-#include <unordered_map>
+#include "../stl.h"
+#include <memory>
+#include <functional>
 
 namespace rpc {
 
@@ -11,9 +12,10 @@ class Service {
     Service() = default;
     virtual ~Service() = default;
 
-    virtual const char* name() const = 0;
+    typedef std::function<void(const Json&, Json&)> Fun;
 
-    virtual void process(const Json& req, Json& res) = 0;
+    virtual const char* name() const = 0;
+    virtual const co::map<const char*, Fun>& methods() const = 0;
 };
 
 class __coapi Server {
@@ -23,15 +25,13 @@ class __coapi Server {
 
     /**
      * add a service 
-     *   - Multiple services can be added into the server. 
-     * 
-     * @param s  a pointer to a Service, it must be created with operator new.
+     *   - Multiple services can be added. 
      */
-    void add_service(Service* s);
+    void add_service(const std::shared_ptr<Service>& s);
 
     /**
      * add a pair of username and password 
-     *   - Multiple usernames and passwords can be added into the server. 
+     *   - Multiple usernames and passwords can be added. 
      *   - Empty username or password will be ignored. 
      */
     void add_userpass(const char* user, const char* pass);
@@ -82,19 +82,13 @@ class __coapi Client {
      */
     void set_userpass(const char* user, const char* pass);
 
-    /**
-     * perform a rpc request
-     */
+    // perform a rpc request
     void call(const Json& req, Json& res);
 
-    /**
-     * send a heartbeat
-     */
+    // send a heartbeat
     void ping();
 
-    /**
-     * close the connection 
-     */
+    // close the connection 
     void close();
 
   private:

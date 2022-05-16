@@ -1,28 +1,6 @@
-package xx  // namespace xx
+package xx
 
-// class HelloWorld : public rpc::Service
 service HelloWorld {  
-    hello,  // void HelloWorld::hello(const Json& req, Json& res);
-    world,  // void HelloWorld::world(const Json& req, Json& res);
-}
-
-// param
-hello.req {
-    "service": "xx.HelloWorld",
-    "method": "hello"
-}
-
-hello.res {
-    "err": 200,
-    "errmsg": "ok"
-}
-
-world.req {
-    "service": "xx.HelloWorld",
-    "method": "world"
-}
-
-world.res {
-    "err": 200,
-    "errmsg": "ok"
+    hello,
+    world,
 }
