@@ -17,15 +17,8 @@ struct curl_ctx_t;
 
 /**
  * http client for coroutine programming
- *   - This is an implement based on libcurl. Internally, each client owns a multi
- *     handle and an easy handle. Multi handle in libcurl is a little complicated.
- *     It is recommended to read the documents below to have a better understanding
- *     of the multi handle:
- *       https://everything.curl.dev/libcurl/drive/multi-socket
- *
- *   - NOTE: http::Client will not url-encode the url passed in. The user may call
- *     url_encode() in co/hash/url.h to encode the url before passing it to a http
- *     request, if necessary.
+ *   - NOTE: It will not url-encode the url passed in. Call url_encode() in 
+ *     co/hash/url.h to encode the url if necessary.
  */
 class __coapi Client {
   public:
@@ -105,14 +98,12 @@ class __coapi Client {
 
     /**
      * perform a HTTP PUT request
+     *   - upload a file to the server
      *
-     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     * @param url   This url will appear in the request line, it MUST begins with '/'.
+     * @param path  Path of the file to be uploaded.
      */
-    void put(const char* url, const char* data, size_t size);
-
-    void put(const char* url, const char* s) {
-        this->put(url, s, strlen(s));
-    }
+    void put(const char* url, const char* path);
 
     /**
      * perform a HTTP DELETE request
@@ -141,9 +132,7 @@ class __coapi Client {
      */
     void set_url(const char* url);
 
-    /**
-     * get curl easy handle owned by this client
-     */
+    // get curl easy handle (CURL*) owned by this client
     void* easy_handle() const;
 
     /**
@@ -164,9 +153,10 @@ class __coapi Client {
      */
     int response_code() const;
 
-    /**
-     * get error message of the current request
-     */
+    // the same as response_code()
+    int status() const { return this->response_code(); }
+
+    // get error message of the current request
     const char* strerror() const;
 
     /**
@@ -186,26 +176,15 @@ class __coapi Client {
      *
      * @return  a pointer to a null-terminated string, which contains the response start line.
      */
-    const char* header() const;
+    const fastring& header() const;
 
     /**
      * get body of the current HTTP response
      *   - NOTE: Contents of the body will be cleared when the next request was performed.
-     *   - The result may not be null-terminated, call body_size() to get the size.
-     *
-     * @return  a pointer to the response body.
      */
-    const char* body() const;
+    const fastring& body() const;
 
-    /**
-     * get body size of the current HTTP response
-     */
-    size_t body_size() const;
-
-    /**
-     * close the http connection
-     *   - Once close() is called, this client can not be used anymore.
-     */
+    // Close the connection. Once it is called, the client can't be used anymore.
     void close();
 
   private:
@@ -256,7 +235,7 @@ class __coapi Req {
     const char* header(const char* key) const;
 
     // return a pointer to the body, which may be not null-terminated, call 
-    // `body_size()` to get the length.
+    // body_size() to get the length.
     const char* body() const;
 
     // get length of the body
@@ -271,25 +250,29 @@ class __coapi Res {
     Res() : _p(0) {}
     ~Res();
 
-    // set response code
+    /**
+     * set response code
+     *   - NOTE: it MUST be called before set_body() or body()
+     */
     void set_status(int status) { *(uint32*)_p = status; }
 
     /**
      * add a HTTP header to the response
+     *   - NOTE: it MUST be called before set_body() or body()
      *   - 'Content-Length' will be added automatically, no need to add it manually.
      */
     void add_header(const char* key, const char* val);
 
+    // add a header with an integer value
+    void add_header(const char* key, int val);
+
     /**
      * set body of the response
      *   - The body length will be zero if no body was set.
-     *   - NOTE: set_status() and add_header() MUST be called before set_body().
      */
     void set_body(const void* s, size_t n);
-
-    void set_body(const char* s) {
-        this->set_body(s, strlen(s));
-    }
+    void set_body(const char* s) { this->set_body(s, strlen(s)); }
+    void set_body(const fastring& s) { this->set_body(s.data(), s.size()); }
 
   private:
     http_res_t* _p;

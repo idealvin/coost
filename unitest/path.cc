@@ -6,6 +6,7 @@ namespace test {
 
 DEF_test(path) {
     DEF_case(clean) {
+        EXPECT_EQ(path::clean(""), ".");
         EXPECT_EQ(path::clean(".//x"), "x");
         EXPECT_EQ(path::clean("./x//y/"), "x/y");
         EXPECT_EQ(path::clean("./x/.."), ".");

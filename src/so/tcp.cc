@@ -339,11 +339,11 @@ void ServerImpl::on_ssl_connection(sock_t fd) {
 }
 
 Server::Server() {
-    _p = new ServerImpl();
+    _p = co::make<ServerImpl>();
 }
 
 Server::~Server() {
-    if (_p) { delete (ServerImpl*)_p; _p = 0; }
+    if (_p) { co::del((ServerImpl*)_p); _p = 0; }
 }
 
 void Server::on_connection(std::function<void(Connection)>&& f) {

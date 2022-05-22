@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
                 if (req.url() == "/hello") {
                     res.set_status(200);
                     res.add_header("hello", "xxxxx");
-                    res.set_body("hello post");
+                    res.set_body("hello post", 10);
                 } else {
                     res.set_status(403);
                 }
