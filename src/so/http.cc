@@ -349,9 +349,8 @@ void Client::perform() {}
 int Client::response_code() const { return 0; }
 const char* Client::strerror() const { return ""; }
 const char* Client::header(const char*) { return ""; }
-const char* Client::header() const { return ""; }
-const char* Client::body() const { return ""; }
-size_t Client::body_size() const { return 0; }
+const fastring& Client::header() const { static fastring s; return s; }
+const fastring& Client::body() const { static fastring s; return s; }
 void Client::close() {}
 
 #endif // http::Client
