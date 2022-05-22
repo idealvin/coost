@@ -198,6 +198,13 @@ class __coapi fastring : public fast::stream {
         return p ? p - _p : npos;
     }
 
+    // find character c in [pos, pos + len)
+    size_t find(char c, size_t pos, size_t len) const {
+        if (this->size() <= pos) return npos;
+        char* p = (char*) memchr(_p + pos, c, len);
+        return p ? p - _p : npos;
+    }
+
     size_t find(const char* s) const {
         if (this->empty()) return npos;
         const char* p = strstr(this->c_str(), s);
