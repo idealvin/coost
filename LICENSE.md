@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2019-2022 Alvin Yih <idealvin@qq.com> (github.com/idealvin/cocoyaxi)
+Copyright (c) 2019-2022 Alvin Yih <idealvin@qq.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,8 @@ Cocoyaxi includes code from the following projects, which have their own license
 - [hash/crc16*](https://github.com/idealvin/cocoyaxi/tree/master/src/hash) [BSD-3-Clause] (See [redis](https://github.com/antirez/redis/blob/unstable/COPYING) by [Salvatore Sanfilippo](https://github.com/antirez))
 
 - [hash/md5*](https://github.com/idealvin/cocoyaxi/tree/master/src/hash) [public domain] (Written by Alexander Peslyak)
+
+- [hash/sha256*](https://github.com/idealvin/cocoyaxi/tree/master/src/hash) [public domain] (from 7Zip by Igor Pavlov)
 
 - [hash/murmur_hash*](https://github.com/idealvin/cocoyaxi/tree/master/src/hash) [public domain] [MIT for business purposes] (Written by Austin Appleby)
 
