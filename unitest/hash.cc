@@ -11,6 +11,10 @@ DEF_test(hash) {
         EXPECT_EQ(base64_decode(""), "");
         EXPECT_EQ(base64_encode("hello world"), "aGVsbG8gd29ybGQ=");
         EXPECT_EQ(base64_decode("aGVsbG8gd29ybGQ="), "hello world");
+        EXPECT_EQ(base64_decode("aGVsbG8gd29ybGQ=\r\n"), "hello world");
+        EXPECT_EQ(base64_decode("aGVsbG8gd29ybGQ\r\n="), "");
+        EXPECT_EQ(base64_decode("aGVs\nbG8gd29ybGQ="), "");
+        EXPECT_EQ(base64_decode("aGVs\r\nbG8gd29ybGQ="), "hello world");
 
         auto s = str::from(now::us());
         EXPECT_EQ(base64_decode(base64_encode(s)), s);

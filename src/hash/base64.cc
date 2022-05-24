@@ -5,7 +5,7 @@ fastring base64_encode(const void* p, size_t n) {
     const int r = (int) (n - k * 3); // r = n % 3
 
     fastring v;
-    v.resize((k + !!r) * 4);   // size: 4k or 4k + 4
+    v.resize((k + !!r) * 4); // size: 4k or 4k + 4
     char* x = (char*) v.data();
 
     unsigned char a, b, c;
@@ -23,29 +23,33 @@ fastring base64_encode(const void* p, size_t n) {
         x[3] = entab[c & 0x3f];
     }
 
-    if (r == 1) {
+    switch (r) {
+      case 1:
         c = s[0];
         x[0] = entab[c >> 2];
         x[1] = entab[(c & 0x03) << 4];
         x[2] = '=';
         x[3] = '=';
-    } else if (r == 2) {
+        break;
+      case 2:
         a = s[0];
         b = s[1];
         x[0] = entab[a >> 2];
         x[1] = entab[((a & 0x03) << 4) | (b >> 4)];
         x[2] = entab[(b & 0x0f) << 2];
         x[3] = '=';
+        break;
     }
 
     return v;
 }
 
 fastring base64_decode(const void* p, size_t n) {
+    if (unlikely(n < 4)) return fastring();
+
     fastring v(n * 3 >> 2); // size <= n * 3/4
     char* x = (char*) v.data();
-
-    int m = 0, a, b, c, d;
+    int m = 0;
     const unsigned char* s = (const unsigned char*) p;
     const unsigned char* e = s + n;
     static const int8 detab[256] = {
@@ -68,11 +72,7 @@ fastring base64_decode(const void* p, size_t n) {
     };
 
     while (s + 8 <= e) {
-        a = detab[s[0]] << 18;
-        b = detab[s[1]] << 12;
-        c = detab[s[2]] << 6;
-        d = detab[s[3]];
-        m = (a | b | c | d);
+        m = (detab[s[0]] << 18) | (detab[s[1]] << 12) | (detab[s[2]] << 6) | (detab[s[3]]);
         if (unlikely(m < 0)) goto err;
 
         x[0] = (char) ((m & 0x00ff0000) >> 16);
@@ -80,26 +80,25 @@ fastring base64_decode(const void* p, size_t n) {
         x[2] = (char) (m & 0x000000ff);
         s += 4, x += 3;
 
-        if (*s == '\r' || *s == '\n') {
+        if (unlikely(*s == '\r')) {
+            if (*++s != '\n') goto err;
             ++s;
-            if (*s == '\n' || *s == '\r') ++s;
         }
     }
 
-    if (s == e) return v;
-    if (e < s + 4) goto err;
-
-    if (unlikely(e[-1] == '\n' || e[-1] == '\r')) {
-        --e;
-        if (e[-1] == '\r' || e[-1] == '\n') --e;
+    switch ((int)(e - s)) { /* 0 < e - s < 8 */
+      case 4:
+        break;
+      case 6:
+        if (e[-2] != '\r' && e[-1] != '\n') goto err;
+        e -= 2;
+        break;
+      default:
+        goto err;
     }
 
-    if (unlikely(e != s + 4)) goto err;
-
     do {
-        a = detab[s[0]] << 18;
-        b = detab[s[1]] << 12;
-        m = (a | b);
+        m = (detab[s[0]] << 18) | (detab[s[1]] << 12);// (a | b);
         if (unlikely(m < 0)) goto err;
         *x++ = (char) ((m & 0x00ff0000) >> 16);
 
