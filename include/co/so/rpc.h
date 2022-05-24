@@ -29,6 +29,10 @@ class __coapi Server {
      */
     void add_service(const std::shared_ptr<Service>& s);
 
+    void add_service(Service* s) {
+        this->add_service(std::shared_ptr<Service>(s));
+    }
+
     /**
      * add a pair of username and password 
      *   - Multiple usernames and passwords can be added. 
@@ -49,10 +53,12 @@ class __coapi Server {
      * 
      * @param ip    server ip, either an ipv4 or ipv6 address.
      * @param port  server port
+     * @param url   the url used to access the HTTP server, MUST begins with '/'
      * @param key   path of ssl private key file.
      * @param ca    path of ssl certificate file.
      */
-    void start(const char* ip, int port, const char* key=0, const char* ca=0);
+    void start(const char* ip, int port, const char* url="/",
+               const char* key=0, const char* ca=0);
 
     /**
      * exit the server gracefully

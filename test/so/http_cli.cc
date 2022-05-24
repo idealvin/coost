@@ -3,6 +3,7 @@
 DEF_string(s, "https://github.com", "server url");
 DEF_string(m, "", "method, GET, POST, DELETE, PUT");
 DEF_string(url, "", "url of http request");
+DEF_string(data, "{\"api\":\"ping\"}", "data to send");
 DEF_string(path, "", "for PUT, path of the file to be uploaded");
 
 co::WaitGroup wg;
@@ -42,7 +43,7 @@ void fb() {
     if (FLG_m == "GET") {
         c.get(FLG_url.c_str());
     } else if (FLG_m == "POST") {
-        c.post(FLG_url.c_str(), "hello world");
+        c.post(FLG_url.c_str(), FLG_data.c_str());
     } else if (FLG_m == "PUT") {
         if (!FLG_path.empty()) {
             c.put(FLG_url.c_str(), FLG_path.c_str());

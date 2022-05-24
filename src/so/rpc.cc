@@ -1,36 +1,38 @@
+#include "./http.h"
+#include "co/so/http.h"
 #include "co/so/rpc.h"
 #include "co/so/tcp.h"
 #include "co/co.h"
 #include "co/mem.h"
-#include "co/flag.h"
-#include "co/log.h"
 #include "co/fastring.h"
 #include "co/fastream.h"
 #include "co/str.h"
 #include "co/time.h"
-#include "co/hash/md5.h"
+#include "co/hash.h"
 
 DEF_int32(rpc_max_msg_size, 8 << 20, ">>#2 max size of rpc message, default: 8M");
-DEF_int32(rpc_recv_timeout, 1024, ">>#2 recv timeout in ms");
-DEF_int32(rpc_send_timeout, 1024, ">>#2 send timeout in ms");
+DEF_int32(rpc_recv_timeout, 3000, ">>#2 recv timeout in ms");
+DEF_int32(rpc_send_timeout, 3000, ">>#2 send timeout in ms");
 DEF_int32(rpc_conn_timeout, 3000, ">>#2 connect timeout in ms");
 DEF_int32(rpc_conn_idle_sec, 180, ">>#2 connection may be closed if no data was recieved for n seconds");
 DEF_int32(rpc_max_idle_conn, 128, ">>#2 max idle connections");
 DEF_bool(rpc_log, true, ">>#2 enable rpc log if true");
+DEC_uint32(http_max_header_size);
 
 #define RPCLOG LOG_IF(FLG_rpc_log)
 
 namespace rpc {
 
 struct Header {
-    uint16 info;  // reserved
+    uint16 flags; // reserved, 0
     uint16 magic; // 0x7777
     uint32 len;   // body len
 }; // 8 bytes
 
 static const uint16 kMagic = 0x7777;
 
-inline void set_header(void* header, uint32 msg_len) {
+inline void set_header(const void* header, uint32 msg_len) {
+    ((Header*)header)->flags = 0;
     ((Header*)header)->magic = kMagic;
     ((Header*)header)->len = hton32(msg_len);
 }
@@ -38,11 +40,14 @@ inline void set_header(void* header, uint32 msg_len) {
 class ServerImpl {
   public:
     static void ping(const Json&, Json& res) {
-        res.add_member("result", "pong");
+        res.add_member("res", "pong");
     }
 
     ServerImpl() : _conn_num(0) {
+        using std::placeholders::_1;
+        using std::placeholders::_2;
         _methods["ping"] = &ServerImpl::ping;
+        _methods["auth"] = std::bind(&ServerImpl::auth, this, _1, _2);
     }
 
     ~ServerImpl() = default;
@@ -61,7 +66,7 @@ class ServerImpl {
 
     void add_userpass(const char* user, const char* pass) {
         if (user && *user && pass && *pass) {
-            _userpass[user] = md5sum(pass);
+            _userpass[user] = sha256digest(pass);
         }
     }
 
@@ -81,7 +86,8 @@ class ServerImpl {
 
     void on_connection(tcp::Connection conn);
 
-    void start(const char* ip, int port, const char* key, const char* ca) {
+    void start(const char* ip, int port, const char* url, const char* key, const char* ca) {
+        _url = url;
         _tcp_serv.on_connection(&ServerImpl::on_connection, this);
         _tcp_serv.start(ip, port, key, ca);
     }
@@ -90,11 +96,9 @@ class ServerImpl {
         _tcp_serv.exit();
     }
 
-    bool auth(tcp::Connection* conn);
+    void auth(const Json& req, Json& res);
 
     void process(const Json& req, Json& res);
-
-    bool check_userpass(const char* user, const char* pass, const char* nonce);
 
   private:
     tcp::Server _tcp_serv;
@@ -102,6 +106,7 @@ class ServerImpl {
     co::hash_map<fastring, fastring> _userpass;
     co::hash_map<const char*, std::shared_ptr<Service>> _services;
     co::hash_map<const char*, Service::Fun> _methods;
+    fastring _url;
 };
 
 Server::Server() {
@@ -124,8 +129,8 @@ void Server::add_userpass(const char* s) {
     ((ServerImpl*)_p)->add_userpass(s);
 }
 
-void Server::start(const char* ip, int port, const char* key, const char* ca) {
-    ((ServerImpl*)_p)->start(ip, port, key, ca);
+void Server::start(const char* ip, int port, const char* url, const char* key, const char* ca) {
+    ((ServerImpl*)_p)->start(ip, port, url, key, ca);
 }
 
 void Server::exit() {
@@ -146,32 +151,57 @@ void ServerImpl::process(const Json& req, Json& res) {
     }
 }
 
-void ServerImpl::on_connection(tcp::Connection conn) {
-    if (!_userpass.empty() && !this->auth(&conn)) {
-        ELOG << "auth failed, reset connection " << conn.socket() << " 3 seconds later..";
-        conn.reset(3000);
-        return;
-    }
+using http::http_req_t;
+using http::http_res_t;
 
+void ServerImpl::on_connection(tcp::Connection conn) {
     atomic_inc(&_conn_num, mo_relaxed);
 
+    int kind = 0; // 0: init, 1: RPC, 2: HTTP
     int r = 0, len = 0;
-    Header header;
+    union {
+        Header header;
+        char c;
+    };
     fastring buf;
     Json req, res;
 
-    while (true) {
-        // recv req from the client
-        do {
-          recv_beg:
-            r = conn.recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
+    size_t pos = 0, total_len = 0;
+    http_req_t* preq = 0; 
+    http_res_t* pres = 0; 
 
-            if (unlikely(r == 0)) goto recv_zero_err;
-            if (unlikely(r < 0)) {
-                if (!co::timeout()) goto recv_err;
-                if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
-                buf.reset();
-                goto recv_beg;
+    while (true) {
+        switch (kind) {
+          case 1:  goto rpc;
+          case 2:  goto http;
+          default: goto init;
+        }
+    
+      init:
+        r = conn.recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
+        if (unlikely(r == 0)) goto recv_zero_err;
+        if (unlikely(r < 0)) goto recv_err;
+        buf.reserve(4096);
+
+        // if the first 4 bytes is "POST", it is a HTTP request, otherwise it is a RPC request
+        if (*(uint32*)&header != *(uint32*)"POST") goto rpc;
+        goto http;
+
+      rpc:
+        do {
+          recv_rpc_beg:
+            // recv req from the client
+            if (kind == 1) {
+                r = conn.recvn(&header, sizeof(header), FLG_rpc_conn_idle_sec * 1000);
+                if (unlikely(r == 0)) goto recv_zero_err;
+                if (unlikely(r < 0)) {
+                    if (!co::timeout()) goto recv_err;
+                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                    buf.reset();
+                    goto recv_rpc_beg;
+                }
+            } else {
+                kind = 1;
             }
 
             if (unlikely(header.magic != kMagic)) goto magic_err;
@@ -187,23 +217,146 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
             req = json::parse(buf.data(), buf.size());
             if (req.is_null()) goto json_parse_err;
-
             RPCLOG << "rpc recv req: " << req;
-        } while (0);
 
-        // call rpc and send response to the client
-        do {
+            // call rpc and send response to the client
             res.reset();
             this->process(req, res);
 
             buf.resize(sizeof(Header));
-            res.str(*(fastream*)&buf);
-            set_header((void*)buf.data(), (uint32)(buf.size() - sizeof(Header)));
+            res.str(buf);
+            set_header(buf.data(), (uint32)(buf.size() - sizeof(Header)));
             
             r = conn.send(buf.data(), (int)buf.size(), FLG_rpc_send_timeout);
             if (unlikely(r <= 0)) goto send_err;
-
             RPCLOG << "rpc send res: " << res;
+            goto recv_rpc_beg;
+        } while (0);
+
+      http:
+        do {
+          recv_http_beg:
+            if (kind == 2) {
+                if (buf.capacity() == 0) {
+                    // try to recieve a single byte
+                    r = conn.recv(&c, 1, FLG_rpc_conn_idle_sec * 1000);
+                    if (r == 0) goto recv_zero_err;
+                    if (r < 0) {
+                        if (!co::timeout()) goto recv_err;
+                        if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                        goto recv_http_beg;
+                    }
+                    buf.reserve(4096);
+                    buf.append(c);
+                }
+            } else {
+                kind = 2;
+                buf.append(&header, sizeof(header));
+            }
+
+            // recv until the entire http header was done. 
+            while ((pos = buf.find("\r\n\r\n")) == buf.npos) {
+                if (buf.size() > FLG_http_max_header_size) goto header_too_long_err;
+                buf.reserve(buf.size() + 1024);
+                r = conn.recv(
+                    (void*)(buf.data() + buf.size()), 
+                    (int)(buf.capacity() - buf.size()), FLG_rpc_recv_timeout
+                );
+                if (r == 0) goto recv_zero_err;
+                if (r < 0) {
+                    if (!co::timeout()) goto recv_err;
+                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                    if (buf.empty()) { buf.reset(); goto recv_http_beg; }
+                    goto recv_err;
+                }
+                buf.resize(buf.size() + r);
+            }
+
+            buf[pos + 2] = '\0'; // make header null-terminated
+            RPCLOG << "rpc recv http header: " << buf.data();
+
+            // parse http header
+            if (preq == 0) preq = (http_req_t*) co::zalloc(sizeof(http_req_t));
+            if (pres == 0) pres = (http_res_t*) co::zalloc(sizeof(http_res_t));
+
+            r = http::parse_http_req(&buf, pos + 2, preq);
+            if (r != 0) { /* parse error */
+                pres->version = http::kHTTP11;
+                goto http_parse_err;
+            } else {
+                pres->version = preq->version;
+            }
+
+            if (preq->url != _url) {
+                send_error_message(403, pres, &conn);
+                goto reset_conn;
+            }
+
+            // try to recv the remain part of http body
+            preq->body = (uint32)(pos + 4); // beginning of http body
+            total_len = pos + 4 + preq->body_size;
+            if (preq->body_size > 0) {
+                if (buf.size() < total_len) {
+                    buf.reserve(total_len);
+                    r = conn.recvn(
+                        (void*)(buf.data() + buf.size()), 
+                        (int)(total_len - buf.size()), FLG_rpc_recv_timeout
+                    );
+                    if (r == 0) goto recv_zero_err;
+                    if (r < 0) goto recv_err;
+                    buf.resize(total_len);
+                }
+            } else {
+                // 411 Content-Length required
+                send_error_message(411, pres, &conn);
+                goto reset_conn;
+            }
+
+            { /* handle the http request */
+                bool need_close = false;
+                fastring x;
+                fastring s(4096);
+                s.append(preq->header("Connection"));
+                if (!s.empty()) pres->add_header("Connection", s.c_str());
+
+                if (preq->version != http::kHTTP10) {
+                    if (!s.empty() && s == "close") need_close = true;
+                } else {
+                    if (s.empty() || s.tolower() != "keep-alive") need_close = true;
+                }
+
+                s.clear();
+                pres->buf = &s;
+
+                req = json::parse(preq->buf->data() + preq->body, preq->body_size);
+                if (req.is_null()) goto json_parse_err;
+                RPCLOG << "rpc recv http body: " << req;
+
+                res.reset();
+                this->process(req, res);
+
+                x = res.str();
+                pres->status = 200;
+                pres->add_header("Content-Type", "application/json");
+                pres->set_body(x.data(), x.size());
+
+                r = conn.send(s.data(), (int)s.size(), FLG_rpc_send_timeout);
+                if (r <= 0) goto send_err;
+
+                RPCLOG << "rpc send http res: " << s;
+                if (need_close) { conn.close(); goto end; }
+            }
+
+            if (buf.size() == total_len) {
+                buf.clear();
+            } else {
+                buf.lshift(total_len);
+            }
+
+            preq->clear();
+            pres->clear();
+            total_len = 0;
+            goto recv_http_beg;
         } while (0);
     }
 
@@ -217,164 +370,61 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     goto end;
   magic_err:
     ELOG << "rpc recv error: bad magic number";
-    goto err_end;
+    goto reset_conn;
+  header_too_long_err:
+    ELOG << "rpc recv error: http header too long";
+    goto reset_conn;
   msg_too_long_err:
     ELOG << "rpc recv error: body too long: " << len;
-    goto err_end;
+    goto reset_conn;
   recv_err:
     ELOG << "rpc recv error: " << conn.strerror();
-    goto err_end;
+    goto reset_conn;
   send_err:
     ELOG << "rpc send error: " << conn.strerror();
-    goto err_end;
+    goto reset_conn;
   json_parse_err:
     ELOG << "rpc json parse error: " << buf;
-    goto err_end;
-  err_end:
-    conn.reset(1000);
+    goto reset_conn;
+  http_parse_err:
+    ELOG << "rpc http parse error: " << r;
+    http::send_error_message(r, pres, &conn);
+    goto reset_conn;
+  reset_conn:
+    conn.reset(3000);
   end:
     atomic_dec(&_conn_num, mo_relaxed);
+    if (preq) co::free(preq, sizeof(*preq));
+    if (pres) co::free(pres, sizeof(*pres));
 }
 
-bool ServerImpl::check_userpass(const char* user, const char* pass, const char* nonce) {
-    auto it = _userpass.find(user);
-    if (it == _userpass.end()) return false;
+void ServerImpl::auth(const Json& req, Json& res) {
+    const char* user = req.get("user").as_string();
+    const char* nonce = req.get("nonce").as_string();
+    const char* pass = req.get("token").as_string();
 
-    auto s = md5sum(it->second + nonce);
-    if (s.size() != strlen(pass)) return false;
+    bool ok = false;
+    do {
+        if (!*user || !*nonce || !*pass) break;
+        auto it = _userpass.find(user);
+        if (it == _userpass.end()) break;
 
-    // compare the password safely to avoid timing attacks.
-    int equal = 0;
-    for (size_t i = 0; i < s.size(); ++i) {
-        equal |= (s[i] ^ pass[i]);
+        fastring s = base64_encode(sha256digest(it->second + nonce));
+        if (s.size() != strlen(pass)) break;
+
+        // compare the password safely to avoid timing attacks.
+        int equal = 0;
+        for (size_t i = 0; i < s.size(); ++i) {
+            equal |= (s[i] ^ pass[i]);
+        }
+        ok = equal == 0;
+    } while (0);
+
+    if (ok) {
+        res = {{"nonce", nanoid()}};
+    } else {
+        res = {{"error", "auth failed"}};
     }
-    return equal == 0;
-}
-
-bool ServerImpl::auth(tcp::Connection* conn) {
-    static const fastring kAuth("auth");
-
-    int r = 0, len = 0;
-    Header header;
-    fastream fs;
-    Json req, res;
-
-    // wait for the first req from client, timeout in 7 seconds
-    do {
-        r = conn->recvn(&header, sizeof(header), 7000);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-        if (header.magic != kMagic) goto magic_err;
-
-        len = ntoh32(header.len);
-        if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
-
-        fs.resize(len);
-        r = conn->recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-
-        req = json::parse(fs.data(), fs.size());
-        if (req.is_null()) goto json_parse_err;
-
-        if (req.get("api") != kAuth) {
-            ELOG << "auth method not found in the req";
-            return false;
-        }
-    } while (0);
-
-    // send auth require to the client
-    do {
-        res.add_member("nonce", str::from(epoch::us()));
-        res.add_member("error", "auth required");
-
-        fs.resize(sizeof(Header));
-        res.str(fs);
-        set_header((void*)fs.data(), (uint32)(fs.size() - sizeof(Header)));
-
-        r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r <= 0)) goto send_err;
-
-        DLOG << "rpc send auth require: " << (fs.c_str() + sizeof(Header));
-    } while (0);
-
-    // wait for the auth answer from the client
-    do {
-        r = conn->recvn(&header, sizeof(header), FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-        if (header.magic != kMagic) goto magic_err;
-
-        len = ntoh32(header.len);
-        if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
-
-        fs.resize(len);
-        r = conn->recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-
-        req = json::parse(fs.data(), fs.size());
-        if (req.is_null()) goto json_parse_err;
-
-        DLOG << "rpc recv auth answer: " << fs;
-
-        if (req.get("api") != kAuth) {
-            ELOG << "auth method not found in the req";
-            return false;
-        }
-    } while (0);
-
-    // send the final response to the client
-    do {
-        auto& user = req.get("user");
-        auto& pass = req.get("pass");
-        if (!user.is_string() || !pass.is_string() || 
-            !this->check_userpass(user.as_string(), pass.as_string(), res["nonce"].as_string())) {
-            res.reset();
-            res.add_member("error", "auth failed");
-
-            fs.resize(sizeof(Header));
-            res.str(fs);
-            set_header((void*)fs.data(), (uint32)(fs.size() - sizeof(Header)));
-
-            r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-            if (unlikely(r <= 0)) goto send_err;
-
-            DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
-            return false;
-        } else {
-            res = Json();
-            res.add_member("result", "auth ok");
-            fs.resize(sizeof(Header));
-            res.str(fs);
-            set_header((void*)fs.data(), (uint32)(fs.size() - sizeof(Header)));
-
-            r = conn->send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-            if (unlikely(r <= 0)) goto send_err;
-
-            DLOG << "rpc send auth res: " << (fs.c_str() + sizeof(Header));
-            return true;
-        }
-    } while (0);
-
-  magic_err:
-    ELOG << "recv error: bad magic number";
-    return false;
-  msg_too_long_err:
-    ELOG << "recv error: body too long: " << len;
-    return false;
-  recv_zero_err:
-    LOG << "client close the connection, fd: " << conn->socket();
-    return false;
-  recv_err:
-    ELOG << "recv error: " << conn->strerror();
-    return false;
-  send_err:
-    ELOG << "send error: " << conn->strerror();
-    return false;
-  json_parse_err:
-    ELOG << "json parse error: " << fs;
-    return false;
 }
 
 class ClientImpl {
@@ -394,7 +444,7 @@ class ClientImpl {
     void set_userpass(const char* user, const char* pass) {
         if (user && *user && pass && *pass) {
             _user = user;
-            _pass = md5sum(pass);
+            _pass = sha256digest(pass);
         }
     }
 
@@ -408,7 +458,7 @@ class ClientImpl {
     fastring _pass;
     fastream _fs;
 
-    bool auth();
+    bool auth() { return true; }
     bool connect();
 };
 
@@ -508,111 +558,6 @@ void ClientImpl::call(const Json& req, Json& res) {
     goto err_end;
   err_end:
     _tcp_cli.disconnect();
-}
-
-bool ClientImpl::auth() {
-    int r = 0, len = 0;
-    Header header;
-    fastream fs;
-    Json req, res;
-
-    // send the first auth req
-    do {
-        req.add_member("api", "auth");
-        fs.resize(sizeof(header));
-        req.str(fs);
-        set_header((void*)fs.data(), (uint32)(fs.size() - sizeof(header)));
-
-        r = _tcp_cli.send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r <= 0)) goto send_err;
-    } while (0);
-
-    // recv the first response from server
-    do {
-        r = _tcp_cli.recv(&header, sizeof(header), FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-        if (header.magic != kMagic) goto magic_err;        
-
-        len = ntoh32(header.len);
-        if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
-
-        fs.resize(len);
-        r = _tcp_cli.recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-
-        res = json::parse(fs.data(), fs.size());
-        if (res.is_null()) goto json_parse_err;
-
-        DLOG << "rpc recv auth require: " << fs;
-    } while (0);
-
-    // get nonce and calculate the required md5, and send it to the server
-    do {
-        auto& x = res.get("nonce");
-        if (unlikely(!x.is_string())) {
-            ELOG << "nonce not found..";
-            return false;
-        }
-
-        req.add_member("user", _user);
-        req.add_member("pass", md5sum(_pass + x.as_string()));
-        fs.resize(sizeof(header));
-        req.str(fs);
-        set_header((void*)fs.data(), (uint32)(fs.size() - sizeof(header)));
-
-        r = _tcp_cli.send(fs.data(), (int)fs.size(), FLG_rpc_send_timeout);
-        if (unlikely(r <= 0)) goto send_err;
-
-        DLOG << "rpc send auth answer: " << (fs.c_str() + sizeof(header));
-    } while (0);
-
-    // recv the final auth response from server
-    do {
-        r = _tcp_cli.recv(&header, sizeof(header), FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-        if (header.magic != kMagic) goto magic_err;        
-
-        len = ntoh32(header.len);
-        if (len > FLG_rpc_max_msg_size) goto msg_too_long_err;
-
-        fs.resize(len);
-        r = _tcp_cli.recvn((char*)fs.data(), len, FLG_rpc_recv_timeout);
-        if (unlikely(r == 0)) goto recv_zero_err;
-        if (unlikely(r < 0)) goto recv_err;
-
-        res = json::parse(fs.data(), fs.size());
-        if (res.is_null()) goto json_parse_err;
-
-        DLOG << "rpc recv auth res: " << fs;
-
-        if (res.has_member("error")) {
-            ELOG << "auth failed..";
-            return false;
-        }
-        return true;
-    } while (0);
-
-  magic_err:
-    ELOG << "recv error: bad magic number";
-    return false;
-  msg_too_long_err:
-    ELOG << "recv error: body too long: " << len;
-    return false;
-  recv_zero_err:
-    ELOG << "server close the connection..";
-    return false;
-  recv_err:
-    ELOG << "recv error: " << _tcp_cli.strerror();
-    return false;
-  send_err:
-    ELOG << "send error: " << _tcp_cli.strerror();
-    return false;
-  json_parse_err:
-    ELOG << "json parse error: " << fs;
-    return false;
 }
 
 } // rpc

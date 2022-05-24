@@ -1,3 +1,4 @@
+#include "./http.h"
 #include "co/so/http.h"
 #include "co/so/tcp.h"
 #include "co/co.h"
@@ -435,50 +436,6 @@ inline const char* status_str(int n) {
     return (100 <= n && n <= 511) ? s[n] : s[500];
 }
 
-struct http_req_t {
-    http_req_t() = delete;
-    ~http_req_t() = delete;
-
-    void clear();
-    void add_header(uint32 k, uint32 v);
-    const char* header(const char* key) const;
-
-    // DO NOT change orders of the members here.
-    uint32 method;
-    uint32 version;
-    uint32 body; // body:  buf->data() + body
-    uint32 body_size;
-    fastring url;
-    fastring* buf; // http data: | header | \r\n\r\n | body |
-    uint32* arr;   // array of header index: [<k,v>]
-    uint32 arr_size;
-    uint32 arr_cap;
-};
-
-struct http_res_t {
-    http_res_t() = delete;
-    ~http_res_t() = delete;
-
-    void clear();
-    void add_header(const char* k, const char* v);
-    void add_header(const char* k, int v);
-    void set_body(const void* s, size_t n);
-    fastring& body();
-
-    // DO NOT change orders of the members here.
-    uint32 status;
-    uint32 version;
-    fastring* buf;
-    fastring header;
-    size_t body_size;
-};
-
-inline void http_req_t::clear() {
-    body_size = 0;
-    url.clear();
-    buf = 0;
-    arr_size = 0;
-}
 
 inline void http_req_t::add_header(uint32 k, uint32 v) {
     if (arr_cap < arr_size + 2) {
@@ -505,24 +462,8 @@ const char* http_req_t::header(const char* key) const {
     return e;
 }
 
-inline void http_res_t::clear() {
-    status = 0;
-    buf = 0;
-    header.clear();
-    body_size = 0;
-}
 
-inline void http_res_t::add_header(const char* k, const char* v) {
-    if (header.capacity() == 0) header.reserve(128);
-    header << k << ": " << v << "\r\n";
-}
-
-inline void http_res_t::add_header(const char* k, int v) {
-    if (header.capacity() == 0) header.reserve(128);
-    header << k << ": " << v << "\r\n";
-}
-
-inline void http_res_t::set_body(const void* s, size_t n) {
+void http_res_t::set_body(const void* s, size_t n) {
     body_size = n;
     if (status == 0) status = 200;
     buf->clear();
@@ -717,12 +658,12 @@ inline int hex2int(char c) {
     return -1;
 }
 
-void send_error_message(int err, http_res_t* res, tcp::Connection* conn) {
+void send_error_message(int err, http_res_t* res, void* conn) {
     fastring s(128);
     res->buf = &s;
     res->status = err;
     res->set_body("", 0);
-    conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
+    ((tcp::Connection*)conn)->send(s.data(), (int)s.size(), FLG_http_send_timeout);
     HTTPLOG << "http send res: " << s;
     res->clear();
 }

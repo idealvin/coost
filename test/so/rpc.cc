@@ -6,9 +6,9 @@
 DEF_bool(c, false, "client or server");
 DEF_int32(n, 1, "req num");
 DEF_int32(conn, 1, "conn num");
-DEF_string(userpass, "{\"bob\":\"nice\", \"alice\":\"nice\"}", "usernames and passwords for rpc server");
-DEF_string(username, "alice", "username for rpc client");
-DEF_string(password, "nice", "password for rpc client");
+//DEF_string(userpass, "{\"bob\":\"nice\", \"alice\":\"nice\"}", "usernames and passwords for rpc server");
+//DEF_string(username, "alice", "username for rpc client");
+//DEF_string(password, "nice", "password for rpc client");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
 DEF_int32(serv_port, 7788, "server port");
 DEF_bool(ping, false, "test rpc ping");
@@ -105,16 +105,16 @@ int main(int argc, char** argv) {
 
     // initialize the proto client, other client can simply copy from it.
     proto.reset(new rpc::Client(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));
-    proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
-    FLG_password.safe_clear(); // clear the password
+    //proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
+    //FLG_password.safe_clear(); // clear the password
 
     rpc::Server serv;
 
     if (!FLG_c) {
-        serv.add_userpass(FLG_userpass.c_str());
-        serv.add_service(std::shared_ptr<rpc::Service>(new xx::HelloWorldImpl));
-        serv.add_service(std::shared_ptr<rpc::Service>(new xx::HelloAgainImpl));
-        serv.start("0.0.0.0", FLG_serv_port, FLG_key.c_str(), FLG_ca.c_str());
+        //serv.add_userpass(FLG_userpass.c_str());
+        serv.add_service(new xx::HelloWorldImpl);
+        serv.add_service(new xx::HelloAgainImpl);
+        serv.start("0.0.0.0", FLG_serv_port, "/hello", FLG_key.c_str(), FLG_ca.c_str());
     } else {
         if (FLG_ping) {
             go(test_ping);
