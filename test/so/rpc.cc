@@ -6,9 +6,6 @@
 DEF_bool(c, false, "client or server");
 DEF_int32(n, 1, "req num");
 DEF_int32(conn, 1, "conn num");
-//DEF_string(userpass, "{\"bob\":\"nice\", \"alice\":\"nice\"}", "usernames and passwords for rpc server");
-//DEF_string(username, "alice", "username for rpc client");
-//DEF_string(password, "nice", "password for rpc client");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
 DEF_int32(serv_port, 7788, "server port");
 DEF_bool(ping, false, "test rpc ping");
@@ -24,7 +21,7 @@ class HelloWorldImpl : public HelloWorld {
     HelloWorldImpl() = default;
     virtual ~HelloWorldImpl() = default;
 
-    virtual void hello(const Json& req, Json& res) {
+    virtual void hello(Json& req, Json& res) {
         res = {
             { "result", {
                 { "hello", 23 }
@@ -32,7 +29,7 @@ class HelloWorldImpl : public HelloWorld {
         };
     }
 
-    virtual void world(const Json& req, Json& res) {
+    virtual void world(Json& req, Json& res) {
         res = {
             { "error", "not supported"}
         };
@@ -44,7 +41,7 @@ class HelloAgainImpl : public HelloAgain {
     HelloAgainImpl() = default;
     virtual ~HelloAgainImpl() = default;
 
-    virtual void hello(const Json& req, Json& res) {
+    virtual void hello(Json& req, Json& res) {
         res = {
             { "result", {
                 { "hello", "again" }
@@ -52,7 +49,7 @@ class HelloAgainImpl : public HelloAgain {
         };
     }
 
-    virtual void again(const Json& req, Json& res) {
+    virtual void again(Json& req, Json& res) {
         res = {
             { "error", "not supported"}
         };
@@ -67,7 +64,6 @@ std::unique_ptr<rpc::Client> proto;
 // perform RPC request with rpc::Client
 void test_rpc_client() {
     // copy a client from proto, 
-    // and we needn't set username & password again.
     rpc::Client c(*proto);
 
     for (int i = 0; i < FLG_n; ++i) {
@@ -105,13 +101,10 @@ int main(int argc, char** argv) {
 
     // initialize the proto client, other client can simply copy from it.
     proto.reset(new rpc::Client(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));
-    //proto->set_userpass(FLG_username.c_str(), FLG_password.c_str());
-    //FLG_password.safe_clear(); // clear the password
 
     rpc::Server serv;
 
     if (!FLG_c) {
-        //serv.add_userpass(FLG_userpass.c_str());
         serv.add_service(new xx::HelloWorldImpl);
         serv.add_service(new xx::HelloAgainImpl);
         serv.start("0.0.0.0", FLG_serv_port, "/hello", FLG_key.c_str(), FLG_ca.c_str());
@@ -126,9 +119,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    while (true) {
-        sleep::sec(80000);
-    }
-
+    while (true) sleep::sec(80000);
     return 0;
 }

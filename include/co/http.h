@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../fastring.h"
+#include "fastring.h"
 #include <functional>
 
 namespace http {

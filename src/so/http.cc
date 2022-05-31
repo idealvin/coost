@@ -1,6 +1,6 @@
 #include "./http.h"
-#include "co/so/http.h"
-#include "co/so/tcp.h"
+#include "co/http.h"
+#include "co/tcp.h"
 #include "co/co.h"
 #include "co/god.h"
 #include "co/fastream.h"

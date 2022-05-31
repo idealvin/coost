@@ -1,5 +1,5 @@
 #ifdef HAS_OPENSSL
-#include "co/so/ssl.h"
+#include "co/ssl.h"
 #include "co/co.h"
 #include "co/log.h"
 #include "co/fastream.h"
@@ -279,7 +279,7 @@ bool timeout() { return co::timeout(); }
 
 #else
 
-#include "co/so/ssl.h"
+#include "co/ssl.h"
 #include "co/log.h"
 
 namespace ssl {

@@ -1,6 +1,6 @@
 #include "co/flag.h"
 #include "co/log.h"
-#include "co/so.h"
+#include "co/http.h"
 
 DEF_string(d, ".", "root dir");
 DEF_string(ip, "0.0.0.0", "http server ip");

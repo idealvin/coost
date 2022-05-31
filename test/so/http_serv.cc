@@ -13,9 +13,9 @@
 //   For ipv6 link-local address, we have to specify the network interface:
 //   xmake r http_serv ip=fe80::a00:27ff:fea7:a888%eth0
 
-#include "co/so.h"
 #include "co/flag.h"
 #include "co/log.h"
+#include "co/http.h"
 #include "co/time.h"
 
 DEF_string(ip, "0.0.0.0", "http server ip");

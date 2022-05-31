@@ -1,7 +1,7 @@
 #include "./http.h"
-#include "co/so/http.h"
-#include "co/so/rpc.h"
-#include "co/so/tcp.h"
+#include "co/http.h"
+#include "co/rpc.h"
+#include "co/tcp.h"
 #include "co/co.h"
 #include "co/mem.h"
 #include "co/fastring.h"
@@ -39,7 +39,7 @@ inline void set_header(const void* header, uint32 msg_len) {
 
 class ServerImpl {
   public:
-    static void ping(const Json&, Json& res) {
+    static void ping(Json&, Json& res) {
         res.add_member("res", "pong");
     }
 
@@ -47,7 +47,6 @@ class ServerImpl {
         using std::placeholders::_1;
         using std::placeholders::_2;
         _methods["ping"] = &ServerImpl::ping;
-        _methods["auth"] = std::bind(&ServerImpl::auth, this, _1, _2);
     }
 
     ~ServerImpl() = default;
@@ -64,26 +63,6 @@ class ServerImpl {
         return it != _methods.end() ? &it->second : nullptr;
     }
 
-    void add_userpass(const char* user, const char* pass) {
-        if (user && *user && pass && *pass) {
-            _userpass[user] = sha256digest(pass);
-        }
-    }
-
-    void add_userpass(const char* s) {
-        Json x = json::parse(s);
-        if (x.is_object()) {
-            for (auto it = x.begin(); it != x.end(); ++it) {
-                const char* user = it.key();
-                auto& pass = it.value();
-                this->add_userpass(user, pass.as_string());
-                memset((void*)pass.as_string(), 0, pass.string_size()); // clear passwd info
-            }
-        } else {
-            DLOG << "no userpass added..";
-        }
-    }
-
     void on_connection(tcp::Connection conn);
 
     void start(const char* ip, int port, const char* url, const char* key, const char* ca) {
@@ -96,14 +75,11 @@ class ServerImpl {
         _tcp_serv.exit();
     }
 
-    void auth(const Json& req, Json& res);
-
-    void process(const Json& req, Json& res);
+    void process(Json& req, Json& res);
 
   private:
     tcp::Server _tcp_serv;
     int _conn_num;
-    co::hash_map<fastring, fastring> _userpass;
     co::hash_map<const char*, std::shared_ptr<Service>> _services;
     co::hash_map<const char*, Service::Fun> _methods;
     fastring _url;
@@ -121,14 +97,6 @@ void Server::add_service(const std::shared_ptr<Service>& s) {
     ((ServerImpl*)_p)->add_service(s);
 }
 
-void Server::add_userpass(const char* user, const char* pass) {
-    ((ServerImpl*)_p)->add_userpass(user, pass);
-}
-
-void Server::add_userpass(const char* s) {
-    ((ServerImpl*)_p)->add_userpass(s);
-}
-
 void Server::start(const char* ip, int port, const char* url, const char* key, const char* ca) {
     ((ServerImpl*)_p)->start(ip, port, url, key, ca);
 }
@@ -137,7 +105,7 @@ void Server::exit() {
     ((ServerImpl*)_p)->exit();
 }
 
-void ServerImpl::process(const Json& req, Json& res) {
+void ServerImpl::process(Json& req, Json& res) {
     auto& x = req.get("api");
     if (x.is_string()) {
         auto m = this->find_method(x.as_string());
@@ -398,35 +366,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     if (pres) co::free(pres, sizeof(*pres));
 }
 
-void ServerImpl::auth(const Json& req, Json& res) {
-    const char* user = req.get("user").as_string();
-    const char* nonce = req.get("nonce").as_string();
-    const char* pass = req.get("token").as_string();
-
-    bool ok = false;
-    do {
-        if (!*user || !*nonce || !*pass) break;
-        auto it = _userpass.find(user);
-        if (it == _userpass.end()) break;
-
-        fastring s = base64_encode(sha256digest(it->second + nonce));
-        if (s.size() != strlen(pass)) break;
-
-        // compare the password safely to avoid timing attacks.
-        int equal = 0;
-        for (size_t i = 0; i < s.size(); ++i) {
-            equal |= (s[i] ^ pass[i]);
-        }
-        ok = equal == 0;
-    } while (0);
-
-    if (ok) {
-        res = {{"nonce", nanoid()}};
-    } else {
-        res = {{"error", "auth failed"}};
-    }
-}
-
 class ClientImpl {
   public:
     ClientImpl(const char* ip, int port, bool use_ssl)
@@ -440,13 +379,6 @@ class ClientImpl {
     ~ClientImpl() = default;
 
     void call(const Json& req, Json& res);
-
-    void set_userpass(const char* user, const char* pass) {
-        if (user && *user && pass && *pass) {
-            _user = user;
-            _pass = sha256digest(pass);
-        }
-    }
 
     void close() {
         _tcp_cli.disconnect();
@@ -472,10 +404,6 @@ Client::Client(const Client& c) {
 
 Client::~Client() {
     co::del((ClientImpl*)_p);
-}
-
-void Client::set_userpass(const char* user, const char* pass) {
-    ((ClientImpl*)_p)->set_userpass(user, pass);
 }
 
 void Client::call(const Json& req, Json& res) {
@@ -539,7 +467,7 @@ void ClientImpl::call(const Json& req, Json& res) {
     } while (0);
 
   magic_err:
-    ELOG << "rpc recv error: bad magic number: " << header.magic << " r:" << r << " len:" << ntoh32(header.len);
+    ELOG << "rpc recv error: bad magic number: " << header.magic;
     goto err_end;
   msg_too_long_err:
     ELOG << "rpc recv error: body too long: " << len;

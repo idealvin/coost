@@ -2,13 +2,13 @@
 // DO NOT EDIT. All changes will be undone.
 #pragma once
 
-#include "co/so/rpc.h"
+#include "co/rpc.h"
 
 namespace xx {
 
 class HelloWorld : public rpc::Service {
   public:
-    typedef std::function<void(const Json&, Json&)> Fun;
+    typedef std::function<void(Json&, Json&)> Fun;
 
     HelloWorld() {
         using std::placeholders::_1;
@@ -27,9 +27,9 @@ class HelloWorld : public rpc::Service {
         return _methods;
     }
 
-    virtual void hello(const Json& req, Json& res) = 0;
+    virtual void hello(Json& req, Json& res) = 0;
 
-    virtual void world(const Json& req, Json& res) = 0;
+    virtual void world(Json& req, Json& res) = 0;
 
   private:
     co::map<const char*, Fun> _methods;
