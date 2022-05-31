@@ -153,7 +153,7 @@ inline const char* Flag::type_str() const {
 }
 
 inline void Flag::print() const {
-    cout << color::green << "    --" << this->name;
+    cout << color::green << "    -" << this->name;
     if (*this->alias) cout << ", " << this->alias;
     cout.flush();
     cout << color::blue << "  " << this->help << '\n' << color::deflt
@@ -276,10 +276,10 @@ inline void show_help() {
     }
 
     cout << "usage:  " << color::blue << "$exe [-flag] [value]\n" << color::deflt
-         << "\t" << "$exe -x -i 8k -s ok       # bool x=true, int i=8192, string s=\"ok\"\n"
-         << "\t" << "$exe --                   # print all flags\n"
-         << "\t" << "$exe -mkconf              # generate config file\n"
-         << "\t" << "$exe -conf xx.conf        # run with config file\n\n";
+         << "\t" << "$exe -x -i 8k -s ok        # x=true, i=8192, s=\"ok\"\n"
+         << "\t" << "$exe --                    # print all flags\n"
+         << "\t" << "$exe -mkconf               # generate config file\n"
+         << "\t" << "$exe -conf xx.conf         # run with config file\n\n";
 
     show_user_flags();
 }
