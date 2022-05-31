@@ -255,6 +255,11 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 pres->version = preq->version;
             }
 
+            if (preq->method != http::kPost) {
+                send_error_message(405, pres, &conn);
+                goto reset_conn;
+            }
+
             if (preq->url != _url) {
                 send_error_message(403, pres, &conn);
                 goto reset_conn;
