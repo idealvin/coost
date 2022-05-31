@@ -174,9 +174,9 @@ class __coapi Json {
     const char* as_string() const { return this->is_string() ? _h->s : ""; }
 
     inline Json& get() const { return *(Json*)this; }
-    Json& get(uint32) const;
+    Json& get(uint32 i) const;
     Json& get(int i) const { return this->get((uint32)i); }
-    Json& get(const char*) const;
+    Json& get(const char* key) const;
 
     template <class T,  class ...X>
     inline Json& get(T&& v, X&& ... x) const {

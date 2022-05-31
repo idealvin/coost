@@ -10,7 +10,7 @@ set_xmakever("2.3.1")
 -- set common flags
 set_languages("c++11")
 set_warnings("all")     -- -Wall
-set_symbols("debug")    -- dbg symbols
+--set_symbols("debug")    -- dbg symbols
 
 
 if is_plat("windows") then
