@@ -118,22 +118,8 @@ struct curl_global {
     }
 };
 
-Client::Client(const char* serv_url) {
-    static curl_global g;
-    _ctx = (curl_ctx_t*) co::zalloc(sizeof(curl_ctx_t));
-    _ctx->easy = curl_easy_init();
-
-    auto& s = _ctx->serv_url;
-    if (strncmp(serv_url, "https://", 8) == 0 || strncmp(serv_url, "http://", 7) == 0) {
-        s.append(serv_url);
-    } else {
-        const size_t n = strlen(serv_url);
-        s.reserve(n + 8);
-        s.append("http://").append(serv_url, n); // use http by default
-    }
-    s.strip('/', 'r'); // remove '/' at the right side
-
-    init_easy_opts(_ctx->easy, _ctx);
+Client::Client(const char* serv_url) : _ctx(0) {
+    this->reset(serv_url);
 }
 
 Client::~Client() {
@@ -142,6 +128,28 @@ Client::~Client() {
 
 void Client::close() {
     if (_ctx) { _ctx->~curl_ctx_t(); co::free(_ctx, sizeof(*_ctx)); _ctx = 0; }
+}
+
+void Client::reset(const char* serv_url) {
+    if (_ctx) {
+        _ctx->serv_url = serv_url;
+    } else {
+        static curl_global g;
+        _ctx = (curl_ctx_t*) co::zalloc(sizeof(curl_ctx_t));
+        _ctx->easy = curl_easy_init();
+
+        auto& s = _ctx->serv_url;
+        if (strncmp(serv_url, "https://", 8) == 0 || strncmp(serv_url, "http://", 7) == 0) {
+            s.append(serv_url);
+        } else {
+            const size_t n = strlen(serv_url);
+            s.reserve(n + 8);
+            s.append("http://").append(serv_url, n); // use http by default
+        }
+        s.strip('/', 'r'); // remove '/' at the right side
+
+        init_easy_opts(_ctx->easy, _ctx);
+    }
 }
 
 inline void Client::append_header(const char* s) {

@@ -184,8 +184,12 @@ class __coapi Client {
      */
     const fastring& body() const;
 
-    // Close the connection. Once it is called, the client can't be used anymore.
+    // Close the connection.
+    // Once it is called, the client can't be used until you reset the server url.
     void close();
+
+    // reset server url
+    void reset(const char* serv_url);
 
   private:
     void append_header(const char* s);
