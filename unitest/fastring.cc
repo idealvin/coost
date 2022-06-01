@@ -223,6 +223,11 @@ DEF_test(fastring) {
         fastring s("xxxyyyzzz");
         EXPECT_EQ(s.find('a'), s.npos);
         EXPECT_EQ(s.find('y'), 3);
+        EXPECT_EQ(s.find('y', 0, 3), s.npos); // find in range [0, 3)
+        EXPECT_EQ(s.find('y', 0, 4), 3);      // find in range [0, 4)
+        EXPECT_EQ(s.find('y', 3, 3), 3);      // find in range [3, 6)
+        EXPECT_EQ(s.find('y', 4, 3), 4);      // find in range [4, 7)
+        EXPECT_EQ(s.find('y', 6, 3), s.npos); // find in range [6, 9)
         EXPECT_EQ(s.find('y', 4), 4);
         EXPECT_EQ(s.find('y', 32), s.npos);
         EXPECT_EQ(s.rfind('y'), 5);
