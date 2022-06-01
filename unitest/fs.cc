@@ -46,6 +46,22 @@ DEF_test(fs) {
         fo.open("xxx", 'r');
         r = fo.read(buf, 32);
         EXPECT_EQ(fastring(buf, r), "1234567890");
+
+        fo.open("xxplus", '+');
+        fo.seek(0);
+        fo.write("hello123");
+
+        fo.seek(0);
+        r = fo.read(buf, 8);
+        EXPECT_EQ(r, 8);
+
+        fo.seek(fo.size()); // seek to tail
+        fo.write("456");
+
+        fo.seek(8);
+        r = fo.read(buf + 8, 8);
+        EXPECT_EQ(r, 3);
+        EXPECT_EQ(fastring(buf, 11), "hello123456");
     }
 
     DEF_case(attr) {
@@ -78,10 +94,12 @@ DEF_test(fs) {
     DEF_case(remove) {
         EXPECT(fs::remove("xxx"));
         EXPECT(fs::remove("xxx.lnk"));
+        EXPECT(fs::remove("xxplus"));
         EXPECT(!fs::remove("xxd"));
         EXPECT(fs::remove("xxd", true));
         EXPECT(!fs::exists("xxx"));
         EXPECT(!fs::exists("xxx.lnk"));
+        EXPECT(!fs::exists("xxplus"));
         EXPECT(!fs::exists("xxd"));
     }
 }

@@ -103,15 +103,18 @@ bool symlink(const char* dst, const char* lnk) {
 
 namespace xx {
 HANDLE open(const char* path, char mode) {
-    if (mode == 'r') {
+    switch (mode) {
+      case 'r':
         return CreateFileA(path, GENERIC_READ, 7, 0, OPEN_EXISTING, 0, 0);
-    } else if (mode == 'a') {
+      case 'a':
         return CreateFileA(path, FILE_APPEND_DATA, 7, 0, OPEN_ALWAYS, 0, 0);
-    } else if (mode == 'w') {
+      case 'w':
         return CreateFileA(path, GENERIC_WRITE, 7, 0, CREATE_ALWAYS, 0, 0);
-    } else if (mode == 'm') {
+      case 'm':
         return CreateFileA(path, GENERIC_WRITE, 7, 0, OPEN_ALWAYS, 0, 0);
-    } else {
+      case '+':
+        return CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 7, 0, OPEN_ALWAYS, 0, 0);
+      default:
         return nullfd;
     }
 }

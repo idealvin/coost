@@ -101,6 +101,7 @@ inline bool symlink(const std::string& dst, const std::string& lnk) {
 //   'a': append       created if not exists
 //   'w': write        created if not exists, truncated if exists
 //   'm': modify       like 'w', but not truncated if exists
+//   '+': read/write   created if not exists
 class __coapi file {
   public:
     static const int seek_beg = 0;

@@ -97,15 +97,18 @@ bool symlink(const char* dst, const char* lnk) {
 
 namespace xx {
 int open(const char* path, char mode) {
-    if (mode == 'r') {
+    switch (mode) {
+      case 'r':
         return ::open(path, O_RDONLY);
-    } else if (mode == 'a') {
+      case 'a':
         return ::open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    } else if (mode == 'w') {
+      case 'w':
         return ::open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    } else if (mode == 'm') {
+      case 'm':
         return ::open(path, O_WRONLY | O_CREAT, 0644);
-    } else {
+      case '+':
+        return ::open(path, O_RDWR | O_CREAT, 0644);
+      default:
         return nullfd;
     }
 }
