@@ -3,12 +3,7 @@
 #include "err.h"
 #include "fastring.h"
 #include "stl.h"
-#include <string>
 #include <vector>
-#include <map>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace str {
 
