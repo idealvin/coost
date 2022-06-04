@@ -10,8 +10,10 @@ namespace unitest {
 
 __coapi void run_all_tests();
 
-__coapi void push_failed_msg(const fastring& test_name, const fastring& case_name, 
-                             const char* file, int line, const fastring& msg);
+__coapi void push_failed_msg(
+    const fastring& test_name, const fastring& case_name, 
+    const char* file, int line, const fastring& msg
+);
 
 struct Test {
     Test() = default;

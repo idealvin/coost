@@ -2,11 +2,11 @@
 #include "co/fs.h"
 #include "co/mem.h"
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
 #ifdef _MSC_VER
 #pragma warning (disable:4800)
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
 
