@@ -222,7 +222,7 @@ SOCKET WINAPI hook_WSASocketW(
 int WINAPI hook_closesocket(
     SOCKET s
 ) {
-    if (s == INVALID_SOCKET) return CO_RAW_API(closesocket)(s);
+    if (s == INVALID_SOCKET) return 0;
     gHook().get_hook_ctx(s).clear();
     HOOKLOG << "hook_closesocket, sock: " << s;
     return co::close(s);
@@ -233,16 +233,17 @@ int WINAPI hook_shutdown(
     int a1
 ) {
     HOOKLOG << "hook_shutdown, sock: " << a0 << ", " << a1;
-    if (a0 == INVALID_SOCKET) return CO_RAW_API(shutdown)(a0, a1);
+    if (a0 == INVALID_SOCKET) return 0;
 
     auto& ctx = gHook().get_hook_ctx(a0);
-    if (a1 == SD_RECEIVE) {
+    switch (a1) {
+      case SD_RECEIVE:
         ctx.set_shut_read();
         return co::shutdown(a0, 'r');
-    } else if (a1 == SD_SEND) {
+      case SD_SEND:
         ctx.set_shut_write();
         return co::shutdown(a0, 'w');
-    } else {
+      default:
         ctx.clear();
         return co::shutdown(a0, 'b');
     }
@@ -662,7 +663,7 @@ int WINAPI hook_recvfrom(
 
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.recv_timeout())) return -1;
         } else {
             return -1;
@@ -764,7 +765,7 @@ int WINAPI hook_send(
         int r = CO_RAW_API(WSASend)(a0, &ev->buf, 1, &ev->n, a3, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.send_timeout())) return -1;
         } else {
             return -1;
@@ -838,7 +839,7 @@ int WINAPI hook_sendto(
         int r = CO_RAW_API(WSASendTo)(a0, &ev->buf, 1, &ev->n, a3, a4, a5, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.send_timeout())) return -1;
         } else {
             return -1;

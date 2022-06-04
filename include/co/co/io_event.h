@@ -44,17 +44,6 @@ class __coapi IoEvent {
     /**
      * the constructor with IO event on a non-blocking TCP socket 
      *   - This case works for non-blocking TCP sockets only.
-     *   - eg.
-     *     co::IoEvent ev(fd, co::ev_read);
-     *     do {
-     *         int r = ::recv(fd, buf, n, 0);
-     *         if (r != -1) return r;
-     *         if (co::error() == WSAEWOULDBLOCK) {
-     *             if (!ev.wait(ms)) return -1;
-     *         } else {
-     *             return -1;
-     *         }
-     *     } while (true);
      * 
      * @param fd  a TCP socket, it MUST be non-blocking and overlapped.
      * @param ev  the IO event, either ev_read or ev_write.
@@ -66,20 +55,6 @@ class __coapi IoEvent {
      *   - This case works for any overlapped sockets.
      *   - If n > 0, an extra n-byte buffer will be allocated with the PerIoInfo, 
      *     and users can use IoEvent->s to access the extra buffer. 
-     *   - eg.
-     *     IoEvent ev(fd, n);   // alloc extra n bytes for recv
-     *     ev->buf.buf = ev->s; // extra buffer
-     *     ev->buf.len = n;     // buffer size
-     *     int r = WSARecv(fd, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
-     *     if (r == 0) {
-     *         if (!can_skip_iocp_on_success) ev.wait();
-     *     } else if (co::error() == WSA_IO_PENDING) {
-     *         if (!ev.wait(ms)) return -1;
-     *     } else {
-     *         return -1;
-     *     }
-     *     memcpy(user_buf, ev->s, ev->n); // copy data into user buffer
-     *     return (int) ev->n;             // return bytes transfered
      * 
      * @param fd  an overlapped socket, support both TCP and UDP, and it is not 
      *            necessary to be non-blocking.
@@ -87,7 +62,7 @@ class __coapi IoEvent {
      */
     IoEvent(sock_t fd, int n=0);
 
-    IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n = 0);
+    IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n=0);
 
     ~IoEvent();
 
@@ -107,7 +82,7 @@ class __coapi IoEvent {
      * @param ms  timeout in milliseconds, default: -1, never timeout. 
      * 
      * @return    true if an IO event is present or the IO operation was done, 
-     *            or false on timeout or error.
+     *            or false on timeout or error, call co::error() to get the error code.
      */
     bool wait(uint32 ms=(uint32)-1);
 
@@ -147,7 +122,8 @@ class IoEvent {
      * 
      * @param ms  timeout in milliseconds, default: -1, never timeout. 
      * 
-     * @return    true if an IO event is present, or false on timeout or error.
+     * @return    true if an IO event is present, or false on timeout or error,
+     *            call co::error() to get the error code.
      */
     bool wait(uint32 ms=(uint32)-1);
 

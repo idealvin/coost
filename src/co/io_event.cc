@@ -10,8 +10,7 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev)
     : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev); // add socket to IOCP
-    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo));
-    assert(_info);
+    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo)); assert(_info);
     _info->mlen = sizeof(PerIoInfo);
     _info->co = (void*) s->running();
     s->running()->waitx = (co::waitx_t*)_info;
@@ -21,8 +20,7 @@ IoEvent::IoEvent(sock_t fd, int n)
     : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     auto s = gSched;
     s->add_io_event(fd, ev_read); // add socket to IOCP
-    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n);
-    assert(_info);
+    _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n); assert(_info);
     _info->mlen = sizeof(PerIoInfo) + n;
     _info->co = (void*) s->running();
     s->running()->waitx = (co::waitx_t*)_info;
@@ -33,15 +31,13 @@ IoEvent::IoEvent(sock_t fd, io_event_t ev, const void* buf, int size, int n)
     auto s = gSched;
     s->add_io_event(fd, ev);
     if (!s->on_stack(buf)) {
-        _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n);
-        assert(_info);
+        _info = (PerIoInfo*) co::zalloc(sizeof(PerIoInfo) + n); assert(_info);
         _info->mlen = sizeof(PerIoInfo) + n;
         _info->co = (void*) s->running();
         _info->buf.buf = (char*)buf;
         _info->buf.len = size;
     } else {
-        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n + size);
-        assert(_info);
+        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n + size); assert(_info);
         memset(_info, 0, sizeof(PerIoInfo) + n);
         _info->mlen = sizeof(PerIoInfo) + n + size;
         _info->co = (void*) s->running();
@@ -65,6 +61,7 @@ IoEvent::~IoEvent() {
 }
 
 bool IoEvent::wait(uint32 ms) {
+    int r, e;
     auto s = gSched;
 
     // If fd is a non-blocking TCP socket, we'll post an I/O operation to IOCP using 
@@ -72,16 +69,19 @@ bool IoEvent::wait(uint32 ms) {
     // we should know that the socket is readable or writable when the IOCP completes.
     if (_nb_tcp != 0) {
         if (_nb_tcp == nb_tcp_recv) {
-            int r = CO_RAW_API(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
-            if (r == 0 && can_skip_iocp_on_success) return true;
-            if (r == -1 && co::error() != WSA_IO_PENDING) return false;
-        } else {
-            int r = CO_RAW_API(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
+            r = CO_RAW_API(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
             if (r == 0 && can_skip_iocp_on_success) return true;
             if (r == -1) {
-                const int e = co::error();
+                e = WSAGetLastError();
+                if (e != WSA_IO_PENDING) goto err;
+            }
+        } else {
+            r = CO_RAW_API(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
+            if (r == 0 && can_skip_iocp_on_success) return true;
+            if (r == -1) {
+                e = WSAGetLastError();
                 if (e == WSAENOTCONN) goto wait_for_connect; // the socket is not connected yet
-                if (e != WSA_IO_PENDING) return false;
+                if (e != WSA_IO_PENDING) goto err;
             }
         }
     }
@@ -90,17 +90,19 @@ bool IoEvent::wait(uint32 ms) {
         s->add_timer(ms);
         s->yield();
         _timeout = s->timeout();
-        if (!_timeout) {
-            return true;
-        } else {
-            CancelIo((HANDLE)_fd);
-            WSASetLastError(WSAETIMEDOUT);
-            return false;
-        }
+        if (!_timeout) return true;
+
+        CancelIo((HANDLE)_fd);
+        co::error() = ETIMEDOUT;
+        return false;
     } else {
         s->yield();
         return true;
     }
+
+  err:
+    co::error() = e;
+    return false;
 
   wait_for_connect:
     {
@@ -109,12 +111,12 @@ bool IoEvent::wait(uint32 ms) {
 
         // check whether the socket is connected or not every 16 ms.
         uint32 t = 16;
-        int r, sec = 0, len = sizeof(sec);
+        int r, sec = 0, len = sizeof(int);
         while (true) {
             r = co::getsockopt(_fd, SOL_SOCKET, SO_CONNECT_TIME, &sec, &len);
             if (r != 0) return false;
-            if (sec != -1) return true; // connect ok
-            if (ms == 0) { WSASetLastError(WSAETIMEDOUT); return false; }
+            if (sec >= 0) return true; // connect ok
+            if (ms == 0) { co::error() = ETIMEDOUT; return false; }
             if (ms < t) t = ms;
             s->sleep(t); // sleep for t ms in this coroutine
             if (ms != (uint32)-1) ms -= t;

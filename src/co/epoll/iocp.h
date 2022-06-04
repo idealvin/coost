@@ -47,7 +47,7 @@ class Iocp {
         ULONG n = 0;
         const BOOL r = CO_RAW_API(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
         if (r == TRUE) return (int)n;
-        return co::error() == WAIT_TIMEOUT ? 0 : -1;
+        return ::GetLastError() == WAIT_TIMEOUT ? 0 : -1;
     }
 
     void signal() {

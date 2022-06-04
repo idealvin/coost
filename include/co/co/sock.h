@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../error.h"
 #include "../fastring.h"
 #include "../byte_order.h"
 
@@ -29,22 +30,6 @@ typedef int sock_t;
 #endif
 
 namespace co {
-
-#ifdef _WIN32
-inline int  error()          { return WSAGetLastError(); }
-inline void set_error(int e) { WSASetLastError(e); }
-#else
-inline int  error()          { return errno; }
-inline void set_error(int e) { errno = e; }
-#endif
-
-// get string of a error number (thread-safe)
-__coapi const char* strerror(int e);
-
-// get string of the current error number (thread-safe)
-inline const char* strerror() {
-    return co::strerror(co::error());
-}
 
 /** 
  * create a socket suitable for coroutine programing
@@ -155,7 +140,6 @@ __coapi sock_t accept(sock_t fd, void* addr, int* addrlen);
  * connect to an address 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until the connection was done or timeout, or any error occured. 
- *   - Users can call co::error() to get the errno, and call co::timeout() to check whether it has timed out. 
  * 
  * @param fd       a non-blocking (also overlapped on windows) socket.
  * @param addr     a pointer to struct sockaddr, sockaddr_in or sockaddr_in6.
@@ -171,8 +155,6 @@ __coapi int connect(sock_t fd, const void* addr, int addrlen, int ms = -1);
  * recv data from a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until any data recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
  * 
  * @param fd   a non-blocking (also overlapped on windows) socket.
  * @param buf  a pointer to the buffer to recieve the data.
@@ -186,11 +168,9 @@ __coapi int connect(sock_t fd, const void* addr, int addrlen, int ms = -1);
 __coapi int recv(sock_t fd, void* buf, int n, int ms = -1);
 
 /**
- * recv n bytes from a socket 
+ * recv n bytes from a stream socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
  * 
  * @param fd   a non-blocking (also overlapped on windows) socket, 
  *             it MUST be a stream socket, usually a TCP socket.
@@ -208,8 +188,6 @@ __coapi int recvn(sock_t fd, void* buf, int n, int ms = -1);
  * recv data from a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until any data recieved or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
  *   - Set src_addr and addrlen to NULL if the user is not interested in the source address. 
  * 
  * @param fd        a non-blocking (also overlapped on windows) socket.
@@ -231,8 +209,6 @@ __coapi int recvfrom(sock_t fd, void* buf, int n, void* src_addr, int* addrlen, 
  * send n bytes on a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are sent or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
  * 
  * @param fd   a non-blocking (also overlapped on windows) socket.
  * @param buf  a pointer to a buffer of the data to be sent.
@@ -248,8 +224,6 @@ __coapi int send(sock_t fd, const void* buf, int n, int ms = -1);
  * send n bytes on a socket 
  *   - It MUST be called in a coroutine. 
  *   - It blocks until all the n bytes are sent or timeout, or any error occured. 
- *   - The errno will be set to ETIMEDOUT on timeout, call co::error() to get the errno, 
- *     or simply call co::timeout() to check whether it has timed out. 
  * 
  * @param fd        a non-blocking (also overlapped on windows) socket.
  * @param buf       a pointer to a buffer of the data to be sent.
@@ -265,41 +239,37 @@ __coapi int send(sock_t fd, const void* buf, int n, int ms = -1);
 __coapi int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int addrlen, int ms = -1);
 
 #ifdef _WIN32
-/**
- * get options on a socket, man getsockopt for details.
- */
+// get options on a socket, man getsockopt for details.
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
-    return ::getsockopt(fd, lv, opt, (char*)optval, optlen);
+    int r = ::getsockopt(fd, lv, opt, (char*)optval, optlen);
+    if (r == 0) return r;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
-/**
- * set options on a socket, man setsockopt for details. 
- */
+// set options on a socket, man setsockopt for details. 
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
-    return ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
+    int r = ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
+    if (r == 0) return r;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
 #else
-/**
- * get options on a socket, man getsockopt for details.
- */
+// get options on a socket, man getsockopt for details.
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
     return ::getsockopt(fd, lv, opt, optval, (socklen_t*)optlen);
 }
 
-/**
- * set options on a socket, man setsockopt for details. 
- */
+// set options on a socket, man setsockopt for details. 
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
     return ::setsockopt(fd, lv, opt, optval, (socklen_t)optlen);
 }
 #endif
 
-/**
- * set option SO_REUSEADDR on a socket
- */
+// set option SO_REUSEADDR on a socket
 inline void set_reuseaddr(sock_t fd) {
-    int v = 1;
+    const int v = 1;
     co::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
 }
 
@@ -319,19 +289,15 @@ inline void set_recv_buffer_size(sock_t fd, int n) {
     co::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n));
 }
 
-/**
- * set option TCP_NODELAY on a TCP socket  
- */
+// set option TCP_NODELAY on a TCP socket  
 inline void set_tcp_nodelay(sock_t fd) {
-    int v = 1;
+    const int v = 1;
     co::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 }
 
-/**
- * set option SO_KEEPALIVE on a TCP socket 
- */
+// set option SO_KEEPALIVE on a TCP socket 
 inline void set_tcp_keepalive(sock_t fd) {
-    int v = 1;
+    const int v = 1;
     co::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v));
 }
 
@@ -353,21 +319,15 @@ inline int reset_tcp_socket(sock_t fd, int ms=0) {
 }
 
 #ifdef _WIN32
-/**
- * set option O_NONBLOCK on a socket 
- */
+// set option O_NONBLOCK on a socket 
 __coapi void set_nonblock(sock_t fd);
 
 #else
-/**
- * set option O_NONBLOCK on a socket 
- */
-void set_nonblock(sock_t fd);
+// set option O_NONBLOCK on a socket 
+__coapi void set_nonblock(sock_t fd);
 
-/**
- * set option FD_CLOEXEC on a socket 
- */
-void set_cloexec(sock_t fd);
+// set option FD_CLOEXEC on a socket 
+__coapi void set_cloexec(sock_t fd);
 #endif
 
 /**
@@ -398,22 +358,18 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
 inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin6_family = AF_INET6;
-    addr->sin6_port = hton16((uint16) port);
+    addr->sin6_port = hton16((uint16)port);
     return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
 }
 
-/**
- * get ip string of an ipv4 address 
- */
+// get ip string of an ipv4 address 
 inline fastring ip_str(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     return fastring(s);
 }
 
-/**
- * get ip string of an ipv6 address
- */
+// get ip string of an ipv6 address
 inline fastring ip_str(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
