@@ -92,7 +92,7 @@ fastring Flag::set_value(const fastring& v) {
         return "unknown flag type";
     }
 
-    switch (err::get()) {
+    switch (co::error()) {
       case 0:
         return fastring();
       case ERANGE:

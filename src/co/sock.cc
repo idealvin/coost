@@ -228,44 +228,6 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
-class Error {
-  public:
-    Error() = default;
-    ~Error() = default;
-
-    struct T {
-        T() : err(4096) {}
-        fastream err;
-        std::unordered_map<int, uint32> pos;
-    };
-
-    const char* strerror(int e) {
-        if (_p == NULL) _p.reset(new T);
-        auto it = _p->pos.find(e);
-        if (it != _p->pos.end()) {
-            return _p->err.data() + it->second;
-        } else {
-            uint32 pos = (uint32) _p->err.size();
-            static auto kmtx = co::static_new<::Mutex>();
-            {
-                ::MutexGuard g(*kmtx);
-                _p->err.append(::strerror(e)).append('\0');
-            }
-            _p->pos[e] = pos;
-            return _p->err.data() + pos;
-        }
-    }
-
-  private:
-    thread_ptr<T> _p;
-};
-
-const char* strerror(int e) {
-    if (e == ETIMEDOUT) return "Timed out";
-    static auto ke = co::static_new<co::Error>();
-    return ke->strerror(e);
-}
-
 void init_sock() {}
 void cleanup_sock() {}
 

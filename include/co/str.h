@@ -1,6 +1,6 @@
 #pragma once
 
-#include "err.h"
+#include "error.h"
 #include "fastring.h"
 #include "stl.h"
 #include <vector>
@@ -58,10 +58,10 @@ __coapi fastring strip(const fastring& s, const fastring& c, char d='b');
 
 /**
  * convert string to built-in types 
- *   - Returns false or 0 if the conversion failed, and the errno will be set to 
- *     ERANGE or EINVAL. On success, errno will be 0.
- *   - Call err::get() to get the error number. Don't use `errno` directly as we 
- *     use GetLastError and SetLastError on windows.
+ *   - Returns false or 0 if the conversion failed, and the error code will be set to 
+ *     ERANGE or EINVAL. On success, the error code will be 0.
+ *   - Call co::error() to get the error number. DO NOT use `errno` directly as it is 
+ *     not safe on windows.
  */
 __coapi bool to_bool(const char* s);
 __coapi int32 to_int32(const char* s);

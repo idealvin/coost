@@ -62,7 +62,7 @@ void server_fun() {
 
         // create a new coroutine for this connection
         LOG << "server accept new connection: " << conn->ip << ":" << conn->port;
-        co::go(on_connection, conn);
+        go(on_connection, conn);
     }
 }
 
