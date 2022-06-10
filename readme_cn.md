@@ -169,17 +169,13 @@ co 也实现了更高层的网络编程组件，包括 [TCP](https://cocoyaxi.gi
 
 ```cpp
 #include "co/flag.h"
-#include "co/log.h"
-#include "co/so.h"
+#include "co/http.h"
 
 DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
-
     so::easy(FLG_d.c_str()); // mum never have to worry again
-
     return 0;
 }
 ```
