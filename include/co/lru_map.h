@@ -1,14 +1,13 @@
 #pragma once
 
-#include <list>
-#include <unordered_map>
+#include "stl.h"
 
 template <typename K, typename V>
 class LruMap {
   public:
-    typedef typename std::unordered_map<K, V>::iterator iterator;
-    typedef typename std::unordered_map<K, V>::key_type key_type;
-    typedef typename std::unordered_map<K, V>::value_type value_type;
+    typedef typename co::hash_map<K, V>::iterator iterator;
+    typedef typename co::hash_map<K, V>::key_type key_type;
+    typedef typename co::hash_map<K, V>::value_type value_type;
 
     LruMap() : _capacity(1024) {}
 
@@ -80,8 +79,8 @@ class LruMap {
     }
 
   private:
-    std::unordered_map<K, V> _kv;
-    std::unordered_map<K, typename std::list<K>::iterator> _ki;
-    std::list<K> _kl; // key list
+    co::hash_map<K, V> _kv;
+    co::hash_map<K, typename co::list<K>::iterator> _ki;
+    co::list<K> _kl; // key list
     size_t _capacity; // max capacity
 };
