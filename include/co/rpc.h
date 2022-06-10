@@ -27,13 +27,13 @@ class __coapi Server {
      * add a service 
      *   - Multiple services can be added. 
      */
-    void add_service(const std::shared_ptr<Service>& s);
+    Server& add_service(const std::shared_ptr<Service>& s);
 
     /**
      * add a service, @s MUST be created with operator new.
      */
-    void add_service(Service* s) {
-        this->add_service(std::shared_ptr<Service>(s));
+    Server& add_service(Service* s) {
+        return this->add_service(std::shared_ptr<Service>(s));
     }
 
     /**
@@ -52,8 +52,8 @@ class __coapi Server {
     /**
      * exit the server gracefully
      *   - Once `exit()` was called, the listening socket will be closed, and new 
-     *     connections will not be accepted.
-     *   - NOTE: The server will not close previously established connections.
+     *     connections will not be accepted. Since co v3.0, the server will reset
+     *     previously established connections.
      */
     void exit();
 

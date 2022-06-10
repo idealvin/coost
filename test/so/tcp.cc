@@ -6,7 +6,7 @@ DEF_int32(client_num, 1, "client num");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
 
-void on_connection(tcp::Connection conn) {
+void conn_cb(tcp::Connection conn) {
     char buf[8] = { 0 };
 
     while (true) {
@@ -104,9 +104,9 @@ int main(int argc, char** argv) {
         [](void* p) { delete (tcp::Client*) p; }
     );
 
-    tcp::Server s;
-    s.on_connection(on_connection);
-    s.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
+    tcp::Server().on_connection(conn_cb).start(
+        FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str()
+    );
 
     sleep::ms(32);
 
@@ -119,7 +119,6 @@ int main(int argc, char** argv) {
     }
 
     sleep::sec(2);
-    s.exit();
     delete gPool;
     return 0;
 }

@@ -92,13 +92,11 @@ class __coapi Server final {
     Server();
     ~Server();
 
-    /**
-     * set a connection callback
-     */
-    void on_connection(std::function<void(Connection)>&& f);
+    // set a connection callback
+    Server& on_connection(std::function<void(Connection)>&& f);
 
-    void on_connection(const std::function<void(Connection)>& f) {
-        this->on_connection(std::function<void(Connection)>(f));
+    Server& on_connection(const std::function<void(Connection)>& f) {
+        return this->on_connection(std::function<void(Connection)>(f));
     }
 
     /**
@@ -106,9 +104,15 @@ class __coapi Server final {
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_connection(void (T::*f)(Connection), T* o) {
-        this->on_connection(std::bind(f, o, std::placeholders::_1));
+    Server& on_connection(void (T::*f)(Connection), T* o) {
+        return this->on_connection(std::bind(f, o, std::placeholders::_1));
     }
+
+    // set a callback to call when the server exits
+    Server& on_exit(std::function<void()>&& cb);
+
+    // return number of connections
+    uint32 conn_num() const;
 
     /**
      * start the server
@@ -129,7 +133,8 @@ class __coapi Server final {
      * exit the server gracefully
      *   - Once `exit()` was called, the listening socket will be closed, and new 
      *     connections will not be accepted.
-     *   - NOTE: The server will not close previously established connections.
+     *   - NOTE: The server will not close previously established connections. To 
+     *     close the connections, see the example in test/tcp2.cc.
      */
     void exit();
 

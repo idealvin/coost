@@ -608,7 +608,7 @@ int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
 
 class ServerImpl {
   public:
-    ServerImpl() : _conn_num(0) {}
+    ServerImpl() : _started(false), _stopped(false) {}
     ~ServerImpl() = default;
 
     void on_req(std::function<void(const Req&, Res&)>&& f) {
@@ -620,11 +620,15 @@ class ServerImpl {
     void on_connection(tcp::Connection conn);
 
     void exit() {
+        atomic_store(&_stopped, true);
         _serv.exit();
     }
 
+    bool started() const { return _started; }
+
   private:
-    uint32 _conn_num;
+    bool _started;
+    bool _stopped;
     tcp::Server _serv;
     std::function<void(const Req&, Res&)> _on_req;
 };
@@ -634,11 +638,16 @@ Server::Server() {
 }
 
 Server::~Server() {
-    if (_p) { co::del((ServerImpl*)_p); _p = 0; }
+    if (_p) {
+        auto p = (ServerImpl*)_p;
+        if (!p->started()) co::del(p);
+        _p = 0;
+    }
 }
 
-void Server::on_req(std::function<void(const Req&, Res&)>&& f) {
+Server& Server::on_req(std::function<void(const Req&, Res&)>&& f) {
     ((ServerImpl*)_p)->on_req(std::move(f));
+    return *this;
 }
 
 void Server::start(const char* ip, int port) {
@@ -655,7 +664,9 @@ void Server::exit() {
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
     CHECK(_on_req != NULL) << "req callback not set..";
+    atomic_store(&_started, true, mo_relaxed);
     _serv.on_connection(&ServerImpl::on_connection, this);
+    _serv.on_exit([this]() { co::del(this); });
     _serv.start(ip, port, key, ca);
 }
 
@@ -685,9 +696,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     auto& preq = *(http_req_t**) &req;
     auto& pres = *(http_res_t**) &res;
 
-    r = atomic_inc(&_conn_num, mo_relaxed);
-    DLOG << "http conn num: " << r;
-
     god::bless_no_bugs();
     while (true) {
         { /* recv http header and body */
@@ -698,7 +706,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
-                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_http_max_idle_conn) goto idle_err;
+                    if (_stopped) { conn.reset(); goto end; } // server stopped
+                    if (_serv.conn_num() > FLG_http_max_idle_conn) goto idle_err;
                     goto recv_beg;
                 }
                 buf.reserve(4096);
@@ -716,7 +725,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
-                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_http_max_idle_conn) goto idle_err;
+                    if (_serv.conn_num() > FLG_http_max_idle_conn) goto idle_err;
                     if (buf.empty()) { buf.reset(); goto recv_beg; }
                     goto recv_err;
                 }
@@ -883,6 +892,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
         preq->clear();
         pres->clear();
         total_len = 0;
+        if (_stopped) goto reset_conn;
     }
 
   recv_zero_err:
@@ -915,7 +925,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
   reset_conn:
     conn.reset(3000);
   end:
-    atomic_dec(&_conn_num, mo_relaxed);
+    god::bless_no_bugs();
 }
 
 } // http

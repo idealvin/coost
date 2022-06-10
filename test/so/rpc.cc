@@ -9,7 +9,6 @@ DEF_int32(conn, 1, "conn num");
 DEF_string(serv_ip, "127.0.0.1", "server ip");
 DEF_int32(serv_port, 7788, "server port");
 DEF_bool(ping, false, "test rpc ping");
-DEF_int32(hb, 3000, "heartbeat");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
 DEF_bool(ssl, false, "use ssl if true");
@@ -90,7 +89,7 @@ void test_ping() {
 
     while (true) {
         c->ping();
-        co::sleep(FLG_hb);
+        co::sleep(3000);
     }
 }
 
@@ -102,12 +101,12 @@ int main(int argc, char** argv) {
     // initialize the proto client, other client can simply copy from it.
     proto.reset(new rpc::Client(FLG_serv_ip.c_str(), FLG_serv_port, FLG_ssl));
 
-    rpc::Server serv;
-
     if (!FLG_c) {
-        serv.add_service(new xx::HelloWorldImpl);
-        serv.add_service(new xx::HelloAgainImpl);
-        serv.start("0.0.0.0", FLG_serv_port, "/hello", FLG_key.c_str(), FLG_ca.c_str());
+        // since co v3.0, no need to hold the rpc::Server object any more
+        rpc::Server()
+            .add_service(new xx::HelloWorldImpl)
+            .add_service(new xx::HelloAgainImpl)
+            .start("0.0.0.0", FLG_serv_port, "/hello", FLG_key.c_str(), FLG_ca.c_str());
     } else {
         if (FLG_ping) {
             go(test_ping);

@@ -300,10 +300,10 @@ class __coapi Server {
      * @param f  a pointer to void xxx(const Req&, Res&), or 
      *           a reference of std::function<void(const Req&, Res&)>
      */
-    void on_req(std::function<void(const Req&, Res&)>&& f);
+    Server& on_req(std::function<void(const Req&, Res&)>&& f);
 
-    void on_req(const std::function<void(const Req&, Res&)>& f) {
-        this->on_req(std::function<void(const Req&, Res&)>(f));
+    Server& on_req(const std::function<void(const Req&, Res&)>& f) {
+        return this->on_req(std::function<void(const Req&, Res&)>(f));
     }
 
     /**
@@ -313,8 +313,8 @@ class __coapi Server {
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_req(void (T::*f)(const Req&, Res&), T* o) {
-        on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
+    Server& on_req(void (T::*f)(const Req&, Res&), T* o) {
+        return on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
     }
 
     /**
@@ -341,8 +341,8 @@ class __coapi Server {
     /**
      * exit the server gracefully
      *   - Once `exit()` was called, the listening socket will be closed, and new 
-     *     connections will not be accepted.
-     *   - NOTE: The server will not close previously established connections.
+     *     connections will not be accepted. Since co v3.0, the server will reset 
+     *     previously established connections.
      */
     void exit();
 

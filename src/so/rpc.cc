@@ -43,7 +43,7 @@ class ServerImpl {
         res.add_member("res", "pong");
     }
 
-    ServerImpl() : _conn_num(0) {
+    ServerImpl() : _started(false), _stopped(false) {
         using std::placeholders::_1;
         using std::placeholders::_2;
         _methods["ping"] = &ServerImpl::ping;
@@ -67,11 +67,16 @@ class ServerImpl {
 
     void start(const char* ip, int port, const char* url, const char* key, const char* ca) {
         _url = url;
+        atomic_store(&_started, true, mo_relaxed);
         _tcp_serv.on_connection(&ServerImpl::on_connection, this);
+        _tcp_serv.on_exit([this]() { co::del(this); });
         _tcp_serv.start(ip, port, key, ca);
     }
 
+    bool started() const { return _started; }
+
     void exit() {
+        atomic_store(&_stopped, true, mo_relaxed);
         _tcp_serv.exit();
     }
 
@@ -79,7 +84,8 @@ class ServerImpl {
 
   private:
     tcp::Server _tcp_serv;
-    int _conn_num;
+    bool _started;
+    bool _stopped;
     co::hash_map<const char*, std::shared_ptr<Service>> _services;
     co::hash_map<const char*, Service::Fun> _methods;
     fastring _url;
@@ -90,11 +96,16 @@ Server::Server() {
 }
 
 Server::~Server() {
-    co::del((ServerImpl*)_p);
+    if (_p) {
+        auto p = (ServerImpl*)_p;
+        if (!p->started()) co::del(p);
+        _p = 0;
+    }
 }
 
-void Server::add_service(const std::shared_ptr<Service>& s) {
+Server& Server::add_service(const std::shared_ptr<Service>& s) {
     ((ServerImpl*)_p)->add_service(s);
+    return *this;
 }
 
 void Server::start(const char* ip, int port, const char* url, const char* key, const char* ca) {
@@ -123,8 +134,6 @@ using http::http_req_t;
 using http::http_res_t;
 
 void ServerImpl::on_connection(tcp::Connection conn) {
-    atomic_inc(&_conn_num, mo_relaxed);
-
     int kind = 0; // 0: init, 1: RPC, 2: HTTP
     int r = 0, len = 0;
     union {
@@ -164,7 +173,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (unlikely(r == 0)) goto recv_zero_err;
                 if (unlikely(r < 0)) {
                     if (!co::timeout()) goto recv_err;
-                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                    if (_stopped) { conn.reset(); goto end; } // server stopped
+                    if (_tcp_serv.conn_num() > FLG_rpc_max_idle_conn) goto idle_err;
                     buf.reset();
                     goto recv_rpc_beg;
                 }
@@ -198,6 +208,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             r = conn.send(buf.data(), (int)buf.size(), FLG_rpc_send_timeout);
             if (unlikely(r <= 0)) goto send_err;
             RPCLOG << "rpc send res: " << res;
+
+            if (_stopped) goto reset_conn;
             goto recv_rpc_beg;
         } while (0);
 
@@ -211,7 +223,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                     if (r == 0) goto recv_zero_err;
                     if (r < 0) {
                         if (!co::timeout()) goto recv_err;
-                        if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                        if (_stopped) { conn.reset(); goto end; } // server stopped
+                        if (_tcp_serv.conn_num() > FLG_rpc_max_idle_conn) goto idle_err;
                         goto recv_http_beg;
                     }
                     buf.reserve(4096);
@@ -233,7 +246,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
-                    if (atomic_load(&_conn_num, mo_relaxed) > FLG_rpc_max_idle_conn) goto idle_err;
+                    if (_tcp_serv.conn_num() > FLG_rpc_max_idle_conn) goto idle_err;
                     if (buf.empty()) { buf.reset(); goto recv_http_beg; }
                     goto recv_err;
                 }
@@ -329,6 +342,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             preq->clear();
             pres->clear();
             total_len = 0;
+            if (_stopped) goto reset_conn;
             goto recv_http_beg;
         } while (0);
     }
@@ -366,7 +380,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
   reset_conn:
     conn.reset(3000);
   end:
-    atomic_dec(&_conn_num, mo_relaxed);
     if (preq) co::free(preq, sizeof(*preq));
     if (pres) co::free(pres, sizeof(*pres));
 }
