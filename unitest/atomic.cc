@@ -127,7 +127,7 @@ DEF_test(atomic) {
         EXPECT_EQ(atomic_compare_swap(&i64, 1, 0), 1);
     }
 
-    DEF_case(get) {
+    DEF_case(load) {
         EXPECT_EQ(atomic_load(&b), false);
         EXPECT_EQ(atomic_load(&i8), 0);
         EXPECT_EQ(atomic_load(&i16), 0);
@@ -135,7 +135,7 @@ DEF_test(atomic) {
         EXPECT_EQ(atomic_load(&i64), 0);
     }
 
-    DEF_case(set) {
+    DEF_case(store) {
         atomic_store(&b, true);
         atomic_store(&i8, 1);
         atomic_store(&i16, 1);

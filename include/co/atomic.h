@@ -17,7 +17,7 @@ using _if_match_atomic_t = typename std::enable_if<sizeof(T) == sizeof(std::atom
 
 // mo: mo_relaxed, mo_consume, mo_acquire, mo_seq_cst
 template<typename T, _if_match_atomic_t<T> = 0>
-inline T atomic_load(T* p, memory_order_t mo = mo_seq_cst) {
+inline T atomic_load(const T* p, memory_order_t mo = mo_seq_cst) {
     return ((std::atomic<T>*)p)->load(mo);
 }
 
