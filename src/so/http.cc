@@ -1,35 +1,42 @@
-#include "co/so/http.h"
-#include "co/so/tcp.h"
+#include "./http.h"
+#include "co/http.h"
+#include "co/tcp.h"
 #include "co/co.h"
-#include "co/flag.h"
-#include "co/log.h"
-#include "co/fastring.h"
+#include "co/god.h"
 #include "co/fastream.h"
-#include "co/str.h"
+#include "co/stl.h"
 #include "co/time.h"
 #include "co/fs.h"
 #include "co/path.h"
 #include "co/lru_map.h"
-#include <memory>
-#include <unordered_map>
 
 #ifdef HAS_LIBCURL
 #include <curl/curl.h>
 #endif
 
-DEF_uint32(http_max_header_size, 4096, "#2 max size of http header");
-DEF_uint32(http_max_body_size, 8 << 20, "#2 max size of http body, default: 8M");
-DEF_uint32(http_timeout, 3000, "#2 send or recv timeout in ms for http client");
-DEF_uint32(http_conn_timeout, 3000, "#2 connect timeout in ms for http client");
-DEF_uint32(http_recv_timeout, 3000, "#2 recv timeout in ms for http server");
-DEF_uint32(http_send_timeout, 3000, "#2 send timeout in ms for http server");
-DEF_uint32(http_conn_idle_sec, 180, "#2 http server may close the connection if no data was recieved for n seconds");
-DEF_uint32(http_max_idle_conn, 128, "#2 max idle connections for http server");
-DEF_bool(http_log, true, "#2 enable http server log if true");
+DEF_uint32(http_max_header_size, 4096, ">>#2 max size of http header");
+DEF_uint32(http_max_body_size, 8 << 20, ">>#2 max size of http body, default: 8M");
+DEF_uint32(http_timeout, 3000, ">>#2 send or recv timeout in ms for http client");
+DEF_uint32(http_conn_timeout, 3000, ">>#2 connect timeout in ms for http client");
+DEF_uint32(http_recv_timeout, 3000, ">>#2 recv timeout in ms for http server");
+DEF_uint32(http_send_timeout, 3000, ">>#2 send timeout in ms for http server");
+DEF_uint32(http_conn_idle_sec, 180, ">>#2 if a connection was idle for this seconds, the server may reset it");
+DEF_uint32(http_max_idle_conn, 128, ">>#2 max idle connections for http server");
+DEF_bool(http_log, true, ">>#2 enable http server log if true");
 
 #define HTTPLOG LOG_IF(FLG_http_log)
 
 namespace http {
+
+inline fastring& fastring_cache() {
+    static __thread fastring* kS = 0;
+    if (kS) return *kS;
+    return *(kS = new fastring(128));
+}
+
+inline fastream& fastream_cache() {
+    return *(fastream*) &fastring_cache();
+}
 
 /**
  * ===========================================================================
@@ -40,56 +47,52 @@ namespace http {
  */
 
 #ifdef HAS_LIBCURL
-struct curl_ctx {
-    curl_ctx()
-        : l(NULL), upload(NULL), upsize(0), s(-1), cs(-1), action(0), ms(0) {
-        multi = curl_multi_init();
-        easy = curl_easy_init();
-        memset(err, 0, sizeof(err));
+struct curl_ctx_t {
+    curl_ctx_t() = delete;
+
+    ~curl_ctx_t() {
+        if (l) { curl_slist_free_all(l); l = 0; }
+        if (easy) { curl_easy_cleanup(easy); easy = 0; }
+        if (arr) { co::free(arr, arr_cap << 2); arr = 0; }
     }
 
-    ~curl_ctx() {
-        curl_slist_free_all(l);     l = NULL;
-        curl_easy_cleanup(easy);    easy = NULL;
-        curl_multi_cleanup(multi);  multi = NULL;
+    void add_header(uint32 k) {
+        if (arr_cap < arr_size + 2) {
+            arr = (uint32*) co::realloc(arr, arr_cap << 2, (arr_cap + 32) << 2);
+            arr_cap += 32;
+            assert(arr);
+        }
+        arr[arr_size++] = k;
+        arr[arr_size++] = 0;
+    }
+
+    void clear() {
+        header.clear();
+        mutable_header.clear();
+        body.clear();
+        arr_size = 0;
+        err[0] = '\0';
     }
 
     fastring serv_url;
-    fastream stream;
+    fastream body;
     fastream header;
     fastream mutable_header;
-    fastream body;
-    std::vector<size_t> header_index;
-    char err[CURL_ERROR_SIZE];
-
-    CURLM* multi;
+    uint32* arr; // array of header index
+    uint32 arr_size;
+    uint32 arr_cap;
     CURL* easy;
     struct curl_slist* l;
-    const char* upload; // for PUT, data to upload
-    size_t upsize;      // for PUT, size of the data to upload
-    curl_socket_t s;
-    curl_socket_t cs;
-    int action;
-    int ms;
+    fs::file upfile; // for PUT, the file to upload
+    bool header_updated;
+    char err[CURL_ERROR_SIZE];
 };
 
-static int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* socketp);
-static int multi_timer_cb(CURLM* m, long ms, void* userp);
 static size_t easy_write_cb(void* data, size_t size, size_t count, void* userp);
 static size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp);
 static size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp);
-static curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_sockaddr* addr);
-static int easy_closesocket_cb(void* userp, curl_socket_t fd);
-static int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose);
 
-void init_multi_opts(CURLM* m, curl_ctx* ctx) {
-    curl_multi_setopt(m, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
-    curl_multi_setopt(m, CURLMOPT_SOCKETDATA, (void*)ctx); // userdata
-    curl_multi_setopt(m, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
-    curl_multi_setopt(m, CURLMOPT_TIMERDATA, (void*)ctx);
-}
-
-void init_easy_opts(CURL* e, curl_ctx* ctx) {
+void init_easy_opts(CURL* e, curl_ctx_t* ctx) {
     curl_easy_setopt(e, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(e, CURLOPT_SSL_VERIFYPEER, 0);
     curl_easy_setopt(e, CURLOPT_SSL_VERIFYHOST, 0);
@@ -101,13 +104,6 @@ void init_easy_opts(CURL* e, curl_ctx* ctx) {
 
     curl_easy_setopt(e, CURLOPT_CONNECTTIMEOUT_MS, FLG_http_conn_timeout);
     curl_easy_setopt(e, CURLOPT_TIMEOUT_MS, FLG_http_timeout);
-
-    curl_easy_setopt(e, CURLOPT_OPENSOCKETFUNCTION, easy_opensocket_cb);
-    curl_easy_setopt(e, CURLOPT_OPENSOCKETDATA, (void*)ctx);
-    curl_easy_setopt(e, CURLOPT_CLOSESOCKETFUNCTION, easy_closesocket_cb);
-    curl_easy_setopt(e, CURLOPT_CLOSESOCKETDATA, (void*)ctx);
-    curl_easy_setopt(e, CURLOPT_SOCKOPTFUNCTION, easy_sockopt_cb);
-
     curl_easy_setopt(e, CURLOPT_ERRORBUFFER, ctx->err);
 }
 
@@ -122,38 +118,52 @@ struct curl_global {
     }
 };
 
-Client::Client(const char* serv_url) {
-    static curl_global g;
-    _ctx = new curl_ctx();
-
-    fastring s(serv_url);
-    s.strip('/', 'r');        // remove '/' at the right side
-    if (!s.starts_with("https://") && !s.starts_with("http://")) {
-        s = "http://" + s;    // use http by default if protocol was not specified.
-    }
-    _ctx->serv_url = std::move(s);
-
-    init_multi_opts(_ctx->multi, _ctx);
-    init_easy_opts(_ctx->easy, _ctx);
+Client::Client(const char* serv_url) : _ctx(0) {
+    this->reset(serv_url);
 }
 
 Client::~Client() {
-    if (_ctx) { delete _ctx; _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); co::free(_ctx, sizeof(*_ctx)); _ctx = 0; }
 }
 
 void Client::close() {
-    if (_ctx) { delete _ctx; _ctx = NULL; }
+    if (_ctx) { _ctx->~curl_ctx_t(); co::free(_ctx, sizeof(*_ctx)); _ctx = 0; }
+}
+
+void Client::reset(const char* serv_url) {
+    if (_ctx) {
+        _ctx->serv_url = serv_url;
+    } else {
+        static curl_global g;
+        _ctx = (curl_ctx_t*) co::zalloc(sizeof(curl_ctx_t));
+        _ctx->easy = curl_easy_init();
+
+        auto& s = _ctx->serv_url;
+        if (strncmp(serv_url, "https://", 8) == 0 || strncmp(serv_url, "http://", 7) == 0) {
+            s.append(serv_url);
+        } else {
+            const size_t n = strlen(serv_url);
+            s.reserve(n + 8);
+            s.append("http://").append(serv_url, n); // use http by default
+        }
+        s.strip('/', 'r'); // remove '/' at the right side
+
+        init_easy_opts(_ctx->easy, _ctx);
+    }
 }
 
 inline void Client::append_header(const char* s) {
     struct curl_slist* l = curl_slist_append(_ctx->l, s);
-    if (l) _ctx->l = l;
-    if (!l) ELOG << "libcurl add header failed: " << s;
+    if (l) {
+        _ctx->l = l;
+        if (!_ctx->header_updated) _ctx->header_updated = true;
+    } else {
+        ELOG << "curl add header failed: " << s;
+    }
 }
 
 void Client::add_header(const char* key, const char* val) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(key);
     const size_t n = strlen(val);
     if (n > 0) {
@@ -165,30 +175,19 @@ void Client::add_header(const char* key, const char* val) {
 }
 
 void Client::add_header(const char* key, int val) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s << key << ": " << val;
     this->append_header(s.c_str());
 }
 
 void Client::remove_header(const char* key) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(key).append(':');
     this->append_header(s.c_str());
 }
 
-inline void Client::set_headers() {
-    if (_ctx->l) {
-        curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
-        curl_slist_free_all(_ctx->l);
-        _ctx->l = NULL;
-    }
-}
-
 inline const char* Client::make_url(const char* url) {
-    auto& s = _ctx->stream;
-    s.clear();
+    auto& s = fastream_cache(); s.clear();
     s.append(_ctx->serv_url).append(url);
     return s.c_str();
 }
@@ -226,9 +225,8 @@ void Client::del(const char* url, const char* data, size_t size) {
     curl_easy_setopt(_ctx->easy, CURLOPT_CUSTOMREQUEST, NULL);
 }
 
-void Client::put(const char* url, const char* data, size_t size) {
-    _ctx->upload = data;
-    _ctx->upsize = size;
+void Client::put(const char* url, const char* path) {
+    _ctx->upfile.open(path, 'r');
     curl_easy_setopt(_ctx->easy, CURLOPT_UPLOAD, 1L);
     curl_easy_setopt(_ctx->easy, CURLOPT_URL, make_url(url));
     curl_easy_setopt(_ctx->easy, CURLOPT_READFUNCTION, easy_read_cb);
@@ -237,19 +235,17 @@ void Client::put(const char* url, const char* data, size_t size) {
 }
 
 void* Client::easy_handle() const {
-    return _ctx->easy;
+    return (void*)_ctx->easy;
 }
 
 void Client::perform() {
     CHECK(co::scheduler()) << "must be called in coroutine..";
-    this->set_headers();
-    _ctx->header.clear();
-    _ctx->body.clear();
-    _ctx->header_index.clear();
-    _ctx->err[0] = '\0';
-    curl_multi_add_handle(_ctx->multi, _ctx->easy);
-    while (_ctx->action != 0) do_io();
-    _ctx->mutable_header.clear();
+    _ctx->clear();
+    if (_ctx->header_updated) {
+        curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
+        _ctx->header_updated = false;
+    }
+    curl_easy_perform(_ctx->easy);
 }
 
 int Client::response_code() const {
@@ -266,152 +262,66 @@ const char* Client::strerror() const {
 
 const char* Client::header(const char* key) {
     static const char* e = "";
-    auto& index = _ctx->header_index;
-    if (index.empty()) return e;
+    if (_ctx->arr_size == 0) return e;
 
     fastream& h = _ctx->header;
     fastream& m = _ctx->mutable_header;
     if (m.empty() && !h.empty()) m.append(h.c_str(), h.size() + 1);
 
-    fastring& s = *(fastring*)(&_ctx->stream);
-    fastring u(std::move(fastring(key).toupper()));
+    fastring& s = fastring_cache();
+    fastring u(key); u.toupper();
     const char* header_begin = m.c_str();
     const char* b;
     const char* p;
-    for (size_t i = 0; i < index.size(); ++i) {
-        b = header_begin + index[i];
+    for (uint32 i = 0; i < _ctx->arr_size; i += 2) {
+        b = header_begin + _ctx->arr[i];
         p = strchr(b, ':');
         if (p) {
             s.clear();
             s.append(b, p - b).strip(' ').toupper();
-            if (s != u) continue;
-
-            b = p;
-            while (*++b == ' ');
-            p = strchr(b, '\r');
-            if (p) *(char*)p = '\0';
-            return b;
+            if (s == u) {
+                if (_ctx->arr[i + 1] == 0) {
+                    b = p;
+                    while (*++b == ' ');
+                    p = strchr(b, '\r');
+                    if (p) *(char*)p = '\0';
+                    _ctx->arr[i + 1] = (uint32)(b - header_begin);
+                    return b;
+                } else {
+                    return header_begin + _ctx->arr[i + 1];
+                }
+            }
         }
     }
     return e;
 }
 
-const char* Client::header() const {
-    return _ctx->header.c_str();
+const fastring& Client::header() const {
+    return (fastring&)_ctx->header;
 }
 
-const char* Client::body() const {
-    return _ctx->body.data();
-}
-
-size_t Client::body_size() const {
-    return _ctx->body.size();
-}
-
-void Client::do_io() {
-    bool r;
-    int n, curl_ev;
-
-    if (_ctx->action == CURL_POLL_IN) {
-        curl_ev = CURL_CSELECT_IN;
-        co::IoEvent ev(_ctx->s, co::ev_read);
-        r = ev.wait(_ctx->ms);
-    } else if (_ctx->action == CURL_POLL_OUT) {
-        curl_ev = CURL_CSELECT_OUT;
-        co::IoEvent ev(_ctx->s, co::ev_write);
-        r = ev.wait(_ctx->ms);
-    } else {
-        CHECK_EQ(_ctx->action, CURL_POLL_IN | CURL_POLL_OUT);
-        curl_ev = CURL_CSELECT_IN | CURL_CSELECT_OUT;
-        do {
-            {
-                co::IoEvent ev(_ctx->s, co::ev_write);
-                r = ev.wait(_ctx->ms);
-                if (!r) break;
-            }
-            {
-                co::IoEvent ev(_ctx->s, co::ev_read);
-                r = ev.wait(_ctx->ms);
-            }
-        } while (0);
-    }
-
-    if (r) {
-        curl_multi_socket_action(_ctx->multi, _ctx->s, curl_ev, &n);
-    } else {
-        if (co::timeout()) {
-            curl_multi_socket_action(_ctx->multi, CURL_SOCKET_TIMEOUT, 0, &n);
-        } else {
-            ELOG << "io wait error: " << co::strerror();
-        }
-    }
-
-    CURLMsg* msg;
-    while ((msg = curl_multi_info_read(_ctx->multi, &n))) {
-        switch (msg->msg) {
-        case CURLMSG_DONE:
-            _ctx->action = 0;
-            curl_multi_remove_handle(_ctx->multi, msg->easy_handle);
-            break;
-        default:
-            CHECK(false) << "CURLMSG default";
-        }
-    }
-}
-
-int multi_socket_cb(CURL* easy, curl_socket_t s, int action, void* userp, void* socketp) {
-    CHECK(userp != NULL);
-    curl_ctx* ctx = (curl_ctx*)userp;
-    switch (action) {
-      case CURL_POLL_IN:
-      case CURL_POLL_OUT:
-      case CURL_POLL_IN | CURL_POLL_OUT:
-        ctx->s = s;
-        ctx->action = action;
-        break;
-      case CURL_POLL_REMOVE:
-        // delete io event if the socket was not created by the opensocket callback.
-        // Now we have hooked close (closesocket) globally, MAYBE no need to do this..
-        if (s != ctx->cs) co::del_io_event(s);
-        ctx->s = 0;
-        ctx->action = 0;
-        break;
-      default:
-        CHECK(false) << "invalid curl action: " << action;
-    }
-    return 0;
-}
-
-int multi_timer_cb(CURLM* m, long ms, void* userp) {
-    int n;
-    curl_ctx* ctx = (curl_ctx*)userp;
-    if (ms == 0) {
-        CHECK_EQ(m, ctx->multi);
-        curl_multi_socket_action(m, CURL_SOCKET_TIMEOUT, 0, &n);
-    } else {
-        if (ms > 0) ctx->ms = ms;
-    }
-    return 0;
+const fastring& Client::body() const {
+    return (fastring&)_ctx->body;
 }
 
 size_t easy_write_cb(void* data, size_t size, size_t count, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
     const size_t n = size * count;
     ctx->body.append(data, n);
     return n;
 }
 
 size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
     const size_t n = size * nmemb;
     fastream& h = ctx->header;
 
     long code = 0;
     const CURLcode r = curl_easy_getinfo(ctx->easy, CURLINFO_RESPONSE_CODE, &code);
-    if (code == 100) return n;
+    if (r != CURLE_OK || code == 100) return n;
 
     if (!h.empty()) {
-        if (n > 2) ctx->header_index.push_back(h.size());
+        if (n > 2) ctx->add_header((uint32)h.size()); // not "\r\n"
         h.append(p, n);
     } else {
         h.append(p, n); // start line
@@ -420,48 +330,17 @@ size_t easy_header_cb(char* p, size_t size, size_t nmemb, void* userp) {
 }
 
 size_t easy_read_cb(char* p, size_t size, size_t nmemb, void* userp) {
-    curl_ctx* ctx = (curl_ctx*)userp;
-    if (ctx->upsize == 0) return 0;
-    const size_t N = size * nmemb;
-    const size_t n = (ctx->upsize <= N ? ctx->upsize : N);
-    memcpy(p, ctx->upload, n);
-    ctx->upload += n;
-    ctx->upsize -= n;
-    return n;
-}
-
-curl_socket_t easy_opensocket_cb(void* userp, curlsocktype purpose, struct curl_sockaddr* addr) {
-    curl_ctx* ctx = (curl_ctx*)userp;
-    curl_socket_t fd = co::socket(addr->family, addr->socktype, addr->protocol);
-    if (fd == (sock_t)-1) {
-        ELOG << "create socket failed: " << co::strerror();
-        return CURL_SOCKET_BAD;
-    }
-
-    const int r = co::connect(fd, &addr->addr, addr->addrlen, FLG_http_conn_timeout);
-    if (r == 0) return (ctx->cs = fd);
-
-    ELOG << "connect to " << co::to_string(&addr->addr, addr->addrlen) << " failed: " << co::strerror();
-    memcpy(ctx->err, "connect timeout", 16);
-    co::close(fd);
-    return CURL_SOCKET_BAD;
-}
-
-int easy_closesocket_cb(void* userp, curl_socket_t fd) {
-    if (fd != (curl_socket_t)-1) return co::close(fd);
-    return 0;
-}
-
-int easy_sockopt_cb(void* userp, curl_socket_t fd, curlsocktype purpose) {
-    return CURL_SOCKOPT_ALREADY_CONNECTED;
+    curl_ctx_t* ctx = (curl_ctx_t*)userp;
+    auto& f = ctx->upfile;
+    return f ? f.read(p, size * nmemb) : 0;
 }
 
 #else
 Client::Client(const char*) {
     CHECK(false)
         << "To use http::Client, please build libco with libcurl as follow: \n"
-        << "xmake f --with_libcurl=true\n"
-        << "xmake -v";
+        << "  xmake f --with_libcurl=true\n"
+        << "  xmake -v";
 }
 
 Client::~Client() {}
@@ -471,17 +350,16 @@ void Client::remove_header(const char*) {}
 void Client::get(const char*) {}
 void Client::head(const char*) {}
 void Client::post(const char*, const char*, size_t) {}
-void Client::put(const char*, const char*, size_t) {}
+void Client::put(const char*, const char*) {}
 void Client::del(const char*, const char*, size_t) {}
 void Client::set_url(const char*) {}
 void* Client::easy_handle() const { return 0; }
 void Client::perform() {}
 int Client::response_code() const { return 0; }
 const char* Client::strerror() const { return ""; }
-const char* Client::header(const char* key) { return ""; }
-const char* Client::header() const { return ""; }
-const char* Client::body() const { return ""; }
-size_t Client::body_size() const { return 0; }
+const char* Client::header(const char*) { return ""; }
+const fastring& Client::header() const { static fastring s; return s; }
+const fastring& Client::body() const { static fastring s; return s; }
 void Client::close() {}
 
 #endif // http::Client
@@ -502,6 +380,17 @@ inline const char* version_str(int v) {
 inline const char* method_str(int m) {
     static const char* s[] = { "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS" };
     return s[m];
+}
+
+static co::hash_map<fastring, int>* create_method_map() {
+    static co::hash_map<fastring, int> m;
+    m["GET"]     = kGet;
+    m["POST"]    = kPost;
+    m["HEAD"]    = kHead;
+    m["PUT"]     = kPut;
+    m["DELETE"]  = kDelete;
+    m["OPTIONS"] = kOptions;
+    return &m;
 }
 
 const char** create_status_table() {
@@ -555,9 +444,171 @@ inline const char* status_str(int n) {
     return (100 <= n && n <= 511) ? s[n] : s[500];
 }
 
+
+inline void http_req_t::add_header(uint32 k, uint32 v) {
+    if (arr_cap < arr_size + 2) {
+        arr = (uint32*) co::realloc(arr, arr_cap << 2, (arr_cap + 32) << 2);
+        assert(arr);
+        arr_cap += 32;
+    }
+    arr[arr_size++] = k;
+    arr[arr_size++] = v;
+}
+
+const char* http_req_t::header(const char* key) const {
+    fastring& s = fastring_cache();
+    fastring x(key);
+    x.toupper();
+
+    for (uint32 i = 0; i < arr_size; i += 2) {
+        s.clear();
+        s.append(buf->data() + arr[i]).toupper();
+        if (s == x) return buf->data() + arr[i + 1];
+    }
+
+    static const char* e = "";
+    return e;
+}
+
+
+void http_res_t::set_body(const void* s, size_t n) {
+    body_size = n;
+    if (status == 0) status = 200;
+    buf->clear();
+    (*buf) << version_str(version) << ' ' << status << ' ' << status_str(status) << "\r\n"
+           << "Content-Length: " << n << "\r\n"
+           << header << "\r\n";
+    buf->append(s, n);
+}
+
+const char* Req::header(const char* key) const {
+    return _p->header(key);
+}
+
+const char* Req::body() const {
+    return _p->buf->data() + _p->body;
+}
+
+Req::~Req() {
+    if (_p) {
+        _p->url.~fastring();
+        co::free(_p->arr, _p->arr_cap << 2);
+        co::free(_p, sizeof(*_p));
+        _p = 0;
+    }
+}
+
+void Res::add_header(const char* k, const char* v) {
+    _p->add_header(k, v);
+}
+
+void Res::add_header(const char* k, int v) {
+    _p->add_header(k, v);
+}
+
+void Res::set_body(const void* s, size_t n) {
+    _p->set_body(s, n);
+}
+
+Res::~Res() {
+    if (_p) {
+        _p->header.~fastring();
+        co::free(_p, sizeof(*_p));
+        _p = 0;
+    }
+}
+
+// @x  beginning of http header
+int parse_http_headers(fastring* buf, size_t size, size_t x, http_req_t* req) {
+    fastring& m = *buf;
+    size_t p, k, v;
+
+    while (x < size) {
+        p = m.find('\r', x, size - x); // header end
+        if (p == m.npos || m[p + 1] != '\n') return 400;
+        m[p] = '\0'; // make value null-terminated
+
+        k = x; // key
+        v = m.find(':', x, p - x);
+        if (v == m.npos) return 400;
+        m[v] = '\0'; // make key null-terminated
+        while (m[++v] == ' ');
+        req->add_header((uint32)k, (uint32)v);
+
+        x = p + 2;
+    }
+    return 0;
+}
+
+int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
+    static co::hash_map<fastring, int>* mm = create_method_map();
+    fastring& m = *buf;
+    req->buf = buf;
+
+    size_t x = m.find('\r', 0, size); // end of start line
+    { /* parse start line: method, url, version */
+        if (m[x + 1] != '\n') return 400;
+
+        size_t p, q;
+        p = m.find(' ', 0, x);
+        if (p == m.npos) return 400;
+
+        auto& s = fastring_cache(); s.clear();
+        s.append(m.data(), p).toupper();
+        auto it = mm->find(s);
+        if (it != mm->end()) {
+            req->method = it->second;
+        } else {
+            return 405; // Method Not Allowed
+        }
+
+        while (m[++p] == ' ');
+        q = m.find(' ', p, x - p);
+        if (q == m.npos) return 400;
+        req->url.append(m.data() + p, q - p);
+
+        while (m[++q] == ' ');
+        if (m[q] == '\r') return 400;
+        s.clear();
+        s.append(m.data() + q, x - q).toupper();
+        if (s.size() != 8) return 505;
+        if (god::byte_eq<uint64>(s.data(), "HTTP/1.1")) {
+            req->version = kHTTP11;
+        } else if (god::byte_eq<uint64>(s.data(), "HTTP/1.0")) {
+            req->version = kHTTP10;
+        } else {
+            return 505; // HTTP Version Not Supported
+        }
+    }
+
+    x += 2; // skip "\r\n"
+
+    { /* parse header */
+        int r = parse_http_headers(buf, size, x, req);
+        if (r != 0) return r;
+    }
+
+    { /* parse body size */
+        const char* v = req->header("CONTENT-LENGTH");
+        if (*v == '\0' || *v == '0') {
+            req->body_size = 0;
+            return 0;
+        } else {
+            int n = atoi(v);
+            if (n >= 0) {
+                if ((uint32)n > FLG_http_max_body_size) return 413;
+                req->body_size = n;
+                return 0;
+            }
+            ELOG << "http parse error, invalid content-length: " << v;
+            return 400;
+        }
+    }
+}
+
 class ServerImpl {
   public:
-    ServerImpl();
+    ServerImpl() : _started(false), _stopped(false) {}
     ~ServerImpl() = default;
 
     void on_req(std::function<void(const Req&, Res&)>&& f) {
@@ -566,26 +617,37 @@ class ServerImpl {
 
     void start(const char* ip, int port, const char* key, const char* ca);
 
-  private:
-    void on_connection(tcp::Connection* conn);
+    void on_connection(tcp::Connection conn);
+
+    void exit() {
+        atomic_store(&_stopped, true);
+        _serv.exit();
+    }
+
+    bool started() const { return _started; }
 
   private:
-    co::Pool _buffer; // buffer for recieving http data
-    uint32 _conn_num;
-    std::unique_ptr<tcp::Server> _serv;
+    bool _started;
+    bool _stopped;
+    tcp::Server _serv;
     std::function<void(const Req&, Res&)> _on_req;
 };
 
 Server::Server() {
-    _p = new ServerImpl();
+    _p = co::make<ServerImpl>();
 }
 
 Server::~Server() {
-    delete (ServerImpl*)_p;
+    if (_p) {
+        auto p = (ServerImpl*)_p;
+        if (!p->started()) co::del(p);
+        _p = 0;
+    }
 }
 
-void Server::on_req(std::function<void(const Req&, Res&)>&& f) {
+Server& Server::on_req(std::function<void(const Req&, Res&)>&& f) {
     ((ServerImpl*)_p)->on_req(std::move(f));
+    return *this;
 }
 
 void Server::start(const char* ip, int port) {
@@ -596,124 +658,142 @@ void Server::start(const char* ip, int port, const char* key, const char* ca) {
     ((ServerImpl*)_p)->start(ip, port, key, ca);
 }
 
-ServerImpl::ServerImpl()
-    : _buffer(
-          []() { return (void*) new fastring(4096); },
-          [](void* p) { delete (fastring*)p; }
-      ), _conn_num(0) {
+void Server::exit() {
+    ((ServerImpl*)_p)->exit();
 }
 
 void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
-    CHECK(_on_req != NULL) << "req callback must be set..";
-    _serv.reset(new tcp::Server());
-    _serv->on_connection(&ServerImpl::on_connection, this);
-    _serv->start(ip, port, key, ca);
+    CHECK(_on_req != NULL) << "req callback not set..";
+    atomic_store(&_started, true, mo_relaxed);
+    _serv.on_connection(&ServerImpl::on_connection, this);
+    _serv.on_exit([this]() { co::del(this); });
+    _serv.start(ip, port, key, ca);
 }
 
-static inline int hex2int(char c) {
+inline int hex2int(char c) {
     if ('0' <= c && c <= '9') return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
     if ('A' <= c && c <= 'F') return c - 'A' + 10;
     return -1;
 }
 
-int parse_headers(const char* x, const char* beg, std::vector<size_t>& headers);
-
-void send_error_message(int err, Res& res, tcp::Connection* conn) {
-    res.set_status(err);
-    fastring s = res.str();
-    conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
+void send_error_message(int err, http_res_t* res, void* conn) {
+    fastring s(128);
+    res->buf = &s;
+    res->status = err;
+    res->set_body("", 0);
+    ((tcp::Connection*)conn)->send(s.data(), (int)s.size(), FLG_http_send_timeout);
     HTTPLOG << "http send res: " << s;
-    res.clear();
+    res->clear();
 }
 
-void ServerImpl::on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> x(conn);
+void ServerImpl::on_connection(tcp::Connection conn) {
     char c;
     int r = 0;
     size_t pos = 0, total_len = 0;
-    fastring* buf = 0;
+    fastring buf;
     Req req; Res res;
+    auto& preq = *(http_req_t**) &req;
+    auto& pres = *(http_res_t**) &res;
 
-    r = atomic_inc(&_conn_num);
-    DLOG << "http conn num: " << r;
-
+    god::bless_no_bugs();
     while (true) {
-        {
+        { /* recv http header and body */
           recv_beg:
-            if (!buf) {
-                // try recieving a single byte
-                r = conn->recv(&c, 1, FLG_http_conn_idle_sec * 1000);
+            if (buf.capacity() == 0) {
+                // try to recieve a single byte
+                r = conn.recv(&c, 1, FLG_http_conn_idle_sec * 1000);
                 if (r == 0) goto recv_zero_err;
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
-                    if (_conn_num > FLG_http_max_idle_conn) goto idle_err;
+                    if (_stopped) { conn.reset(); goto end; } // server stopped
+                    if (_serv.conn_num() > FLG_http_max_idle_conn) goto idle_err;
                     goto recv_beg;
                 }
-                buf = (fastring*) _buffer.pop();
-                buf->clear();
-                buf->append(c);
+                buf.reserve(4096);
+                buf.append(c);
             }
 
             // recv until the entire http header was done. 
-            while ((pos = buf->find("\r\n\r\n")) == buf->npos) {
-                if (buf->size() > FLG_http_max_header_size) goto header_too_long_err;
-                buf->reserve(buf->size() + 1024);
-                r = conn->recv(
-                    (void*)(buf->data() + buf->size()), 
-                    (int)(buf->capacity() - buf->size()), FLG_http_recv_timeout
+            while ((pos = buf.find("\r\n\r\n")) == buf.npos) {
+                if (buf.size() > FLG_http_max_header_size) goto header_too_long_err;
+                buf.reserve(buf.size() + 1024);
+                r = conn.recv(
+                    (void*)(buf.data() + buf.size()), 
+                    (int)(buf.capacity() - buf.size()), FLG_http_recv_timeout
                 );
                 if (r == 0) goto recv_zero_err;
-                if (r < 0) goto recv_err;
-                buf->resize(buf->size() + r);
+                if (r < 0) {
+                    if (!co::timeout()) goto recv_err;
+                    if (_serv.conn_num() > FLG_http_max_idle_conn) goto idle_err;
+                    if (buf.empty()) { buf.reset(); goto recv_beg; }
+                    goto recv_err;
+                }
+                buf.resize(buf.size() + r);
             }
 
+            buf[pos + 2] = '\0'; // make header null-terminated
+            HTTPLOG << "http recv req: " << buf.data();
+
             // parse http header
-            req._body = pos + 4;
-            (*buf)[pos + 2] = '\0'; // make header null-terminated
-            HTTPLOG << "http recv req: " << buf->data();
-            r = req.parse(buf);
+            if (preq == 0) preq = (http_req_t*) co::zalloc(sizeof(http_req_t));
+            if (pres == 0) pres = (http_res_t*) co::zalloc(sizeof(http_res_t));
+
+            r = parse_http_req(&buf, pos + 2, preq);
             if (r != 0) { /* parse error */
-                ELOG << "http parse error: " << r;
-                send_error_message(r, res, conn);
-                goto err_end;
+                pres->version = kHTTP11;
+                goto parse_err;
+            } else {
+                pres->version = preq->version;
             }
 
             // try to recv the remain part of http body
-            if (req.body_size() > 0 || strcmp(req.header("Transfer-Encoding"), "chunked") != 0) {
-                total_len = pos + 4 + req.body_size();
-                if (req.body_size() > 0) {
-                    if (buf->size() < total_len) {
-                        buf->reserve(total_len);
-                        r = conn->recvn(
-                            (void*)(buf->data() + buf->size()), 
-                            (int)(total_len - buf->size()), FLG_http_recv_timeout
-                        );
-                        if (r == 0) goto recv_zero_err;
-                        if (r < 0) goto recv_err;
-                        buf->resize(total_len);
-                    }
+            preq->body = (uint32)(pos + 4); // beginning of http body
+            if (preq->body_size > 0) {
+                total_len = pos + 4 + preq->body_size;
+                if (buf.size() < total_len) {
+                    buf.reserve(total_len);
+                    r = conn.recvn(
+                        (void*)(buf.data() + buf.size()), 
+                        (int)(total_len - buf.size()), FLG_http_recv_timeout
+                    );
+                    if (r == 0) goto recv_zero_err;
+                    if (r < 0) goto recv_err;
+                    buf.resize(total_len);
                 }
+                goto handle_req;
 
-            } else { /* stupid chunked data */
-                // he grandmother's. The chunked Transfer-Encoding makes the stupid HTTP stupid again.
-                bool expect_100_continue = strcmp(req.header("Expect"), "100-continue") == 0;
+            } else {
+                const char* const te = preq->header("Transfer-Encoding");
+                if (!*te) {
+                    total_len = pos + 4;
+                    goto handle_req; // no Transfer-Encoding
+                }
+                if (strcmp(te, "chunked") != 0) { /* Transfer-Encoding is not "chunked" */
+                    send_error_message(501, pres, &conn);
+                    goto reset_conn;
+                }
+            }
+
+            { /* chunked Transfer-Encoding */
+                // see https://datatracker.ietf.org/doc/html/rfc2616#section-3.6.1
+                const bool expect_100_continue = strcmp(preq->header("Expect"), "100-continue") == 0;
                 size_t x, o, i, n = 0;
-                fastring& s = req._s;
-                s.clear();
-                if (buf->size() > pos + 4) {
-                    s.append(buf->data() + pos + 4, buf->size() - pos - 4);
-                    buf->resize(pos + 4);
+                const size_t hlen = pos + 4; // header length
+                fastring s(128);
+
+                if (buf.size() > hlen) {
+                    s.append(buf.data() + hlen, buf.size() - hlen);
+                    buf.resize(hlen);
                 }
 
-                while (true) {
+                while (true) { /* loop for recving chunked data */
                     while ((x = s.find("\r\n")) == s.npos) {
                         if (expect_100_continue) { /* send 100 continue */
-                            res.set_version(req.version());
-                            send_error_message(100, res, conn);
+                            send_error_message(100, pres, &conn);
                         }
                         s.reserve(s.size() + 32);
-                        r = conn->recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
+                        r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
                         if (r == 0) goto recv_zero_err;
                         if (r < 0) goto recv_err;
                         s.resize(s.size() + r);
@@ -721,256 +801,131 @@ void ServerImpl::on_connection(tcp::Connection* conn) {
 
                     if (x == 0) { s.lshift(2); continue; }
 
-                    // chunked data:  1a[;xxx]\r\n data\r\n
-                    s[x] = '\0';
-                    if ((o = s.find(';')) == s.npos) o = x;
+                    // chunked data:  1a[;xxx]\r\ndata\r\n
+                    if ((o = s.find(';', 0, x)) == s.npos) o = x;
                     for (i = 0, n = 0; i < o; ++i) {
                         if ((r = hex2int(s[i])) < 0) goto chunk_err;
                         n = (n << 4) + r;
                     }
 
                     if (n > 0) {
+                        if (unlikely(n > FLG_http_max_body_size)) goto body_too_long_err;
+
                         o = s.size() - x - 2;
                         if (o < n) {
-                            buf->append(s.data() + x + 2, o);
-                            buf->reserve(buf->size() + n - o + 2);
-                            r = conn->recvn((void*)(buf->data() + buf->size()), (int)(n - o + 2), FLG_http_recv_timeout);
+                            buf.append(s.data() + x + 2, o);
+                            buf.reserve(buf.size() + n - o + 2);
+                            r = conn.recvn((void*)(buf.data() + buf.size()), (int)(n - o + 2), FLG_http_recv_timeout);
                             if (r == 0) goto recv_zero_err;
                             if (r < 0) goto recv_err;
-                            buf->resize(buf->size() + r - 2);
+                            buf.resize(buf.size() + r - 2);
                             s.clear();
                         } else {
-                            buf->append(s.data() + x + 2, n);
-                            s.lshift(s.size() >= x + n + 4 ? x + 4 + n : x + 2 + n);
+                            buf.append(s.data() + x + 2, n);
+                            s.lshift(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n);
                         }
 
-                        if (buf->size() - pos - 4 > FLG_http_max_body_size) {
-                            send_error_message(413, res, conn);
-                            goto err_end;
-                        }
+                        if (buf.size() - hlen > FLG_http_max_body_size) goto body_too_long_err;
 
                     } else { /* n == 0, end of chunked data */
-                        req._body_size = buf->size() - pos - 4;
-                        s[x] = '\r'; s.lshift(x);
+                        preq->body_size = (uint32)(buf.size() - hlen);
+                        s.lshift(x);
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
-                            r = conn->recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
+                            r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
                             if (r == 0) goto recv_zero_err;
                             if (r < 0) goto recv_err;
                             s.resize(s.size() + r);
                         }
 
                         s[x + 2] = '\0';
-                        if (s.size() > 4) {
+                        if (s.size() == 4) {
+                            total_len = buf.size();
+                        } else { /* \r\n tailing headers \r\n\r\n*/
                             // there are some tailing headers following the chunked data
-                            total_len = buf->size() + x + 4;
-                            o = buf->size();
-                            buf->append(s.data(), s.size());
-                            parse_headers(buf->data() + o + 2, buf->data(), req._headers);
-                        } else {
-                            total_len = buf->size();
+                            total_len = buf.size() + x + 4;
+                            o = buf.size();
+                            if (s[0] == '\r' && s[1] == '\n') o += 2;
+                            buf.append(s.data(), s.size());
+                            r = parse_http_headers(&buf, total_len - 2,  o, preq);
+                            if (r != 0) goto parse_err;
                         }
 
-                        break; // exit the while loop
+                        break; // exit the chunked loop
                     }
                 }
             };
         };
 
+      handle_req:
         { /* handle the http request */
             bool need_close = false;
-            fastring x(req.header("Connection")); 
-            if (!x.empty()) res.add_header("Connection", x.c_str());
-            res.set_version(req.version());
+            fastring s(4096);
+            s.append(preq->header("Connection"));
+            if (!s.empty()) pres->add_header("Connection", s.c_str());
 
-            if (req.version() == kHTTP10) {
-                if (x.empty() || x.lower() != "keep-alive") need_close = true;
+            if (preq->version != kHTTP10) {
+                if (!s.empty() && s == "close") need_close = true;
             } else {
-                if (!x.empty() && x == "close") need_close = true;
+                if (s.empty() || s.tolower() != "keep-alive") need_close = true;
             }
 
+            s.clear();
+            pres->buf = &s;
             _on_req(req, res);
-            fastring s = res.str();
-            r = conn->send(s.data(), (int)s.size(), FLG_http_send_timeout);
+            if (s.empty()) pres->set_body("", 0);
+
+            r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
             if (r <= 0) goto send_err;
 
-            s.resize(s.size() - res.body_size());
+            s.resize(s.size() - pres->body_size);
             HTTPLOG << "http send res: " << s;
-            if (need_close) { conn->close(0); goto cleanup; }
+            if (need_close) { conn.close(); goto end; }
         };
 
-        if (buf->size() == total_len) {
-            buf->clear();
-            _buffer.push(buf);
-            buf = 0;
+        if (buf.size() == total_len) {
+            buf.clear();
         } else {
-            buf->lshift(total_len);
+            buf.lshift(total_len);
         }
 
-        req.clear();
-        res.clear();
+        preq->clear();
+        pres->clear();
         total_len = 0;
+        if (_stopped) goto reset_conn;
     }
 
   recv_zero_err:
-    LOG << "http client close the connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
-    conn->close();
-    goto cleanup;
+    LOG << "http client close the connection: " << co::peer(conn.socket()) << ", connfd: " << conn.socket();
+    conn.close();
+    goto end;
   idle_err:
-    LOG << "http close idle connection: " << co::peer(conn->socket()) << ", connfd: " << conn->socket();
-    conn->reset();
-    goto cleanup;
+    LOG << "http close idle connection: " << co::peer(conn.socket()) << ", connfd: " << conn.socket();
+    conn.reset();
+    goto end;
   header_too_long_err:
     ELOG << "http recv error: header too long";
-    goto err_end;
+    goto reset_conn;
+  body_too_long_err:
+    send_error_message(413, pres, &conn);
+    goto reset_conn;
+  parse_err:
+    ELOG << "http parse error: " << r;
+    send_error_message(r, pres, &conn);
+    goto reset_conn;
   recv_err:
-    ELOG << "http recv error: " << conn->strerror();
-    goto err_end;
+    ELOG << "http recv error: " << conn.strerror() << ", sock: " << conn.socket();
+    goto reset_conn;
   send_err:
-    ELOG << "http send error: " << conn->strerror();
-    goto err_end;
+    ELOG << "http send error: " << conn.strerror() << ", sock: " << conn.socket();
+    goto reset_conn;
   chunk_err:
     ELOG << "http invalid chunked data..";
-    goto err_end;
-  err_end:
-    conn->reset(1000);
-  cleanup:
-    atomic_dec(&_conn_num);
-    if (buf) { 
-        buf->clear();
-        buf->capacity() <= 1024 * 1024 ? _buffer.push(buf) : delete buf;
-    }
-}
-
-const char* Req::header(const char* key) const {
-    static const char* e = "";
-    Req* req = (Req*)this;
-    fastring& s = req->_s;
-    fastring x(key);
-    x.toupper();
-
-    for (size_t i = 0; i < _headers.size(); i += 2) {
-        s.clear();
-        s.append(_buf->data() + _headers[i]).toupper();
-        if (s == x) return _buf->data() + _headers[i + 1];
-    }
-    return e;
-}
-
-fastring Res::str() const {
-    fastring s(_header.size() + _body.size() + 64);
-    s << version_str(_version) << ' ' << _status << ' ' << status_str(_status) << "\r\n";
-    s << "Content-Length: " << _body.size() << "\r\n";
-    s << _header << "\r\n";
-    if (_body.size() > 0) s << _body;
-    return s;
-}
-
-static std::unordered_map<fastring, int>* method_map() {
-    static std::unordered_map<fastring, int> m;
-    m["GET"]     = kGet;
-    m["POST"]    = kPost;
-    m["HEAD"]    = kHead;
-    m["PUT"]     = kPut;
-    m["DELETE"]  = kDelete;
-    m["OPTIONS"] = kOptions;
-    return &m;
-}
-
-static std::unordered_map<fastring, int>* version_map() {
-    static std::unordered_map<fastring, int> m;
-    m["HTTP/1.0"] = kHTTP10;
-    m["HTTP/1.1"] = kHTTP11;
-    return &m;
-}
-
-int parse_headers(const char* x, const char* beg, std::vector<size_t>& headers) {
-    const char* p;
-    while (*x) {
-        p = strchr(x, '\r');
-        if (!p || *(p + 1) != '\n') return 400;
-
-        *(char*)p = '\0';
-        headers.push_back(x - beg); // key
-
-        x = strchr(x, ':');
-        if (!x) return 400;
-
-        *(char*)x = '\0';
-        while (*++x == ' ');
-        headers.push_back(x - beg); // value
-        x = p + 2;
-    }
-    return 0;
-}
-
-int Req::parse(fastring* buf) {
-    _buf = buf;
-    const char* s = _buf->data(); 
-    const char* x = strchr(s, '\r'); // MUST NOT be NULL
-
-    { /* parse start line */
-        const char* p;
-        const char* q;
-        const char* beg = s;
-        const char* end = x;
-        if (*(end + 1) != '\n') return 400;
-
-        *(char*)end = '\0'; // make start line null-terminated
-        p = strchr(beg, ' ');
-        if (!p) return 400;
-
-        static std::unordered_map<fastring, int>* mm = method_map();
-        _s.clear();
-        _s.append(beg, p - beg).toupper();
-        auto it = mm->find(_s);
-        if (it != mm->end()) {
-            _method = (Method)(it->second);
-        } else {
-            return 405; // Method Not Allowed
-        }
-
-        while (*++p == ' ');
-        q = strchr(p, ' ');
-        if (!q) return 400;
-
-        _url.append(p, q - p);
-        while (*++q == ' ');
-        if (*q == '\0') return 400;
-
-        static std::unordered_map<fastring, int>* vm = version_map();
-        _s.clear();
-        _s.append(q, end - q).toupper();
-        it = vm->find(_s);
-        if (it != vm->end()) {
-            _version = (Version)(it->second);
-        } else {
-            return 505; // HTTP Version Not Supported
-        }
-    }
-
-    x += 2; // skip "\r\n"
-
-    { /* parse header */
-        parse_headers(x, s, _headers);
-    }
-
-    { /* parse body size */
-        const char* v = this->header("CONTENT-LENGTH");
-        if (*v == '\0' || *v == '0') {
-            _body_size = 0;
-            return 0;
-        } else {
-            int n = atoi(v);
-            if (n >= 0) {
-                if ((uint32)n > FLG_http_max_body_size) return 413;
-                _body_size = n;
-                return 0;
-            }
-            ELOG << "http parse error, invalid content-length: " << v;
-            return 400;
-        }
-    }
+    goto reset_conn;
+  reset_conn:
+    conn.reset(3000);
+  end:
+    god::bless_no_bugs();
 }
 
 } // http
@@ -983,9 +938,9 @@ void easy(const char* root_dir, const char* ip, int port) {
 
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
-    std::vector<LruMap<fastring, std::pair<fastring, int64>>> contents(co::scheduler_num());
-    fastring root(root_dir);
-    if (root.empty()) root.append('.');
+    typedef LruMap<fastring, std::pair<fastring, int64>> Map;
+    co::vector<Map> contents(co::scheduler_num(), Map());
+    fastring root(path::clean(root_dir));
 
     serv.on_req(
         [&](const http::Req& req, http::Res& res) {
@@ -1039,3 +994,5 @@ void easy(const char* root_dir, const char* ip, int port, const char* key, const
 }
 
 } // so
+
+#undef HTTPLOG

@@ -1,15 +1,31 @@
 #pragma once
 
-#include "../def.h"
-#include "../fastring.h"
+#include "def.h"
 #include <functional>
-#include <memory>
 
 namespace tcp {
 
-struct Connection {
-    Connection(int sockfd) : _fd(sockfd) {}
-    virtual ~Connection() { this->close(); }
+/**
+ * TCP connection for tcp::Server 
+ *   - An object of tcp::Connection will be created by tcp::Server if a connection 
+ *     was accepted. DO NOT create tcp::Connection by yourself.
+ *   - If tcp::Server is a SSL server, data will be transfered by SSL.
+ */
+struct __coapi Connection final {
+    // normal TCP connection
+    Connection(int sock);
+
+    // TCP connection with SSL support. Data will be transfered by SSL.
+    Connection(void* ssl);
+
+    // move constructor
+    Connection(Connection&& c) : _p(c._p) { c._p = 0; }
+
+    // close the connection in destructor
+    ~Connection() { this->close(); }
+
+    // get the underlying socket fd
+    int socket() const;
 
     /**
      * recv using co::recv or ssl::recv
@@ -17,7 +33,7 @@ struct Connection {
      * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recv(void* buf, int n, int ms=-1);
+    int recv(void* buf, int n, int ms=-1);
 
     /**
      * recv n bytes using co::recvn or ssl::recvn
@@ -25,7 +41,7 @@ struct Connection {
      * @return  n on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recvn(void* buf, int n, int ms=-1);
+    int recvn(void* buf, int n, int ms=-1);
 
     /**
      * send n bytes using co::send or ssl::send 
@@ -33,77 +49,70 @@ struct Connection {
      * 
      * @return  n on success, <=0 on timeout or error.
      */
-    virtual int send(const void* buf, int n, int ms=-1);
+    int send(const void* buf, int n, int ms=-1);
 
     /**
      * close the connection
+     *   - Once a Connection was closed, it can't be used any more.
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int close(int ms = 0);
+    int close(int ms = 0);
 
     /**
      * reset the connection
+     *   - Once a Connection was reset, it can't be used any more.
      *   - Server may use this method instead of close() to avoid TIME_WAIT state.
      *
      * @param ms  if ms > 0, the connection will be closed ms milliseconds later.
      */
-    virtual int reset(int ms = 0);
+    int reset(int ms = 0);
 
     /**
      * get error message of the last I/O operation
-     *   - If an error occured in send() or recv(), the user can call this method
-     *     to get the error message.
+     *   - If an error occured in send() or recv(), this method can be called to 
+     *     get the error message.
      */
-    virtual const char* strerror() const;
-
-    int socket() const {
-        return _fd;
-    }
+    const char* strerror() const;
 
   private:
-    int _fd;
+    void* _p;
+
+    DISALLOW_COPY_AND_ASSIGN(Connection);
 };
 
 /**
  * TCP server based on coroutine 
  *   - Support both ipv4 and ipv6. 
- *   - Support ssl (openssl required).
+ *   - Support ssl (openssl 1.1.0+ required).
  *   - One coroutine per connection. 
  */
-class Server {
+class __coapi Server final {
   public:
-    Server() = default; // { _on_connection = NULL; }
-    virtual ~Server() = default; //{ if (_on_connection) delete _on_connection; }
+    Server();
+    ~Server();
 
-    typedef std::function<void(Connection*)> conn_cb;
+    // set a connection callback
+    Server& on_connection(std::function<void(Connection)>&& f);
 
-    /**
-     * set a callback for handling a connection 
-     *   - The user MUST delete the Connection pointer when the connection was closed.
-     * 
-     * @param f  either a pointer to void f(tcp::Connection*), 
-     *           or a reference of std::function<void(tcp::Connection*)>.
-     */
-    void on_connection(conn_cb&& f) {
-        _on_connection.reset(new conn_cb(std::move(f)));
-    }
-
-    void on_connection(const conn_cb& f) {
-        this->on_connection(conn_cb(f));
+    Server& on_connection(const std::function<void(Connection)>& f) {
+        return this->on_connection(std::function<void(Connection)>(f));
     }
 
     /**
-     * set a callback for handling a connection 
-     *   - The user MUST delete the Connection pointer when the connection was closed.
-     * 
-     * @param f  a pointer to a method with a parameter of type tcp::Connection* in class T.
+     * @param f  a pointer to a method in class T.
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_connection(void (T::*f)(Connection*), T* o) {
-        _on_connection.reset(new conn_cb(std::bind(f, o, std::placeholders::_1)));
+    Server& on_connection(void (T::*f)(Connection), T* o) {
+        return this->on_connection(std::bind(f, o, std::placeholders::_1));
     }
+
+    // set a callback to call when the server exits
+    Server& on_exit(std::function<void()>&& cb);
+
+    // return number of connections
+    uint32 conn_num() const;
 
     /**
      * start the server
@@ -118,10 +127,19 @@ class Server {
      * @param key   path of ssl private key file.
      * @param ca    path of ssl certificate file.
      */
-    virtual void start(const char* ip, int port, const char* key=NULL, const char* ca=NULL);
+    void start(const char* ip, int port, const char* key=0, const char* ca=0);
+
+    /**
+     * exit the server gracefully
+     *   - Once `exit()` was called, the listening socket will be closed, and new 
+     *     connections will not be accepted.
+     *   - NOTE: The server will not close previously established connections. To 
+     *     close the connections, see the example in test/tcp2.cc.
+     */
+    void exit();
 
   private:
-    std::shared_ptr<conn_cb> _on_connection;
+    void* _p;
 
     DISALLOW_COPY_AND_ASSIGN(Server);
 };
@@ -129,19 +147,22 @@ class Server {
 /**
  * TCP client based on coroutine 
  *   - Support both ipv4 and ipv6. 
- *   - Support ssl (openssl required).
+ *   - Support ssl (openssl 1.1.0+ required).
  *   - One client corresponds to one connection. 
  * 
  *   - It MUST be used in a coroutine. 
- *   - It is NOT coroutine-safe, NEVER use a same Client in different coroutines 
+ *   - It is NOT coroutine-safe, DO NOT use a same Client in different coroutines 
  *     at the same time. 
  * 
  *   - It is recommended to put tcp::Client in co::Pool, when lots of connections 
  *     may be established. 
  */
-class Client {
+class __coapi Client final {
   public:
     /**
+     * the constructor
+     *   - NOTE: It will not connect to the server immediately here.
+     * 
      * @param ip       a domain name, or either an ipv4 or ipv6 address of the server. 
      *                 if ip is NULL or empty, "127.0.0.1" will be used by default. 
      * @param port     the server port. 
@@ -153,12 +174,13 @@ class Client {
      * copy constructor 
      *   - Copy ip, port, use_ssl from another Client. 
      */
-    Client(const Client& c)
-        : _ip(c._ip), _port(c._port), _use_ssl(c._use_ssl),
-          _fd(-1), _ssl(0), _ssl_ctx(0) {
-    }
+    Client(const Client& c) : Client(c._ip, c._port, c._use_ssl) {}
 
-    virtual ~Client() { this->close(); }
+    /**
+     * the destructor
+     *   - Connection will be closed here.
+     */
+    ~Client();
 
     void operator=(const Client& c) = delete;
 
@@ -168,7 +190,7 @@ class Client {
      * @return  >0 on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recv(void* buf, int n, int ms=-1);
+    int recv(void* buf, int n, int ms=-1);
 
     /**
      * recv n bytes using co::recvn or ssl::recvn
@@ -176,7 +198,7 @@ class Client {
      * @return  n on success, -1 on timeout or error, 0 will be returned if the 
      *          peer closed the connection.
      */
-    virtual int recvn(void* buf, int n, int ms=-1);
+    int recvn(void* buf, int n, int ms=-1);
 
     /**
      * send n bytes using co::send or ssl::send 
@@ -184,14 +206,12 @@ class Client {
      * 
      * @return  n on success, <=0 on timeout or error.
      */
-    virtual int send(const void* buf, int n, int ms=-1);
+    int send(const void* buf, int n, int ms=-1);
 
     /**
      * check whether the connection has been established 
      */
-    virtual bool connected() const {
-        return (_use_ssl && _ssl != NULL) || (_fd != -1);
-    }
+    bool connected() const { return _fd != -1; }
 
     /**
      * connect to the server 
@@ -201,36 +221,32 @@ class Client {
      * 
      * @return    true on success, false on timeout or error.
      */
-    virtual bool connect(int ms);
+    bool connect(int ms);
 
     /**
      * close the connection 
-     *   - It MUST be called in the thread that performed the IO operation. 
+     *   - It can be called anywhere since v2.0.1. 
      */
-    virtual void disconnect();
+    void disconnect();
 
-    /**
-     * the same as disconnect 
-     */
+    // close the connection, the same as disconnect 
     void close() { this->disconnect(); }
 
-    /**
-     * get error string
-     */
-    virtual const char* strerror() const;
+    // get error string
+    const char* strerror() const;
 
-    /**
-     * get the socket fd 
-     */
+    // get the socket fd 
     int socket() const { return _fd; }
 
-  protected:
-    fastring _ip;
+  private:
+    union {
+        char* _ip; // server ip
+        void** _s; // _s[-1] for (void*)ssl, _s[-2] for (void*)ssl_ctx
+    };
     uint16 _port;
-    bool _use_ssl;
+    uint8 _use_ssl;
+    uint8 _;
     int _fd;
-    void* _ssl;
-    void* _ssl_ctx;
 };
 
 } // tcp

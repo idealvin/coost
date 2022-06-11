@@ -30,7 +30,6 @@ void spd_run(int n) {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
 
     gCo = fastring('x', FLG_s);
     gSpd = fastring('x', FLG_s);
@@ -51,7 +50,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < FLG_t; ++i) Thread(co_run, N).detach();
         gEv.wait();
         write_to_cache = t.us();
-        log::close();
+	log::exit();
         write_to_file = t.us();
         COUT << "co/log: all logs written to cache in " << write_to_cache << " us";
         COUT << "co/log: all logs written to file in " << write_to_file << " us";

@@ -1,6 +1,4 @@
-#include "co/all.h"
-
-DEC_bool(cout);
+#include "co/co.h"
 
 void f0() {
     LOG << "f0()";
@@ -53,7 +51,6 @@ class T {
 int main(int argc, char** argv) {
     flag::init(argc, argv);
     FLG_cout = true;
-    log::init();
 
     std::string s("s222");
     const std::string cs("cs222");
@@ -89,6 +86,6 @@ int main(int argc, char** argv) {
     go(x, 888);
     go([]() { LOG << "[]()"; });
 
-    sleep::ms(100);
+    co::sleep(100);
     return 0;
 }

@@ -37,7 +37,7 @@ class Kqueue {
     }
 
     void signal(char c = 'x') {
-        if (atomic_compare_swap(&_signaled, 0, 1) == 0) {
+        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
             const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }

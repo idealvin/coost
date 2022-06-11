@@ -1,5 +1,5 @@
-#ifdef CO_SSL
-#include "co/so/ssl.h"
+#ifdef HAS_OPENSSL
+#include "co/ssl.h"
 #include "co/co.h"
 #include "co/log.h"
 #include "co/fastream.h"
@@ -279,16 +279,16 @@ bool timeout() { return co::timeout(); }
 
 #else
 
-#include "co/so/ssl.h"
+#include "co/ssl.h"
 #include "co/log.h"
 
 namespace ssl {
 
-const char* strerror(S* s) { return 0; }
+const char* strerror(S*) { return 0; }
 
-C* new_ctx(char c) {
+C* new_ctx(char) {
     CHECK(false)
-        << "To use SSL features, please build libco with openssl 1.1+ as follow: \n"
+        << "To use SSL features, please build libco with openssl 1.1.0+ as follow: \n"
         << "xmake f --with_openssl=true\n"
         << "xmake -v";
     return 0;

@@ -1,6 +1,7 @@
 #ifndef _WIN32
 
 #include "co/os.h"
+#include <stdio.h>
 #include <unistd.h>
 
 #ifdef __APPLE__
@@ -10,8 +11,13 @@
 namespace os {
 
 fastring env(const char* name) {
-    char* x = getenv(name);
+    char* x = ::getenv(name);
     return x ? fastring(x) : fastring();
+}
+
+bool env(const char* name, const char* value) {
+    if (value == NULL || *value == '\0') return ::unsetenv(name) == 0;
+    return ::setenv(name, value, 1) == 0;
 }
 
 fastring homedir() {
@@ -21,7 +27,22 @@ fastring homedir() {
 fastring cwd() {
     char buf[4096];
     char* s = getcwd(buf, 4096);
-    return  s ? fastring(s) : fastring(1, '.');
+    return s ? fastring(s) : fastring(1, '.');
+}
+
+fastring exedir() {
+    fastring s = os::exepath();
+    size_t n = s.rfind('/');
+    if (n != s.npos) {
+        if (n != 0) {
+            s[n] = '\0';
+            s.resize(n);
+        } else {
+            if (s.capacity() > 1) s[1] = '\0';
+            s.resize(1);
+        }
+    }
+    return s;
 }
 
 fastring exename() {
@@ -68,6 +89,12 @@ sig_handler_t signal(int sig, sig_handler_t handler, int flag) {
     sa.sa_handler = handler;
     int r = sigaction(sig, &sa, &old);
     return r == 0 ? old.sa_handler : SIG_ERR;
+}
+
+bool system(const char* cmd) {
+    FILE* f = popen(cmd, "w");
+    if (f == NULL) return false;
+    return pclose(f) != -1;
 }
 
 } // os

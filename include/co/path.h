@@ -8,7 +8,7 @@
 namespace path {
 
 // Return the shortest path name equivalent to path.
-fastring clean(const fastring& s);
+__coapi fastring clean(const fastring& s);
 
 namespace _xx {
 inline fastring join(const fastring& s) {
@@ -38,9 +38,17 @@ inline fastring join(const S&... s) {
 // If there is no slash in path, return an empty dir and file set to path.
 // The returned values have the property that path = dir+file.
 inline std::pair<fastring, fastring> split(const fastring& s) {
+  #ifdef _WIN32
+    if (s.size() == 2 && s[1] == ':') {
+        if (('A' <= s[0] && s[0] <= 'Z') || ('a' <= s[0] && s[0] <= 'z')) {
+            return std::make_pair(s, fastring());
+        }
+    }
+  #endif
+ 
     size_t p = s.rfind('/');
-    if (p == s.npos) return std::make_pair(fastring(), s);
-    return std::make_pair(s.substr(0, p + 1), s.substr(p + 1));
+    if (p != s.npos) return std::make_pair(s.substr(0, p + 1), s.substr(p + 1));
+    return std::make_pair(fastring(), s);
 };
 
 // Return the dir part of the path. The result is cleaned.
@@ -53,10 +61,10 @@ inline fastring dir(const fastring& s) {
 // Trailing slashes are removed before extracting the last element.
 // If the path is empty, return ".".
 // If the path consists entirely of slashes, return "/".
-fastring base(const fastring& s);
+__coapi fastring base(const fastring& s);
 
 // Return file name extension used by path.
 // path::ext("a.b/x.log")  ->  ".log"
-fastring ext(const fastring& s);
+__coapi fastring ext(const fastring& s);
 
 } // namespace path

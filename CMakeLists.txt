@@ -1,99 +1,68 @@
-cmake_minimum_required(VERSION 3.10)
-project(co)
+cmake_minimum_required(VERSION 3.12)
 
-if(WIN32)
-    if (NOT MSVC)
-        message(FATAL_ERROR, "msvc required on windows")
-    endif()
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
+if(POLICY CMP0090)
+    cmake_policy(SET CMP0090 NEW)
+endif()
+
+project(cocoyaxi VERSION 2.0.3)
+
+if(MSVC)
     enable_language(C CXX ASM_MASM)
 else()
-    add_definitions(-D_FILE_OFFSET_BITS=64)
     enable_language(C CXX ASM)
 endif()
 
-set(CMAKE_CXX_STANDARD 11)
-option(BUILD_SHARED_LIBS "Let us build static libs" OFF)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/bin)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-
-option(WITH_LIBCURL "build with libcurl" OFF)
-
-if(WITH_LIBCURL)
-    find_package(CURL REQUIRED)
-    if(CURL_FOUND)
-        add_definitions(-DHAS_LIBCURL)
-        include_directories(${CURL_INCLUDE_DIR})
-        link_directories(${CURL_LIBRARIES})
-        message(STATUS "libcurl found: ${CURL_VERSION_STRING} ${CURL_LIBRARIES} ${CURL_LINK_LIBRARIES}!")
+if(MSVC)
+    add_compile_options(/fp:fast /EHsc)
+    add_link_options(/SAFESEH:NO)
+    if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+        string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     else()
-        message(FATAL_ERROR "Could not find libcurl..")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
     endif()
-
-    find_package(ZLIB REQUIRED)
-    if (ZLIB_FOUND)
-        include_directories(${ZLIB_INCLUDE_DIRS})
-        link_directories(${ZLIB_LIBRARIES})
-        message(STATUS "ZLIB Found!")
-    else()
-        message(FATAL_ERROR "Could not find zlib..")
-    endif()
-
-    find_package(OpenSSL REQUIRED)
-    if(OPENSSL_FOUND)
-        add_definitions(-DCO_SSL)
-        add_definitions(-DHAS_OPENSSL)
-        include_directories(${OPENSSL_INCLUDE_DIRS})
-        link_directories(${OPENSSL_LIBRARIES})
-        message(STATUS "OpenSSL ${OPENSSL_VERSION_STRING} found")
-    else()
-        message(FATAL_ERROR "Could not find openssl..")
-    endif()
-endif()
-
-
-include_directories(include)
-
-if(UNIX)
-    add_compile_options(-Wall -O2 -g3 -Wno-sign-compare -Wno-class-memaccess)
+else()
+    add_compile_options(-Wall -O2 -g -Wno-sign-compare -Wno-class-memaccess -Wno-strict-aliasing)
     if(APPLE)
         add_compile_options(-fno-pie)
     endif()
 endif()
 
+
+# build with libcurl (openssl & zlib also required)
+option(WITH_LIBCURL "build with libcurl" OFF)
+
+# build with openssl 1.1.0+
+option(WITH_OPENSSL "build with openssl" OFF)
+
+# build with -fPIC
+option(FPIC "build with -fPIC" OFF)
+
+# build all projects (libco, gen, test, unitest)
+option(BUILD_ALL "Build all projects" OFF)
+
+# vs runtime, use MT
 if(MSVC)
-    add_compile_options(/W4 /fp:fast /EHsc)
-    add_link_options(/SAFESEH:NO)
+    option(STATIC_VS_CRT "use /MT or /MTd" OFF)
+
+    if(STATIC_VS_CRT)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+    endif()
 endif()
 
 add_subdirectory(src)
 
-
-option(BUILD_ALL "To build All" OFF)
-option(BUILD_GEN "To build gen" ON)
-option(BUILD_UNITEST "To build unitest" OFF)
-option(BUILD_TEST "To build test" OFF)
-
 if(BUILD_ALL)
-    message("To build all")
+    enable_testing()
     add_subdirectory(gen)
     add_subdirectory(unitest)
-    add_subdirectory(test)
-elseif(BUILD_GEN)
-    message("To build gen")
-    add_subdirectory(gen)
-elseif(BUILD_UNITEST)
-    message("To build unitest")
-    add_subdirectory(unitest)
-elseif(BUILD_TEST)
-    message("To build test")
     add_subdirectory(test)
 endif()
-
-install(
-    DIRECTORY include/co
-    DESTINATION include
-)

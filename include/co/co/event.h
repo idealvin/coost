@@ -10,7 +10,7 @@ namespace co {
  *   - It is similar to SyncEvent for threads.
  *   - It can be used anywhere since co 2.0.1.
  */
-class Event {
+class __coapi Event {
   public:
     Event();
     ~Event();
@@ -21,7 +21,7 @@ class Event {
 
     // copy constructor, allow co::Event to be captured by value in lambda.
     Event(const Event& e) : _p(e._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Event&) = delete;

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "co/def.h"
-#include "co/table.h"
+#include "co/mem.h"
 #include "co/atomic.h"
-#include <string.h>
+#include "co/table.h"
 
 namespace co {
 
@@ -16,7 +16,7 @@ class SockCtx {
     bool has_event() const { return _x; }
 
     int add_event() {
-        return atomic_compare_swap(&_x, 0, (uint16)0x0101);
+        return atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
     }
 
     void del_ev_read()  { _s.r = 0; }
@@ -54,7 +54,7 @@ class SockCtx {
         _wev.c = co_id;
     }
 
-    void del_event() { memset(this, 0, sizeof(*this)); }
+    void del_event() { _r64 = 0; _w64 = 0; }
     void del_ev_read()  { _r64 = 0; }
     void del_ev_write() { _w64 = 0; }
 
@@ -101,7 +101,7 @@ class SockCtx {
     bool has_ev_write() const { return _s.w; }
 
     void add_event() {
-        atomic_compare_swap(&_x, 0, (uint16)0x0101);
+        atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
     }
 
     void add_ev_read()  { _s.r = 1; }
@@ -123,8 +123,8 @@ class SockCtx {
 #endif
 
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static Table<SockCtx> s_sock_ctx_tb(14, 17);
-    return s_sock_ctx_tb[sock];
+    static auto& k_sock_ctx_tb = *co::static_new<co::table<SockCtx>>(15, 16);
+    return k_sock_ctx_tb[sock];
 }
 
 } // co

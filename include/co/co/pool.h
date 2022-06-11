@@ -17,7 +17,7 @@ namespace co {
  *   - NOTE: Each thread holds its own pool, users SHOULD call pop() and push() 
  *     in the same thread.
  */
-class Pool {
+class __coapi Pool {
   public:
     // default constructor without ccb and dcb 
     Pool();
@@ -39,7 +39,7 @@ class Pool {
     Pool(Pool&& p) : _p(p._p) { p._p = 0; }
 
     Pool(const Pool& p) : _p(p._p) {
-        atomic_inc(_p);
+        atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const Pool&) = delete;
@@ -116,6 +116,7 @@ class PoolGuard {
      * @return  a pointer to an object of class T.
      */
     T* operator->() const { assert(_p); return _p; }
+    T& operator*()  const { assert(_p); return *_p; }
 
     bool operator==(T* p) const { return _p == p; }
     bool operator!=(T* p) const { return _p != p; }

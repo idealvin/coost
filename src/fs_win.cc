@@ -1,9 +1,14 @@
 #ifdef _WIN32
 #include "co/fs.h"
+#include "co/mem.h"
 
-#define WIN32_LEAN_AND_MEAN
+#ifdef _MSC_VER
 #pragma warning (disable:4800)
-#include <Windows.h>
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 
 namespace fs {
 
@@ -50,6 +55,26 @@ bool mkdir(const char* path, bool p) {
     }
 }
 
+bool mkdir(char* path, bool p) {
+    if (!p) return CreateDirectoryA(path, 0);
+
+    char* s = (char*) strrchr(path, '/');
+    if (s == 0) s = (char*) strrchr(path, '\\');
+    if (s == 0) return CreateDirectoryA(path, 0);
+
+    char c = *s;
+    *s = '\0';
+
+    if (fs::exists(path)) {
+        *s = c;
+        return CreateDirectoryA(path, 0);
+    } else {
+        bool x = fs::mkdir(path, true);
+        *s = c;
+        return x ? CreateDirectoryA(path, 0) : false;
+    }
+}
+
 // rf = false  ->  rm or rmdir
 // rf = true   ->  rm -rf
 bool remove(const char* path, bool rf) {
@@ -78,30 +103,46 @@ bool symlink(const char* dst, const char* lnk) {
 
 namespace xx {
 HANDLE open(const char* path, char mode) {
-    if (mode == 'r') {
+    switch (mode) {
+      case 'r':
         return CreateFileA(path, GENERIC_READ, 7, 0, OPEN_EXISTING, 0, 0);
-    } else if (mode == 'a') {
+      case 'a':
         return CreateFileA(path, FILE_APPEND_DATA, 7, 0, OPEN_ALWAYS, 0, 0);
-    } else if (mode == 'w') {
+      case 'w':
         return CreateFileA(path, GENERIC_WRITE, 7, 0, CREATE_ALWAYS, 0, 0);
-    } else if (mode == 'm') {
+      case 'm':
         return CreateFileA(path, GENERIC_WRITE, 7, 0, OPEN_ALWAYS, 0, 0);
-    } else {
+      case '+':
+        return CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 7, 0, OPEN_ALWAYS, 0, 0);
+      default:
         return nullfd;
     }
 }
 } // xx
 
 struct fctx {
+    union {
+        uint32 n;
+        HANDLE _;
+    };
     HANDLE fd;
-    fastring path;
 };
 
+file::file(size_t n) : _p(0) {
+    const size_t x = n + sizeof(fctx) + 1;
+    _p = co::alloc(x); assert(_p);
+    fctx* p = (fctx*)_p;
+    p->n = (uint32)x;
+    p->fd = nullfd;
+    *(char*)(p + 1) = '\0';
+}
+
 file::~file() {
-    if (!_p) return;
-    this->close();
-    delete (fctx*) _p;
-    _p = 0;
+    if (_p) {
+        this->close();
+        co::free(_p, ((fctx*)_p)->n);
+        _p = 0;
+    }
 }
 
 file::operator bool() const {
@@ -109,26 +150,37 @@ file::operator bool() const {
     return p && p->fd != nullfd;
 }
 
-const fastring& file::path() const {
-    fctx* p = (fctx*) _p;
-    if (p) return p->path;
-    static fastring kPath;
-    return kPath;
+const char* file::path() const {
+    return _p ? ((char*)_p + sizeof(fctx)) : "";
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
-    fctx* p = (fctx*) _p;
-    if (!p) _p = (p = new fctx);
-    p->path = path;
-    return (p->fd = xx::open(path, mode)) != nullfd;
+    if (!path || !*path) return false;
+
+    const uint32 n = (uint32)strlen(path) + 1;
+    const uint32 x = n + sizeof(fctx);
+    fctx* p = (fctx*)_p;
+
+    if (!p || p->n < x) {
+        _p = co::realloc(_p, p ? p->n : 0, x); assert(_p);
+        p = (fctx*)_p;
+        memcpy(p + 1, path, n);
+        p->n = x;
+    } else {
+        memcpy(p + 1, path, n);
+    }
+
+    p->fd = xx::open(path, mode);
+    return p->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*) _p;
-    if (!p || p->fd == nullfd) return;
-    CloseHandle(p->fd);
-    p->fd = nullfd;
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        CloseHandle(p->fd);
+        p->fd = nullfd;
+    }
 }
 
 void file::seek(int64 off, int whence) {

@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+@CO_CMAKE_CONFIG_DEPS@
+include("${CMAKE_CURRENT_LIST_DIR}/cocoyaxiTargets.cmake")
+
+check_required_components(co)

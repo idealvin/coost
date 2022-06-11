@@ -36,7 +36,7 @@
     endfunc
    @endcode
  */
-#ifdef __ELF__
+#if defined(__ELF__)
 #   define function(name) \
     .text ;\
     .align CPU_BYTE_SIZE ; \
@@ -44,6 +44,14 @@
     .type   name, %function; \
     .hidden name; \
 name:
+
+#elif defined(_WIN64)
+#   define function(name) \
+    .text ;\
+    .align CPU_BYTE_SIZE ; \
+    .global name ;\
+name:
+
 #else
 #   define function(name) \
     .text ;\

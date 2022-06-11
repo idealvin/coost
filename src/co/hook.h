@@ -1,5 +1,10 @@
 #pragma once
 
+namespace co {
+void disable_hook_sleep();
+void enable_hook_sleep();
+} // co
+
 // disable hook for ios and android
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__)
 #define _CO_DISABLE_HOOK
@@ -7,19 +12,19 @@
 
 #ifdef _CO_DISABLE_HOOK
 #define CO_RAW_API(x) ::x
-#else
 
+#else
 // We have to hook some native APIs, as third-party network libraries may block the 
 // coroutine schedulers.
 #define CO_RAW_API(x)         co_raw_##x
-#define _CO_DEC_RAW_API(x)     extern x##_fp_t CO_RAW_API(x)
+#define _CO_DEC_RAW_API(x)    extern x##_fp_t CO_RAW_API(x)
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h> // for inet_ntop...
 #include <MSWSock.h>
 
-#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = x
+#define _CO_DEF_RAW_API(x)  x##_fp_t CO_RAW_API(x) = (x##_fp_t)x
 
 extern "C" {
 
@@ -292,14 +297,12 @@ _CO_DEC_RAW_API(WSAWaitForMultipleEvents);
 _CO_DEC_RAW_API(GetQueuedCompletionStatus);
 _CO_DEC_RAW_API(GetQueuedCompletionStatusEx);
 
-void co_attach_hooks();
-void co_detach_hooks();
-
 } // "C"
 
 #else
 
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>  // struct sockaddr_in...
@@ -327,6 +330,13 @@ struct ioctl_param<int(*)(X, Y, ...)> {
     typedef Y type;
 };
 
+#if __cplusplus >= 201703L
+template<typename X, typename Y>
+struct ioctl_param<int(*)(X, Y, ...) noexcept> {
+    typedef Y type;
+};
+#endif
+
 } // co
 
 extern "C" {
@@ -335,7 +345,7 @@ typedef int (*socket_fp_t)(int, int, int);
 typedef int (*socketpair_fp_t)(int, int, int, int[2]);
 typedef int (*pipe_fp_t)(int[2]);
 typedef int (*pipe2_fp_t)(int[2], int);
-typedef int (*fcntl_fp_t)(int, int, ... /* arg */);
+typedef int (*fcntl_fp_t)(int, int, ...);
 typedef decltype(ioctl)* ioctl_fp_t;
 typedef int (*dup_fp_t)(int);
 typedef int (*dup2_fp_t)(int, int);

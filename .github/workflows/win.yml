@@ -21,15 +21,13 @@ jobs:
       - uses: actions/checkout@v1
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: branch@dev
+          xmake-version: latest
 
       - name: Tests
         run: |
-          xmake f -a ${{ matrix.arch }}
+          xmake f -k shared -a ${{ matrix.arch }}
           xmake -a
-          xmake r unitest -a
-          xmake r flag -xy
+          xmake -b unitest
+          xmake r unitest -co_sched_num=4
           xmake f -m debug -a ${{ matrix.arch }}
-          xmake -a
-          xmake r unitest -a
-          xmake r flag -xy
+          xmake

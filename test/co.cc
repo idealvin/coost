@@ -29,13 +29,12 @@ void f() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
 
     // print scheduler pointers
-    auto& s = co::all_schedulers();
+    auto& s = co::schedulers();
     for (size_t i = 0; i < s.size(); ++i) {
-        COUT << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
+        LOG << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
     }
 
     for (int i = 0; i < 8; ++i) go(f1);
@@ -60,6 +59,6 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < 32; ++i) go(f);
 
-    sleep::ms(300);
+    sleep::ms(100);
     return 0;
 }

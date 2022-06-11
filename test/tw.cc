@@ -1,6 +1,6 @@
 #include "test.h"
 #include "co/def.h"
-#include "co/log.h"
+#include "co/cout.h"
 #include "co/str.h"
 #include "co/fastream.h"
 #include "co/time.h"
@@ -137,13 +137,17 @@ void  tw_init(const char* x, int64 m, int64* p, int64* q) {
     }
 }
 
+inline int64 tw_max(int64 x, int64 y) {
+    return x < y ? y : x;
+}
+
 int64 tw_find(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 per) {
     int64 i, j, memory;
 
     if (memcmp(x, x + per, ell + 1) == 0) {
         j = 0, memory = -1;
         while (j <= n - m) {
-            i = max(ell, memory) + 1;
+            i = tw_max(ell, memory) + 1;
             while (i < m && x[i] == s[i + j]) ++i;
             if (i >= m) {
                 i = ell;
@@ -158,7 +162,7 @@ int64 tw_find(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 p
         }
 
     } else {
-        per = max(ell + 1, m - ell - 1) + 1;
+        per = tw_max(ell + 1, m - ell - 1) + 1;
         j = 0;
         while (j <= n - m) {
             i = ell + 1;
@@ -234,7 +238,7 @@ int64 tw_rfind(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 
     if (memcmp(ex, ex - per, ee) == 0) {
         j = nn, memory = -1;
         while (j >= mm) {
-            i = max(ell, memory) + 1;
+            i = tw_max(ell, memory) + 1;
             while (i < m && x[mm - i] == s[j - i]) ++i;
             if (i >= m) {
                 i = ell;
@@ -249,7 +253,7 @@ int64 tw_rfind(const char* s, int64 n, const char* x, int64 m, int64 ell, int64 
         }
 
     } else {
-        per = max(ee, m - ee) + 1;
+        per = tw_max(ee, m - ee) + 1;
         j = nn;
         while (j >= mm) {
             i = ee;
@@ -277,9 +281,6 @@ inline int64 rtw(const char* s, const char* x) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
     CLOG << "hello world";
 
     def_test(100000);

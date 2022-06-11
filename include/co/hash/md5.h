@@ -25,7 +25,6 @@
 #pragma once
 
 #include "../fastring.h"
-#include <string>
 
 typedef struct {
     uint32 lo, hi;
@@ -34,17 +33,50 @@ typedef struct {
     uint32 block[16];
 } md5_ctx_t;
 
-void md5_init(md5_ctx_t* ctx);
-void md5_update(md5_ctx_t* ctx, const void* s, size_t n);
-void md5_finish(md5_ctx_t* ctx, uint8* result);
+__coapi void md5_init(md5_ctx_t* ctx);
+__coapi void md5_update(md5_ctx_t* ctx, const void* s, size_t n);
+__coapi void md5_final(md5_ctx_t* ctx, uint8 res[16]);
 
-/**
- * @param s  a pointer to the input data.
- * @param n  size of the input data.
- * 
- * @return   a 32-byte string containing only hexadecimal digits.
- */
-fastring md5sum(const void* s, size_t n);
+
+// md5digest, 16-byte binary string
+inline void md5digest(const void* s, size_t n, char res[16]) {
+    md5_ctx_t ctx;
+    md5_init(&ctx);
+    md5_update(&ctx, s, n);
+    md5_final(&ctx, (uint8*)res);
+}
+
+// return a 16-byte binary string
+inline fastring md5digest(const void* s, size_t n) {
+    fastring x(16);
+    x.resize(16);
+    md5digest(s, n, &x[0]);
+    return x;
+}
+
+inline fastring md5digest(const char* s) {
+    return md5digest(s, strlen(s));
+}
+
+inline fastring md5digest(const fastring& s) {
+    return md5digest(s.data(), s.size());
+}
+
+inline fastring md5digest(const std::string& s) {
+    return md5digest(s.data(), s.size());
+}
+
+
+// md5sum, result is stored in @res.
+__coapi void md5sum(const void* s, size_t n, char res[32]);
+
+// return a 32-byte string containing only hexadecimal digits.
+inline fastring md5sum(const void* s, size_t n) {
+    fastring x(32);
+    x.resize(32);
+    md5sum(s, n, &x[0]);
+    return x;
+}
 
 inline fastring md5sum(const char* s) {
     return md5sum(s, strlen(s));

@@ -1,14 +1,15 @@
 #ifndef _WIN32
 
 #include "co/fs.h"
+#include "co/mem.h"
 #include "./co/hook.h"
 #include <assert.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 namespace fs {
 
@@ -19,20 +20,17 @@ bool exists(const char* path) {
 
 bool isdir(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return false;
-    return S_ISDIR(attr.st_mode);
+    return ::lstat(path, &attr) == 0 && S_ISDIR(attr.st_mode);
 }
 
 int64 mtime(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return -1;
-    return attr.st_mtime;
+    return ::lstat(path, &attr) == 0 ? attr.st_mtime : -1;
 }
 
 int64 fsize(const char* path) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return -1;
-    return attr.st_size;
+    return ::lstat(path, &attr) == 0 ? attr.st_size : -1;
 }
 
 // p = false  ->  mkdir
@@ -41,7 +39,7 @@ bool mkdir(const char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
     const char* s = strrchr(path, '/');
-    if (s == 0) return ::mkdir(path, 0755) == 0;
+    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
 
     fastring parent(path, s - path);
     
@@ -49,6 +47,23 @@ bool mkdir(const char* path, bool p) {
         return ::mkdir(path, 0755) == 0;
     } else {
         return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
+    }
+}
+
+bool mkdir(char* path, bool p) {
+    if (!p) return ::mkdir(path, 0755) == 0;
+
+    char* s = (char*) strrchr(path, '/');
+    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
+
+    *s = '\0';
+    if (fs::exists(path)) {
+        *s = '/';
+        return ::mkdir(path, 0755) == 0;
+    } else {
+        bool x = fs::mkdir(path, true);
+        *s = '/';
+        return x ? ::mkdir(path, 0755) == 0 : false;
     }
 }
 
@@ -66,7 +81,6 @@ bool remove(const char* path, bool rf) {
         FILE* f = popen(cmd.c_str(), "w");
         if (f == NULL) return false;
         return pclose(f) != -1;
-        //return system(cmd.c_str()) != -1;
     }
 }
 
@@ -83,57 +97,90 @@ bool symlink(const char* dst, const char* lnk) {
 
 namespace xx {
 int open(const char* path, char mode) {
-    if (mode == 'r') {
+    switch (mode) {
+      case 'r':
         return ::open(path, O_RDONLY);
-    } else if (mode == 'a') {
+      case 'a':
         return ::open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    } else if (mode == 'w') {
+      case 'w':
         return ::open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    } else if (mode == 'm') {
+      case 'm':
         return ::open(path, O_WRONLY | O_CREAT, 0644);
-    } else {
+      case '+':
+        return ::open(path, O_RDWR | O_CREAT, 0644);
+      default:
         return nullfd;
     }
 }
 } // xx
 
 struct fctx {
+    uint32 n;
     int fd;
-    fastring path;
 };
 
+file::file(size_t n) : _p(0) {
+    const size_t x = n + sizeof(fctx) + 1;
+    _p = co::alloc(x); assert(_p);
+    fctx* p = (fctx*)_p;
+    p->n = (uint32)x;
+    p->fd = nullfd;
+    *(char*)(p + 1) = '\0';
+}
+
 file::~file() {
-    if (!_p) return;
-    this->close();
-    delete (fctx*) _p;
-    _p = 0;
+    if (_p) {
+        this->close();
+        co::free(_p, ((fctx*)_p)->n);
+        _p = 0;
+    }
 }
 
 file::operator bool() const {
-    fctx* p = (fctx*) _p;
+    fctx* p = (fctx*)_p;
     return p && p->fd != nullfd;
 }
 
-const fastring& file::path() const {
-    fctx* p = (fctx*) _p;
-    if (p) return p->path;
-    static fastring kPath;
-    return kPath;
+const char* file::path() const {
+    return _p ? ((char*)_p + sizeof(fctx)) : "";
 }
 
 bool file::open(const char* path, char mode) {
+    // make sure CO_RAW_API(close, read, write) are not NULL
+    static bool kx = []() {
+        if (CO_RAW_API(close) == 0) ::close(-1);
+        if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+        return true;
+    }();
+    (void) kx;
+
     this->close();
-    fctx* p = (fctx*) _p;
-    if (!p) _p = (p = new fctx);
-    p->path = path;
-    return (p->fd = xx::open(path, mode)) != nullfd;
+    if (!path || !*path) return false;
+
+    const uint32 n = (uint32)strlen(path) + 1;
+    const uint32 x = n + sizeof(fctx);
+    fctx* p = (fctx*)_p;
+
+    if (!p || p->n < x) {
+        _p = co::realloc(_p, p ? p->n : 0, x); assert(_p);
+        p = (fctx*)_p;
+        memcpy(p + 1, path, n);
+        p->n = x;
+    } else {
+        memcpy(p + 1, path, n);
+    }
+
+    p->fd = xx::open(path, mode);
+    return p->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*) _p;
-    if (!p || p->fd == nullfd) return;
-    while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
-    p->fd = nullfd;
+    fctx* p = (fctx*)_p;
+    if (p && p->fd != nullfd) {
+        while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
+        p->fd = nullfd;
+    }
 }
 
 void file::seek(int64 off, int whence) {

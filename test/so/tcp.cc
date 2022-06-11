@@ -3,26 +3,27 @@
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_int32(client_num, 1, "client num");
+DEF_string(key, "", "private key file");
+DEF_string(ca, "", "certificate file");
 
-void on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> c(conn);
+void conn_cb(tcp::Connection conn) {
     char buf[8] = { 0 };
 
     while (true) {
-        int r = conn->recv(buf, 8);
+        int r = conn.recv(buf, 8);
         if (r == 0) {         /* client close the connection */
-            conn->close();
+            conn.close();
             break;
         } else if (r < 0) { /* error */
-            conn->reset(3000);
+            conn.reset(3000);
             break;
         } else {
             LOG << "server recv " << fastring(buf, r);
             LOG << "server send pong";
-            r = conn->send("pong", 4);
+            r = conn.send("pong", 4);
             if (r <= 0) {
-                LOG << "server send error: " << conn->strerror();
-                conn->reset(3000);
+                LOG << "server send error: " << conn.strerror();
+                conn.reset(3000);
                 break;
             }
         }
@@ -30,17 +31,13 @@ void on_connection(tcp::Connection* conn) {
 }
 
 void client_fun() {
-    tcp::Client c(FLG_ip.c_str(), FLG_port);
-
-    if (!c.connect(3000)) {
-        LOG << "failed to connect to server " << FLG_ip << ':' << FLG_port
-            << " error: " << c.strerror();
-        return;
-    }
+    bool use_ssl = !FLG_key.empty() && !FLG_ca.empty();
+    tcp::Client c(FLG_ip.c_str(), FLG_port, use_ssl);
+    if (!c.connect(3000)) return;
 
     char buf[8] = { 0 };
 
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         LOG << "client send ping";
         int r = c.send("ping", 4);
         if (r <= 0) {
@@ -57,31 +54,24 @@ void client_fun() {
             break;
         } else {
             LOG << "client recv " << fastring(buf, r) << '\n';
-            co::sleep(3000);
+            co::sleep(500);
         }
     }
 
     c.disconnect();
 }
 
-co::Pool gPool(
-    []() { return (void*) new tcp::Client(FLG_ip.c_str(), FLG_port); },
-    [](void* p) { delete (tcp::Client*) p; }
-);
+
+co::Pool* gPool = NULL;
 
 // we don't need to close the connection manually with co::Pool.
 void client_with_pool() {
-    co::PoolGuard<tcp::Client> c(gPool);
-
-    if (!c->connect(3000)) {
-        LOG << "failed to connect to server " << FLG_ip << ':' << FLG_port
-            << " error: " << c->strerror();
-        return;
-    }
+    co::PoolGuard<tcp::Client> c(*gPool);
+    if (!c->connect(3000)) return;
 
     char buf[8] = { 0 };
 
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         LOG << "client send ping";
         int r = c->send("ping", 4);
         if (r <= 0) {
@@ -98,19 +88,25 @@ void client_with_pool() {
             break;
         } else {
             LOG << "client recv " << fastring(buf, r) << '\n';
-            co::sleep(3000);
+            co::sleep(500);
         }
     }
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
+    gPool = new co::Pool(
+        []() {
+            bool use_ssl = !FLG_key.empty() && !FLG_ca.empty();
+            return (void*) new tcp::Client(FLG_ip.c_str(), FLG_port, use_ssl);
+        },
+        [](void* p) { delete (tcp::Client*) p; }
+    );
 
-    tcp::Server s;
-    s.on_connection(on_connection);
-    s.start(FLG_ip.c_str(), FLG_port);
+    tcp::Server().on_connection(conn_cb).start(
+        FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str()
+    );
 
     sleep::ms(32);
 
@@ -122,7 +118,7 @@ int main(int argc, char** argv) {
         go(client_fun);
     }
 
-    while (true) sleep::sec(1024);
-
+    sleep::sec(2);
+    delete gPool;
     return 0;
 }

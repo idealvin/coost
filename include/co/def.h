@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef int8_t  int8;
 typedef int16_t int16;
@@ -11,12 +12,6 @@ typedef uint8_t  uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
-
-#ifdef _MSC_VER
-#define __thread __declspec(thread)
-#else
-#define __forceinline __attribute__((always_inline))
-#endif
 
 #define MAX_UINT8  ((uint8)  ~((uint8) 0))
 #define MAX_UINT16 ((uint16) ~((uint16)0))
@@ -33,12 +28,47 @@ typedef uint64_t uint64;
 #define MIN_INT32  ((int32) ~MAX_INT32)
 #define MIN_INT64  ((int64) ~MAX_INT64)
 
-#define DISALLOW_COPY_AND_ASSIGN(ClassName) \
-    ClassName(const ClassName&) = delete; \
-    void operator=(const ClassName&) = delete
+#define DISALLOW_COPY_AND_ASSIGN(T) \
+    T(const T&) = delete; \
+    void operator=(const T&) = delete
+
+#if SIZE_MAX == UINT64_MAX
+#define __arch64 1
+#else
+#define __arch32 1
+#endif
+
+#ifdef _MSC_VER
+#ifndef __thread
+#define __thread __declspec(thread)
+#endif
+#else
+#ifndef __forceinline 
+#define __forceinline __attribute__((always_inline))
+#endif
+#endif
 
 #if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__clang__)
-#define  unlikely(x)  __builtin_expect(!!(x), 0)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 #else
-#define  unlikely(x)  (x)
+#define unlikely(x) (x)
+#endif
+
+// generated from config.h.in
+#include "config.h"
+
+// __coapi: used to export symbols in shared co
+// Do not use (or reuse outside of cocoyaxi) this definiton  yourself
+#if COCOYAXI_SHARED > 0
+  #ifdef _WIN32
+    #ifdef BUILDING_CO_SHARED
+      #define __coapi __declspec(dllexport)
+    #else
+      #define __coapi __declspec(dllimport)
+    #endif
+  #else
+    #define __coapi __attribute__((visibility("default")))
+  #endif
+#else
+  #define __coapi
 #endif

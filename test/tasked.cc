@@ -1,6 +1,6 @@
-#include "co/log.h"
-#include "co/time.h"
 #include "co/tasked.h"
+#include "co/cout.h"
+#include "co/time.h"
 
 void f() {
     COUT << "f(): " << now::str();
@@ -11,9 +11,6 @@ void g() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
     COUT << "now: " << now::str();
 
     Tasked s;

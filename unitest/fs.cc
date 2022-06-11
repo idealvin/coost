@@ -5,12 +5,17 @@ namespace test {
 
 DEF_test(fs) {
     DEF_case(file) {
+        fs::file fx(128);
+        EXPECT_EQ(fastring(), fx.path());
+
         fs::file fo("xxx", 'w');
         EXPECT(fo);
         fo.write("99999");
         EXPECT_EQ(fo.size(), 5);
+        EXPECT_EQ(fastring("xxx"), fo.path());
         fo.close();
 
+        EXPECT(!fo.open("", 'a'));
         fo.open("xxx", 'm');
         EXPECT(fo);
         EXPECT_EQ(fo.size(), 5);
@@ -41,9 +46,26 @@ DEF_test(fs) {
         fo.open("xxx", 'r');
         r = fo.read(buf, 32);
         EXPECT_EQ(fastring(buf, r), "1234567890");
+
+        fo.open("xxplus", '+');
+        fo.seek(0);
+        fo.write("hello123");
+
+        fo.seek(0);
+        r = fo.read(buf, 8);
+        EXPECT_EQ(r, 8);
+
+        fo.seek(fo.size()); // seek to tail
+        fo.write("456");
+
+        fo.seek(8);
+        r = fo.read(buf + 8, 8);
+        EXPECT_EQ(r, 3);
+        EXPECT_EQ(fastring(buf, 11), "hello123456");
     }
 
     DEF_case(attr) {
+        EXPECT(fs::exists("."));
         EXPECT(fs::exists("xxx"));
         EXPECT(!fs::isdir("xxx"));
         EXPECT_NE(fs::mtime("xxx"), -1);
@@ -72,10 +94,12 @@ DEF_test(fs) {
     DEF_case(remove) {
         EXPECT(fs::remove("xxx"));
         EXPECT(fs::remove("xxx.lnk"));
+        EXPECT(fs::remove("xxplus"));
         EXPECT(!fs::remove("xxd"));
         EXPECT(fs::remove("xxd", true));
         EXPECT(!fs::exists("xxx"));
         EXPECT(!fs::exists("xxx.lnk"));
+        EXPECT(!fs::exists("xxplus"));
         EXPECT(!fs::exists("xxd"));
     }
 }

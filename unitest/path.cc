@@ -6,6 +6,7 @@ namespace test {
 
 DEF_test(path) {
     DEF_case(clean) {
+        EXPECT_EQ(path::clean(""), ".");
         EXPECT_EQ(path::clean(".//x"), "x");
         EXPECT_EQ(path::clean("./x//y/"), "x/y");
         EXPECT_EQ(path::clean("./x/.."), ".");
@@ -15,6 +16,14 @@ DEF_test(path) {
         EXPECT_EQ(path::clean("/x/../"), "/");
         EXPECT_EQ(path::clean("/x/./../."), "/");
         EXPECT_EQ(path::clean("/x/../.."), "/");
+      #ifdef _WIN32
+        EXPECT_EQ(path::clean("C:"), "C:");
+        EXPECT_EQ(path::clean("C:/"), "C:/");
+        EXPECT_EQ(path::clean("C://x//y/"), "C:/x/y");
+        EXPECT_EQ(path::clean("C:/x/../"), "C:/");
+        EXPECT_EQ(path::clean("C:/x/./../."), "C:/");
+        EXPECT_EQ(path::clean("C:/x/../.."), "C:/");
+      #endif
     }
 
     DEF_case(join) {
@@ -27,6 +36,8 @@ DEF_test(path) {
         EXPECT_EQ(path::join("/x/", "y"), "/x/y");
         EXPECT_EQ(path::join("/x/", "y", "z"), "/x/y/z");
         EXPECT_EQ(path::join("x", "", "y"), "x/y");
+        EXPECT_EQ(path::join("D:", "x"), "D:/x");
+        EXPECT_EQ(path::join("D:/x/", "y"), "D:/x/y");
     }
 
     DEF_case(split) {
@@ -39,6 +50,12 @@ DEF_test(path) {
         EXPECT(path::split("/a/") == Pair("/a/", ""));
         EXPECT(path::split("/a/b") == Pair("/a/", "b"));
         EXPECT(path::split("/a/b/c") == Pair("/a/b/", "c"));
+      #ifdef _WIN32
+        EXPECT(path::split("C:") == Pair("C:", ""));
+        EXPECT(path::split("C:/") == Pair("C:/", ""));
+        EXPECT(path::split("C:/a") == Pair("C:/", "a"));
+        EXPECT(path::split("C:/a/b") == Pair("C:/a/", "b"));
+      #endif
     }
 
     DEF_case(dir) {
@@ -50,6 +67,12 @@ DEF_test(path) {
         EXPECT_EQ(path::dir("/a/"), "/a");
         EXPECT_EQ(path::dir("/a/b"), "/a");
         EXPECT_EQ(path::dir("/a/b/c"), "/a/b");
+      #ifdef _WIN32
+        EXPECT_EQ(path::dir("C:"), "C:");
+        EXPECT_EQ(path::dir("C:/"), "C:/");
+        EXPECT_EQ(path::dir("C:/a"), "C:/");
+        EXPECT_EQ(path::dir("C:/a/b"), "C:/a");
+      #endif
     }
 
     DEF_case(base) {
@@ -59,6 +82,12 @@ DEF_test(path) {
         EXPECT_EQ(path::base("a"), "a");
         EXPECT_EQ(path::base("/a"), "a");
         EXPECT_EQ(path::base("/a/b"), "b");
+      #ifdef _WIN32
+        EXPECT_EQ(path::base("C:"), "C:");
+        EXPECT_EQ(path::base("C:/"), "C:/");
+        EXPECT_EQ(path::base("C:/a"), "a");
+        EXPECT_EQ(path::base("C:/a/b"), "b");
+      #endif
     }
 
     DEF_case(ext) {
@@ -68,6 +97,7 @@ DEF_test(path) {
         EXPECT_EQ(path::ext("/a.cc"), ".cc");
         EXPECT_EQ(path::ext("/a.cc/"), "");
         EXPECT_EQ(path::ext("/a/b.cc"), ".cc");
+        EXPECT_EQ(path::ext("C:/a/b.cc"), ".cc");
     }
 }
 

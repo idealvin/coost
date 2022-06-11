@@ -21,15 +21,6 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::u32toa(3234567890U, buf)), "3234567890");
     }
 
-    DEF_case(i32toa) {
-        EXPECT_EQ(fastring(buf, fast::i32toa(0, buf)), "0");
-        EXPECT_EQ(fastring(buf, fast::i32toa(1, buf)), "1");
-        EXPECT_EQ(fastring(buf, fast::i32toa(-9, buf)), "-9");
-        EXPECT_EQ(fastring(buf, fast::i32toa(1234567, buf)), "1234567");
-        EXPECT_EQ(fastring(buf, fast::i32toa(-12345678, buf)), "-12345678");
-        EXPECT_EQ(fastring(buf, fast::i32toa(-123456789, buf)), "-123456789");
-    }
-
     DEF_case(u64toa) {
         EXPECT_EQ(fastring(buf, fast::u64toa(0, buf)), "0");
         EXPECT_EQ(fastring(buf, fast::u64toa(9, buf)), "9");
@@ -48,6 +39,15 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::u64toa(12345678901234567890ULL, buf)), "12345678901234567890");
     }
 
+    DEF_case(i32toa) {
+        EXPECT_EQ(fastring(buf, fast::i32toa(0, buf)), "0");
+        EXPECT_EQ(fastring(buf, fast::i32toa(1, buf)), "1");
+        EXPECT_EQ(fastring(buf, fast::i32toa(-9, buf)), "-9");
+        EXPECT_EQ(fastring(buf, fast::i32toa(1234567, buf)), "1234567");
+        EXPECT_EQ(fastring(buf, fast::i32toa(-12345678, buf)), "-12345678");
+        EXPECT_EQ(fastring(buf, fast::i32toa(-123456789, buf)), "-123456789");
+    }
+
     DEF_case(i64toa) {
         EXPECT_EQ(fastring(buf, fast::i64toa(0, buf)), "0");
         EXPECT_EQ(fastring(buf, fast::i64toa(9, buf)), "9");
@@ -63,6 +63,18 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::i64toa(12345678901234567ULL, buf)), "12345678901234567");
         EXPECT_EQ(fastring(buf, fast::i64toa(123456789012345678ULL, buf)), "123456789012345678");
         EXPECT_EQ(fastring(buf, fast::i64toa(-1234567890123456789LL, buf)), "-1234567890123456789");
+    }
+
+    DEF_case(itoa) {
+        EXPECT_EQ(fastring(buf, fast::itoa(0, buf)), "0");
+        EXPECT_EQ(fastring(buf, fast::itoa(-12345678, buf)), "-12345678");
+        EXPECT_EQ(fastring(buf, fast::itoa(-123456789012345678LL, buf)), "-123456789012345678");
+    }
+
+    DEF_case(utoa) {
+        EXPECT_EQ(fastring(buf, fast::itoa(0U, buf)), "0");
+        EXPECT_EQ(fastring(buf, fast::itoa(123456789U, buf)), "123456789");
+        EXPECT_EQ(fastring(buf, fast::itoa(1234567890123456789ULL, buf)), "1234567890123456789");
     }
 
     DEF_case(u32toh) {
@@ -89,7 +101,15 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::u64toh(0xffffffffffffULL, buf)), "0xffffffffffff");
         EXPECT_EQ(fastring(buf, fast::u64toh(0xffffffffffffffffULL, buf)), "0xffffffffffffffff");
         EXPECT_EQ(fastring(buf, fast::u64toh(0x1234567890ULL, buf)), "0x1234567890");
-        EXPECT_EQ(fastring(buf, fast::u64toh(0x123456789abcdefULL, buf)), "0x123456789abcdef");
+        EXPECT_EQ(fastring(buf, fast::u64toh(0x1234567890abcdefULL, buf)), "0x1234567890abcdef");
+    }
+
+    DEF_case(ptoh) {
+        EXPECT_EQ(fastring(buf, fast::ptoh((void*)0x123456, buf)), "0x123456");
+        EXPECT_EQ(fastring(buf, fast::ptoh((void*)0x12345678, buf)), "0x12345678");
+        if (sizeof(void*) >= sizeof(uint64)) {
+            EXPECT_EQ(fastring(buf, fast::ptoh((void*)(size_t)0x1234567890abcdefULL, buf)), "0x1234567890abcdef");
+        }
     }
 
     DEF_case(dtoa) {
@@ -103,6 +123,8 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::dtoa(3.33e-23, buf)), "3.33e-23");
         EXPECT_EQ(fastring(buf, fast::dtoa(3e23, buf)), "3e23");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.33e23, buf)), "3.33e23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.79e308, buf)), "1.79e308");
+        EXPECT_EQ(fastring(buf, fast::dtoa(2.23e-308, buf)), "2.23e-308");
     }
 }
 

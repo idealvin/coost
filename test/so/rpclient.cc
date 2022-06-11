@@ -1,42 +1,34 @@
 #include "co/co.h"
-#include "co/so/rpc.h"
-#include "co/flag.h"
-#include "co/log.h"
+#include "co/rpc.h"
 
-DEF_string(username, "", "username to logon");
-DEF_string(password, "", "password of the user");
+// usage:
+//   ./rpclient -data '{"api":"HelloWorld.world"}'
+//   ./rpclient -ip 127.0.0.1 -port 7788 -data '{"api":"HelloWorld.world"}'
+
 DEF_string(ip, "127.0.0.1", "server ip");
 DEF_int32(port, 7788, "server port");
 DEF_bool(ssl, false, "use ssl if true");
+DEF_string(data, "{\"api\":\"ping\"}", "JSON body");
 
-DEF_string(s, "", "service name");
-DEF_string(m, "", "method name");
-DEF_string(json, "", "rpc request");
-
-SyncEvent ev;
+co::WaitGroup wg;
 
 void client_fun() {
     rpc::Client c(FLG_ip.c_str(), FLG_port, FLG_ssl);
-    c.set_userpass(FLG_username.c_str(), FLG_password.c_str());
-    FLG_password.safe_clear(); // clear password in the memory
 
-    Json req = json::parse(FLG_json);
+    Json req = json::parse(FLG_data);
     Json res;
-    if (!FLG_s.empty()) req.add_member("service", FLG_s.c_str());
-    if (!FLG_m.empty()) req.add_member("method", FLG_m.c_str());
     c.call(req, res);
 
     c.close();
-    ev.signal();
+    wg.done();
 }
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
 
+    wg.add();
     go(client_fun);
-    ev.wait();
-
+    wg.wait();
     return 0;
 }

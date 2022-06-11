@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../fastring.h"
-#include <string>
 
 /**
  * base64 encode 
@@ -11,7 +10,7 @@
  *
  * @return   a base64-encoded string.
  */
-fastring base64_encode(const void* s, size_t n);
+__coapi fastring base64_encode(const void* s, size_t n);
 
 /**
  * base64 decode 
@@ -24,7 +23,7 @@ fastring base64_encode(const void* s, size_t n);
  * 
  * @return   a decoded string on success, or an empty string on any error.
  */
-fastring base64_decode(const void* s, size_t n);
+__coapi fastring base64_decode(const void* s, size_t n);
 
 inline fastring base64_encode(const char* s) {
     return base64_encode(s, strlen(s));

@@ -6,28 +6,31 @@
 
 namespace fs {
 
-bool exists(const char* path);
+__coapi bool exists(const char* path);
 
-bool isdir(const char* path);
+__coapi bool isdir(const char* path);
 
 // modify time
-int64 mtime(const char* path);
+__coapi int64 mtime(const char* path);
 
 // file size
-int64 fsize(const char* path);
+__coapi int64 fsize(const char* path);
 
 // p = false  ->  mkdir
 // p = true   ->  mkdir -p
-bool mkdir(const char* path, bool p=false);
+__coapi bool mkdir(const char* path, bool p = false);
+
+// async-signal-safe version
+__coapi bool mkdir(char* path, bool p);
 
 // rf = false  ->  rm or rmdir
 // rf = true   ->  rm -rf
-bool remove(const char* path, bool rf=false);
+__coapi bool remove(const char* path, bool rf = false);
 
-bool rename(const char* from, const char* to);
+__coapi bool rename(const char* from, const char* to);
 
 // administrator privileges required on windows
-bool symlink(const char* dst, const char* lnk);
+__coapi bool symlink(const char* dst, const char* lnk);
 
 inline bool exists(const fastring& path) {
     return fs::exists(path.c_str());
@@ -98,7 +101,8 @@ inline bool symlink(const std::string& dst, const std::string& lnk) {
 //   'a': append       created if not exists
 //   'w': write        created if not exists, truncated if exists
 //   'm': modify       like 'w', but not truncated if exists
-class file {
+//   '+': read/write   created if not exists
+class __coapi file {
   public:
     static const int seek_beg = 0;
     static const int seek_cur = 1;
@@ -107,6 +111,9 @@ class file {
     file() : _p(0) {}
     ~file();
 
+    // @n: reserve n bytes of memory for the path
+    explicit file(size_t n);
+
     file(const char* path, char mode) : _p(0) {
         this->open(path, mode);
     }
@@ -114,7 +121,9 @@ class file {
     file(const fastring& path, char mode)    : file(path.c_str(), mode) {}
     file(const std::string& path, char mode) : file(path.c_str(), mode) {}
 
-    file(file&& f) { _p = f._p; f._p = 0; }
+    file(file&& f) : _p(f._p) {
+        f._p = 0;
+    }
 
     file(const file& x) = delete;
     void operator=(const file& x) = delete;
@@ -126,7 +135,7 @@ class file {
         return !(bool)(*this);
     }
 
-    const fastring& path() const;
+    const char* path() const;
 
     int64 size()  const { return fs::fsize (this->path()); }
     bool exists() const { return fs::exists(this->path()); }
@@ -174,7 +183,7 @@ class file {
 // open mode:
 //   'a': append       created if not exists
 //   'w': write        created if not exists, truncated if exists
-class fstream {
+class __coapi fstream {
   public:
     fstream() : _s(8192) {}
     explicit fstream(size_t cap) : _s(cap) {}

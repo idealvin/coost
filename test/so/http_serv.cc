@@ -13,9 +13,9 @@
 //   For ipv6 link-local address, we have to specify the network interface:
 //   xmake r http_serv ip=fe80::a00:27ff:fea7:a888%eth0
 
-#include "co/so.h"
 #include "co/flag.h"
 #include "co/log.h"
+#include "co/http.h"
 #include "co/time.h"
 
 DEF_string(ip, "0.0.0.0", "http server ip");
@@ -25,11 +25,14 @@ DEF_string(ca, "", "certificate file");
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
 
-    http::Server serv;
-    serv.on_req(
+    if (!FLG_key.empty() && !FLG_ca.empty()) {
+        if (FLG_port == 80) FLG_port = 443;
+    }
+
+    // since co v3.0, no need to hold the http::Server object
+    http::Server().on_req(
         [](const http::Req& req, http::Res& res) {
             if (req.is_method_get()) {
                 if (req.url() == "/hello") {
@@ -42,7 +45,7 @@ int main(int argc, char** argv) {
                 if (req.url() == "/hello") {
                     res.set_status(200);
                     res.add_header("hello", "xxxxx");
-                    res.set_body("hello post");
+                    res.set_body("hello post", 10);
                 } else {
                     res.set_status(403);
                 }
@@ -64,14 +67,7 @@ int main(int argc, char** argv) {
                 res.set_status(405); // method not allowed
             }
         }
-    );
-
-    if (!FLG_key.empty() && !FLG_ca.empty()) {
-        if (FLG_port == 80) FLG_port = 443;
-        serv.start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
-    } else {
-        serv.start(FLG_ip.c_str(), FLG_port);
-    }
+    ).start(FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str());
 
     while (true) sleep::sec(1024);
     return 0;

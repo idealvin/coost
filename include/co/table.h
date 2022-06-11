@@ -7,44 +7,43 @@
 namespace co {
 
 /**
- * A thread-safe fixed-size table. 
- *   - It stores elements in buckets, and each bucket has a same size.
- *   - Note that, no matter what the type of T is, Table will zero-clear the memory.
+ * A fixed-size table.
+ *   - It stores elements in a 2-dimensional array.
+ *   - Memory of the elements are zero-cleared.
  */
-template<typename T>
-class Table {
+template <typename T>
+class table {
   public:
     /**
-     * @param bucket_bitnum   bitnum of buckets, bucket_num will be (1 << bucket_bitnum).
-     * @param bucket_bitsize  bitsize of each bucket, bucket_size will be (1 << bucket_bitsize).
+     * A x * y table.
+     *   - x is 1 << xbits, y is 1 << ybits.
+     *   - There are x elements in a row, and y rows in total.
      */
-    Table(int bucket_bitnum, int bucket_bitsize)
-        : _bucket_num ((size_t)(1ULL << bucket_bitnum)),
-          _bucket_size((size_t)(1ULL << bucket_bitsize)),
-          _bucket_bitsize(bucket_bitsize), _i(1) {
-        _v = (T**) calloc(_bucket_num, sizeof(T*));
-        _v[0] = (T*) calloc(_bucket_size, sizeof(T));
+    table(int xbits, int ybits)
+        : _xbits(xbits),
+          _xsize((size_t)(1ULL << xbits)),
+          _ysize((size_t)(1ULL << ybits)), _i(1) {
+        _v = (T**) ::calloc(_ysize, sizeof(T*));
+        _v[0] = (T*) ::calloc(_xsize, sizeof(T));
     }
 
-    ~Table() {
-        for (size_t i = 0; i < _i; ++i) free(_v[i]);
-        free(_v);
+    ~table() {
+        for (size_t i = 0; i < _i; ++i) ::free(_v[i]);
+        ::free(_v);
     }
 
-    Table(const Table&) = delete;
-    void operator=(const Table&) = delete;
+    table(const table&) = delete;
+    void operator=(const table&) = delete;
 
     T& operator[](size_t i) {
-        if (i < _bucket_size) return _v[0][i];
-
-        const size_t q = i >> _bucket_bitsize;    // i / _bucket_size
-        const size_t r = i & (_bucket_size - 1);  // i % _bucket_size
-        assert(q < _bucket_num);
+        const size_t q = i >> _xbits;      // i / _xsize
+        const size_t r = i & (_xsize - 1); // i % _xsize
+        assert(q < _ysize);
 
         if (!_v[q]) {
             std::lock_guard<std::mutex> g(_mtx);
             if (!_v[q]) {
-                _v[q] = (T*) calloc(_bucket_size, sizeof(T));
+                _v[q] = (T*) ::calloc(_xsize, sizeof(T));
                 if (_i <= q) _i = q + 1;
             }
         }
@@ -53,9 +52,9 @@ class Table {
 
   private:
     std::mutex _mtx;
-    const size_t _bucket_num;
-    const size_t _bucket_size;
-    const size_t _bucket_bitsize;
+    const size_t _xbits;
+    const size_t _xsize;
+    const size_t _ysize;
     size_t _i;
     T** _v;
 };

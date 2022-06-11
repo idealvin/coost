@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../fastring.h"
+#include "fastring.h"
 #include <functional>
-#include <vector>
 
 namespace http {
 
@@ -14,21 +13,14 @@ namespace http {
  * ===========================================================================
  */
 
-struct curl_ctx;
+struct curl_ctx_t;
 
 /**
  * http client for coroutine programming
- *   - This is an implement based on libcurl. Internally, each client owns a multi
- *     handle and an easy handle. Multi handle in libcurl is a little complicated.
- *     It is recommended to read the documents below to have a better understanding
- *     of the multi handle:
- *       https://everything.curl.dev/libcurl/drive/multi-socket
- *
- *   - NOTE: http::Client will not url-encode the url passed in. The user may call
- *     url_encode() in co/hash/url.h to encode the url before passing it to a http
- *     request, if necessary.
+ *   - NOTE: It will not url-encode the url passed in. Call url_encode() in 
+ *     co/hash/url.h to encode the url if necessary.
  */
-class Client {
+class __coapi Client {
   public:
     /**
      * initialize a http client with a server url
@@ -106,14 +98,12 @@ class Client {
 
     /**
      * perform a HTTP PUT request
+     *   - upload a file to the server
      *
-     * @param url  This url will appear in the request line, it MUST begins with '/'.
+     * @param url   This url will appear in the request line, it MUST begins with '/'.
+     * @param path  Path of the file to be uploaded.
      */
-    void put(const char* url, const char* data, size_t size);
-
-    void put(const char* url, const char* s) {
-        this->put(url, s, strlen(s));
-    }
+    void put(const char* url, const char* path);
 
     /**
      * perform a HTTP DELETE request
@@ -142,9 +132,7 @@ class Client {
      */
     void set_url(const char* url);
 
-    /**
-     * get curl easy handle owned by this client
-     */
+    // get curl easy handle (CURL*) owned by this client
     void* easy_handle() const;
 
     /**
@@ -165,9 +153,10 @@ class Client {
      */
     int response_code() const;
 
-    /**
-     * get error message of the current request
-     */
+    // the same as response_code()
+    int status() const { return this->response_code(); }
+
+    // get error message of the current request
     const char* strerror() const;
 
     /**
@@ -187,36 +176,27 @@ class Client {
      *
      * @return  a pointer to a null-terminated string, which contains the response start line.
      */
-    const char* header() const;
+    const fastring& header() const;
 
     /**
      * get body of the current HTTP response
      *   - NOTE: Contents of the body will be cleared when the next request was performed.
-     *   - The result may not be null-terminated, call body_size() to get the size.
-     *
-     * @return  a pointer to the response body.
      */
-    const char* body() const;
+    const fastring& body() const;
 
-    /**
-     * get body size of the current HTTP response
-     */
-    size_t body_size() const;
-
-    /**
-     * close the http connection
-     *   - Once close() is called, this client can not be used anymore.
-     */
+    // Close the connection.
+    // Once it is called, the client can't be used until you reset the server url.
     void close();
 
+    // reset server url
+    void reset(const char* serv_url);
+
   private:
-    void do_io();
-    void set_headers();
     void append_header(const char* s);
     const char* make_url(const char* url);
 
   private:
-    curl_ctx* _ctx;
+    curl_ctx_t* _ctx;
 };
 
 
@@ -236,75 +216,70 @@ enum Method {
     kGet, kHead, kPost, kPut, kDelete, kOptions,
 };
 
-class Req {
+struct http_req_t;
+struct http_res_t;
+
+class __coapi Req {
   public:
-    Req() = default;
-    ~Req() = default;
+    Req() : _p(0) {}
+    ~Req();
 
-    Version version()        const { return (Version)_version; }
-    Method method()          const { return (Method)_method; }
-    bool is_method_get()     const { return _method == kGet; }
-    bool is_method_head()    const { return _method == kHead; }
-    bool is_method_post()    const { return _method == kPost; }
-    bool is_method_put()     const { return _method == kPut; }
-    bool is_method_delete()  const { return _method == kDelete; }
-    bool is_method_options() const { return _method == kOptions; }
-    const fastring& url()    const { return _url; }
-    const char* body()       const { return _buf->data() + _body; }
-    size_t body_size()       const { return _body_size; }
+    Version version()        const { return (Version) ((uint32*)_p)[1]; }
+    Method method()          const { return (Method)  ((uint32*)_p)[0]; }
+    bool is_method_get()     const { return this->method() == kGet; }
+    bool is_method_head()    const { return this->method() == kHead; }
+    bool is_method_post()    const { return this->method() == kPost; }
+    bool is_method_put()     const { return this->method() == kPut; }
+    bool is_method_delete()  const { return this->method() == kDelete; }
+    bool is_method_options() const { return this->method() == kOptions; }
 
+    const fastring& url()    const { return *(fastring*)((uint32*)_p + 4); }
+
+    // return a null-terminated value of the header
     const char* header(const char* key) const;
 
-    void clear() { _buf = 0; _url.clear(); _s.clear(); _headers.clear(); }
+    // return a pointer to the body, which may be not null-terminated, call 
+    // body_size() to get the length.
+    const char* body() const;
+
+    // get length of the body
+    size_t body_size() const { return ((uint32*)_p)[3]; }
 
   private:
-    int _version;
-    int _method;
-    size_t _body;
-    size_t _body_size;
-    fastring* _buf;
-    fastring _url;
-    fastring _s;
-    std::vector<size_t> _headers;
-
-    friend class ServerImpl;
-    int parse(fastring* buf);
+    http_req_t* _p;
 };
 
-class Res {
+class __coapi Res {
   public:
-    Res() : _version(kHTTP11), _status(200) {}
-    ~Res() = default;
+    Res() : _p(0) {}
+    ~Res();
 
-    void set_version(Version v) { _version = v; }
-    void set_status(int status) { _status = status; }
+    /**
+     * set response code
+     *   - NOTE: it MUST be called before set_body() or body()
+     */
+    void set_status(int status) { *(uint32*)_p = status; }
 
-    void add_header(const char* key, const char* val) {
-        _header.append(key).append(": ").append(val).append("\r\n");
-    }
+    /**
+     * add a HTTP header to the response
+     *   - NOTE: it MUST be called before set_body() or body()
+     *   - 'Content-Length' will be added automatically, no need to add it manually.
+     */
+    void add_header(const char* key, const char* val);
 
-    void set_body(const void* s, size_t n) {
-        _body.clear();
-        _body.append(s, n);
-    }
+    // add a header with an integer value
+    void add_header(const char* key, int val);
 
-    void set_body(const char* s) {
-        this->set_body(s, strlen(s));
-    }
-
-    void clear() {
-        _version = kHTTP11; _status = 200;
-        _header.clear(); _body.clear();
-    }
-
-    fastring str() const;
-    size_t body_size() const { return _body.size(); }
+    /**
+     * set body of the response
+     *   - The body length will be zero if no body was set.
+     */
+    void set_body(const void* s, size_t n);
+    void set_body(const char* s) { this->set_body(s, strlen(s)); }
+    void set_body(const fastring& s) { this->set_body(s.data(), s.size()); }
 
   private:
-    int _version;
-    int _status;
-    fastring _header;
-    fastring _body;
+    http_res_t* _p;
 };
 
 /**
@@ -314,7 +289,7 @@ class Res {
  *   - NOTE: http::Server will not url-decode the url in the request. The user may 
  *     call url_decode() in co/hash/url.h to decode the url, if necessary. 
  */
-class Server {
+class __coapi Server {
   public:
     Server();
     ~Server();
@@ -325,10 +300,10 @@ class Server {
      * @param f  a pointer to void xxx(const Req&, Res&), or 
      *           a reference of std::function<void(const Req&, Res&)>
      */
-    void on_req(std::function<void(const Req&, Res&)>&& f);
+    Server& on_req(std::function<void(const Req&, Res&)>&& f);
 
-    void on_req(const std::function<void(const Req&, Res&)>& f) {
-        this->on_req(std::function<void(const Req&, Res&)>(f));
+    Server& on_req(const std::function<void(const Req&, Res&)>& f) {
+        return this->on_req(std::function<void(const Req&, Res&)>(f));
     }
 
     /**
@@ -338,8 +313,8 @@ class Server {
      * @param o  a pointer to an object of class T.
      */
     template<typename T>
-    void on_req(void (T::*f)(const Req&, Res&), T* o) {
-        on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
+    Server& on_req(void (T::*f)(const Req&, Res&), T* o) {
+        return on_req(std::bind(f, o, std::placeholders::_1, std::placeholders::_2));
     }
 
     /**
@@ -363,6 +338,14 @@ class Server {
      */
     void start(const char* ip, int port, const char* key, const char* ca);
 
+    /**
+     * exit the server gracefully
+     *   - Once `exit()` was called, the listening socket will be closed, and new 
+     *     connections will not be accepted. Since co v3.0, the server will reset 
+     *     previously established connections.
+     */
+    void exit();
+
   private:
     void* _p;
 
@@ -381,7 +364,7 @@ namespace so {
  * @param ip        server ip, either an ipv4 or ipv6 address, default: "0.0.0.0"
  * @param port      server port, default: 80.
  */
-void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
+__coapi void easy(const char* root_dir = ".", const char* ip = "0.0.0.0", int port = 80);
 
 /**
  * start a static https server 
@@ -394,6 +377,6 @@ void easy(const char* root_dir=".", const char* ip="0.0.0.0", int port=80);
  * @param key       path of the private key file for ssl.
  * @param ca        path of the certificate file for ssl.
  */
-void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
+__coapi void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca);
 
 } // so

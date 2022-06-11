@@ -2,7 +2,6 @@
 
 #include "scheduler.h"
 #include <ws2spi.h>
-#include <unordered_map>
 
 namespace co {
 
@@ -18,56 +17,82 @@ inline void set_skip_iocp_on_success(sock_t fd) {
 }
 
 sock_t socket(int domain, int type, int protocol) {
+    static_assert(INVALID_SOCKET == (sock_t)-1, "");
     sock_t fd = CO_RAW_API(WSASocketW)(domain, type, protocol, 0, 0, WSA_FLAG_OVERLAPPED);
-    if (fd != INVALID_SOCKET) {
+    if (fd != (sock_t)-1) {
         unsigned long mode = 1;
         CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
-        set_skip_iocp_on_success(fd);
+        if (type != SOCK_STREAM) set_skip_iocp_on_success(fd);
+    } else {
+        co::error() = WSAGetLastError();
     }
     return fd;
 }
 
 int close(sock_t fd, int ms) {
-    if (fd == (sock_t)-1) return CO_RAW_API(closesocket)(fd);
+    if (fd == (sock_t)-1) return 0;
+
     co::get_sock_ctx(fd).del_event();
     if (ms > 0 && gSched) gSched->sleep(ms);
-    return CO_RAW_API(closesocket)(fd);
+
+    int r = CO_RAW_API(closesocket)(fd);
+    if (r == 0) return 0;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
 int shutdown(sock_t fd, char c) {
-    if (fd == (sock_t)-1) return CO_RAW_API(shutdown)(fd, SD_BOTH);
+    if (fd == (sock_t)-1) return 0;
+
+    int r;
     auto& ctx = co::get_sock_ctx(fd);
-    if (c == 'r') {
+    switch (c) {
+      case 'r':
         ctx.del_ev_read();
-        return CO_RAW_API(shutdown)(fd, SD_RECEIVE);
-    } else if (c == 'w') {
+        r = CO_RAW_API(shutdown)(fd, SD_RECEIVE);
+        break;
+      case 'w':
         ctx.del_ev_write();
-        return CO_RAW_API(shutdown)(fd, SD_SEND);
-    } else {
+        r = CO_RAW_API(shutdown)(fd, SD_SEND);
+        break;
+      default:
         ctx.del_event();
-        return CO_RAW_API(shutdown)(fd, SD_BOTH);
+        r = CO_RAW_API(shutdown)(fd, SD_BOTH);
     }
+
+    if (r == 0) return 0;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
 int bind(sock_t fd, const void* addr, int addrlen) {
-    return ::bind(fd, (const struct sockaddr*)addr, addrlen);
+    int r = ::bind(fd, (const struct sockaddr*)addr, addrlen);
+    if (r == 0) return 0;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
 int listen(sock_t fd, int backlog) {
-    return ::listen(fd, backlog);
+    int r = ::listen(fd, backlog);
+    if (r == 0) return 0;
+    co::error() = WSAGetLastError();
+    return r;
 }
 
 inline int get_address_family(sock_t fd) {
     WSAPROTOCOL_INFOW info;
     int len = sizeof(info);
-    int r = co::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, &info, &len);
+    int r = ::getsockopt(fd, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&info, &len);
     CHECK(r == 0 && info.iAddressFamily > 0) << "get address family failed, fd: " << fd;
     return info.iAddressFamily;
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
     CHECK(gSched) << "must be called in coroutine..";
-    if (fd == (sock_t)-1) return CO_RAW_API(accept)(fd, (sockaddr*)addr, addrlen);
+    if (fd == (sock_t)-1) {
+        co::error() = WSAENOTSOCK;
+        return (sock_t)-1;
+    }
 
     // We have to figure out the address family of the listening socket here.
     int af;
@@ -75,32 +100,31 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     if (ctx.has_event()) {
         af = ctx.get_address_family();
     } else {
-        if (!gSched->add_io_event(fd, ev_read)) {
-            ELOG << "add listening socket " << fd << " to IOCP failed..";
-            return (sock_t)-1;
-        }
+        gSched->add_io_event(fd, ev_read); // always return true on windows
         af = get_address_family(fd);
         ctx.set_address_family(af);
     }
 
     sock_t connfd = co::tcp_socket(af);
-    if (connfd == INVALID_SOCKET) return connfd;
+    if (connfd == (sock_t)-1) return connfd;
 
     const int N = sizeof(sockaddr_in6);
     IoEvent ev(fd, (N + 16) * 2);
     sockaddr *serv = 0, *peer = 0;
-    int serv_len = N, peer_len = N;
+    int serv_len = N, peer_len = N, r, e;
 
-    int r = accept_ex(fd, connfd, ev->s, 0, N + 16, N + 16, 0, &ev->ol);
+    r = accept_ex(fd, connfd, ev->s, 0, N + 16, N + 16, 0, &ev->ol);
     if (r == FALSE) {
-        if (co::error() != ERROR_IO_PENDING) goto err;
+        e = WSAGetLastError();
+        if (e != ERROR_IO_PENDING) goto err;
         ev.wait();
     }
 
     // https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-acceptex
-    r = co::setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, &fd, sizeof(fd));
+    r = ::setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&fd, sizeof(fd));
     if (r != 0) {
-        ELOG << "acceptex set SO_UPDATE_ACCEPT_CONTEXT failed..";
+        e = WSAGetLastError();
+        ELOG << "acceptex set SO_UPDATE_ACCEPT_CONTEXT failed, sock: " << connfd;
         goto err;
     }
 
@@ -110,10 +134,11 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
         *addrlen = peer_len;
     }
 
-    //set_skip_iocp_on_success(connfd);
+    set_skip_iocp_on_success(connfd);
     return connfd;
 
   err:
+    co::error() = e;
     CO_RAW_API(closesocket)(connfd);
     return (sock_t)-1;
 }
@@ -128,49 +153,58 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         SOCKADDR_STORAGE a = { 0 };
         a.ss_family = ((const sockaddr*)addr)->sa_family;
         if (co::bind(fd, &a, addrlen) != 0) {
-            ELOG << "connectex bind local address failed..";
+            ELOG << "connectex bind local address failed, sock: " << fd;
             return -1;
         }
     } while (0);
 
     IoEvent ev(fd);
+    int seconds, len = sizeof(int), r;
 
-    int r = connect_ex(fd, (const sockaddr*)addr, addrlen, 0, 0, 0, &ev->ol);
+    r = connect_ex(fd, (const sockaddr*)addr, addrlen, 0, 0, 0, &ev->ol);
     if (r == FALSE) {
-        if (co::error() != ERROR_IO_PENDING) return -1;
+        if (WSAGetLastError() != ERROR_IO_PENDING) goto err;
         if (!ev.wait(ms)) return -1;
     }
 
-    r = co::setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
+    r = ::setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, 0, 0);
     if (r != 0) {
-        ELOG << "connectex set SO_UPDATE_ACCEPT_CONTEXT failed..";
-        return -1;
+        ELOG << "connectex set SO_UPDATE_CONNECT_CONTEXT failed, sock: " << fd;
+        goto err;
     }
 
-    int seconds;
-    int len = sizeof(int);
-    r = co::getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, &seconds, &len);
+    r = ::getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&seconds, &len);
     if (r == 0) {
-        if (seconds == -1) return -1; // not connected
-        //set_skip_iocp_on_success(fd);
+        if (seconds < 0) {
+            ELOG << "dragon here, connectex getsockopt(SO_CONNECT_TIME), seconds < 0, sock: " << fd;
+            goto err;
+        }
+        set_skip_iocp_on_success(fd);
         return 0;
     } else {
-        ELOG << "connectex getsockopt(SO_CONNECT_TIME) failed..";
-        return -1;
+        ELOG << "connectex getsockopt(SO_CONNECT_TIME) failed, sock: " << fd;
+        goto err;
     }
+
+  err:
+    co::error() = WSAGetLastError();
+    return -1;
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     IoEvent ev(fd, ev_read);
+    int r, e;
 
     do {
-        int r = CO_RAW_API(recv)(fd, (char*)buf, n, 0);
+        r = CO_RAW_API(recv)(fd, (char*)buf, n, 0);
         if (r != -1) return r;
 
-        if (co::error() == WSAEWOULDBLOCK) {
+        e = WSAGetLastError();
+        if (e == WSAEWOULDBLOCK) {
             if (!ev.wait(ms)) return -1;
         } else {
+            co::error() = e;
             return -1;
         }
     } while (true);
@@ -179,18 +213,20 @@ int recv(sock_t fd, void* buf, int n, int ms) {
 int recvn(sock_t fd, void* buf, int n, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     char* s = (char*)buf;
-    int remain = n;
+    int remain = n, r, e;
     IoEvent ev(fd, ev_read);
 
     do {
-        int r = CO_RAW_API(recv)(fd, s, remain, 0);
+        r = CO_RAW_API(recv)(fd, s, remain, 0);
         if (r == remain) return n;
         if (r == 0) return 0;
 
         if (r == -1) {
-            if (co::error() == WSAEWOULDBLOCK) {
+            e = WSAGetLastError();
+            if (e == WSAEWOULDBLOCK) {
                 if (!ev.wait(ms)) return -1;
             } else {
+                co::error() = e;
                 return -1;
             }
         } else {
@@ -202,7 +238,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
-    int r;
+    int r, e;
     char* s = 0;
     const int N = (addr && addrlen) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
     IoEvent ev(fd, ev_read, buf, n, N);
@@ -217,10 +253,14 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 
     if (r == 0) {
         if (!can_skip_iocp_on_success) ev.wait();
-    } else if (co::error() == WSA_IO_PENDING) {
-        if (!ev.wait(ms)) return -1;
     } else {
-        return -1;
+        e = WSAGetLastError();
+        if (e == WSA_IO_PENDING) {
+            if (!ev.wait(ms)) return -1;
+        } else {
+            co::error() = e;
+            return -1;
+        }
     }
 
     if (N > 0) {
@@ -234,17 +274,19 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 int send(sock_t fd, const void* buf, int n, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
     const char* s = (const char*)buf;
-    int remain = n;
+    int remain = n, r, e;
     IoEvent ev(fd, ev_write);
 
     do {
-        int r = CO_RAW_API(send)(fd, s, remain, 0);
+        r = CO_RAW_API(send)(fd, s, remain, 0);
         if (r == remain) return n;
 
         if (r == -1) {
-            if (co::error() == WSAEWOULDBLOCK) {
+            e = WSAGetLastError();
+            if (e == WSAEWOULDBLOCK) {
                 if (!ev.wait(ms)) return -1;
             } else {
+                co::error() = e;
                 return -1;
             }
         } else {
@@ -256,82 +298,38 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
     CHECK(gSched) << "must be called in coroutine..";
+    int r, e;
     IoEvent ev(fd, ev_write, buf, n);
 
     do {
-        int r = CO_RAW_API(WSASendTo)(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
+        r = CO_RAW_API(WSASendTo)(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
-            if (!ev.wait(ms)) return -1;
         } else {
-            return -1;
+            e = WSAGetLastError();
+            if (e == WSA_IO_PENDING) {
+                if (!ev.wait(ms)) return -1;
+            } else {
+                co::error() = e;
+                return -1;
+            }
         }
 
         if (ev->n == (DWORD)ev->buf.len) return n;
-        if (ev->n == 0) return -1;
-        ev->buf.buf += ev->n;
-        ev->buf.len -= ev->n;
-        memset(&ev->ol, 0, sizeof(ev->ol));
+        if (ev->n > 0 && ev->n < (DWORD)ev->buf.len) {
+            ev->buf.buf += ev->n;
+            ev->buf.len -= ev->n;
+            memset(&ev->ol, 0, sizeof(ev->ol));
+        } else {
+            ELOG << "dragon here, sendto ev->n: " << ev->n << ", n: " << n << ", sock: " << fd;
+            return -1;
+        }
     } while (true);
 }
 
 void set_nonblock(sock_t fd) {
    unsigned long mode = 1;
    CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
-}
-
-class Error {
-  public:
-    Error() = default;
-    ~Error() = default;
-
-    struct T {
-        T() : err(4096) {}
-        fastream err;
-        std::unordered_map<int, uint32> pos;
-    };
-
-    const char* strerror(int e) {
-        if (_p == NULL) _p.reset(new T);
-        auto it = _p->pos.find(e);
-        if (it != _p->pos.end()) {
-            return _p->err.data() + it->second;
-        } else {
-            uint32 pos = (uint32) _p->err.size();
-            char* s = 0;
-            FormatMessageA(
-                FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                FORMAT_MESSAGE_FROM_SYSTEM |
-                FORMAT_MESSAGE_IGNORE_INSERTS,
-                0, e,
-                MAKELANGID(LANG_ENGLISH /*LANG_NEUTRAL*/, SUBLANG_DEFAULT),
-                (LPSTR)&s, 0, 0
-            );
-
-            if (s) {
-                _p->err.append(s).append('\0');
-                LocalFree(s);
-                char* p = (char*) strchr(_p->err.data() + pos, '\r');
-                if (p) *p = '\0';
-            } else {
-                _p->err.append("Unknown error ");
-                _p->err << e;
-                _p->err.append('\0');
-            }
-            _p->pos[e] = pos;
-            return _p->err.data() + pos;
-        }
-    }
-
-  private:
-    thread_ptr<T> _p;
-};
-
-const char* strerror(int err) {
-    if (err == ETIMEDOUT || err == WSAETIMEDOUT) return "Timed out.";
-    static co::Error e;
-    return e.strerror(err);
 }
 
 bool _can_skip_iocp_on_success() {
@@ -359,7 +357,7 @@ bool _can_skip_iocp_on_success() {
     return true;
 }
 
-void wsa_startup() {
+void init_sock() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
 
@@ -398,15 +396,33 @@ void wsa_startup() {
     CHECK_EQ(r, 0) << "get GetAccpetExSockAddrs failed: " << co::strerror();
 
     ::closesocket(fd);
-    can_skip_iocp_on_success = _can_skip_iocp_on_success();
-    co_attach_hooks();
+    can_skip_iocp_on_success = co::_can_skip_iocp_on_success();
 }
 
-void wsa_cleanup() {
-    co_detach_hooks();
+void cleanup_sock() {
     WSACleanup();
 }
 
 } // co
+
+#if defined(_MSC_VER) && defined(BUILDING_CO_SHARED)
+extern "C" {
+
+BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID) {
+    switch (reason) {
+      case DLL_PROCESS_ATTACH:
+        break;
+      case DLL_THREAD_ATTACH:
+        break;
+      case DLL_THREAD_DETACH:
+        break;
+      case DLL_PROCESS_DETACH:
+        break;
+    }
+    return TRUE;
+}
+
+} // extern "C"
+#endif
 
 #endif // _WIN32

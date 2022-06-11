@@ -1,4 +1,5 @@
-#include "co/all.h"
+#include "co/closure.h"
+#include "co/cout.h"
 
 template <class F, typename P>
 class X : public co::Closure {
@@ -116,11 +117,7 @@ void test_new_closure() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
     test();
     test_new_closure();
-
     return 0;
 }

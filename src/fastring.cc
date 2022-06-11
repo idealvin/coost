@@ -1,25 +1,5 @@
 #include "co/fastring.h"
 
-fastring& fastring::operator=(const fastring& s) {
-    if (&s == this) return *this;
-
-    _size = s.size();
-    if (_size == 0) return *this;
-
-    this->reserve(_size + 1);
-    memcpy(_p, s.data(), _size);
-    return *this;
-}
-
-fastring& fastring::operator=(const std::string& s) {
-    _size = s.size();
-    if (_size == 0) return *this;
-
-    this->reserve(_size + 1);
-    memcpy(_p, s.data(), _size);
-    return *this;
-}
-
 fastring& fastring::operator=(const char* s) {
     if (!*s) { this->clear(); return *this; }
 

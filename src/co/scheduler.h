@@ -5,8 +5,10 @@
 #endif
 
 #include "co/co.h"
+#include "co/mem.h"
 #include "co/flag.h"
 #include "co/log.h"
+#include "co/stl.h"
 #include "co/time.h"
 #include "co/closure.h"
 #include "co/thread.h"
@@ -23,7 +25,6 @@
 
 #include <assert.h>
 #include <memory>
-#include <vector>
 #include <map>
 
 DEC_uint32(co_sched_num);
@@ -34,8 +35,14 @@ DEC_bool(co_debug_log);
 
 namespace co {
 
+void init_sock();
+void cleanup_sock();
+
+void init_hook();
+void cleanup_hook();
+
 struct Coroutine;
-typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
+typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
 
 /**
  * coroutine state 
@@ -55,24 +62,23 @@ typedef std::multimap<int64, Coroutine*>::iterator timer_id_t;
  *         st_ready <------------------------ v
  */
 enum co_state_t : uint8 {
-    st_init = 0,     // initial state
-    st_wait = 1,     // wait for an event
-    st_ready = 2,    // ready to resume
-    st_timeout = 4,  // timeout
+    st_wait = 0,     // wait for an event, DO NOT modify the value
+    st_ready = 1,    // ready to resume
+    st_timeout = 2,  // timeout
 };
 
+struct waitx_t;
+
 struct Coroutine {
-    Coroutine() = delete;
-    ~Coroutine() { stack.~fastream(); }
+    Coroutine() { memset(this, 0, sizeof(*this)); }
+    ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
 
     uint32 id;         // coroutine id
-    uint8 state;       // coroutine state
-    uint8 sid;         // stack id
-    uint16 _00_;       // reserved
-    void* waitx;       // wait info
+    uint32 sid;        // stack id
+    waitx_t* waitx;    // wait info
     tb_context_t ctx;  // context, a pointer points to the stack bottom
 
-    // for saving stack data for this coroutine
+    // for saving stack data of this coroutine
     union { fastream stack; char _dummy1[sizeof(fastream)]; };
     union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
 
@@ -87,8 +93,15 @@ struct Coroutine {
 // header of wait info
 struct waitx_t {
     Coroutine* co;
-    union { uint8 state; void* dummy; };
+    union { int state; void* dummy; };
 };
+
+inline waitx_t* make_waitx(void* co) {
+    waitx_t* w = (waitx_t*) co::alloc(sizeof(waitx_t)); assert(w);
+    w->co = (Coroutine*)co;
+    w->state = st_wait;
+    return w;
+}
 
 // pool of Coroutine, using index as the coroutine id.
 class Copool {
@@ -104,22 +117,21 @@ class Copool {
 
     Coroutine* pop() {
         if (!_ids.empty()) {
-            auto& co = _tb[_ids.back()];
-            _ids.pop_back();
-            co.state = st_init;
+            auto& co = _tb[_ids.pop_back()];
             co.ctx = 0;
             co.stack.clear();
             return &co;
         } else {
             auto& co = _tb[_id];
             co.id = _id++;
-            co.sid = (uint8)(co.id & 7);
+            co.sid = (co.id & 7);
             return &co;
         }
     }
 
     void push(Coroutine* co) {
         _ids.push_back(co->id);
+        if (_ids.size() >= 1024) co->stack.reset();
     }
 
     Coroutine* operator[](size_t i) {
@@ -127,8 +139,8 @@ class Copool {
     }
 
   private:
-    co::Table<Coroutine> _tb;
-    std::vector<int> _ids; // id of available coroutines in the table
+    co::table<Coroutine> _tb;
+    co::vector<int> _ids; // id of available coroutines in the table
     int _id;
 };
 
@@ -140,7 +152,7 @@ class TaskManager {
 
     void add_new_task(Closure* cb) {
         ::MutexGuard g(_mtx);
-       _new_tasks.push_back(cb);
+        _new_tasks.push_back(cb);
     }
 
     void add_ready_task(Coroutine* co) {
@@ -149,8 +161,8 @@ class TaskManager {
     }
 
     void get_all_tasks(
-        std::vector<Closure*>& new_tasks,
-        std::vector<Coroutine*>& ready_tasks
+        co::vector<Closure*>& new_tasks,
+        co::vector<Coroutine*>& ready_tasks
     ) {
         ::MutexGuard g(_mtx);
         if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
@@ -159,26 +171,12 @@ class TaskManager {
  
   private:
     ::Mutex _mtx;
-    std::vector<Closure*> _new_tasks;
-    std::vector<Coroutine*> _ready_tasks;
+    co::vector<Closure*> _new_tasks;
+    co::vector<Coroutine*> _ready_tasks;
 };
 
 inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
     return fs << *(void**)(&id);
-}
-
-inline bool is_null_timer_id(const timer_id_t& it) {
-    if (sizeof(timer_id_t) == sizeof(void*)) return *(void**)&it == 0;
-    static char buf[sizeof(timer_id_t)] = { 0 };
-    return memcmp((void*)&it, buf, sizeof(buf)) == 0;
-}
-
-inline void set_null_timer_id(timer_id_t& it) {
-    if (sizeof(timer_id_t) == sizeof(void*)) {
-        *(void**)&it = 0;
-    } else {
-        memset((void*)&it, 0, sizeof(timer_id_t));
-    }
 }
 
 // Timer must be added in the scheduler thread. We need no lock here.
@@ -196,22 +194,17 @@ class TimerManager {
         _timer.erase(it);
     }
 
+    timer_id_t end() {
+        return _timer.end();
+    }
+
     // return time(ms) to wait for the next timeout.
     // all timedout coroutines will be pushed into @res.
-    uint32 check_timeout(std::vector<Coroutine*>& res);
-
-    // ========================================================================
-    // for unitest/co
-    // ========================================================================
-    bool assert_empty() const { return _timer.empty() && _it == _timer.end(); }
-    bool assert_it(const timer_id_t& it) const { return _it == it; }
+    uint32 check_timeout(co::vector<Coroutine*>& res);
 
   private:
-    std::multimap<int64, Coroutine*> _timer;            // timed-wait tasks: <time_ms, co>
-    union {
-        std::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
-        char buf[sizeof(timer_id_t)];
-    };
+    co::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
+    co::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
 struct Stack {
@@ -319,7 +312,10 @@ class SchedulerImpl : public co::Scheduler {
     static void main_func(tb_context_from_t from);
 
     // push a coroutine back to the pool, so it can be reused later.
-    void recycle() { _co_pool.push(_running); }
+    void recycle() {
+        _stack[_running->sid].co = 0;
+        _co_pool.push(_running);
+    }
 
     // start the scheduler thread
     void start() { Thread(&SchedulerImpl::loop, this).detach(); }
@@ -332,14 +328,17 @@ class SchedulerImpl : public co::Scheduler {
 
     // save stack for the coroutine
     void save_stack(Coroutine* co) {
-        co->stack.clear();
-        co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
+        if (co) {
+            co->stack.clear();
+            co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
+        }
     }
 
     // pop a Coroutine from the pool
     Coroutine* new_coroutine(Closure* cb) {
         Coroutine* co = _co_pool.pop();
         co->cb = cb;
+        co->it = _timer_mgr.end();
         return co;
     }
 
@@ -368,33 +367,28 @@ class SchedulerManager {
     ~SchedulerManager();
 
     Scheduler* next_scheduler() {
-        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n) & _s];
-        uint32 n = atomic_inc(&_n);
+        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n, mo_relaxed) & _s];
+        uint32 n = atomic_inc(&_n, mo_relaxed);
         if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
         return _scheds[now::us() % _scheds.size()];
     }
 
-    const std::vector<Scheduler*>& all_schedulers() const {
+    const co::vector<Scheduler*>& schedulers() const {
         return _scheds;
     }
 
-    void stop_all_schedulers();
+    void stop();
 
   private:
-    std::vector<Scheduler*> _scheds;
+    co::vector<Scheduler*> _scheds;
     uint32 _n;  // index, initialized as -1
     uint32 _r;  // 2^32 % sched_num
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
 };
 
-inline SchedulerManager* scheduler_manager() {
-    static SchedulerManager kSchedMgr;
-    return &kSchedMgr;
-}
-
-inline bool& stopped() {
-    static bool kStopped = true;
-    return kStopped;
+inline bool& is_active() {
+    static bool ka = false;
+    return ka;
 }
 
 extern __thread SchedulerImpl* gSched;

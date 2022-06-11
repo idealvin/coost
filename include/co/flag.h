@@ -1,8 +1,9 @@
 #pragma once
 
+#include "def.h"
+#include "mem.h"
 #include "fastring.h"
-#include <stdint.h>
-#include <vector>
+#include "vector.h"
 
 // co/flag is a library similar to Google's gflags.
 // A flag is in fact a global variable, and value can be passed to it
@@ -10,60 +11,70 @@
 
 namespace flag {
 
-// Parse command line flags or config file specified by -config.
+// Parse command line flags and config file specified by -config.
 // Return non-flag elements.
-std::vector<fastring> init(int argc, char** argv);
+__coapi co::vector<fastring> init(int argc, const char** argv);
+
+inline co::vector<fastring> init(int argc, char** argv) {
+    return flag::init(argc, (const char**)argv);
+}
+
+// Initialize with a config file.
+__coapi void init(const fastring& path);
+
+// Set value for a flag of any type, return error message if failed.
+// It is not thread-safe. 
+__coapi fastring set_value(const fastring& name, const fastring& value);
+
+// Add alias for a flag, @new_name must be a literal string.
+// It is not thread-safe and should be used before calling flag::init().
+__coapi bool alias(const char* name, const char* new_name);
 
 namespace xx {
-enum {
-    TYPE_bool,
-    TYPE_int32,
-    TYPE_int64,
-    TYPE_uint32,
-    TYPE_uint64,
-    TYPE_string,
-    TYPE_double
-};
 
-struct FlagSaver {
-    FlagSaver(const char* type_str, const char* name, const char* value,
-              const char* help, const char* file, int line, int type, void* addr);
-};
+__coapi void add_flag(
+    char type, const char* name, const char* value, const char* help, 
+    const char* file, int line, void* addr, const char* alias
+);
+
 } // namespace xx
 } // namespace flag
 
-#define _DECLARE_FLAG(type, name) extern type FLG_##name
+#define _CO_DEC_FLAG(type, name) extern type FLG_##name
 
 // Declare a flag.
 // DEC_string(s);  ->  extern fastring FLG_s;
-#define DEC_bool(name)    _DECLARE_FLAG(bool, name)
-#define DEC_int32(name)   _DECLARE_FLAG(int32, name)
-#define DEC_int64(name)   _DECLARE_FLAG(int64, name)
-#define DEC_uint32(name)  _DECLARE_FLAG(uint32, name)
-#define DEC_uint64(name)  _DECLARE_FLAG(uint64, name)
-#define DEC_double(name)  _DECLARE_FLAG(double, name)
-#define DEC_string(name)  extern fastring FLG_##name
+#define DEC_bool(name)    _CO_DEC_FLAG(bool, name)
+#define DEC_int32(name)   _CO_DEC_FLAG(int32, name)
+#define DEC_int64(name)   _CO_DEC_FLAG(int64, name)
+#define DEC_uint32(name)  _CO_DEC_FLAG(uint32, name)
+#define DEC_uint64(name)  _CO_DEC_FLAG(uint64, name)
+#define DEC_double(name)  _CO_DEC_FLAG(double, name)
+#define DEC_string(name)  extern fastring& FLG_##name
 
-#define _DEFINE_FLAG(type, name, value, help) \
-    type FLG_##name = value; \
-    static ::flag::xx::FlagSaver _Sav_flag_##name( \
-        #type, #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_##type, &FLG_##name \
-    )
+#define _CO_DEF_FLAG(type, id, name, value, help, ...) \
+    type FLG_##name = []() { \
+        ::flag::xx::add_flag(id, #name, #value, help, __FILE__, __LINE__, &FLG_##name, ""#__VA_ARGS__); \
+        return value; \
+    }()
 
 // Define a flag.
-// DEF_int32(i, 23, "xxx");  ->  int32 FLG_i = 23
-#define DEF_bool(name, value, help)    _DEFINE_FLAG(bool, name, value, help)
-#define DEF_int32(name, value, help)   _DEFINE_FLAG(int32, name, value, help)
-#define DEF_int64(name, value, help)   _DEFINE_FLAG(int64, name, value, help)
-#define DEF_uint32(name, value, help)  _DEFINE_FLAG(uint32, name, value, help)
-#define DEF_uint64(name, value, help)  _DEFINE_FLAG(uint64, name, value, help)
-#define DEF_double(name, value, help)  _DEFINE_FLAG(double, name, value, help)
+// DEF_int32(i, 23, "xxx");         ->  int32 FLG_i = 23
+// DEF_bool(debug, false, "x", d);  ->  define a flag with an alias
+#define DEF_bool(name, value, help, ...)    _CO_DEF_FLAG(bool,   'b', name, value, help, __VA_ARGS__)
+#define DEF_int32(name, value, help, ...)   _CO_DEF_FLAG(int32,  'i', name, value, help, __VA_ARGS__)
+#define DEF_int64(name, value, help, ...)   _CO_DEF_FLAG(int64,  'I', name, value, help, __VA_ARGS__)
+#define DEF_uint32(name, value, help, ...)  _CO_DEF_FLAG(uint32, 'u', name, value, help, __VA_ARGS__)
+#define DEF_uint64(name, value, help, ...)  _CO_DEF_FLAG(uint64, 'U', name, value, help, __VA_ARGS__)
+#define DEF_double(name, value, help, ...)  _CO_DEF_FLAG(double, 'd', name, value, help, __VA_ARGS__)
 
-#define DEF_string(name, value, help) \
-    fastring FLG_##name = value; \
-    static ::flag::xx::FlagSaver _Sav_flag_##name( \
-        "string", #name, #value, help, __FILE__, __LINE__, ::flag::xx::TYPE_string, &FLG_##name \
-    )
+#define DEF_string(name, value, help, ...) \
+    fastring& FLG_##name = *[]() { \
+        auto _##name = ::co::static_new<fastring>(value); \
+        ::flag::xx::add_flag('s', #name, #value, help, __FILE__, __LINE__, _##name, ""#__VA_ARGS__); \
+        return _##name; \
+    }()
 
-DEC_string(help);
-DEC_string(config);
+__coapi DEC_string(help);
+__coapi DEC_string(config);
+__coapi DEC_string(version);

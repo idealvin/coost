@@ -5,15 +5,13 @@ DEF_int32(port, 9988, "port");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
 DEF_int32(t, 0, "0: server & client, 1: server, 2: client");
-DEC_bool(cout);
 
 struct Header {
     int32 magic;
     int32 body_len;
 };
 
-void on_connection(tcp::Connection* conn) {
-    std::unique_ptr<tcp::Connection> c(conn);
+void on_connection(tcp::Connection conn) {
     const char* msg = "hello client";
     Header header;
     fastream buf(128);
@@ -21,9 +19,9 @@ void on_connection(tcp::Connection* conn) {
     int r;
 
     while (true) {
-        r = conn->recvn(&header, sizeof(header), 3000);
+        r = conn.recvn(&header, sizeof(header), 3000);
         if (r != sizeof(header)) {
-            ELOG << "server recvn error: " << conn->strerror();
+            ELOG << "server recvn error: " << conn.strerror();
             goto err;
         }
 
@@ -31,9 +29,9 @@ void on_connection(tcp::Connection* conn) {
         LOG << "server recv header, body_len: " << body_len;
 
         buf.clear();
-        r = conn->recvn((char*)buf.data(), body_len, 3000);
+        r = conn.recvn((char*)buf.data(), body_len, 3000);
         if (r != body_len) {
-            ELOG << "server recvn error: " << conn->strerror();
+            ELOG << "server recvn error: " << conn.strerror();
             goto err;
         }
 
@@ -46,15 +44,15 @@ void on_connection(tcp::Connection* conn) {
         buf.append(&header, sizeof(header));
         buf.append(msg);
 
-        r = conn->send(buf.data(), (int)buf.size(), 3000);
+        r = conn.send(buf.data(), (int)buf.size(), 3000);
         if (r <= 0) {
-            ELOG << "server send error: " << conn->strerror();
+            ELOG << "server send error: " << conn.strerror();
             goto err;
         }
     }
 
   err:
-    conn->close();
+    conn.close();
 }
 
 void client_fun() {
@@ -112,7 +110,6 @@ void client_fun() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
     FLG_cout = true;
 
     tcp::Server serv;

@@ -1,9 +1,9 @@
 #include "scheduler.h"
 #include "co/os.h"
 
-DEF_uint32(co_sched_num, os::cpunum(), "#1 number of coroutine schedulers, default: os::cpunum()");
-DEF_uint32(co_stack_size, 1024 * 1024, "#1 size of the stack shared by coroutines, default: 1M");
-DEF_bool(co_debug_log, false, "#1 enable debug log for coroutine library");
+DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, default: os::cpunum()");
+DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
+DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
 
 namespace co {
 
@@ -13,28 +13,27 @@ SchedulerImpl::SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size)
     : _wait_ms((uint32)-1), _id(id), _sched_num(sched_num), 
       _stack_size(stack_size), _running(0), _co_pool(), 
       _stop(false), _timeout(false) {
-    _epoll = new Epoll(id);
-    _stack = (Stack*) calloc(8, sizeof(Stack));
+    _epoll = co::make<Epoll>(id);
+    _stack = (Stack*) co::zalloc(8 * sizeof(Stack));
     _main_co = _co_pool.pop(); // coroutine with zero id is reserved for _main_co
 }
 
 SchedulerImpl::~SchedulerImpl() {
     this->stop();
-    delete _epoll;
-    free(_stack);
+    co::del(_epoll);
+    co::free(_stack, 8 * sizeof(Stack));
 }
 
 void SchedulerImpl::stop() {
-    if (atomic_swap(&_stop, true) == false) {
+    if (atomic_swap(&_stop, true, mo_acq_rel) == false) {
         _epoll->signal();
-        _ev.wait();
+        _ev.wait(32); // wait at most 32ms
     }
 }
 
 void SchedulerImpl::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
     gSched->running()->cb->run(); // run the coroutine function
-    gSched->recycle();            // recycle the current coroutine
     tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 
@@ -54,7 +53,7 @@ void SchedulerImpl::resume(Coroutine* co) {
     Stack* s = &_stack[co->sid];
     _running = co;
     if (s->p == 0) {
-        s->p = (char*) malloc(_stack_size);
+        s->p = (char*) co::alloc(_stack_size);
         s->top = s->p + _stack_size;
         s->co = co;
     }
@@ -68,10 +67,10 @@ void SchedulerImpl::resume(Coroutine* co) {
 
     } else {
         // remove timer before resume the coroutine
-        if (!is_null_timer_id(co->it)) {
+        if (co->it != _timer_mgr.end()) {
             CO_DBG_LOG << "del timer: " << co->it;
             _timer_mgr.del_timer(co->it);
-            set_null_timer_id(co->it);
+            co->it = _timer_mgr.end();
         }
 
         // resume suspended coroutine
@@ -85,25 +84,30 @@ void SchedulerImpl::resume(Coroutine* co) {
         from = tb_context_jump(co->ctx, _main_co); // jump back to where the user called yiled()
     }
 
-    // yiled() was called in coroutine, the scheduler will jump back to resume()
     if (from.priv) {
+        // yield() was called in the coroutine, update context for it
         assert(_running == from.priv);
-        _running->ctx = from.ctx;   // update context for the coroutine
+        _running->ctx = from.ctx;
         CO_DBG_LOG << "yield co: " << _running << " id: " << _running->id;
+    } else {
+        // the coroutine has terminated, recycle it
+        this->recycle();
     }
 }
 
 void SchedulerImpl::loop() {
     gSched = this;
-    std::vector<Closure*> new_tasks;
-    std::vector<Coroutine*> ready_tasks;
+    co::vector<Closure*> new_tasks;
+    co::vector<Coroutine*> ready_tasks;
 
     while (!_stop) {
         int n = _epoll->wait(_wait_ms);
         if (_stop) break;
 
         if (unlikely(n == -1)) {
-            ELOG << "epoll wait error: " << co::strerror();
+            if (errno != EINTR) {
+                ELOG << "epoll wait error: " << co::strerror();
+            }
             continue;
         }
 
@@ -117,7 +121,8 @@ void SchedulerImpl::loop() {
           #if defined(_WIN32)
             auto info = (IoEvent::PerIoInfo*) ((void**)ev.lpOverlapped - 2);
             auto co = (Coroutine*) info->co;
-            if (atomic_compare_swap(&info->state, st_init, st_ready) == st_init) {
+            // TODO: is mo_relaxed safe here?
+            if (atomic_bool_cas(&info->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                 info->n = ev.dwNumberOfBytesTransferred;
                 if (co->s == this) {
                     this->resume(co);
@@ -125,7 +130,7 @@ void SchedulerImpl::loop() {
                     ((SchedulerImpl*)co->s)->add_ready_task(co);
                 }
             } else {
-                free(info);
+                co::free(info, info->mlen);
             }
           #elif defined(__linux__)
             int32 rco = 0, wco = 0;
@@ -181,7 +186,7 @@ void SchedulerImpl::loop() {
     _ev.signal();
 }
 
-uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
+uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();
@@ -189,14 +194,13 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     for (; it != _timer.end(); ++it) {
         if (it->first > now_ms) break;
         Coroutine* co = it->second;
-        if (!is_null_timer_id(co->it)) set_null_timer_id(co->it);
+        if (co->it != _timer.end()) co->it = _timer.end();
         if (!co->waitx) {
-            if (co->state == st_init || atomic_swap(&co->state, st_init) == st_wait) {
-                res.push_back(co);
-            }
+            res.push_back(co);
         } else {
-            auto waitx = (co::waitx_t*) co->waitx;
-            if (atomic_compare_swap(&waitx->state, st_init, st_timeout) == st_init) {
+            auto w = (co::waitx_t*) co->waitx;
+            // TODO: is mo_relaxed safe here?
+            if (atomic_bool_cas(&w->state, st_wait, st_timeout, mo_relaxed, mo_relaxed)) {
                 res.push_back(co);
             }
         }
@@ -211,40 +215,9 @@ uint32 TimerManager::check_timeout(std::vector<Coroutine*>& res) {
     return (int) (_timer.begin()->first - now_ms);
 }
 
-#ifdef _WIN32
-extern void wsa_startup();
-extern void wsa_cleanup();
-
-#else
-inline void wsa_startup() {
-#ifndef _CO_DISABLE_HOOK
-    if (CO_RAW_API(close) == 0) ::close(-1);
-    if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
-    if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
-    CHECK(CO_RAW_API(close) != 0);
-    CHECK(CO_RAW_API(read) != 0);
-    CHECK(CO_RAW_API(write) != 0);
-
-  #ifdef __linux__
-    if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
-    CHECK(CO_RAW_API(epoll_wait) != 0);
-  #else
-    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
-    CHECK(CO_RAW_API(kevent) != 0);
-  #endif
-#endif
-}
-
-inline void wsa_cleanup() {}
-#endif
-
-inline bool& initialized() {
-    static bool kInitialized = false;
-    return kInitialized;
-}
-
 SchedulerManager::SchedulerManager() {
-    wsa_startup();
+    co::init_sock();
+    co::init_hook();
     if (FLG_co_sched_num == 0 || FLG_co_sched_num > (uint32)os::cpunum()) FLG_co_sched_num = os::cpunum();
     if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
 
@@ -258,22 +231,35 @@ SchedulerManager::SchedulerManager() {
         _scheds.push_back(s);
     }
 
-    stopped() = false;
-    initialized() = true;
+    is_active() = true;
 }
 
 SchedulerManager::~SchedulerManager() {
     for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
-    wsa_cleanup();
-    stopped() = true;
-    initialized() = false;
 }
 
-void SchedulerManager::stop_all_schedulers() {
+inline SchedulerManager* scheduler_manager() {
+    static auto ksm = co::static_new<SchedulerManager>();
+    return ksm;
+}
+
+struct Cleanup {
+    ~Cleanup() {
+        if (is_active()) {
+            scheduler_manager()->stop();
+            co::cleanup_hook();
+            co::cleanup_sock();
+        }
+    }
+};
+
+static Cleanup _gc;
+
+void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
-    stopped() = true;
+    atomic_swap(&is_active(), false, mo_acq_rel);
 }
 
 void Scheduler::go(Closure* cb) {
@@ -284,8 +270,8 @@ void go(Closure* cb) {
     ((SchedulerImpl*) scheduler_manager()->next_scheduler())->add_new_task(cb);
 }
 
-const std::vector<Scheduler*>& all_schedulers() {
-    return scheduler_manager()->all_schedulers();
+const co::vector<Scheduler*>& schedulers() {
+    return scheduler_manager()->schedulers();
 }
 
 Scheduler* scheduler() { return gSched; }
@@ -295,7 +281,7 @@ Scheduler* next_scheduler() {
 }
 
 int scheduler_num() {
-    if (initialized()) return (int) scheduler_manager()->all_schedulers().size();
+    if (is_active()) return (int) scheduler_manager()->schedulers().size();
     return os::cpunum();
 }
 
@@ -343,10 +329,6 @@ bool timeout() {
 bool on_stack(const void* p) {
     CHECK(gSched) << "MUST be called in coroutine..";
     return gSched->on_stack(p);
-}
-
-void stop() {
-    return scheduler_manager()->stop_all_schedulers();
 }
 
 } // co

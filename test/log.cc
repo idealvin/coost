@@ -1,4 +1,5 @@
 #include "co/log.h"
+#include "co/cout.h"
 #include "co/time.h"
 
 DEF_bool(perf, false, "performance testing");
@@ -18,7 +19,6 @@ int nested_log() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    log::init();
 
     if (FLG_perf) {
         // test performance by writting 100W logs
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
         }
         int64 write_to_cache = t.us();
 
-        log::close();
+        log::exit();
         int64 write_to_file = t.us();
 
         COUT << "All logs written to cache in " << write_to_cache << " us";
@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
         ELOG << "This is ELOG (error).. " << 23;
         //FLOG << "This is FLOG (fatal).. " << 23;
         LOG << "hello " << nested_log() << "  " << nested_log();
+        TLOG("co") << "hello co";
+        TLOG("bob") << "hello bob";
     }
 
     return 0;

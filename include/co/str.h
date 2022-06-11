@@ -1,13 +1,9 @@
 #pragma once
 
-#include "err.h"
+#include "error.h"
 #include "fastring.h"
-#include <string>
+#include "stl.h"
 #include <vector>
-#include <map>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace str {
 
@@ -22,11 +18,11 @@ namespace str {
  * @param c  the delimiter, either a single character or a null-terminated string.
  * @param n  max split times, 0 or -1 for unlimited.
  */
-std::vector<fastring> split(const char* s, char c, uint32 n=0);
-std::vector<fastring> split(const fastring& s, char c, uint32 n=0);
-std::vector<fastring> split(const char* s, const char* c, uint32 n=0);
+__coapi co::vector<fastring> split(const char* s, char c, uint32 n=0);
+__coapi co::vector<fastring> split(const fastring& s, char c, uint32 n=0);
+__coapi co::vector<fastring> split(const char* s, const char* c, uint32 n=0);
 
-inline std::vector<fastring> split(const fastring& s, const char* c, uint32 n=0) {
+inline co::vector<fastring> split(const fastring& s, const char* c, uint32 n=0) {
     return split(s.c_str(), c, n);
 }
 
@@ -40,8 +36,8 @@ inline std::vector<fastring> split(const fastring& s, const char* c, uint32 n=0)
  * @param to   string replaced to.
  * @param n    max replace times.
  */
-fastring replace(const char* s, const char* sub, const char* to, uint32 n=0);
-fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0);
+__coapi fastring replace(const char* s, const char* sub, const char* to, uint32 n=0);
+__coapi fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0);
 
 /**
  * strip a string 
@@ -54,22 +50,25 @@ fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0)
  * @param c  characters to be stripped, either a single character or a null-terminated string.
  * @param d  direction, 'l' for left, 'r' for right, 'b' for both sides.
  */
-fastring strip(const char* s, const char* c=" \t\r\n", char d='b');
-fastring strip(const char* s, char c, char d = 'b');
-fastring strip(const fastring& s, const char* c=" \t\r\n", char d='b');
-fastring strip(const fastring& s, char c, char d='b');
-fastring strip(const fastring& s, const fastring& c, char d='b');
+__coapi fastring strip(const char* s, const char* c=" \t\r\n", char d='b');
+__coapi fastring strip(const char* s, char c, char d = 'b');
+__coapi fastring strip(const fastring& s, const char* c=" \t\r\n", char d='b');
+__coapi fastring strip(const fastring& s, char c, char d='b');
+__coapi fastring strip(const fastring& s, const fastring& c, char d='b');
 
 /**
  * convert string to built-in types 
- *   - Returns 0 if the conversion failed, and the errno will be ERANGE or EINVAL.
+ *   - Returns false or 0 if the conversion failed, and the error code will be set to 
+ *     ERANGE or EINVAL. On success, the error code will be 0.
+ *   - Call co::error() to get the error number. DO NOT use `errno` directly as it is 
+ *     not safe on windows.
  */
-bool to_bool(const char* s);
-int32 to_int32(const char* s);
-int64 to_int64(const char* s);
-uint32 to_uint32(const char* s);
-uint64 to_uint64(const char* s);
-double to_double(const char* s);
+__coapi bool to_bool(const char* s);
+__coapi int32 to_int32(const char* s);
+__coapi int64 to_int64(const char* s);
+__coapi uint32 to_uint32(const char* s);
+__coapi uint64 to_uint64(const char* s);
+__coapi double to_double(const char* s);
 
 inline bool to_bool(const fastring& s)        { return to_bool(s.c_str()); }
 inline bool to_bool(const std::string& s)     { return to_bool(s.c_str()); }
@@ -85,9 +84,7 @@ inline double to_double(const fastring& s)    { return to_double(s.c_str()); }
 inline double to_double(const std::string& s) { return to_double(s.c_str()); }
 
 
-/**
- * convert built-in types to string 
- */
+// convert built-in types to string 
 template<typename T>
 inline fastring from(T t) {
     fastring s(24);
@@ -141,6 +138,14 @@ inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
     dbg(beg, end, c1, c2, fs);
     return fs;
 }
+
+inline void cat(fastring&) {}
+
+template<typename X, typename ...V>
+inline void cat(fastring& s, X&& x, V&& ... v) {
+    s << std::forward<X>(x);
+    cat(s, std::forward<V>(v)...);
+}
 } // xx
 
 // convert std::pair to a debug string
@@ -157,9 +162,21 @@ inline fastring dbg(const std::vector<T>& v) {
     return xx::dbg(v.begin(), v.end(), '[', ']');
 }
 
+// convert co::vector to a debug string
+template<typename T>
+inline fastring dbg(const co::vector<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '[', ']');
+}
+
 // convert std::set to a debug string
 template<typename T>
 inline fastring dbg(const std::set<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+// convert co::set to a debug string
+template<typename T>
+inline fastring dbg(const co::set<T>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
@@ -169,9 +186,21 @@ inline fastring dbg(const std::map<K, V>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
+// convert co::map to a debug string
+template<typename K, typename V>
+inline fastring dbg(const co::map<K, V>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
 // convert std::unordered_set to a debug string
 template<typename T>
 inline fastring dbg(const std::unordered_set<T>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+// convert co::hash_set to a debug string
+template<typename T>
+inline fastring dbg(const co::hash_set<T>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
 }
 
@@ -179,6 +208,24 @@ inline fastring dbg(const std::unordered_set<T>& v) {
 template<typename K, typename V>
 inline fastring dbg(const std::unordered_map<K, V>& v) {
     return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+// convert co::hash_map to a debug string
+template<typename K, typename V>
+inline fastring dbg(const co::hash_map<K, V>& v) {
+    return xx::dbg(v.begin(), v.end(), '{', '}');
+}
+
+inline fastring cat() { return fastring(); }
+
+// concatenate any number of elements into a string
+//   - str::cat("hello ", 23);              ==>  "hello 23"
+//   - str::cat("127.0.0.1", ':', 7777);    ==>  "127.0.0.1:7777"
+template <typename ...X>
+inline fastring cat(X&& ... x) {
+    fastring s(64);
+    xx::cat(s, std::forward<X>(x)...);
+    return s;
 }
 
 } // namespace str

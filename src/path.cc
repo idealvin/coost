@@ -9,8 +9,19 @@ fastring clean(const fastring& s) {
     size_t n = s.size();
 
     bool rooted = s[0] == '/';
+    size_t beg = rooted ? 1 : 0;
     size_t p = rooted ? 1 : 0;      // index for string r
     size_t dotdot = rooted ? 1 : 0; // index where .. must stop
+
+  #ifdef _WIN32
+    if (!rooted && s.size() > 2 && s[1] == ':' && s[2] == '/'){
+        const char c = s[0];
+        if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
+            rooted = true;
+            beg = p = dotdot = 3;
+        }
+    }
+  #endif
 
     for (size_t i = p; i < n;) {
         if (s[i] == '/' || (s[i] == '.' && (i+1 == n || s[i+1] == '/'))) {
@@ -35,12 +46,12 @@ fastring clean(const fastring& s) {
 
         } else {
             // real path element, add slash if needed
-            if ((rooted && p != 1) || (!rooted && p != 0)) {
+            if ((rooted && p != beg) || (!rooted && p != 0)) {
                 r[p++] = '/';
             }
 
             // copy element until the next /
-            for (; i < n && s[i] != '/'; i++) {
+            for (; i < n && s[i] != '/'; ++i) {
                 r[p++] = s[i];
             }
         }
@@ -54,14 +65,24 @@ fastring base(const fastring& s) {
     if (s.empty()) return fastring(1, '.');
 
     size_t p = s.size();
-    for (; p > 0; p--) {
+    for (; p > 0; --p) {
         if (s[p - 1] != '/') break;
     }
     if (p == 0) return fastring(1, '/');
+  #ifdef _WIN32
+    if (p == 2 && s[1] == ':') {
+        const char c = s[0];
+        if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
+            return s.substr(0, s.size() > 2 ? 3 : 2);
+        }
+    }
+  #endif
 
-    fastring x = (p == s.size() ? s : s.substr(0, p));
-    size_t c = x.rfind('/');
-    return c != x.npos ? x.substr(c + 1) : x;
+    size_t e = p;
+    for (; p > 0; --p) {
+        if (s[p - 1] == '/') break;
+    }
+    return s.substr(p, e - p);
 }
 
 fastring ext(const fastring& s) {

@@ -1,34 +1,59 @@
 #include "co/json.h"
+#include "co/cout.h"
+#include "co/flag.h"
 #include "co/time.h"
-#include "co/log.h"
+#include "co/defer.h"
 
 DEF_uint32(n, 64, "string length for this test");
 
-int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    log::init();
-
+Json f() {
     Json v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
 
-    json::Value a = v.add_array("num");
+    json::Json a;
     a.push_back(1);
     a.push_back(2);
     a.push_back(3);
+    v.add_member("num", a);
 
-    json::Value o = v.add_object("o");
+    json::Json o;
     o.add_member("o1", 3.14);
     o.add_member("o2", fastring(FLG_n, 'o'));
-    json::Value o3 = o.add_array("o3");
+    json::Json o3;
     o3.push_back(1);
     o3.push_back(2);
     o3.push_back(3);
+    o.add_member("o3", o3);
+    v.add_member("o", o);
 
-    fastring s = v.str();
+    return v;
+}
+
+Json g() {
+    Json v = {
+        { "name", "vin" },
+        { "age", 23 },
+        { "num", {1, 2, 3} },
+        { "o", {
+            { "o1", 3.14 },
+            { "o2", fastring(FLG_n, 'o') },
+            { "o3", { 1, 2, 3 } }
+        }}
+    };
+    return v;
+}
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+
+    auto u = f();
+    auto v = g();
+    fastring s = u.str();
     COUT << s;
+    COUT << v.str();
 
-    Json u = json::parse(s.data(), s.size());
+    u = json::parse(s.data(), s.size());
     if (!u.is_object()) {
         COUT << "parse error..";
         return -1;
@@ -36,12 +61,10 @@ int main(int argc, char** argv) {
 
     COUT << u.str();
     COUT << u.pretty();
+    COUT << "u[\"num\"][0] = " << u.get("num", 0);
+    COUT << "u[\"o\"][\"o3\"][1] = " << u.get("o", "o3", 1);
 
-    if (u.has_member("name")) {
-        COUT << "name: " << u["name"].get_string();
-    }
-
-    int n = 100000;
+    int n = 10000;
     COUT << "s.size(): " << s.size();
 
     int64 beg = now::us();

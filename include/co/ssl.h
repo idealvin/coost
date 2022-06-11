@@ -1,5 +1,7 @@
 #pragma once
 
+#include "def.h"
+
 namespace ssl {
 
 typedef void S; // SSL
@@ -20,7 +22,7 @@ typedef void C; // SSL_CTX
  * 
  * @return   a pointer to the error message.
  */
-const char* strerror(S* s=0);
+__coapi const char* strerror(S* s = 0);
 
 /**
  * create a SSL_CTX
@@ -29,7 +31,7 @@ const char* strerror(S* s=0);
  * 
  * @return   a pointer to SSL_CTX on success, NULL on error.
  */
-C* new_ctx(char c);
+__coapi C* new_ctx(char c);
 
 /**
  * create a SSL_CTX for server
@@ -50,7 +52,7 @@ inline C* new_client_ctx() { return new_ctx('c'); }
  * 
  * @param c  a pointer to SSL_CTX
  */
-void free_ctx(C* c);
+__coapi void free_ctx(C* c);
 
 /**
  * wrapper for SSL_new
@@ -60,14 +62,14 @@ void free_ctx(C* c);
  * 
  * @return   a pointer to SSL on success, NULL on error.
  */
-S* new_ssl(C* c);
+__coapi S* new_ssl(C* c);
 
 /**
  * wrapper for SSL_free 
  * 
  * @param s  a pointer to SSL
  */
-void free_ssl(S* s);
+__coapi void free_ssl(S* s);
 
 /**
  * wrapper for SSL_set_fd 
@@ -78,7 +80,7 @@ void free_ssl(S* s);
  * 
  * @return    1 on success, 0 on error.
  */
-int set_fd(S* s, int fd);
+__coapi int set_fd(S* s, int fd);
 
 /**
  * wrapper for SSL_get_fd 
@@ -88,7 +90,7 @@ int set_fd(S* s, int fd);
  * 
  * @return   a socket fd >= 0 on success, or -1 on error.
  */
-int get_fd(const S* s);
+__coapi int get_fd(const S* s);
 
 /**
  * wrapper for SSL_CTX_use_PrivateKey_file 
@@ -98,7 +100,7 @@ int get_fd(const S* s);
  * 
  * @return      1 on success, otherwise failed.
  */
-int use_private_key_file(C* c, const char* path);
+__coapi int use_private_key_file(C* c, const char* path);
 
 /**
  * wrapper for SSL_CTX_use_certificate_file 
@@ -108,7 +110,7 @@ int use_private_key_file(C* c, const char* path);
  * 
  * @return      1 on success, otherwise failed.
  */
-int use_certificate_file(C* c, const char* path);
+__coapi int use_certificate_file(C* c, const char* path);
 
 /**
  * wrapper for SSL_CTX_check_private_key 
@@ -118,7 +120,7 @@ int use_certificate_file(C* c, const char* path);
  * 
  * @return   1 on success, otherwise failed.
  */
-int check_private_key(const C* c);
+__coapi int check_private_key(const C* c);
 
 /**
  * shutdown a ssl connection 
@@ -138,7 +140,7 @@ int check_private_key(const C* c);
  * @return    1 on success, 
  *           <0 on any error, call ssl::strerror() to get the error message. 
  */
-int shutdown(S* s, int ms=3000);
+__coapi int shutdown(S* s, int ms=3000);
 
 /**
  * wait for a TLS/SSL client to initiate a handshake 
@@ -151,7 +153,7 @@ int shutdown(S* s, int ms=3000);
  * @return    1 on success, a TLS/SSL connection has been established. 
  *          <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int accept(S* s, int ms=-1);
+__coapi int accept(S* s, int ms=-1);
 
 /**
  * initiate the handshake with a TLS/SSL server
@@ -164,7 +166,7 @@ int accept(S* s, int ms=-1);
  * @return    1 on success, a TLS/SSL connection has been established. 
  *          <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int connect(S* s, int ms=-1);
+__coapi int connect(S* s, int ms=-1);
 
 /**
  * recv data from a TLS/SSL connection 
@@ -179,7 +181,7 @@ int connect(S* s, int ms=-1);
  * @return    >0  bytes recieved. 
  *           <=0  an error occured, call ssl::strerror() to get the error message. 
  */
-int recv(S* s, void* buf, int n, int ms=-1);
+__coapi int recv(S* s, void* buf, int n, int ms=-1);
 
 /**
  * recv n bytes from a TLS/SSL connection 
@@ -195,7 +197,7 @@ int recv(S* s, void* buf, int n, int ms=-1);
  * @return     n on success (all n bytes has been recieved). 
  *           <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int recvn(S* s, void* buf, int n, int ms=-1);
+__coapi int recvn(S* s, void* buf, int n, int ms=-1);
 
 /**
  * send data on a TLS/SSL connection 
@@ -211,7 +213,7 @@ int recvn(S* s, void* buf, int n, int ms=-1);
  * @return     n on success (all n bytes has been sent out), 
  *           <=0 on any error, call ssl::strerror() to get the error message. 
  */
-int send(S* s, const void* buf, int n, int ms=-1);
+__coapi int send(S* s, const void* buf, int n, int ms=-1);
 
 /**
  * check whether a previous API call has timed out 
@@ -220,6 +222,6 @@ int send(S* s, const void* buf, int n, int ms=-1);
  * 
  * @return  true if timed out, otherwise false.
  */
-bool timeout();
+__coapi bool timeout();
 
 } // ssl

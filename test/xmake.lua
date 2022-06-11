@@ -12,6 +12,10 @@ end
 
 for _, test in ipairs(all_tests()) do
 target(test[1])
+    if test[1] == "stack" then
+        set_symbols("debug")    -- dbg symbols
+        set_optimize("none")
+    end
     set_kind("binary")
     set_default(false)
     add_deps("libco")

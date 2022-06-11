@@ -1,7 +1,3 @@
-#pragma once
-
-#if defined(_MSC_VER)
-
 /**********************************************************************
  *
  * StackWalker.h
@@ -38,23 +34,15 @@
  * **********************************************************************/
 // #pragma once is supported starting with _MSC_VER 1000,
 // so we need not to check the version (because we only support _MSC_VER >= 1100)!
-// modified by Alvin at 2019.12.02
+#pragma once
+
+#if defined(_WIN32)
 
 #include <windows.h>
 
 #if _MSC_VER >= 1900
 #pragma warning(disable : 4091)
 #endif
-
-// special defines for VC5/6 (if no actual PSDK is installed):
-#if _MSC_VER < 1300
-typedef unsigned __int64 DWORD64, *PDWORD64;
-#if defined(_WIN64)
-typedef unsigned __int64 SIZE_T, *PSIZE_T;
-#else
-typedef unsigned long SIZE_T, *PSIZE_T;
-#endif
-#endif // _MSC_VER < 1300
 
 class StackWalkerInternal; // forward
 class StackWalker
@@ -121,11 +109,7 @@ public:
 
   BOOL ShowObject(LPVOID pObject);
 
-#if _MSC_VER >= 1300
-  // due to some reasons, the "STACKWALK_MAX_NAMELEN" must be declared as "public"
-  // in older compilers in order to use it... starting with VC7 we can declare it as "protected"
 protected:
-#endif
   enum
   {
     STACKWALK_MAX_NAMELEN = 1024
@@ -199,7 +183,7 @@ protected:
 //       But I currently use it in x64/IA64 environments...
 //#if defined(_M_IX86) && (_WIN32_WINNT <= 0x0500) && (_MSC_VER < 1400)
 
-#if defined(_M_IX86)
+#if defined(_M_IX86) && !defined(__GNUC__)
 #ifdef CURRENT_THREAD_VIA_EXCEPTION
 // TODO: The following is not a "good" implementation,
 // because the callstack is only valid in the "__except" block...
@@ -249,4 +233,4 @@ protected:
   } while (0);
 #endif
 
-#endif //defined(_MSC_VER)
+#endif // _WIN32

@@ -10,7 +10,7 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <Windows.h>
+#include <windows.h>
 
 namespace co {
 namespace xx {
@@ -24,7 +24,7 @@ inline void mutex_unlock(mutex_t* m)   { LeaveCriticalSection(m); }
 
 typedef CONDITION_VARIABLE cond_t;
 inline void cond_init(cond_t* c)                        { InitializeConditionVariable(c); }
-inline void cond_destroy(cond_t* c)                     {}
+inline void cond_destroy(cond_t*)                     {}
 inline void cond_wait(cond_t* c, mutex_t* m)            { SleepConditionVariableCS(c, m, INFINITE); }
 inline bool cond_wait(cond_t* c, mutex_t* m, uint32 ms) { return SleepConditionVariableCS(c, m, ms) == TRUE; }
 inline void cond_notify(cond_t* c)                      { WakeAllConditionVariable(c); }
@@ -41,7 +41,7 @@ typedef DWORD tls_t;
 inline void tls_init(tls_t* k)        { *k = TlsAlloc(); assert(*k != TLS_OUT_OF_INDEXES); }
 inline void tls_destroy(tls_t k)      { TlsFree(k); }
 inline void* tls_get(tls_t k)         { return TlsGetValue(k); }
-inline void tls_set(tls_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); }
+inline void tls_set(tls_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r); (void)r; }
 
 } // xx
 } // co
@@ -61,8 +61,8 @@ inline void mutex_unlock(mutex_t* m)   { int r = pthread_mutex_unlock(m); assert
 inline bool mutex_try_lock(mutex_t* m) { return pthread_mutex_trylock(m) == 0; }
 
 typedef pthread_cond_t cond_t;
-void cond_init(cond_t* c);
-bool cond_wait(cond_t* c, mutex_t* m, uint32 ms);
+__coapi void cond_init(cond_t* c);
+__coapi bool cond_wait(cond_t* c, mutex_t* m, uint32 ms);
 inline void cond_destroy(cond_t* c)          { pthread_cond_destroy(c); }
 inline void cond_wait(cond_t* c, mutex_t* m) { pthread_cond_wait(c, m); }
 inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
@@ -70,7 +70,7 @@ inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
 typedef pthread_t thread_t;
 typedef void* (*thread_fun_t)(void*);
 #define _CO_DEF_THREAD_FUN(f, p) static void* f(void* p)
-uint32 thread_id();
+__coapi uint32 thread_id();
 inline void thread_start(thread_t* t, thread_fun_t f, void* p) { int r = pthread_create(t, 0, f, p); assert(r == 0); }
 inline void thread_join(thread_t t)                            { pthread_join(t, 0); }
 inline void thread_detach(thread_t t)                          { pthread_detach(t); }
@@ -86,7 +86,7 @@ inline void tls_set(tls_t k, void* v) { int r = pthread_setspecific(k, v); asser
 
 #endif
 
-class Mutex {
+class __coapi Mutex {
   public:
     Mutex() {
         co::xx::mutex_init(&_mutex);
@@ -117,7 +117,7 @@ class Mutex {
     DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
-class MutexGuard {
+class __coapi MutexGuard {
   public:
     explicit MutexGuard(Mutex& lock) : _lock(lock) {
         _lock.lock();
@@ -136,7 +136,7 @@ class MutexGuard {
     DISALLOW_COPY_AND_ASSIGN(MutexGuard);
 };
 
-class SyncEvent {
+class __coapi SyncEvent {
   public:
     explicit SyncEvent(bool manual_reset = false, bool signaled = false)
         : _counter(0), _manual_reset(manual_reset), _signaled(signaled) {
@@ -204,7 +204,7 @@ class SyncEvent {
 //
 // run independently from thread object:
 //   Thread(f).detach();                 // void f();
-class Thread {
+class __coapi Thread {
   public:
     // @cb is not saved in this thread object, but passed directly to the
     // thread function, so it can run independently from the thread object.
@@ -253,10 +253,17 @@ class Thread {
     }
 };
 
-inline uint32 current_thread_id() {
+namespace co {
+inline uint32 thread_id() {
     static __thread uint32 id = 0;
     if (id != 0) return id;
     return id = co::xx::thread_id();
+}
+} // co
+
+// deprecated since v2.0.2, use co::thread_id() instead.
+inline uint32 current_thread_id() {
+    return co::thread_id();
 }
 
 // thread_ptr is based on TLS. Each thread sets and holds its own pointer.

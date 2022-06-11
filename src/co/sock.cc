@@ -9,6 +9,10 @@ void set_nonblock(sock_t fd) {
     CO_RAW_API(fcntl)(fd, F_SETFL, CO_RAW_API(fcntl)(fd, F_GETFL) | O_NONBLOCK);
 }
 
+void set_cloexec(sock_t fd) {
+    fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+}
+
 #ifdef SOCK_NONBLOCK
 sock_t socket(int domain, int type, int protocol) {
     return CO_RAW_API(socket)(domain, type | SOCK_NONBLOCK | SOCK_CLOEXEC, protocol);
@@ -224,47 +228,8 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     } while (true);
 }
 
-namespace xx {
-
-class Error {
-  public:
-    Error() = default;
-    ~Error() = default;
-
-    struct T {
-        T() : err(4096) {}
-        fastream err;
-        std::unordered_map<int, uint32> pos;
-    };
-
-    const char* strerror(int e) {
-        if (_p == NULL) _p.reset(new T);
-        auto it = _p->pos.find(e);
-        if (it != _p->pos.end()) {
-            return _p->err.data() + it->second;
-        } else {
-            uint32 pos = (uint32) _p->err.size();
-            static ::Mutex mtx;
-            {
-                ::MutexGuard g(mtx);
-                _p->err.append(::strerror(e)).append('\0');
-            }
-            _p->pos[e] = pos;
-            return _p->err.data() + pos;
-        }
-    }
-
-  private:
-    thread_ptr<T> _p;
-};
-
-} // xx
-
-const char* strerror(int err) {
-    if (err == ETIMEDOUT) return "Timed out";
-    static xx::Error e;
-    return e.strerror(err);
-}
+void init_sock() {}
+void cleanup_sock() {}
 
 } // co
 

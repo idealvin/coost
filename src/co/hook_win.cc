@@ -1,6 +1,17 @@
 #ifdef _WIN32
-
 #include "hook.h"
+
+#ifdef _CO_DISABLE_HOOK
+namespace co {
+
+void init_hook() {}
+void cleanup_hook() {}
+void disable_hook_sleep() {}
+void enable_hook_sleep() {}
+
+} // co
+
+#else
 #include "scheduler.h"
 #include "co/co.h"
 #include "co/defer.h"
@@ -10,13 +21,11 @@
 #include "detours/detours.h"
 #include <Mswsock.h>
 
-DEF_bool(hook_log, false, "enable log for hook if true");
-DEF_bool(disable_hook_sleep, false, "disable hook sleep if true");
+DEF_bool(hook_log, false, ">>#1 enable log for hook if true");
 
 #define HOOKLOG DLOG_IF(FLG_hook_log)
 
 namespace co {
-
 extern bool can_skip_iocp_on_success;
 
 class HookCtx {
@@ -58,14 +67,14 @@ class HookCtx {
     static const uint8 f_non_sock_stream = 8;
 
     void set_shut_read() {
-        if (atomic_or(&_s.flags, f_shut_read) & f_shut_write) this->clear();
+        if (atomic_or(&_s.flags, f_shut_read, mo_acq_rel) & f_shut_write) this->clear();
     }
 
     void set_shut_write() {
-        if (atomic_or(&_s.flags, f_shut_write) & f_shut_read) this->clear();
+        if (atomic_or(&_s.flags, f_shut_write, mo_acq_rel) & f_shut_read) this->clear();
     }
 
-    void set_skip_iocp()         { atomic_or(&_s.flags, f_skip_iocp); }
+    void set_skip_iocp()         { atomic_or(&_s.flags, f_skip_iocp, mo_acq_rel); }
     bool has_skip_iocp() const   { return _s.flags & f_skip_iocp; }
     void set_non_sock_stream()   { _s.flags |= f_non_sock_stream; }
     bool is_sock_stream() const  { return !(_s.flags & f_non_sock_stream); }
@@ -87,22 +96,22 @@ class HookCtx {
 class Hook {
   public:
     // _tb(14, 17) can hold 2^31=2G sockets
-    Hook() : _tb(14, 17) {}
+    Hook() : tb(14, 17), hook_sleep(true) {}
     ~Hook() = default;
 
     HookCtx& get_hook_ctx(sock_t s) {
-        return _tb[(size_t)s];
+        return tb[(size_t)s];
     }
 
-  private:
-    Table<HookCtx> _tb;
+    bool hook_sleep;
+    co::table<HookCtx> tb;
 };
 
 } // co
 
 inline co::Hook& gHook() {
-    static co::Hook hook;
-    return hook;
+    static auto hook = co::static_new<co::Hook>();
+    return *hook;
 }
 
 extern "C" {
@@ -157,7 +166,7 @@ void WINAPI hook_Sleep(
     DWORD a0
 ) {
     HOOKLOG << "hook_Sleep: " << a0;
-    if (!co::gSched || FLG_disable_hook_sleep) return CO_RAW_API(Sleep)(a0);
+    if (!co::gSched || !gHook().hook_sleep) return CO_RAW_API(Sleep)(a0);
     co::gSched->sleep(a0);
 }
 
@@ -213,7 +222,7 @@ SOCKET WINAPI hook_WSASocketW(
 int WINAPI hook_closesocket(
     SOCKET s
 ) {
-    if (s == INVALID_SOCKET) return CO_RAW_API(closesocket)(s);
+    if (s == INVALID_SOCKET) return 0;
     gHook().get_hook_ctx(s).clear();
     HOOKLOG << "hook_closesocket, sock: " << s;
     return co::close(s);
@@ -224,16 +233,17 @@ int WINAPI hook_shutdown(
     int a1
 ) {
     HOOKLOG << "hook_shutdown, sock: " << a0 << ", " << a1;
-    if (a0 == INVALID_SOCKET) return CO_RAW_API(shutdown)(a0, a1);
+    if (a0 == INVALID_SOCKET) return 0;
 
     auto& ctx = gHook().get_hook_ctx(a0);
-    if (a1 == SD_RECEIVE) {
+    switch (a1) {
+      case SD_RECEIVE:
         ctx.set_shut_read();
         return co::shutdown(a0, 'r');
-    } else if (a1 == SD_SEND) {
+      case SD_SEND:
         ctx.set_shut_write();
         return co::shutdown(a0, 'w');
-    } else {
+      default:
         ctx.clear();
         return co::shutdown(a0, 'b');
     }
@@ -492,6 +502,7 @@ int WINAPI hook_WSAConnect(
 //  _ms:   check timeval
 //  _op:   IO operation
 #define do_hard_hook(_ctx, _s, _t, _ms, _op) \
+do { \
     if (!_ctx.has_nb_mark()) { set_non_blocking(_s, 1); _ctx.set_nb_mark(); } \
     int r; \
     uint32 ms = _ms; \
@@ -504,7 +515,8 @@ int WINAPI hook_WSAConnect(
         if (t < ms) ms = t; \
         co::gSched->sleep(ms); \
         if (t != (uint32)-1) t -= ms; \
-    }
+    } \
+} while (0)
 
 // As we use a shared stack for coroutines in the same thread, we MUST NOT pass 
 // a buffer on the stack to IOCP.
@@ -515,10 +527,10 @@ static LPWSABUF check_wsabufs(LPWSABUF p, DWORD n, int do_memcpy) {
     }
     if (!on_stack) return p;
 
-    LPWSABUF x = (LPWSABUF) malloc(sizeof(WSABUF) * n);
+    LPWSABUF x = (LPWSABUF) co::alloc(sizeof(WSABUF) * n);
     for (DWORD i = 0; i < n; ++i) {
         if (co::gSched->on_stack(p[i].buf)) {
-            x[i].buf = (char*) malloc(p[i].len);
+            x[i].buf = (char*) co::alloc(p[i].len);
             if (do_memcpy) memcpy(x[i].buf, p[i].buf, p[i].len);
         } else {
             x[i].buf = p[i].buf;
@@ -531,11 +543,11 @@ static LPWSABUF check_wsabufs(LPWSABUF p, DWORD n, int do_memcpy) {
 static void clean_wsabufs(LPWSABUF x, LPWSABUF p, DWORD n, int do_memcpy) {
     for (DWORD i = 0; i < n; ++i) {
         if (x[i].buf != p[i].buf) {
-            if (do_memcpy) memcpy(p[i].buf, x[i].buf, p[i].len);
-            free(x[i].buf);
+            if (do_memcpy) memcpy(p[i].buf, x[i].buf, x[i].len);
+            co::free(x[i].buf, x[i].len);
         }
     }
-    free(x);
+    co::free(x, sizeof(WSABUF) * n);
 }
 
 int WINAPI hook_recv(
@@ -651,7 +663,7 @@ int WINAPI hook_recvfrom(
 
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.recv_timeout())) return -1;
         } else {
             return -1;
@@ -753,7 +765,7 @@ int WINAPI hook_send(
         int r = CO_RAW_API(WSASend)(a0, &ev->buf, 1, &ev->n, a3, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.send_timeout())) return -1;
         } else {
             return -1;
@@ -827,7 +839,7 @@ int WINAPI hook_sendto(
         int r = CO_RAW_API(WSASendTo)(a0, &ev->buf, 1, &ev->n, a3, a4, a5, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
-        } else if (co::error() == WSA_IO_PENDING) {
+        } else if (WSAGetLastError() == WSA_IO_PENDING) {
             if (!ev.wait(ctx.send_timeout())) return -1;
         } else {
             return -1;
@@ -890,16 +902,16 @@ static LPWSAMSG check_wsamsg(LPWSAMSG p, char c, int do_memcpy) {
     auto buf = check_wsabufs(p->lpBuffers, p->dwBufferCount, do_memcpy);
     if (!mos && !cos && buf == p->lpBuffers && (!aos || c == 's')) return p;
 
-    LPWSAMSG x = (LPWSAMSG) malloc(sizeof(*p));
+    LPWSAMSG x = (LPWSAMSG) co::alloc(sizeof(*p));
     memcpy(x, p, sizeof(*p));
 
     if (c == 'r' && aos) {
-        x->name = (LPSOCKADDR) calloc(1, sizeof(SOCKADDR_STORAGE));
+        x->name = (LPSOCKADDR) co::alloc(sizeof(SOCKADDR_STORAGE));
         x->namelen = sizeof(SOCKADDR_STORAGE);
     }
 
     if (cos) {
-        x->Control.buf = (char*) malloc(x->Control.len);
+        x->Control.buf = (char*) co::alloc(p->Control.len);
         if (do_memcpy) memcpy(x->Control.buf, p->Control.buf, p->Control.len);
     }
 
@@ -910,18 +922,21 @@ static LPWSAMSG check_wsamsg(LPWSAMSG p, char c, int do_memcpy) {
 static void clean_wsamsg(LPWSAMSG x, LPWSAMSG p, int do_memcpy) {
     if (x->name != p->name) {
         if (do_memcpy && x->namelen <= p->namelen) memcpy(p->name, x->name, x->namelen);
-        p->namelen = x->namelen;
-        free(x->name);
+        co::free(x->name, sizeof(SOCKADDR_STORAGE));
     }
+    p->namelen = x->namelen;
 
     if (x->Control.buf != p->Control.buf) {
-        if (do_memcpy) memcpy(p->Control.buf, x->Control.buf, p->Control.len);
-        free(x->Control.buf);
+        if (do_memcpy) memcpy(p->Control.buf, x->Control.buf, x->Control.len);
+        co::free(x->Control.buf, p->Control.len);
     }
+    p->Control.len = x->Control.len;
 
     if (x->lpBuffers != p->lpBuffers) {
         clean_wsabufs(x->lpBuffers, p->lpBuffers, p->dwBufferCount, do_memcpy);
     }
+
+    co::free(x, sizeof(*p));
 }
 
 int WINAPI hook_WSARecvMsg(
@@ -1036,12 +1051,20 @@ int WINAPI hook_select(
     int r;
     uint32 ms = 16;
     struct timeval tv = { 0, 0 };
+    fd_set s[3];
+    if (a1) s[0] = *a1;
+    if (a2) s[1] = *a2;
+    if (a3) s[2] = *a3;
+
     while (true) {
         r = CO_RAW_API(select)(a0, a1, a2, a3, &tv);
         if (r != 0 || t == 0) return r;
         if (t < ms) ms = t;
         co::gSched->sleep(ms);
         if (t != (uint32)-1) t -= ms;
+        if (a1) *a1 = s[0];
+        if (a2) *a2 = s[1];
+        if (a3) *a3 = s[2];
     }
 }
 
@@ -1180,6 +1203,10 @@ WSASendMsg_fp_t get_WSASendMsg_fp() {
     return fp;
 }
 
+} // extern "C"
+
+namespace co {
+
 inline void detour_attach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
     LONG l = DetourAttach(ppbReal, pbMine);
     CHECK_EQ(l, 0) << "detour attach failed: " << psz;
@@ -1190,14 +1217,14 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
     CHECK_EQ(l, 0) << "detour detach failed: " << psz;
 }
 
-#define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), hook_##x, #x)
-#define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), hook_##x, #x)
+#define attach_hook(x)  detour_attach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
+#define detach_hook(x)  detour_detach(&(PVOID&)CO_RAW_API(x), (PVOID)hook_##x, #x)
 
-void co_attach_hooks() {
+void init_hook() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     attach_hook(Sleep);
-    //attach_hook(socket);
+    attach_hook(socket);
     attach_hook(WSASocketA);
     attach_hook(WSASocketW);
     attach_hook(closesocket);
@@ -1229,11 +1256,11 @@ void co_attach_hooks() {
     DetourTransactionCommit();
 }
 
-void co_detach_hooks() {
+void cleanup_hook() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     detach_hook(Sleep);
-    //detach_hook(socket);
+    detach_hook(socket);
     detach_hook(WSASocketA);
     detach_hook(WSASocketW);
     detach_hook(closesocket);
@@ -1265,10 +1292,20 @@ void co_detach_hooks() {
     DetourTransactionCommit();
 }
 
+void disable_hook_sleep() {
+    atomic_store(&gHook().hook_sleep, mo_release);
+}
+
+void enable_hook_sleep() {
+    atomic_swap(&gHook().hook_sleep, mo_release);
+}
+
+} // co
+
 #undef attach_hook
 #undef detach_hook
 #undef do_hard_hook
+#undef HOOKLOG
 
-} // extern "C"
-
+#endif // _CO_DISABLE_HOOK
 #endif // #ifdef _WIN32
