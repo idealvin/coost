@@ -815,6 +815,53 @@ Json& Json::get(const char* key) const {
     return xx::jalloc().null();
 }
 
+Json& Json::_set(uint32 i) {
+  beg:
+    if (this->is_null()) {
+        for (uint32 k = 0; k < i; ++k) {
+            this->push_back(Json());
+        }
+        this->push_back(Json());
+        return *(Json*)&_array()[i];
+    }
+
+    if (unlikely(!this->is_array())) {
+        this->reset();
+        goto beg;
+    }
+
+    auto& a = _array();
+    if (i < a.size()) {
+        return *(Json*)&a[i];
+    } else {
+        for (uint32 k = a.size(); k < i; ++k) {
+            this->push_back(Json());
+        }
+        this->push_back(Json());
+        return *(Json*)&_array()[i]; // don't use `a` here
+    }
+}
+
+Json& Json::_set(const char* key) {
+  beg:
+    if (this->is_null()) {
+        this->add_member(key, Json());
+        return *(Json*)&_array()[1];
+    }
+
+    if (unlikely(!this->is_object())) {
+        this->reset();
+        goto beg;
+    }
+
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (strcmp(key, it.key()) == 0) return it.value();
+    }
+
+    this->add_member(key, Json());
+    return *(Json*)&_array().back();
+}
+
 void Json::reset() {
     if (_h) {
         auto& a = xx::jalloc();

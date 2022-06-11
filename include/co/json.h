@@ -172,7 +172,7 @@ class __coapi Json {
     double as_double() const { return this->is_double() ? _h->d : 0; }
     const char* as_string() const { return this->is_string() ? _h->s : ""; }
 
-    inline Json& get() const { return *(Json*)this; }
+    Json& get() const { return *(Json*)this; }
     Json& get(uint32 i) const;
     Json& get(int i) const { return this->get((uint32)i); }
     Json& get(const char* key) const;
@@ -180,8 +180,18 @@ class __coapi Json {
     template <class T,  class ...X>
     inline Json& get(T&& v, X&& ... x) const {
         auto& r = this->get(std::forward<T>(v));
-        if (r.is_null()) return r;
-        return r.get(std::forward<X>(x)...);
+        return r.is_null() ? r : r.get(std::forward<X>(x)...);
+    }
+
+    template <class T>
+    inline Json& set(T&& v) {
+        return *this = Json(std::forward<T>(v));
+    }
+
+    template <class A, class B,  class ...X>
+    inline Json& set(A&& a, B&& b, X&& ... x) {
+        auto& r = this->_set(std::forward<A>(a));
+        return r.set(std::forward<B>(b), std::forward<X>(x)...);
     }
 
     void push_back(Json&& v) {
@@ -346,6 +356,9 @@ class __coapi Json {
     friend class Parser;
     void* _dup() const;
     xx::Array& _array() const { return *((xx::Array*)&_h->p); }
+    Json& _set(uint32 i);
+    Json& _set(int i) { return this->_set((uint32)i); }
+    Json& _set(const char* key);
     fastream& _json2str(fastream& fs, bool debug) const;
     fastream& _json2pretty(fastream& fs, int indent, int n) const;
 

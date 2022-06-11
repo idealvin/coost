@@ -294,6 +294,28 @@ DEF_test(json) {
         EXPECT(o.get("z", 3).is_null());
     }
 
+    DEF_case(set) {
+        // {"a":1,"b":[0,1,2],"c":{"d":["oo"]}}
+        Json x;
+        x.set("a", 1);
+        x.set("b", Json({ 0,1,2 }));
+        x.set("c", "d", 0, "oo");
+        EXPECT_EQ(x.get("a").as_int(), 1);
+        EXPECT_EQ(x.get("b", 0).as_int(), 0);
+        EXPECT_EQ(x.get("b", 2).as_int(), 2);
+        EXPECT(x.get("c", "d", 0) == "oo");
+
+        x.set("a", false);
+        EXPECT_EQ(x.get("a").as_bool(), false);
+
+        x.set("b", 3);
+        EXPECT_EQ(x.get("b").as_int(), 3);
+
+        x.set("a", 1, 23);
+        EXPECT(x.get("a", 0).is_null());
+        EXPECT_EQ(x.get("a", 1).as_int(), 23);
+    }
+
     DEF_case(iterator) {
         Json v;
         EXPECT(v.begin() == v.end());
