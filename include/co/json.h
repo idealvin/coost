@@ -34,7 +34,6 @@ class Array {
     }
 
     T* data() const { return _h->p; }
-    //uint32 capicity() const { return _h->cap; }
     uint32 size() const { return _h->size; }
     bool empty() const { return this->size() == 0; }
     void resize(uint32 n) { _h->size = n; }
@@ -44,8 +43,8 @@ class Array {
 
     void push_back(T v) {
         if (_h->size == _h->cap) {
-            const uint32 n = sizeof(T) * _h->cap;
-            const uint32 o = sizeof(_H) + n;
+            const size_t n = sizeof(T) * _h->cap;
+            const size_t o = sizeof(_H) + n;
             _h = (_H*) co::realloc(_h, o, o + n); assert(_h);
             _h->cap <<= 1;
         }
