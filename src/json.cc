@@ -739,8 +739,10 @@ fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
                 ((Json*)&a[i + 1])->_json2pretty(fs, indent, n + indent) << ',';
             }
         }
-        if (fs.back() == ',') fs.back() = '\n';
-        if (n > indent) fs.append(n - indent, ' ');
+        if (fs.back() == ',') {
+            fs.back() = '\n';
+            if (n > indent) fs.append(n - indent, ' ');
+        }
         fs << '}';
         break;
       }
@@ -754,8 +756,10 @@ fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
                 ((Json*)&a[i])->_json2pretty(fs, indent, n + indent) << ',';
             }
         }
-        if (fs.back() == ',') fs.back() = '\n';
-        if (n > indent) fs.append(n - indent, ' ');
+        if (fs.back() == ',') {
+            fs.back() = '\n';
+            if (n > indent) fs.append(n - indent, ' ');
+        }
         fs << ']';
         break;
       }
