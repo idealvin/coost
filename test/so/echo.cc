@@ -3,14 +3,14 @@
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
 DEF_int32(c, 0, "client num");
-DEF_int32(b, 4096, "body size");
-DEF_int32(n, 1000000, "package number for each client");
+DEF_int32(l, 4096, "message length");
+DEF_int32(t, 60, "test time in seconds");
 
 void conn_cb(tcp::Connection conn) {
-    fastream buf(FLG_b);
+    fastream buf(FLG_l);
 
     while (true) {
-        int r = conn.recvn(&buf[0], FLG_b);
+        int r = conn.recvn(&buf[0], FLG_l);
         if (r == 0) {         /* client close the connection */
             conn.close();
             break;
@@ -18,7 +18,7 @@ void conn_cb(tcp::Connection conn) {
             conn.reset(3000);
             break;
         } else {
-            r = conn.send(buf.data(), FLG_b);
+            r = conn.send(buf.data(), FLG_l);
             if (r <= 0) {
                 conn.reset(3000);
                 break;
@@ -27,25 +27,35 @@ void conn_cb(tcp::Connection conn) {
     }
 }
 
-void client_fun() {
+bool g_stop = false;
+struct Count {
+    uint32 r;
+    uint32 s;
+};
+Count* g_count;
+
+void client_fun(int i) {
     tcp::Client c(FLG_ip.c_str(), FLG_port, false);
     if (!c.connect(3000)) return;
 
-    fastring buf(FLG_b, 'x');
+    fastring buf(FLG_l, 'x');
+    auto& count = g_count[i];
 
-    for (int i = 0; i < FLG_n; ++i) {
-        int r = c.send(buf.data(), FLG_b);
+    while (!g_stop) {
+        int r = c.send(buf.data(), FLG_l);
         if (r <= 0) {
             break;
         }
+        ++count.s;
 
-        r = c.recvn(&buf[0], FLG_b);
+        r = c.recvn(&buf[0], FLG_l);
         if (r < 0) {
             break;
         } else if (r == 0) {
             LOG << "server close the connection";
             break;
         } 
+        ++count.r;
     }
 
     c.close();
@@ -60,10 +70,27 @@ int main(int argc, char** argv) {
         );
         while (true) sleep::sec(102400);
     } else {
+        g_count = (Count*) co::zalloc(sizeof(Count) * FLG_c);
         for (int i = 0; i < FLG_c; ++i) {
-            go(client_fun);
+            go(client_fun, i);
         }
-        while (true) sleep::sec(102400);
+
+        sleep::sec(FLG_t);
+        atomic_store(&g_stop, true);
+        sleep::sec(3);
+
+        size_t rsum = 0;
+        size_t ssum = 0;
+        for (int i = 0; i < FLG_c; ++i) {
+            rsum += g_count[i].r;
+            ssum += g_count[i].s;
+        }
+
+        COUT << "Speed: "
+             << (ssum / FLG_t) << " request/sec, "
+             << (rsum / FLG_t) << " response/sec";
+        COUT << "Requests: " << ssum;
+        COUT << "Responses: " << rsum;
     }
 
     return 0;
