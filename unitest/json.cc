@@ -314,6 +314,12 @@ DEF_test(json) {
         x.set("a", 1, 23);
         EXPECT(x.get("a", 0).is_null());
         EXPECT_EQ(x.get("a", 1).as_int(), 23);
+
+        x.set("a", 0, 7);
+        EXPECT_EQ(x.get("a", 0).as_int(), 7);
+        x.set("a", 3, 88);
+        EXPECT(x.get("a", 2).is_null());
+        EXPECT_EQ(x.get("a", 3).as_int(), 88);
     }
 
     DEF_case(iterator) {
