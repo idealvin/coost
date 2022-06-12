@@ -7,6 +7,7 @@ namespace xx {
 class Alloc {
   public:
     static const uint32 R = Array::R;
+    static const uint32 N = 8192;
     Alloc() : _stack(), _ustack(32), _fs(256) {}
 
     void* alloc() {
@@ -14,7 +15,7 @@ class Alloc {
     }
 
     void free(void* p) {
-        _a[0].size() < (8192 - R * 8) ? _a[0].push_back(p) : co::free(p, 16);
+        _a[0].size() < (8 * (N - R)) ? _a[0].push_back(p) : co::free(p, 16);
     }
 
     void* alloc(uint32 n) {
@@ -22,20 +23,20 @@ class Alloc {
         const uint32 x = (n - 1) >> 4;
         switch (x) {
           case 0:
-            p = !_a[0].empty() ? (void*)_a[0].pop_back() : co::alloc(n);
+            p = !_a[0].empty() ? (void*)_a[0].pop_back() : co::alloc(16);
             break;
           case 1:
-            p = !_a[1].empty() ? (void*)_a[1].pop_back() : co::alloc(n);
+            p = !_a[1].empty() ? (void*)_a[1].pop_back() : co::alloc(32);
             break;
           case 2:
           case 3:
-            p = !_a[2].empty() ? (void*)_a[2].pop_back() : co::alloc(n);
+            p = !_a[2].empty() ? (void*)_a[2].pop_back() : co::alloc(64);
             break;
           case 4:
           case 5:
           case 6:
           case 7:
-            p = !_a[3].empty() ? (void*)_a[3].pop_back() : co::alloc(n);
+            p = !_a[3].empty() ? (void*)_a[3].pop_back() : co::alloc(128);
             break;
           default:
             p = co::alloc(n);
@@ -47,20 +48,20 @@ class Alloc {
         const uint32 x = (n - 1) >> 4;
         switch (x) {
           case 0:
-            _a[0].size() < (8192 - R * 8) ? _a[0].push_back(p) : co::free(p, n);
+            _a[0].size() < (8 * (N - R)) ? _a[0].push_back(p) : co::free(p, 16);
             break;
           case 1:
-            _a[1].size() < (4096 - R * 4) ? _a[1].push_back(p) : co::free(p, n);
+            _a[1].size() < (4 * (N - R)) ? _a[1].push_back(p) : co::free(p, 32);
             break;
           case 2:
           case 3:
-            _a[2].size() < (2048 - R * 2) ? _a[2].push_back(p) : co::free(p, n);
+            _a[2].size() < (2 * (N - R)) ? _a[2].push_back(p) : co::free(p, 64);
             break;
           case 4:
           case 5:
           case 6:
           case 7:
-            _a[3].size() < (1024 - R) ? _a[3].push_back(p) : co::free(p, n);
+            _a[3].size() < (N - R) ? _a[3].push_back(p) : co::free(p, 128);
             break;
           default:
             co::free(p, n);
@@ -814,13 +815,60 @@ Json& Json::get(const char* key) const {
     return xx::jalloc().null();
 }
 
+Json& Json::_set(uint32 i) {
+  beg:
+    if (this->is_null()) {
+        for (uint32 k = 0; k < i; ++k) {
+            this->push_back(Json());
+        }
+        this->push_back(Json());
+        return *(Json*)&_array()[i];
+    }
+
+    if (unlikely(!this->is_array())) {
+        this->reset();
+        goto beg;
+    }
+
+    auto& a = _array();
+    if (i < a.size()) {
+        return *(Json*)&a[i];
+    } else {
+        for (uint32 k = a.size(); k < i; ++k) {
+            this->push_back(Json());
+        }
+        this->push_back(Json());
+        return *(Json*)&_array()[i]; // don't use `a` here
+    }
+}
+
+Json& Json::_set(const char* key) {
+  beg:
+    if (this->is_null()) {
+        this->add_member(key, Json());
+        return *(Json*)&_array()[1];
+    }
+
+    if (unlikely(!this->is_object())) {
+        this->reset();
+        goto beg;
+    }
+
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (strcmp(key, it.key()) == 0) return it.value();
+    }
+
+    this->add_member(key, Json());
+    return *(Json*)&_array().back();
+}
+
 void Json::reset() {
     if (_h) {
         auto& a = xx::jalloc();
         switch (_h->type) {
           case t_object:
             for (auto it = this->begin(); it != this->end(); ++it) {
-                a.free((void*)it.key(), (uint32)strlen(it.key()));
+                a.free((void*)it.key(), (uint32)strlen(it.key()) + 1);
                 it.value().reset();
             }
             if (_h->p) _array().~Array();
@@ -834,7 +882,7 @@ void Json::reset() {
             break;
           
           case t_string:
-            if (_h->s) a.free(_h->s, _h->size);
+            if (_h->s) a.free(_h->s, _h->size + 1);
             break;
         }
         a.free(_h);
