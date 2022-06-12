@@ -95,7 +95,6 @@ void test_ping() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    FLG_cout = true;
     FLG_ssl = !FLG_key.empty() && !FLG_ca.empty();
 
     // initialize the proto client, other client can simply copy from it.
