@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
         COUT << "minimal json file size: " << s.size();
     }
 
+    int64 us;
     double tco, tsimd, trap;
     Timer timer;
     {
@@ -37,16 +38,19 @@ int main(int argc, char** argv) {
             Json v = json::parse(s);
             COUT << v["search_metadata"]["count"].as_int() << " results.";
             COUT << v["statuses"][0]["metadata"]["result_type"].as_string();
+            { fastring xx = v.str(); }
             timer.restart();
             fastring s = v.str();
-            COUT << "co/json str() time:" << timer.us();
+            us = timer.us();
+            COUT << "co/json str() time:" << us << " us";
             COUT << "str() size: " << s.size();
         }
         timer.restart();
         for (int i = 0; i < FLG_n; ++i) {
             Json v = json::parse(s);
         }
-        COUT << "co/json parse time: " << (tco = timer.us() * 1.0 / FLG_n) << " us";
+        us = timer.us();
+        COUT << "co/json parse time: " << (tco = us * 1.0 / FLG_n) << " us";
     }
 
     {
@@ -55,9 +59,11 @@ int main(int argc, char** argv) {
             rapidjson::parse(s.c_str(), v);
             COUT << v["search_metadata"]["count"].GetInt() << " results.";
             COUT << v["statuses"][0]["metadata"]["result_type"].GetString();
+            { fastring xx = rapidjson::str(v); }
             timer.restart();
             std::string s = rapidjson::str(v);
-            COUT << "rapidjson str() time:" << timer.us();
+            us = timer.us();
+            COUT << "rapidjson str() time:" << us << " us";
             COUT << "str() size: " << s.size();
         }
         timer.restart();
@@ -65,22 +71,32 @@ int main(int argc, char** argv) {
             rapidjson::Document v;
             rapidjson::parse(s.c_str(), v);
         }
-        COUT << "rapidjson parse time: " << (timer.us() * 1.0 / FLG_n) << " us";
+        us = timer.us();
+        COUT << "rapidjson parse time: " << (us * 1.0 / FLG_n) << " us";
     }
 
     {
         {
             simdjson::dom::parser parser;
             simdjson::dom::element v;
+            simdjson::dom::element x;
             parser.parse(s.data(), s.size()).get(v);
+            parser.parse(s.data(), s.size()).get(x);
             std::cout << v["search_metadata"]["count"] << " results." << '\n';
             std::cout << v["statuses"].at(0)["metadata"]["result_type"] << '\n';
             std::cout << v["statuses"].at(0)["in_reply_to_user_id_str"] << '\n';
+
+            {
+                std::ostringstream oss;
+                oss << x;
+                std::string xx = oss.str();
+            }
             std::ostringstream oss;
             timer.restart();
             oss << v;
             std::string s = oss.str();
-            COUT << "simdjson str() time:" << timer.us();
+            us = timer.us();
+            COUT << "simdjson str() time:" << us << " us";
             COUT << "simdjson str() size: " << s.size();
         }
         timer.restart();
@@ -89,7 +105,8 @@ int main(int argc, char** argv) {
             simdjson::dom::element v;
             parser.parse(s.data(), s.size()).get(v);
         }
-        std::cout << "simdjson parse time: " << (tsimd = timer.us() * 1.0 / FLG_n) << " us" << std::endl;
+        us = timer.us();
+        std::cout << "simdjson parse time: " << (tsimd = us * 1.0 / FLG_n) << " us" << std::endl;
     }
 
     COUT << ">>> " << (tco / tsimd);
