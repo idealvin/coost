@@ -5,6 +5,7 @@
 #endif
 
 #include "fastream.h"
+#include "str.h"
 #include <initializer_list>
 
 namespace json {
@@ -165,12 +166,71 @@ class __coapi Json {
     bool is_array() const { return _h && (_h->type & t_array); }
     bool is_object() const { return _h && (_h->type & t_object); }
 
-    bool as_bool() const { return this->is_bool() ? _h->b : false; }
-    int64 as_int64() const { return this->is_int() ? _h->i : 0; }
+    // try to get a bool value
+    //   - int or double type, 0 -> false, !0 -> true
+    //   - string type, "true" or "1" -> true, otherwise -> false
+    //   - other non-bool types, -> false
+    bool as_bool() const {
+        if (_h) {
+            switch (_h->type) {
+              case t_bool:   return _h->b;
+              case t_int:    return _h->i != 0;
+              case t_string: return str::to_bool(_h->s);
+              case t_double: return _h->d != 0;
+            }
+        }
+        return false;
+    }
+
+    // try to get an integer value
+    //   - string or double type, convert to integer
+    //   - bool type, true -> 1, false -> 0
+    //   - other non-int types, -> 0
+    int64 as_int64() const {
+        if (_h) {
+            switch (_h->type) {
+              case t_int:    return _h->i;
+              case t_string: return str::to_int64(_h->s);
+              case t_double: return (int64)_h->d;
+              case t_bool:   return _h->b ? 1 : 0;
+            }
+        }
+        return 0;
+    }
+
     int32 as_int32() const { return (int32) this->as_int64(); }
     int as_int() const { return (int) this->as_int64(); }
-    double as_double() const { return this->is_double() ? _h->d : 0; }
-    const char* as_string() const { return this->is_string() ? _h->s : ""; }
+
+    // try to get a double value
+    //   - string or integer type, convert to double
+    //   - bool type, true -> 1, false -> 0
+    //   - other non-double types, -> 0
+    double as_double() const {
+        if (_h) {
+            switch (_h->type) {
+              case t_double: return _h->d;
+              case t_int:    return (double)_h->i;
+              case t_string: return str::to_double(_h->s);
+              case t_bool:   return _h->b ? 1 : 0;
+            }
+        }
+        return 0;
+    }
+
+    // returns a c-style string, null-terminated.
+    // for non-string types, returns an empty string.
+    const char* as_c_str() const {
+        return this->is_string() ? _h->s : "";
+    }
+
+    // returns a fastring.
+    // for non-string types, it is equal to Json::str().
+    fastring as_string() const {
+        if (this->is_string()) return fastring(_h->s, _h->size);
+        fastring s;
+        this->str(s);
+        return s;
+    }
 
     Json& get() const { return *(Json*)this; }
     Json& get(uint32 i) const;

@@ -119,14 +119,14 @@ void Server::exit() {
 void ServerImpl::process(Json& req, Json& res) {
     auto& x = req.get("api");
     if (x.is_string()) {
-        auto m = this->find_method(x.as_string());
+        auto m = this->find_method(x.as_c_str());
         if (m) {
             (*m)(req, res);
         } else {
             res.add_member("error", "api not found");
         }
     } else {
-        res.add_member("error", "bad req: no filed 'api'");
+        res.add_member("error", "bad req: no string filed 'api'");
     }
 }
 
