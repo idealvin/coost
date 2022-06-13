@@ -355,6 +355,14 @@ DEF_test(json) {
     DEF_case(iterator) {
         Json v;
         EXPECT(v.begin() == v.end());
+        v = 3;
+        EXPECT(v.begin() == v.end());
+        v = 3.2;
+        EXPECT(v.begin() == v.end());
+        v = false;
+        EXPECT(v.begin() == v.end());
+        v = "hello";
+        EXPECT(v.begin() == v.end());
 
         Json a;
         a.push_back(1);

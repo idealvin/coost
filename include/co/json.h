@@ -128,6 +128,7 @@ class __coapi Json {
         return *this;
     }
 
+    // after this operation, v will be moved and becomes null
     Json& operator=(Json& v) {
         return this->operator=(std::move(v));
     }
@@ -226,12 +227,13 @@ class __coapi Json {
     // returns a fastring.
     // for non-string types, it is equal to Json::str().
     fastring as_string() const {
-        if (this->is_string()) return fastring(_h->s, _h->size);
-        fastring s;
-        this->str(s);
-        return s;
+        return this->is_string() ? fastring(_h->s, _h->size) : this->str();
     }
 
+    // get Json by index or key.
+    //   - It is a read-only operation.
+    //   - If the index is not in a valid range or the key does not exist, 
+    //     the return value is a reference to a null object.
     Json& get() const { return *(Json*)this; }
     Json& get(uint32 i) const;
     Json& get(int i) const { return this->get((uint32)i); }
@@ -243,10 +245,13 @@ class __coapi Json {
         return r.is_null() ? r : r.get(std::forward<X>(x)...);
     }
 
+    // set value for Json.
+    //   - The last parameter is the value, other parameters are index or key.
+    //   - eg.
+    //     Json x;
+    //     x.set("a", "b", 0, 3);  // x-> {"a": {"b": [3]}}
     template <class T>
-    inline Json& set(T&& v) {
-        return *this = Json(std::forward<T>(v));
-    }
+    inline Json& set(T&& v) { return *this = Json(std::forward<T>(v)); }
 
     template <class A, class B,  class ...X>
     inline Json& set(A&& a, B&& b, X&& ... x) {
@@ -270,6 +275,7 @@ class __coapi Json {
         this->push_back(std::move(v));
     }
 
+    // it is better to use get() instead of this method.
     Json& operator[](uint32 i) const {
         assert(this->is_array() && !_array().empty());
         return *(Json*)&_array()[i];
@@ -378,14 +384,19 @@ class __coapi Json {
         uint32 _step;
     };
 
+    // the begin iterator.
+    //   - If Json is not array or object type, the return value is equal to the 
+    //     end iterator.
     iterator begin() const {
-        if (unlikely(!_h || !_h->p)) return iterator(0, 0, 0);
-        assert(_h->type & (t_array | t_object));
-        static_assert(t_array == 16 && t_object == 32, "");
-        auto& a = _array();
-        return iterator(a.data(), a.data() + a.size(), _h->type >> 4);
+        if (_h && _h->p && (_h->type & (t_array | t_object))) {
+            static_assert(t_array == 16 && t_object == 32, "");
+            auto& a = _array();
+            return iterator(a.data(), a.data() + a.size(), _h->type >> 4);
+        }
+        return iterator(0, 0, 0);
     }
 
+    // a fake end iterator
     const iterator::End& end() const { return iterator::end(); }
 
     // Stringify.
