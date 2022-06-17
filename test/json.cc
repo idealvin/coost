@@ -11,16 +11,16 @@ Json f() {
     v.add_member("name", "vin");
     v.add_member("age", 23);
 
-    json::Json a;
+    Json a;
     a.push_back(1);
     a.push_back(2);
     a.push_back(3);
     v.add_member("num", a);
 
-    json::Json o;
+    Json o;
     o.add_member("o1", 3.14);
     o.add_member("o2", fastring(FLG_n, 'o'));
-    json::Json o3;
+    Json o3;
     o3.push_back(1);
     o3.push_back(2);
     o3.push_back(3);
@@ -44,14 +44,30 @@ Json g() {
     return v;
 }
 
+Json h() {
+    return Json()
+        .add_member("name", "vin")
+        .add_member("age", 23)
+        .add_member("num", Json().push_back(1).push_back(2).push_back(3))
+        .add_member("o", Json()
+            .add_member("o1", 3.14)
+            .add_member("o2", fastring(FLG_n, 'o'))
+            .add_member("o3", Json()
+                .push_back(1).push_back(2).push_back(3)
+            )
+        );
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
     auto u = f();
     auto v = g();
+    auto w = h();
     fastring s = u.str();
     COUT << s;
     COUT << v.str();
+    COUT << w.str();
 
     u = json::parse(s.data(), s.size());
     if (!u.is_object()) {

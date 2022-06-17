@@ -259,7 +259,7 @@ class __coapi Json {
         return r.set(std::forward<B>(b), std::forward<X>(x)...);
     }
 
-    void push_back(Json&& v) {
+    Json& push_back(Json&& v) {
         if (_h) {
             assert(_h->type & t_array);
             if (unlikely(!_h->p)) new(&_h->p) xx::Array(8);
@@ -269,10 +269,11 @@ class __coapi Json {
         }
         _array().push_back(v._h);
         v._h = 0;
+        return *this;
     }
 
-    void push_back(Json& v) {
-        this->push_back(std::move(v));
+    Json& push_back(Json& v) {
+        return this->push_back(std::move(v));
     }
 
     // it is better to use get() instead of this method.
@@ -341,7 +342,7 @@ class __coapi Json {
         return (_h && (_h->type & t_string)) ? _h->size : 0;
     }
 
-    void add_member(const char* key, Json&& v) {
+    Json& add_member(const char* key, Json&& v) {
         if (_h) {
             assert(_h->type & t_object);
             if (unlikely(!_h->p)) new(&_h->p) xx::Array(16);
@@ -352,10 +353,12 @@ class __coapi Json {
         _array().push_back(xx::alloc_string(key, strlen(key))); // key
         _array().push_back(v._h);
         v._h = 0;
+        return *this;
     }
 
-    void add_member(const char* key, Json& v) {
+    Json& add_member(const char* key, Json& v) {
         this->add_member(key, std::move(v));
+        return *this;
     }
 
     bool has_member(const char* key) const;
