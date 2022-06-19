@@ -66,7 +66,7 @@ void f() {
 ### 3.1 co/flag
 
 [co/flag](https://cocoyaxi.github.io/en/co/flag/) is a command line and config file parser. It is similar to [gflags](https://github.com/gflags/gflags), but more powerful:
-- Support input parameters from command line and configuration file.
+- Support input parameters from command line and config file.
 - Support automatic generation of the config file.
 - Support flag aliases.
 - Flag of integer type, the value can take a unit `k,m,g,t,p`.
