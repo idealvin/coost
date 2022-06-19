@@ -249,6 +249,10 @@ DEF_test(json) {
         EXPECT_EQ(v.size(), 3);
         EXPECT_EQ(v.array_size(), 3);
         EXPECT_EQ(v.str(), "[1,\"hello\",1.23]");
+
+        v.add_member("x", 23);
+        EXPECT(v.is_object());
+        EXPECT_EQ(v["x"].as_int(), 23);
     }
 
     DEF_case(object) {
@@ -297,6 +301,11 @@ DEF_test(json) {
         o.add_member("a", a);
         EXPECT(o["a"].is_array());
         EXPECT_EQ(o["a"][0].as_int(), 1);
+
+        o.push_back(1).push_back(2).push_back(3);
+        EXPECT(o.is_array());
+        EXPECT_EQ(o.array_size(), 3);
+        EXPECT_EQ(o[1].as_int(), 2);
     }
 
     DEF_case(has_member) {

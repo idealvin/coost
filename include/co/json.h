@@ -259,11 +259,13 @@ class __coapi Json {
         return r.set(std::forward<B>(b), std::forward<X>(x)...);
     }
 
+    // push v to an array.
+    // if the Json calling this method is not an array, it will be reset to an array.
     Json& push_back(Json&& v) {
-        if (_h) {
-            assert(_h->type & t_array);
+        if (_h && (_h->type & t_array)) {
             if (unlikely(!_h->p)) new(&_h->p) xx::Array(8);
         } else {
+            this->reset();
             _h = new(xx::alloc()) _H(_arr_t());
             new(&_h->p) xx::Array(8);
         }
@@ -342,11 +344,13 @@ class __coapi Json {
         return (_h && (_h->type & t_string)) ? _h->size : 0;
     }
 
+    // push key-value to the back of an object, key may be repeated.
+    // if the Json calling this method is not an object, it will be reset to an object.
     Json& add_member(const char* key, Json&& v) {
-        if (_h) {
-            assert(_h->type & t_object);
+        if (_h && (_h->type & t_object)) {
             if (unlikely(!_h->p)) new(&_h->p) xx::Array(16);
         } else {
+            this->reset();
             _h = new(xx::alloc()) _H(_obj_t());
             new(&_h->p) xx::Array(16);
         }
@@ -362,6 +366,8 @@ class __coapi Json {
     }
 
     bool has_member(const char* key) const;
+
+    // it is better to use get(key) instead of this method.
     Json& operator[](const char* key) const;
 
     class iterator {
