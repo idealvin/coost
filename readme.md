@@ -50,238 +50,74 @@ cocoyaxi is specially sponsored by the following companies, thank you very much!
 ## 3. Core features
 
 
-### 3.1 Coroutine
-
-co has implemented a [go-style](https://github.com/golang/go) coroutine, which has the following features:
-
-- Multi-thread scheduling, the default number of threads is the number of system CPU cores.
-- Shared stack, coroutines in the same thread share several stacks (the default size is 1MB), and the memory usage is low. Simple test on Linux shows that 10 millions of coroutines only take 2.8G of memory (for reference only).
-- There is a flat relationship between coroutines, and new coroutines can be created from anywhere (including in coroutines).
-- Support system API hook (Windows/Linux/Mac), you can directly use third-party network library in coroutine.
-- Coroutineized [socket API](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api).
-- Coroutine synchronization event [co::Event](https://cocoyaxi.github.io/en/co/coroutine/#coevent).
-- Coroutine lock [co::Mutex](https://cocoyaxi.github.io/en/co/coroutine/#comutex).
-- Coroutine pool [co::Pool](https://cocoyaxi.github.io/en/co/coroutine/#copool).
-- channel [co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan).
-- waitgroup [co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup).
-
-
-#### 3.1.1 Create a coroutine
+### 3.0 God-oriented programming
 
 ```cpp
-go(ku);           // void ku();
-go(f, 7);         // void f(int);
-go(&T::f, &o);    // void T::f(); T o;
-go(&T::f, &o, 7); // void T::f(int); T o;
-go([](){
-    LOG << "hello go";
-});
-```
+#include "co/god.h"
 
-The above is an example of creating coroutines with `go()`. go() is a function that accepts 1 to 3 parameters. The first parameter `f` is any callable object, as long as `f()`, `(*f)()`, `f(p)`, `(*f)(p)`, `(o->*f)()` or `(o->*f)(p)` can be called.
-
-The coroutines created by `go()` will be evenly distributed to different scheduling threads. If you want to create coroutines in **specified scheduling thread**, you can create coroutines in the following way:
-
-```cpp
-auto s = co::next_scheduler();
-s->go(f1);
-s->go(f2);
-```
-
-If users want to create coroutine in all scheduling threads, the following way can be used:
-
-```cpp
-auto& s = co::all_schedulers();
-for (size_t i = 0; i < s.size(); ++i) {
-    s[i]->go(f);
-}
-```
-
-
-#### 3.1.2 channel
-
-[co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan), similar to the channel in golang, can be used to transfer data between coroutines.
-
-```cpp
-#include "co/co.h"
-
-DEF_main(argc, argv) {
-    co::Chan<int> ch;
-    go([ch]() { /* capture by value, rather than reference */
-        ch << 7;
-    });
-
-    int v = 0;
-    ch >> v;
-    LOG << "v: " << v;
-
-    return 0;
-}
-```
-
-When creating a channel, we can add a timeout as follows:
-
-```cpp
-co::Chan<int> ch(8, 1000);
-```
-
-After read or write operation, we can call `co::timeout()` to determine whether it has timed out. This method is simpler than the select-based implementation in golang. For detailed usage, see [Document of co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan).
-
-
-#### 3.1.3 waitgroup
-
-[co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup), similar to `sync.WaitGroup` in golang, can be used to wait for the exit of coroutines or threads.
-
-```cpp
-#include "co/co.h"
-
-DEF_main(argc, argv) {
-    FLG_cout = true;
-
-    co::WaitGroup wg;
-    wg.add(8);
-
-    for (int i = 0; i < 8; ++i) {
-        go([wg]() {
-            LOG << "co: " << co::coroutine_id();
-            wg.done();
-        });
-    }
-
-    wg.wait();
-    return 0;
-}
-```
-
-
-
-### 3.2 network programming
-
-co provides a set of coroutineized [socket APIs](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
-
-In addition, co has also implemented higher-level network programming components, including [TCP](https://cocoyaxi.github.io/en/co/net/tcp/), [HTTP](https://cocoyaxi.github.io/en/co/net/http/) and [RPC](https://cocoyaxi.github.io/en/co/net/rpc/) framework based on [JSON](https://cocoyaxi.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs. Here is just a brief demonstration of the usage of HTTP, and the rest can be seen in the documents.
-
-
-#### 3.2.1 Static web server
-
-```cpp
-#include "co/flag.h"
-#include "co/http.h"
-
-DEF_string(d, ".", "root dir"); // Specify the root directory of the web server
-
-int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    so::easy(FLG_d.c_str()); // mum never have to worry again
-    return 0;
-}
-```
-
-
-#### 3.2.2 HTTP server
-
-```cpp
-http::Server serv;
-
-serv.on_req(
-    [](const http::Req& req, http::Res& res) {
-        if (req.is_method_get()) {
-            if (req.url() == "/hello") {
-                res.set_status(200);
-                res.set_body("hello world");
-            } else {
-                res.set_status(404);
-            }
-        } else {
-            res.set_status(405); // method not allowed
-        }
-    }
-);
-
-serv.start("0.0.0.0", 80);                                    // http
-serv.start("0.0.0.0", 443, "privkey.pem", "certificate.pem"); // https
-```
-
-
-#### 3.2.3 HTTP client
-
-```cpp
 void f() {
-    http::Client c("https://github.com");
-
-    c.get("/");
-    LOG << "response code: "<< c.response_code();
-    LOG << "body size: "<< c.body_size();
-    LOG << "Content-Length: "<< c.header("Content-Length");
-    LOG << c.header();
-
-    c.post("/hello", "data xxx");
-    LOG << "response code: "<< c.response_code();
+    // 🙏
+    god::bless_no_bugs();
 }
-
-go(f);
 ```
 
 
 
-### 3.3 co/flag
+### 3.1 co/flag
 
-[co/flag](https://cocoyaxi.github.io/en/co/flag/) is a command line and config file parser similar to [google gflags](https://github.com/gflags/gflags), but more simple and easier to use. Some components in co use it to define config items.
-
-co/flag provides a default value for each config item. Without config parameters, the program can run with the default config. Users can also pass in config parameters from **command line or config file**. When a config file is needed, users can run `./exe -mkconf` to **generate a config file**.
+[co/flag](https://cocoyaxi.github.io/en/co/flag/) is a command line and config file parser. It is similar to [gflags](https://github.com/gflags/gflags), but more powerful:
+- Support input parameters from command line and configuration file.
+- Support automatic generation of the config file.
+- Support flag aliases.
+- Flag of integer type, the value can take a unit `k,m,g,t,p`.
 
 ```cpp
-// xx.cc
 #include "co/flag.h"
 #include "co/cout.h"
 
 DEF_bool(x, false, "bool x");
-DEF_bool(y, false, "bool y");
-DEF_uint32(u32, 0, "...");
+DEF_int32(i, 0, "...");
 DEF_string(s, "hello world", "string");
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-
-    COUT << "x: "<< FLG_x;
-    COUT << "y: "<< FLG_y;
-    COUT << "u32: "<< FLG_u32;
+    COUT << "x: " << FLG_x;
+    COUT << "i: " << FLG_i;
     COUT << FLG_s << "|" << FLG_s.size();
-
     return 0;
 }
 ```
 
-The above is an example of using co/flag. The macro at the beginning of `DEF_` in the code defines 4 config items. Each config item is equivalent to a global variable. The variable name is `FLG_` plus the config name. After the above code is compiled, it can be run as follows:
+In the above example, the macros start with `DEF_` define 3 flags. Each flag corresponds to a global variable, whose name is `FLG_` plus the flag name. After building, the above code can run as follows:
 
 ```sh
-./xx                  # Run with default configs
-./xx -xy -s good      # single letter named bool flags, can be set to true together
-./xx -s "I'm ok"      # string with spaces
-./xx -u32 8k          # Integers can have units: k,m,g,t,p, not case sensitive
+./xx                    # Run with default configs
+./xx -x -s good         # x = true, s = "good"
+./xx -i 4k -s "I'm ok"  # i = 4096, s = "I'm ok"
 
-./xx -mkconf          # Automatically generate a config file: xx.conf
-./xx xx.conf          # run with a config file
-./xx -config xx.conf  # Same as above
+./xx -mkconf            # Automatically generate a config file: xx.conf
+./xx xx.conf            # run with a config file
+./xx -conf xx.conf      # Same as above
 ```
 
 
 
-### 3.4 co/log
+### 3.2 co/log
 
-[co/log](https://cocoyaxi.github.io/en/co/log/) is a high-performance and memory-friendly local log library, which nearly needs no memory allocation. Some components in co will use it to print logs.
+[co/log](https://cocoyaxi.github.io/en/co/log/) is a high-performance and memory-friendly log library, which nearly needs no memory allocation.
 
-co/log divides the log into five levels: debug, info, warning, error, and fatal. **Printing a fatal level log will terminate the program**. Users can print logs of different levels as follows:
+co/log supports two types of logs: one is the level log, which divides the logs into 5 levels: debug, info, warning, error and fatal. **Printing a fatal log will terminate the program**; the other one is TLOG, logs are classified by topic, and logs of different topics are written to different files.
 
 ```cpp
-DLOG << "hello " << 23; // debug
-LOG << "hello " << 23;  // info
-WLOG << "hello " << 23; // warning
-ELOG << "hello " << 23; // error
-FLOG << "hello " << 23; // fatal
+DLOG << "hello " << 23;  // debug
+LOG << "hello " << 23;   // info
+WLOG << "hello " << 23;  // warning
+ELOG << "hello " << 23;  // error
+FLOG << "hello " << 23;  // fatal
+TLOG("xx") << "s" << 23; // topic log
 ```
 
-co/log also provides a series of `CHECK` macros, which can be regarded as an enhanced version of `assert`, and they will not be cleared in debug mode.
+co/log also provides a series of `CHECK` macros, which is an enhanced version of `assert`, and they will not be cleared in debug mode.
 
 ```cpp
 void* p = malloc(32);
@@ -304,15 +140,6 @@ co/log is very fast. The following are some test results, for reference only:
   | mac SSD | 17MB/s | 450MB/s |
   | linux SSD | 54MB/s | 1023MB/s |
 
-- [co/log vs spdlog](https://github.com/idealvin/co/tree/benchmark) (Windows)
-
-  | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
-  | ------ | ------ | ------ | ------ |
-  | 1 | 1000000 | 0.103619 | 0.482525 |
-  | 2 | 1000000 | 0.202246 | 0.565262 |
-  | 4 | 1000000 | 0.330694 | 0.722709 |
-  | 8 | 1000000 | 0.386760 | 1.322471 |
-
 - [co/log vs spdlog](https://github.com/idealvin/co/tree/benchmark) (Linux)
 
   | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
@@ -324,7 +151,7 @@ co/log is very fast. The following are some test results, for reference only:
 
 
 
-### 3.5 co/unitest
+### 3.3 co/unitest
 
 [co/unitest](https://cocoyaxi.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in co use it to write unit test code, which guarantees the stability of co.
 
@@ -347,7 +174,7 @@ DEF_test(os) {
 } // namespace test
 ```
 
-The above is a simple example. The `DEF_test` macro defines a test unit, which is actually a function (a method in a class). The `DEF_case` macro defines test cases, and each test case is actually a code block. Multiple test units can be put in the same C++ project, the main function is simple as below:
+The above is a simple example. The `DEF_test` macro defines a test unit, which is actually a function (a method in a class). The `DEF_case` macro defines test cases, and each test case is actually a code block. The main function is simple as below:
 
 ```cpp
 #include "co/unitest.h"
@@ -362,8 +189,189 @@ int main(int argc, char** argv) {
 [unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest) contains the unit test code in cocoyaxi. Users can run unitest with the following commands:
 
 ```sh
-xmake r unitest -a   # Run all test cases
+xmake r unitest      # Run all test cases
 xmake r unitest -os  # Run test cases in the os unit
+```
+
+
+
+### 3.4 JSON
+
+[co/json](https://cocoyaxi.github.io/cn/co/json/) is a fast JSON library, and it is quite easy to use.
+
+```cpp
+// {"a":23,"b":false,"s":"xx","v":[1,2,3],"o":{"xx":0}}
+Json x = {
+    { "a", 23 },
+    { "b", false },
+    { "s", "xx" },
+    { "v", {1,2,3} },
+    { "o", {
+        {"xx", 0}
+    }},
+};
+
+// equal to x
+Json y = Json()
+    .add_member("a", 23)
+    .add_member("b", false)
+    .add_member("s", "xx")
+    .add_member("v", Json().push_back(1).push_back(2).push_back(3))
+    .add_member("o", Json().add_member("xx", 0));
+
+x.get("a").as_int();       // 23
+x.get("s").as_string();    // "xx"
+x.get("v", 0).as_int();    // 1
+x.get("v", 2).as_int();    // 3
+x.get("o", "xx").as_int(); // 0
+```
+
+- [co/json vs rapidjson](https://github.com/idealvin/cocoyaxi/tree/benchmark/benchmark) (Linux)
+
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 1270 us | 2106 us | 1127 us | 1358 us |
+  | co/json | 1005 us | 920 us | 788 us | 470 us |
+
+
+
+### 3.5 Coroutine
+
+co has implemented a [go-style](https://github.com/golang/go) coroutine, which has the following features:
+
+- Support multi-thread scheduling, the default number of threads is the number of system CPU cores.
+- Shared stack, coroutines in the same thread share several stacks (the default size is 1MB), and the memory usage is low. Simple test on Linux shows that 10 millions of coroutines only take 2.8G of memory (for reference only).
+- There is a flat relationship between coroutines, and new coroutines can be created from anywhere (including in coroutines).
+- Support system API hook (Windows/Linux/Mac), you can directly use third-party network library in coroutine.
+
+- Support coroutine lock [co::Mutex](https://cocoyaxi.github.io/en/co/coroutine/#comutex), coroutine synchronization event [co::Event](https://cocoyaxi.github.io/en/co/coroutine/#coevent).
+- Support channel and waitgroup in golang: [co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan), [co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup).
+- Support coroutine pool [co::Pool](https://cocoyaxi.github.io/en/co/coroutine/#copool) (no lock, no atomic operation).
+
+
+```cpp
+#include "co/co.h"
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+
+    go(ku);            // void ku();
+    go(f, 7);          // void f(int);
+    go(&T::g, &o);     // void T::g(); T o;
+    go(&T::h, &o, 7);  // void T::h(int); T o;
+    go([](){
+        LOG << "hello go";
+    });
+
+    co::sleep(32); // sleep 32 ms
+    return 0;
+}
+```
+
+In the above code, the coroutines created by `go()` will be evenly distributed to different scheduling threads. Users can also control the scheduling of coroutines by themselves:
+
+```cpp
+// run f1 and f2 in the same scheduler
+auto s = co::next_scheduler();
+s->go(f1);
+s->go(f2);
+
+// run f in all schedulers
+for (auto& s : co::schedulers()) {
+    s->go(f);
+}
+```
+
+
+
+### 3.6 network programming
+
+co provides a set of coroutineized [socket APIs](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
+
+In addition, co has also implemented higher-level network programming components, including [TCP](https://cocoyaxi.github.io/en/co/net/tcp/), [HTTP](https://cocoyaxi.github.io/en/co/net/http/) and [RPC](https://cocoyaxi.github.io/en/co/net/rpc/) framework based on [JSON](https://cocoyaxi.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs.
+
+
+- **RPC server**
+
+```cpp
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+
+    rpc::Server()
+        .add_service(new xx::HelloWorldImpl)
+        .start("127.0.0.1", 7788, "/xx");
+
+    for (;;) sleep::sec(80000);
+    return 0;
+}
+```
+
+**co/rpc also supports HTTP protocol**, you can use the POST method to call the RPC service:
+
+```sh
+curl http://127.0.0.1:7788/xx --request POST --data '{"api":"ping"}'
+```
+
+
+- **Static web server**
+
+```cpp
+#include "co/flag.h"
+#include "co/http.h"
+
+DEF_string(d, ".", "root dir"); // docroot for the web server
+
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    so::easy(FLG_d.c_str()); // mum never have to worry again
+    return 0;
+}
+```
+
+
+- **HTTP server**
+
+```cpp
+void cb(const http::Req& req, http::Res& res) {
+    if (req.is_method_get()) {
+        if (req.url() == "/hello") {
+            res.set_status(200);
+            res.set_body("hello world");
+        } else {
+            res.set_status(404);
+        }
+    } else {
+        res.set_status(405); // method not allowed
+    }
+}
+
+// http
+http::Server().on_req(cb).start("0.0.0.0", 80);
+
+// https
+http::Server().on_req(cb).start(
+    "0.0.0.0", 443, "privkey.pem", "certificate.pem"
+);
+```
+
+
+- **HTTP client**
+
+```cpp
+void f() {
+    http::Client c("https://github.com");
+
+    c.get("/");
+    LOG << "response code: "<< c.status();
+    LOG << "body size: "<< c.body().size();
+    LOG << "Content-Length: "<< c.header("Content-Length");
+    LOG << c.header();
+
+    c.post("/hello", "data xxx");
+    LOG << "response code: "<< c.status();
+}
+
+go(f);
 ```
 
 
