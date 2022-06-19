@@ -272,7 +272,7 @@ void show_all_flags() {
 inline void show_help() {
     if (!FLG_help.empty()) {
         cout << FLG_help << endl;
-        if (FLG_help.back() != '\n') cout << '\n';
+        return;
     }
 
     cout << "usage:  " << color::blue << "$exe [-flag] [value]\n" << color::deflt
