@@ -391,7 +391,7 @@ class ClientImpl {
     }
 
     ClientImpl(const ClientImpl& c)
-        : _tcp_cli(c._tcp_cli), _user(c._user), _pass(c._pass) {
+        : _tcp_cli(c._tcp_cli) {
     }
 
     ~ClientImpl() = default;
@@ -404,11 +404,8 @@ class ClientImpl {
 
   private:
     tcp::Client _tcp_cli;
-    fastring _user;
-    fastring _pass;
     fastream _fs;
 
-    bool auth() { return true; }
     bool connect();
 };
 
@@ -438,12 +435,7 @@ void Client::ping() {
 }
 
 bool ClientImpl::connect() {
-    if (!_tcp_cli.connect(FLG_rpc_conn_timeout)) return false;
-    if (!_pass.empty() && !this->auth()) {
-        _tcp_cli.disconnect();
-        return false;
-    }
-    return true;
+    return _tcp_cli.connect(FLG_rpc_conn_timeout);
 }
 
 void ClientImpl::call(const Json& req, Json& res) {
