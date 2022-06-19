@@ -7,7 +7,7 @@ DEF_int32(x, 97, "x");
 
 void test_fun(int id) {
     int N = FLG_n;
-    co::vector<void*> v(N);
+    co::array<void*> v(N);
     fastream s(1024);
     Timer t;
     int64 us;
@@ -106,8 +106,17 @@ void test_vector() {
     int64 us;
     double avg = 0;
 
+    co::array<int> ca;
     co::vector<int> cv;
     std::vector<int> sv;
+
+    t.restart();
+    for (int i = 0; i < N; ++i) {
+        ca.push_back(i);
+    }
+    us = t.us();
+    avg = us * 1000.0 / N;
+    s << "co::array " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {

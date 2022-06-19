@@ -1,17 +1,26 @@
 #pragma once
 
-#include "mem.h"
+#include "array.h"
 #include "table.h"
-#include "vector.h"
 #include "hash/murmur_hash.h"
-#include <map>
-#include <set>
+#include <vector>
 #include <list>
 #include <deque>
+#include <map>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace co {
+
+template <class T, class Alloc = co::stl_allocator<T>>
+using vector = std::vector<T, Alloc>;
+
+template <class T, class Alloc = co::stl_allocator<T>>
+using deque = std::deque<T, Alloc>;
+
+template <class T, class Alloc = co::stl_allocator<T>>
+using list = std::list<T, Alloc>;
 
 template <class T>
 struct _Less {
@@ -21,7 +30,6 @@ struct _Less {
     }
 };
 
-// compare c-style string with strcmp
 template <>
 struct _Less<const char*> {
     bool operator()(const char* x, const char* y) const {
@@ -50,12 +58,6 @@ template <
     class K, class L = _Less<K>,
     class Alloc = co::stl_allocator<K>
 > using multiset = std::multiset<K, L, Alloc>;
-
-template <class T, class Alloc = co::stl_allocator<T>>
-using deque = std::deque<T, Alloc>;
-
-template <class T, class Alloc = co::stl_allocator<T>>
-using list = std::list<T, Alloc>;
 
 template <class T>
 struct _Hash {

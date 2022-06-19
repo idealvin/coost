@@ -3,6 +3,7 @@
 #include "co/os.h"
 #include "co/mem.h"
 #include "co/str.h"
+#include "co/array.h"
 #include "co/time.h"
 #include "co/thread.h"
 #include "../co/hook.h"
@@ -203,13 +204,13 @@ class Logger {
             LogTime log_time;
             char time_str[24];
         } v[A];
-        co::vector<PerTopic*> pts;
+        co::array<PerTopic*> pts;
         std::function<void(const char*, const void*, size_t)> write_cb;
         int write_flags;
     };
 
     void write_logs(const char* p, size_t n, LogTime* t);
-    void write_tlogs(co::vector<PerTopic*>& v, LogTime* t);
+    void write_tlogs(co::array<PerTopic*>& v, LogTime* t);
     void thread_fun();
 
   private:
@@ -398,7 +399,7 @@ void Logger::write_logs(const char* p, size_t n, LogTime* t) {
     }
 }
 
-void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
+void Logger::write_tlogs(co::array<PerTopic*>& v, LogTime* t) {
     for (size_t i = 0; i < v.size(); ++i) {
         auto pt = v[i];
         if (!_tlog.write_cb || (_tlog.write_flags & log::log2local)) {

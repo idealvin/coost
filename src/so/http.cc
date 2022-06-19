@@ -939,7 +939,7 @@ void easy(const char* root_dir, const char* ip, int port) {
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
     typedef LruMap<fastring, std::pair<fastring, int64>> Map;
-    co::vector<Map> contents(co::scheduler_num(), Map());
+    co::vector<Map> contents(co::scheduler_num());
     fastring root(path::clean(root_dir));
 
     serv.on_req(

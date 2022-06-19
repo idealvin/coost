@@ -97,8 +97,8 @@ void SchedulerImpl::resume(Coroutine* co) {
 
 void SchedulerImpl::loop() {
     gSched = this;
-    co::vector<Closure*> new_tasks;
-    co::vector<Coroutine*> ready_tasks;
+    co::array<Closure*> new_tasks;
+    co::array<Coroutine*> ready_tasks;
 
     while (!_stop) {
         int n = _epoll->wait(_wait_ms);
@@ -186,7 +186,7 @@ void SchedulerImpl::loop() {
     _ev.signal();
 }
 
-uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
+uint32 TimerManager::check_timeout(co::array<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();

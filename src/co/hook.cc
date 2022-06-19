@@ -18,7 +18,6 @@ void enable_hook_sleep() {}
 #include <stdarg.h>
 #include <errno.h>
 #include <dlfcn.h>
-#include <vector>
 
 DEF_bool(hook_log, false, ">>#1 enable log for hook");
 
@@ -104,12 +103,12 @@ inline co::Hook& gHook() {
 }
 
 inline struct hostent* gHostEnt() {
-    static auto ents = co::static_new<std::vector<struct hostent>>(co::scheduler_num());
+    static auto ents = co::static_new<co::vector<struct hostent>>(co::scheduler_num());
     return &(*ents)[co::gSched->id()];
 }
 
 inline co::Mutex& gDnsMutex_t() {
-    static auto mtxs = co::static_new<std::vector<co::Mutex>>(co::scheduler_num());
+    static auto mtxs = co::static_new<co::vector<co::Mutex>>(co::scheduler_num());
     return (*mtxs)[co::gSched->id()];
 }
 

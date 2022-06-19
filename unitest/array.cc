@@ -1,11 +1,11 @@
 #include "co/unitest.h"
-#include "co/vector.h"
+#include "co/array.h"
 
 namespace test {
 
-DEF_test(vector){
+DEF_test(array){
     DEF_case(base) {
-        co::vector<int> v;
+        co::array<int> v;
         EXPECT(v.empty());
         EXPECT_EQ(v.size(), 0);
         EXPECT_EQ(v.capacity(), 0);
@@ -18,13 +18,13 @@ DEF_test(vector){
     }
 
     DEF_case(construct_with_cap) {
-        co::vector<int> v(8);
+        co::array<int> v(8);
         EXPECT_EQ(v.size(), 0);
         EXPECT_EQ(v.capacity(), 8);
     }
 
     DEF_case(construct) {
-        co::vector<int> v(8, 7);
+        co::array<int> v(8, 7);
         EXPECT_EQ(v.size(), 8);
         EXPECT_EQ(v.capacity(), 8);
         EXPECT_EQ(v[0], 7);
@@ -32,7 +32,7 @@ DEF_test(vector){
         EXPECT_EQ(v.front(), 7);
         EXPECT_EQ(v.back(), 7);
 
-        co::vector<int> u(v);
+        co::array<int> u(v);
         EXPECT_EQ(u.size(), 8);
         EXPECT_EQ(u.capacity(), 8);
         EXPECT_EQ(u[0], 7);
@@ -51,7 +51,7 @@ DEF_test(vector){
         EXPECT_EQ(u.size(), 8);
         EXPECT_EQ(u.capacity(), 8);
 
-        co::vector<int> w(std::move(u));
+        co::array<int> w(std::move(u));
         EXPECT_EQ(u.size(), 0);
         EXPECT_EQ(u.capacity(), 0);
         EXPECT_EQ(w.size(), 8);
@@ -59,13 +59,13 @@ DEF_test(vector){
     }
 
     DEF_case(copy) {
-        co::vector<int> v = { 1, 2, 3 };
+        co::array<int> v = { 1, 2, 3 };
         EXPECT_EQ(v.size(), 3);
         EXPECT_EQ(v[0], 1);
         EXPECT_EQ(v[1], 2);
         EXPECT_EQ(v[2], 3);
 
-        co::vector<int> u(++v.begin(), v.end());
+        co::array<int> u(++v.begin(), v.end());
         EXPECT_EQ(u.size(), 2);
         EXPECT_EQ(u[0], 2);
         EXPECT_EQ(u[1], 3);
@@ -89,7 +89,7 @@ DEF_test(vector){
 
     DEF_case(modify) {
         int x[4] = { 1, 2, 3, 4 };
-        co::vector<int> v(x, 4);
+        co::array<int> v(x, 4);
         EXPECT_EQ(v.size(), 4);
         EXPECT_EQ(v[0], 1);
         EXPECT_EQ(v[1], 2);

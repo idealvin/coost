@@ -9,7 +9,7 @@ DEF_bool(go, false, "generate code for golang");
  
 void gen_cpp(
     const fastring& gen_file, const fastring& pkg, const fastring& serv, 
-    const std::vector<fastring>& methods
+    const co::vector<fastring>& methods
 ) {
     fs::fstream fs(gen_file.c_str(), 'w');
     if (!fs) {
@@ -88,7 +88,7 @@ void gen_cpp(
 // todo: support golang
 void gen_go(
     const fastring& gen_file, const fastring& pkg, const fastring& serv, 
-    const std::vector<fastring>& methods
+    const co::vector<fastring>& methods
 ) {
 }
 
@@ -112,7 +112,7 @@ void parse(const char* path) {
     fastring gen_file(fastring(b, e - b) + ".h");
     fastring pkg;
     fastring serv;
-    std::vector<fastring> methods;
+    co::vector<fastring> methods;
 
     auto s = f.read(fs::fsize(path));
     char c = '\n';

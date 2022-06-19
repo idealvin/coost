@@ -1,9 +1,7 @@
 #include "co/tasked.h"
-#include "co/mem.h"
+#include "co/array.h"
 #include "co/time.h"
 #include "co/thread.h"
-#include <assert.h>
-#include <vector>
 
 class TaskedImpl {
   public:
@@ -45,7 +43,7 @@ class TaskedImpl {
   private:
     void loop();
 
-    void clear(std::vector<Task*>& v) {
+    void clear(co::array<Task*>& v) {
         for (size_t i = 0; i < v.size(); ++i) co::del(v[i]);
         v.clear();
     }
@@ -56,8 +54,8 @@ class TaskedImpl {
     SyncEvent _ev;
     Thread _t;
 
-    std::vector<Task*> _tasks;
-    std::vector<Task*> _tmp;
+    co::array<Task*> _tasks;
+    co::array<Task*> _tmp;
 };
 
 // if @daily is false, run f() only once, otherwise run f() every day at hour:minute:second
@@ -84,7 +82,7 @@ void TaskedImpl::loop() {
     int64 ms = 0;
     int sec = 0;
     Timer t;
-    std::vector<Task*> tmp;
+    co::array<Task*> tmp;
 
     while (!_stop) {
         t.restart();
@@ -94,7 +92,7 @@ void TaskedImpl::loop() {
         }
 
         if (!tmp.empty()) {
-            _tasks.insert(_tasks.end(), tmp.begin(), tmp.end());
+            _tasks.push_back(tmp.data(), tmp.size());
             tmp.clear();
         }
 
@@ -112,8 +110,7 @@ void TaskedImpl::loop() {
                     ++i;
                 } else {
                     co::del(task);
-                    if (i != _tasks.size() - 1) _tasks[i] = _tasks.back();
-                    _tasks.pop_back();
+                    if (i != _tasks.size() - 1) _tasks[i] = _tasks.pop_back();
                 }
             } else {
                 ++i;
