@@ -702,7 +702,8 @@ ssize_t sendmsg(int fd, const struct msghdr* msg, int flags) {
 int poll(struct pollfd* fds, nfds_t nfds, int ms) {
     hook_api(poll);
 
-    int r, t = ms, x = 1, fd = nfds > 0 ? fds[0].fd : -1;
+    int r, fd = nfds > 0 ? fds[0].fd : -1;
+    uint32 t = ms < 0 ? -1 : ms, x = 1;
     if (!co::gSched || ms == 0 || nfds <= 0) {
         r = CO_RAW_API(poll)(fds, nfds, ms);
         goto end;
@@ -732,22 +733,13 @@ int poll(struct pollfd* fds, nfds_t nfds, int ms) {
     } while (0);
 
     // just check poll every x ms
-    if (t > 0) {
-        do {
-            r = CO_RAW_API(poll)(fds, nfds, 0);
-            if (r != 0 || t == 0) goto end;
-            co::gSched->sleep(t > x ? x : t);
-            t = (t > x ? t - x : 0);
-            if (x < 16) x <<= 1;
-        } while (true);
-    } else {
-        do {
-            r = CO_RAW_API(poll)(fds, nfds, 0);
-            if (r != 0) goto end;
-            co::gSched->sleep(x);
-            if (x < 16) x <<= 1;
-        } while (true);
-    }
+    do {
+        r = CO_RAW_API(poll)(fds, nfds, 0);
+        if (r != 0 || t == 0) goto end;
+        co::gSched->sleep(t > x ? x : t);
+        if (t != -1) t = (t > x ? t - x : 0);
+        if (x < 16) x <<= 1;
+    } while (true);
 
   end:
     HOOKLOG << "hook poll, nfds: " << nfds << ", fd: " << fd << ", ms: " << ms << ", r: " << r;
@@ -758,7 +750,8 @@ int select(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* tv) {
     hook_api(select);
 
     const int64 max_ms = ((uint32)-1) >> 1;
-    int r, ms = -1, t, x = 1;
+    int r, ms = -1;
+    uint32 t, x = 1;
     int64 sec, us;
 
     if (tv) {
@@ -796,31 +789,17 @@ int select(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* tv) {
         if (es) s[2] = *es;
 
         t = ms;
-        if (t > 0) {
-            do {
-                r = CO_RAW_API(select)(nfds, rs, ws, es, &o);
-                if (r != 0 || t == 0) goto end;
-                co::gSched->sleep(t > x ? x : t);
-                t = (t > x ? t - x : 0);
-                if (x < 16) x <<= 1;
-                if (rs) *rs = s[0];
-                if (ws) *ws = s[1];
-                if (es) *es = s[2];
-                o.tv_sec = o.tv_usec = 0;
-            } while (true);
-
-        } else {
-            do {
-                r = CO_RAW_API(select)(nfds, rs, ws, es, &o);
-                if (r != 0) goto end;
-                co::gSched->sleep(x);
-                if (x < 16) x <<= 1;
-                if (rs) *rs = s[0];
-                if (ws) *ws = s[1];
-                if (es) *es = s[2];
-                o.tv_sec = o.tv_usec = 0;
-            } while (true);
-        }
+        do {
+            r = CO_RAW_API(select)(nfds, rs, ws, es, &o);
+            if (r != 0 || t == 0) goto end;
+            co::gSched->sleep(t > x ? x : t);
+            if (t != -1) t = (t > x ? t - x : 0);
+            if (x < 16) x <<= 1;
+            if (rs) *rs = s[0];
+            if (ws) *ws = s[1];
+            if (es) *es = s[2];
+            o.tv_sec = o.tv_usec = 0;
+        } while (true);
     }
 
   end:
