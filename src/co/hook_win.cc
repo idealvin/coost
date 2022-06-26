@@ -304,7 +304,7 @@ int WINAPI hook_ioctlsocket(
     return r;
 }
 
-const int T = 8;
+const int T = 16;
 
 int WINAPI hook_WSAIoctl(
     SOCKET                             a0,
