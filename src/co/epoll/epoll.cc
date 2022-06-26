@@ -118,7 +118,8 @@ void Epoll::del_event(int fd) {
 
 inline void closesocket(int& fd) {
     if (fd >= 0) {
-        while (CO_RAW_API(close)(fd) != 0 && errno == EINTR);
+        // No need to handle EINTR on Linux.
+        CO_RAW_API(close)(fd);
         fd = -1;
     }
 }
@@ -143,7 +144,7 @@ void Epoll::handle_ev_pipe() {
             break;
         }
     }
-    atomic_store(&_signaled, 0, mo_release);
+    atomic_store(&_signaled, 0, mo_relaxed);
 }
 
 } // co
