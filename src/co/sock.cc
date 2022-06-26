@@ -10,7 +10,7 @@ void set_nonblock(sock_t fd) {
 }
 
 void set_cloexec(sock_t fd) {
-    fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+    CO_RAW_API(fcntl)(fd, F_SETFD, CO_RAW_API(fcntl)(fd, F_GETFD) | FD_CLOEXEC);
 }
 
 #ifdef SOCK_NONBLOCK
@@ -30,7 +30,7 @@ sock_t socket(int domain, int type, int protocol) {
 #endif
 
 int close(sock_t fd, int ms) {
-    if (fd < 0) return CO_RAW_API(close)(fd);
+    if (fd < 0) return 0;
     if (gSched) {
         gSched->del_io_event(fd);
         if (ms > 0) gSched->sleep(ms);
@@ -38,38 +38,51 @@ int close(sock_t fd, int ms) {
         co::get_sock_ctx(fd).del_event();
     }
 
+  #if defined(_hpux) || defined(__hpux)
     int r;
     while ((r = CO_RAW_API(close)(fd)) != 0 && errno == EINTR);
     return r;
+  #else
+    return CO_RAW_API(close)(fd);
+  #endif
 }
 
 int shutdown(sock_t fd, char c) {
-    if (fd < 0) return CO_RAW_API(shutdown)(fd, SHUT_RDWR);
+    if (fd < 0) return 0;
 
+    int how;
     if (gSched) {
-        if (c == 'r') {
+        switch (c) {
+          case 'r':
             gSched->del_io_event(fd, ev_read);
-            return CO_RAW_API(shutdown)(fd, SHUT_RD);
-        } else if (c == 'w') {
+            how = SHUT_RD;
+            break;
+          case 'w':
             gSched->del_io_event(fd, ev_write);
-            return CO_RAW_API(shutdown)(fd, SHUT_WR);
-        } else {
+            how = SHUT_WR;
+            break;
+          default:
             gSched->del_io_event(fd);
-            return CO_RAW_API(shutdown)(fd, SHUT_RDWR);
-        }
+            how = SHUT_RDWR;
+        } 
 
     } else {
-        if (c == 'r') {
+        switch (c) {
+          case 'r':
             co::get_sock_ctx(fd).del_ev_read();
-            return CO_RAW_API(shutdown)(fd, SHUT_RD);
-        } else if (c == 'w') {
+            how = SHUT_RD;
+            break;
+          case 'w':
             co::get_sock_ctx(fd).del_ev_write();
-            return CO_RAW_API(shutdown)(fd, SHUT_WR);
-        } else {
+            how = SHUT_WR;
+            break;
+          default:
             co::get_sock_ctx(fd).del_event();
-            return CO_RAW_API(shutdown)(fd, SHUT_RDWR);
-        }
+            how = SHUT_RDWR;
+        } 
     }
+
+    return CO_RAW_API(shutdown)(fd, how);
 }
 
 int bind(sock_t fd, const void* addr, int addrlen) {
