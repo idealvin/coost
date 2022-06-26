@@ -99,8 +99,8 @@ class Hook {
     Hook() : tb(14, 17), hook_sleep(true) {}
     ~Hook() = default;
 
-    HookCtx& get_hook_ctx(sock_t s) {
-        return tb[(size_t)s];
+    HookCtx* get_hook_ctx(sock_t s) {
+        return s != INVALID_SOCKET ? &tb[(size_t)s] : NULL;
     }
 
     bool hook_sleep;
@@ -155,9 +155,9 @@ inline void set_non_blocking(SOCKET s, u_long m) {
     CO_RAW_API(ioctlsocket)(s, FIONBIO, &m);
 }
 
-inline void set_skip_iocp(sock_t s, co::HookCtx& ctx) {
-    if (co::can_skip_iocp_on_success && !ctx.has_skip_iocp()) {
-        ctx.set_skip_iocp();
+inline void set_skip_iocp(sock_t s, co::HookCtx* ctx) {
+    if (co::can_skip_iocp_on_success && !ctx->has_skip_iocp()) {
+        ctx->set_skip_iocp();
         SetFileCompletionNotificationModes((HANDLE)s, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS);
     }
 }
@@ -176,9 +176,8 @@ SOCKET WINAPI hook_socket(
     int a2
 ) {
     SOCKET s = CO_RAW_API(socket)(a0, a1, a2);
-    if (s != INVALID_SOCKET) {
-        if (a1 != SOCK_STREAM) gHook().get_hook_ctx(s).set_non_sock_stream();
-    }
+    auto ctx = gHook().get_hook_ctx(s);
+    if (ctx && a1 != SOCK_STREAM) ctx->set_non_sock_stream();
     HOOKLOG << "hook_socket, sock: " << s;
     return s;
 }
@@ -191,13 +190,14 @@ SOCKET WINAPI hook_WSASocketA(
     GROUP               a4,
     DWORD               a5
 ) {
+    const bool ol = !!(a5 & WSA_FLAG_OVERLAPPED);
     SOCKET s = CO_RAW_API(WSASocketA)(a0, a1, a2, a3, a4, a5);
-    if (s != INVALID_SOCKET) {
-        auto& ctx = gHook().get_hook_ctx(s);
-        if (!(a5 & WSA_FLAG_OVERLAPPED)) ctx.set_non_overlapped();
-        if (a1 != SOCK_STREAM) ctx.set_non_sock_stream();
+    auto ctx = gHook().get_hook_ctx(s);
+    if (ctx) {
+        if (!ol) ctx->set_non_overlapped();
+        if (a1 != SOCK_STREAM) ctx->set_non_sock_stream();
     }
-    HOOKLOG << "hook_WSASocketA, sock: " << s << ", overlapped: " << (a5 & WSA_FLAG_OVERLAPPED);
+    HOOKLOG << "hook_WSASocketA, sock: " << s << " overlapped: " << ol;
     return s;
 }
 
@@ -209,44 +209,64 @@ SOCKET WINAPI hook_WSASocketW(
     GROUP               a4,
     DWORD               a5
 ) {
+    const bool ol = !!(a5 & WSA_FLAG_OVERLAPPED);
     SOCKET s = CO_RAW_API(WSASocketW)(a0, a1, a2, a3, a4, a5);
-    if (s != INVALID_SOCKET) {
-        auto& ctx = gHook().get_hook_ctx(s);
-        if (!(a5 & WSA_FLAG_OVERLAPPED)) ctx.set_non_overlapped();
-        if (a1 != SOCK_STREAM) ctx.set_non_sock_stream();
+    auto ctx = gHook().get_hook_ctx(s);
+    if (ctx) {
+        if (!ol) ctx->set_non_overlapped();
+        if (a1 != SOCK_STREAM) ctx->set_non_sock_stream();
     }
-    HOOKLOG << "hook_WSASocketW, sock: " << s << ", overlapped: " << (a5 & WSA_FLAG_OVERLAPPED);
+    HOOKLOG << "hook_WSASocketW, sock: " << s << " overlapped: " << ol;
     return s;
 }
 
 int WINAPI hook_closesocket(
     SOCKET s
 ) {
-    if (s == INVALID_SOCKET) return 0;
-    gHook().get_hook_ctx(s).clear();
-    HOOKLOG << "hook_closesocket, sock: " << s;
-    return co::close(s);
+    int r;
+    auto ctx = gHook().get_hook_ctx(s);
+    if (ctx) {
+        ctx->clear();
+        r = co::close(s);
+    } else {
+        WSASetLastError(WSAENOTSOCK);
+        r = SOCKET_ERROR;
+    }
+    HOOKLOG << "hook_closesocket, sock: " << s << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_shutdown(
     SOCKET a0,
     int a1
 ) {
-    HOOKLOG << "hook_shutdown, sock: " << a0 << ", " << a1;
-    if (a0 == INVALID_SOCKET) return 0;
+    if (a0 == INVALID_SOCKET) {
+        WSASetLastError(WSAENOTSOCK);
+        return SOCKET_ERROR;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
     switch (a1) {
       case SD_RECEIVE:
-        ctx.set_shut_read();
-        return co::shutdown(a0, 'r');
+        ctx->set_shut_read();
+        r = co::shutdown(a0, 'r');
+        break;
       case SD_SEND:
-        ctx.set_shut_write();
-        return co::shutdown(a0, 'w');
+        ctx->set_shut_write();
+        r = co::shutdown(a0, 'w');
+        break;
+      case SD_BOTH:
+        ctx->clear();
+        r = co::shutdown(a0, 'b');
+        break;
       default:
-        ctx.clear();
-        return co::shutdown(a0, 'b');
+        WSASetLastError(WSAEINVAL);
+        r = SOCKET_ERROR;
     }
+
+    HOOKLOG << "hook_shutdown, sock: " << a0 << " a1: " << a1 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_setsockopt(
@@ -258,14 +278,14 @@ int WINAPI hook_setsockopt(
 ) {
     int r = CO_RAW_API(setsockopt)(a0, a1, a2, a3, a4);
     if (r == 0 && a1 == SOL_SOCKET && (a2 == SO_RCVTIMEO || a2 == SO_SNDTIMEO)) {
-        auto& ctx = gHook().get_hook_ctx(a0);
-        DWORD ms = *(DWORD*)a3;
+        auto ctx = gHook().get_hook_ctx(a0);
+        const DWORD ms = *(DWORD*)a3;
         if (a2 == SO_RCVTIMEO) {
-            HOOKLOG << "hook_setsockopt, sock: " << a0 << ", recv timeout: " << ms;
-            ctx.set_recv_timeout(ms);
+            HOOKLOG << "hook_setsockopt, sock: " << a0 << " recv timeout: " << ms;
+            ctx->set_recv_timeout(ms);
         } else {
-            HOOKLOG << "hook_setsockopt, sock: " << a0 << ", send timeout: " << ms;
-            ctx.set_send_timeout(ms);
+            HOOKLOG << "hook_setsockopt, sock: " << a0 << " send timeout: " << ms;
+            ctx->set_send_timeout(ms);
         }
     }
     return r;
@@ -278,11 +298,13 @@ int WINAPI hook_ioctlsocket(
 ) {
     int r = CO_RAW_API(ioctlsocket)(a0, a1, a2);
     if (r == 0 && a1 == FIONBIO) {
-        HOOKLOG << "hook_ioctlsocket, sock: " << a0 << ", non_blocking: " << !!(*a2);
-        gHook().get_hook_ctx(a0).set_non_blocking((int)*a2);
+        gHook().get_hook_ctx(a0)->set_non_blocking((int)*a2);
+        HOOKLOG << "hook_ioctlsocket, sock: " << a0 << " non_block: " << !!(*a2);
     }
     return r;
 }
+
+const int T = 8;
 
 int WINAPI hook_WSAIoctl(
     SOCKET                             a0,
@@ -299,32 +321,30 @@ int WINAPI hook_WSAIoctl(
         int r = CO_RAW_API(WSAIoctl)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
         if (r == 0) {
             const int nb = (int)(*(u_long*)a2);
-            HOOKLOG << "hook_WSAIoctl, sock: " << a0 << ", non-blocking: " << !!nb;
-            gHook().get_hook_ctx(a0).set_non_blocking(nb);
+            gHook().get_hook_ctx(a0)->set_non_blocking(nb);
+            HOOKLOG << "hook_WSAIoctl FIONBIO, sock: " << a0 << " non_block: " << !!nb;
         }
         return r;
     }
 
-    if (!co::gSched || a0 == INVALID_SOCKET || a1 == FIONREAD || a1 == SIOCATMARK) {
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() || (ctx->is_overlapped() && a7) ||
+        a1 == FIONREAD || a1 == SIOCATMARK) {
         return CO_RAW_API(WSAIoctl)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
     }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking() || (ctx.is_overlapped() && a7)) {
-        return CO_RAW_API(WSAIoctl)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-    }
-
-    int r;
+    int r, x = 1;
     set_non_blocking(a0, 1);
     while (true) {
         r = CO_RAW_API(WSAIoctl)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
         if (r == 0) break;
         if (WSAGetLastError() != WSAEWOULDBLOCK) break;
-        WLOG_FIRST_N(8) << "hook_WSAIoctl, sock: " << a0 << ", code: " << a1 << ", EWOULDBLOCK..";
-        co::gSched->sleep(16);
+        co::gSched->sleep(x);
+        if (x < T) x <<= 1;
     }
 
     set_non_blocking(a0, 0);
+    HOOKLOG << "hook_WSAIoctl, sock: " << a0 << " r: " << r;
     return r;
 }
 
@@ -337,7 +357,7 @@ int WINAPI hook_WSAAsyncSelect(
     int r = CO_RAW_API(WSAAsyncSelect)(a0, a1, a2, a3);
     if (r == 0) {
         HOOKLOG << "hook_WSAAsyncSelect, sock: " << a0;
-        gHook().get_hook_ctx(a0).set_non_blocking(1);
+        gHook().get_hook_ctx(a0)->set_non_blocking(1);
     }
     return r;
 }
@@ -350,7 +370,7 @@ int WINAPI hook_WSAEventSelect(
     int r = CO_RAW_API(WSAEventSelect)(a0, a1, a2);
     if (r == 0) {
         HOOKLOG << "hook_WSAEventSelect, sock: " << a0;
-        gHook().get_hook_ctx(a0).set_non_blocking(1);
+        gHook().get_hook_ctx(a0)->set_non_blocking(1);
     }
     return r;
 }
@@ -360,25 +380,34 @@ SOCKET WINAPI hook_accept(
     sockaddr* a1,
     int* a2
 ) {
-    HOOKLOG << "hook_accept, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(accept)(a0, a1, a2);
+    SOCKET r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking()) {
+        r = CO_RAW_API(accept)(a0, a1, a2);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(accept)(a0, a1, a2);
-    if (ctx.is_overlapped()) return co::accept(a0, a1, a2);
+    if (ctx->is_overlapped()) {
+        r = co::accept(a0, a1, a2);
+        goto end;
+    }
 
     WLOG_FIRST_N(4) << "performance warning: accept on non-overlapped socket: " << a0;
-    if (!ctx.has_nb_mark()) { set_non_blocking(a0, 1); ctx.set_nb_mark(); }
-
-    SOCKET r;
-    uint32 ms = 16;
-    while (true) {
-        r = CO_RAW_API(accept)(a0, a1, a2);
-        if (r != INVALID_SOCKET) return r;
-        if (WSAGetLastError() != WSAEWOULDBLOCK) return r;
-        co::gSched->sleep(ms);
-        if (ms < 64) ms <<= 1;
+    if (!ctx->has_nb_mark()) { set_non_blocking(a0, 1); ctx->set_nb_mark(); }
+    {
+        uint32 x = 1;
+        while (true) {
+            r = CO_RAW_API(accept)(a0, a1, a2);
+            if (r != INVALID_SOCKET) goto end;
+            if (WSAGetLastError() != WSAEWOULDBLOCK) goto end;
+            co::gSched->sleep(x);
+            if (x < T) x <<= 1;
+        }
     }
+
+  end:
+    HOOKLOG << "hook_accept, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 SOCKET WINAPI hook_WSAAccept(
@@ -388,12 +417,17 @@ SOCKET WINAPI hook_WSAAccept(
     LPCONDITIONPROC a3,
     DWORD_PTR a4
 ) {
-    HOOKLOG << "hook_WSAAccept, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSAAccept)(a0, a1, a2, a3, a4);
+    SOCKET r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking()) {
+        r = CO_RAW_API(WSAAccept)(a0, a1, a2, a3, a4);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSAAccept)(a0, a1, a2, a3, a4);
-    if (ctx.is_overlapped() && !a3) return co::accept(a0, a1, a2);
+    if (ctx->is_overlapped() && !a3) {
+        r = co::accept(a0, a1, a2);
+        goto end;
+    }
 
     if (a3) {
         WLOG_FIRST_N(4) << "performance warning: WSAAccept with condition, sock: " << a0;
@@ -401,17 +435,21 @@ SOCKET WINAPI hook_WSAAccept(
         WLOG_FIRST_N(4) << "performance warning: WSAAccept on non-overlapped socket: " << a0;
     }
 
-    if (!ctx.has_nb_mark()) { set_non_blocking(a0, 1); ctx.set_nb_mark(); }
-
-    SOCKET r;
-    uint32 ms = 16;
-    while (true) {
-        r = CO_RAW_API(WSAAccept)(a0, a1, a2, a3, a4);
-        if (r != INVALID_SOCKET) return r;
-        if (WSAGetLastError() != WSAEWOULDBLOCK) return r;
-        co::gSched->sleep(ms);
-        if (ms < 64) ms <<= 1;
+    if (!ctx->has_nb_mark()) { set_non_blocking(a0, 1); ctx->set_nb_mark(); }
+    {
+        uint32 x = 1;
+        while (true) {
+            r = CO_RAW_API(WSAAccept)(a0, a1, a2, a3, a4);
+            if (r != INVALID_SOCKET) goto end;
+            if (WSAGetLastError() != WSAEWOULDBLOCK) goto end;
+            co::gSched->sleep(x);
+            if (x < T) x <<= 1;
+        }
     }
+
+  end:
+    HOOKLOG << "hook_WSAAccept, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_connect(
@@ -419,35 +457,45 @@ int WINAPI hook_connect(
     CONST sockaddr* a1,
     int a2
 ) {
-    HOOKLOG << "hook_connect, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(connect)(a0, a1, a2);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking()) {
+        r = CO_RAW_API(connect)(a0, a1, a2);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(connect)(a0, a1, a2);
-    if (ctx.is_overlapped()) return co::connect(a0, a1, a2, ctx.send_timeout());
+    if (ctx->is_overlapped()) {
+        r = co::connect(a0, a1, a2, ctx->send_timeout());
+        goto end;
+    }
 
     {
         WLOG_FIRST_N(4) << "performance warning: connect on non-overlapped socket: " << a0;
         set_non_blocking(a0, 1);
         defer(set_non_blocking(a0, 0));
 
-        uint32 ms = 16;
-        uint32 t = ctx.send_timeout();
-        int r = CO_RAW_API(connect)(a0, a1, a2);
-        if (r == 0 || WSAGetLastError() != WSAEWOULDBLOCK) return r;
-
         int sec = 0, len = sizeof(sec);
+        uint32 t = ctx->send_timeout(), x = 1;
+        r = CO_RAW_API(connect)(a0, a1, a2);
+        if (r == 0 || WSAGetLastError() != WSAEWOULDBLOCK) goto end;
+
         while (true) {
             r = co::getsockopt(a0, SOL_SOCKET, SO_CONNECT_TIME, &sec, &len);
-            if (r != 0) return -1;    // r == SOCKET_ERROR
-            if (sec != -1) return 0;  // connected
-            if (t == 0) { WSASetLastError(WSAETIMEDOUT); return -1; } // timeout
-            if (t < ms) ms = t;
-            co::gSched->sleep(ms);
-            if (t != (uint32)-1) t -= ms;
-            if (ms < 64) ms <<= 1;
+            if (r != 0) goto end;     // r = SOCKET_ERROR
+            if (sec != -1) goto end;  // r = 0, connected
+            if (t == 0) {
+                WSASetLastError(WSAETIMEDOUT); // timeout
+                r = -1; goto end;
+            }
+            co::gSched->sleep(t > x ? x : t);
+            if (t != (uint32)-1) t = (t > x ? t - x : 0);
+            if (x < T) x <<= 1;
         }
     }
+
+  end:
+    HOOKLOG << "hook_connect, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSAConnect(
@@ -459,15 +507,20 @@ int WINAPI hook_WSAConnect(
     LPQOS a5,
     LPQOS a6
 ) {
-    HOOKLOG << "hook_WSAConnect, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking()) {
+        r = CO_RAW_API(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
-    if (ctx.is_overlapped() && !a3 && !a4 && !a5) return co::connect(a0, a1, a2, ctx.send_timeout());
+    if (ctx->is_overlapped() && !a3 && !a4 && !a5) {
+        r = co::connect(a0, a1, a2, ctx->send_timeout());
+        goto end;
+    }
 
     {
-        if (ctx.is_non_overlapped()) {
+        if (ctx->is_non_overlapped()) {
             WLOG_FIRST_N(8) << "performance warning: WSAConnect on non-overlapped socket: " << a0;
         } else {
             WLOG_FIRST_N(8) << "performance warning: WSAConnect with extra connect data, sock: " << a0;
@@ -476,45 +529,47 @@ int WINAPI hook_WSAConnect(
         set_non_blocking(a0, 1);
         defer(set_non_blocking(a0, 0));
 
-        uint32 ms = 16;
-        uint32 t = ctx.send_timeout();
-        int r = CO_RAW_API(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
-        if (r == 0 || WSAGetLastError() != WSAEWOULDBLOCK) return r;
-
         int sec = 0, len = sizeof(sec);
+        uint32 t = ctx->send_timeout(), x = 1;
+        r = CO_RAW_API(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
+        if (r == 0 || WSAGetLastError() != WSAEWOULDBLOCK) goto end;
+
         while (true) {
             r = co::getsockopt(a0, SOL_SOCKET, SO_CONNECT_TIME, &sec, &len);
-            if (r != 0) return -1;    // r == SOCKET_ERROR
-            if (sec != -1) return 0;  // connected
-            if (t == 0) { WSASetLastError(WSAETIMEDOUT); return -1; } // timeout
-            if (t < ms) ms = t;
-            co::gSched->sleep(ms);
-            if (t != (uint32)-1) t -= ms;
-            if (ms < 64) ms <<= 1;
+            if (r != 0) goto end;     // r = SOCKET_ERROR
+            if (sec != -1) goto end;  // r = 0, connected
+            if (t == 0) {
+                WSASetLastError(WSAETIMEDOUT); // timeout
+                r = -1; goto end;
+            }
+            co::gSched->sleep(t > x ? x : t);
+            if (t != (uint32)-1) t = (t > x ? t - x : 0);
+            if (x < T) x <<= 1;
         }
     }
+
+  end:
+    HOOKLOG << "hook_WSAConnect, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 // hook IO operations on blocking and non-overlapped sockets.
 // _ctx:   hook context
 //   _s:   socket
 //   _t:   timeout
-//  _ms:   check timeval
+//  _ms:   max check timeval
 //  _op:   IO operation
 #define do_hard_hook(_ctx, _s, _t, _ms, _op) \
 do { \
-    if (!_ctx.has_nb_mark()) { set_non_blocking(_s, 1); _ctx.set_nb_mark(); } \
-    int r; \
-    uint32 ms = _ms; \
-    uint32 t = _t; \
+    if (!_ctx->has_nb_mark()) { set_non_blocking(_s, 1); _ctx->set_nb_mark(); } \
+    uint32 t = _t, x = 1; \
     while (true) { \
         r = _op; \
-        if (r >= 0) return r; \
-        if (WSAGetLastError() != WSAEWOULDBLOCK) return r; \
-        if (t == 0) { WSASetLastError(WSAETIMEDOUT); return r; } \
-        if (t < ms) ms = t; \
-        co::gSched->sleep(ms); \
-        if (t != (uint32)-1) t -= ms; \
+        if (r >= 0 || WSAGetLastError() != WSAEWOULDBLOCK) goto end; \
+        if (t == 0) { WSASetLastError(WSAETIMEDOUT); goto end; } \
+        co::gSched->sleep(t > x ? x : t); \
+        if (t != (uint32)-1) t = (t > x ? t - x : 0); \
+        if (x < _ms) x <<= 1; \
     } \
 } while (0)
 
@@ -556,32 +611,38 @@ int WINAPI hook_recv(
     int a2,
     int a3
 ) {
-    HOOKLOG << "hook_recv, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET || a2 < 0) return CO_RAW_API(recv)(a0, a1, a2, a3);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() || a2 < 0) {
+        r = CO_RAW_API(recv)(a0, a1, a2, a3);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(recv)(a0, a1, a2, a3);
-
-    if (ctx.is_overlapped()) {
+    if (ctx->is_overlapped()) {
         co::IoEvent ev(a0, co::ev_read, a1, a2);
         ev->flags = a3;
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSARecv)(a0, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
+        r = CO_RAW_API(WSARecv)(a0, &ev->buf, 1, &ev->n, &ev->flags, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (!ev.wait(ctx.recv_timeout())) return -1;
+            if (!ev.wait(ctx->recv_timeout())) goto end; // r = -1
         } else {
-            return -1;
+            goto end;
         }
 
-        return (int)ev->n;
+        r = (int)ev->n;
+        goto end;
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: recv on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.recv_timeout(), 16, CO_RAW_API(recv)(a0, a1, a2, a3));
+        do_hard_hook(ctx, a0, ctx->recv_timeout(), T, CO_RAW_API(recv)(a0, a1, a2, a3));
     }
+
+  end:
+    HOOKLOG << "hook_recv, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSARecv(
@@ -593,42 +654,46 @@ int WINAPI hook_WSARecv(
     LPWSAOVERLAPPED a5,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a6
 ) {
-    HOOKLOG << "hook_WSARecv, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a5 || !a3))) {
+        r = CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6);
-
-    if (ctx.is_overlapped()) {
-        if (a5 || !a3) return CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6);
-
+    if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 0);
         co::IoEvent ev(a0);
         if (a4) ev->flags = *a4;
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSARecv)(a0, x, a2, &ev->n, &ev->flags, &ev->ol, a6);
+        r = CO_RAW_API(WSARecv)(a0, x, a2, &ev->n, &ev->flags, &ev->ol, a6);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.recv_timeout())) r = 0;
+            if (ev.wait(ctx->recv_timeout())) r = 0;
         }
 
         if (r == 0) {
             *a3 = ev->n;
             if (a4) *a4 = ev->flags;
             if (x != a1) clean_wsabufs(x, a1, a2, 1);
-            return 0;
+            goto end;
         } else {
             *a3 = 0;
             if (x != a1) clean_wsabufs(x, a1, a2, 0);
-            return -1;
+            goto end;
         }
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSARecv on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.recv_timeout(), 16, CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6));
+        do_hard_hook(ctx, a0, ctx->recv_timeout(), T, CO_RAW_API(WSARecv)(a0, a1, a2, a3, a4, a5, a6));
     }
+
+  end:
+    HOOKLOG << "hook_WSARecv, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_recvfrom(
@@ -639,14 +704,14 @@ int WINAPI hook_recvfrom(
     sockaddr* a4,
     int* a5
 ) {
-    HOOKLOG << "hook_recvfrom, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET || a2 < 0) return CO_RAW_API(recvfrom)(a0, a1, a2, a3, a4, a5);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() || a2 < 0) {
+        r = CO_RAW_API(recvfrom)(a0, a1, a2, a3, a4, a5);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(recvfrom)(a0, a1, a2, a3, a4, a5);
-
-    if (ctx.is_overlapped()) {
-        int r;
+    if (ctx->is_overlapped()) {
         char* s = 0;
         const int N = (a4 && a5) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
         co::IoEvent ev(a0, co::ev_read, a1, a2, N);
@@ -664,9 +729,9 @@ int WINAPI hook_recvfrom(
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (!ev.wait(ctx.recv_timeout())) return -1;
+            if (!ev.wait(ctx->recv_timeout())) goto end;
         } else {
-            return -1;
+            goto end;
         }
 
         if (N > 0) {
@@ -678,8 +743,12 @@ int WINAPI hook_recvfrom(
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: recvfrom on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.recv_timeout(), 16, CO_RAW_API(recvfrom)(a0, a1, a2, a3, a4, a5));
+        do_hard_hook(ctx, a0, ctx->recv_timeout(), T, CO_RAW_API(recvfrom)(a0, a1, a2, a3, a4, a5));
     }
+
+  end:
+    HOOKLOG << "hook_recvfrom, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSARecvFrom(
@@ -693,19 +762,18 @@ int WINAPI hook_WSARecvFrom(
     LPWSAOVERLAPPED a7,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a8
 ) {
-    HOOKLOG << "hook_WSARecvFrom, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a7 || !a3))) {
+        r = CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-
-    if (ctx.is_overlapped()) {
-        if (a7 || !a3) return CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-
+    if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 0);
         const int N = (a5 && a6) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
         char* s = 0;
-        int r;
         co::IoEvent ev(a0, N);
         if (a4) ev->flags = *a4;
         set_skip_iocp(a0, ctx);
@@ -721,7 +789,7 @@ int WINAPI hook_WSARecvFrom(
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.recv_timeout())) r = 0;
+            if (ev.wait(ctx->recv_timeout())) r = 0;
         }
 
         if (r == 0) {
@@ -733,17 +801,21 @@ int WINAPI hook_WSARecvFrom(
                 *a6 = peer_len;
             }
             if (x != a1) clean_wsabufs(x, a1, a2, 1);
-            return 0;
+            goto end;
         } else {
             *a3 = 0;
             if (x != a1) clean_wsabufs(x, a1, a2, 0);
-            return -1;
+            goto end;
         }
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSARecvFrom on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.recv_timeout(), 16, CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8));
+        do_hard_hook(ctx, a0, ctx->recv_timeout(), T, CO_RAW_API(WSARecvFrom)(a0, a1, a2, a3, a4, a5, a6, a7, a8));
     }
+
+  end:
+    HOOKLOG << "hook_WSARecvFrom, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_send(
@@ -752,31 +824,37 @@ int WINAPI hook_send(
     int a2,
     int a3
 ) {
-    HOOKLOG << "hook_send, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET || a2 < 0) return CO_RAW_API(send)(a0, a1, a2, a3);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() || a2 < 0) {
+        r = CO_RAW_API(send)(a0, a1, a2, a3);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(send)(a0, a1, a2, a3);
-
-    if (ctx.is_overlapped()) {
+    if (ctx->is_overlapped()) {
         co::IoEvent ev(a0, co::ev_write, a1, a2);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSASend)(a0, &ev->buf, 1, &ev->n, a3, &ev->ol, 0);
+        r = CO_RAW_API(WSASend)(a0, &ev->buf, 1, &ev->n, a3, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (!ev.wait(ctx.send_timeout())) return -1;
+            if (!ev.wait(ctx->send_timeout())) goto end;
         } else {
-            return -1;
+            goto end;
         }
 
-        return (int) ev->n;
+        r = (int)ev->n;
+        goto end;
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: send on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.send_timeout(), 16, CO_RAW_API(send)(a0, a1, a2, a3));
+        do_hard_hook(ctx, a0, ctx->send_timeout(), T, CO_RAW_API(send)(a0, a1, a2, a3));
     }
+
+  end:
+    HOOKLOG << "hook_send, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSASend(
@@ -788,34 +866,38 @@ int WINAPI hook_WSASend(
     LPWSAOVERLAPPED a5,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a6
 ) {
-    HOOKLOG << "hook_WSASend, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a5 || !a3))) {
+        r = CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6);
-
-    if (ctx.is_overlapped()) {
-        if (a5 || !a3) return CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6);
-
+    if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 1);
         co::IoEvent ev(a0);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSASend)(a0, x, a2, &ev->n, a4, &ev->ol, a6);
+        r = CO_RAW_API(WSASend)(a0, x, a2, &ev->n, a4, &ev->ol, a6);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.send_timeout())) r = 0;
+            if (ev.wait(ctx->send_timeout())) r = 0;
         }
 
         *a3 = (r == 0 ? ev->n : 0);
         if (x != a1) clean_wsabufs(x, a1, a2, 0);
-        return r;
+        goto end;
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSASend on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.send_timeout(), 16, CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6));
+        do_hard_hook(ctx, a0, ctx->send_timeout(), T, CO_RAW_API(WSASend)(a0, a1, a2, a3, a4, a5, a6));
     }
+
+  end:
+    HOOKLOG << "hook_WSASend, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_sendto(
@@ -826,31 +908,37 @@ int WINAPI hook_sendto(
     CONST sockaddr* a4,
     int a5
 ) {
-    HOOKLOG << "hook_sendto, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET || a2 < 0) return CO_RAW_API(sendto)(a0, a1, a2, a3, a4, a5);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() || a2 < 0) {
+        r = CO_RAW_API(sendto)(a0, a1, a2, a3, a4, a5);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(sendto)(a0, a1, a2, a3, a4, a5);
-
-    if (ctx.is_overlapped()) {
+    if (ctx->is_overlapped()) {
         co::IoEvent ev(a0, co::ev_write, a1, a2);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSASendTo)(a0, &ev->buf, 1, &ev->n, a3, a4, a5, &ev->ol, 0);
+        r = CO_RAW_API(WSASendTo)(a0, &ev->buf, 1, &ev->n, a3, a4, a5, &ev->ol, 0);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (!ev.wait(ctx.send_timeout())) return -1;
+            if (!ev.wait(ctx->send_timeout())) goto end;
         } else {
-            return -1;
+            goto end;
         }
 
-        return (int)ev->n;
+        r = (int)ev->n;
+        goto end;
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: sendto on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.send_timeout(), 16, CO_RAW_API(sendto)(a0, a1, a2, a3, a4, a5));
+        do_hard_hook(ctx, a0, ctx->send_timeout(), T, CO_RAW_API(sendto)(a0, a1, a2, a3, a4, a5));
     }
+
+  end:
+    HOOKLOG << "hook_sendto, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSASendTo(
@@ -864,34 +952,38 @@ int WINAPI hook_WSASendTo(
     LPWSAOVERLAPPED a7,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a8
 ) {
-    HOOKLOG << "hook_WSASendTo, sock: " << a0 << ", n: " << a2;
-    if (!co::gSched || a0 == INVALID_SOCKET) return CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a7 || !a3))) {
+        r = CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-
-    if (ctx.is_overlapped()) {
-        if (a7 || !a3) return CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
-
+    if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 1);
         co::IoEvent ev(a0);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSASendTo)(a0, x, a2, &ev->n, a4, a5, a6, &ev->ol, a8);
+        r = CO_RAW_API(WSASendTo)(a0, x, a2, &ev->n, a4, a5, a6, &ev->ol, a8);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.send_timeout())) r = 0;
+            if (ev.wait(ctx->send_timeout())) r = 0;
         }
 
         *a3 = (r == 0 ? ev->n : 0);
         if (x != a1) clean_wsabufs(x, a1, a2, 0);
-        return r;
+        goto end;
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSASendTo on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.send_timeout(), 16, CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8));
+        do_hard_hook(ctx, a0, ctx->send_timeout(), T, CO_RAW_API(WSASendTo)(a0, a1, a2, a3, a4, a5, a6, a7, a8));
     }
+
+  end:
+    HOOKLOG << "hook_WSASendTo, sock: " << a0 << " n: " << a2 << " r: " << r;
+    return r;
 }
 
 // c: 'r' for recv, 's' for send
@@ -946,43 +1038,46 @@ int WINAPI hook_WSARecvMsg(
     LPWSAOVERLAPPED                    a3,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a4
 ) {
-    HOOKLOG << "hook_WSARecvMsg, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET || !a1
-        || (a1->name == NULL && a1->namelen != 0)
-        || (a1->Control.buf == NULL && a1->Control.len != 0)
-    ) return CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a3 || !a2)) || !a1 ||
+        (a1->name == NULL && a1->namelen != 0) ||
+        (a1->Control.buf == NULL && a1->Control.len != 0)) {
+        r = CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4);
-
-    if (ctx.is_overlapped()) {
-        if (a3 || !a2) return CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4);
-
+    if (ctx->is_overlapped()) {
         auto x = check_wsamsg(a1, 'r', 0);
         co::IoEvent ev(a0);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSARecvMsg)(a0, x, &ev->n, &ev->ol, a4);
+        r = CO_RAW_API(WSARecvMsg)(a0, x, &ev->n, &ev->ol, a4);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.recv_timeout())) r = 0;
+            if (ev.wait(ctx->recv_timeout())) r = 0;
         }
 
         if (r == 0) {
             *a2 = ev->n;
             if (x != a1) clean_wsamsg(x, a1, 1);
-            return 0;
+            goto end;
         } else {
             *a2 = 0;
             if (x != a1) clean_wsamsg(x, a1, 0);
-            return -1;
+            goto end;
         }
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSARecvMsg on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.recv_timeout(), 16, CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4));
+        do_hard_hook(ctx, a0, ctx->recv_timeout(), T, CO_RAW_API(WSARecvMsg)(a0, a1, a2, a3, a4));
     }
+
+  end:
+    HOOKLOG << "hook_WSARecvMsg, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSASendMsg(
@@ -993,43 +1088,46 @@ int WINAPI hook_WSASendMsg(
     LPWSAOVERLAPPED                    a4,
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a5
 ) {
-    HOOKLOG << "hook_WSASendMsg, sock: " << a0;
-    if (!co::gSched || a0 == INVALID_SOCKET || !a1
-        || (a1->name == NULL && a1->namelen != 0)
-        || (a1->Control.buf == NULL && a1->Control.len != 0)
-    ) return CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5);
+    int r;
+    auto ctx = gHook().get_hook_ctx(a0);
+    if (!co::gSched || !ctx || ctx->is_non_blocking() ||
+        (ctx->is_overlapped() && (a4 || !a3)) || !a1 ||
+        (a1->name == NULL && a1->namelen != 0) ||
+        (a1->Control.buf == NULL && a1->Control.len != 0)) {
+        r = CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5);
+        goto end;
+    }
 
-    auto& ctx = gHook().get_hook_ctx(a0);
-    if (ctx.is_non_blocking()) return CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5);
-
-    if (ctx.is_overlapped()) {
-        if (a4 || !a3) return CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5);
-
+    if (ctx->is_overlapped()) {
         auto x = check_wsamsg(a1, 's', 1);
         co::IoEvent ev(a0);
         set_skip_iocp(a0, ctx);
 
-        int r = CO_RAW_API(WSASendMsg)(a0, x, a2, &ev->n, &ev->ol, a5);
+        r = CO_RAW_API(WSASendMsg)(a0, x, a2, &ev->n, &ev->ol, a5);
         if (r == 0) {
             if (!co::can_skip_iocp_on_success) ev.wait();
         } else if (WSAGetLastError() == WSA_IO_PENDING) {
-            if (ev.wait(ctx.recv_timeout())) r = 0;
+            if (ev.wait(ctx->recv_timeout())) r = 0;
         }
 
         if (r == 0) {
             *a3 = ev->n;
             if (x != a1) clean_wsamsg(x, a1, 0);
-            return 0;
+            goto end;
         } else {
             *a3 = 0;
             if (x != a1) clean_wsamsg(x, a1, 0);
-            return -1;
+            goto end;
         }
 
     } else {
         WLOG_FIRST_N(8) << "performance warning: WSARecvMsg on non-overlapped socket: " << a0;
-        do_hard_hook(ctx, a0, ctx.send_timeout(), 16, CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5));
+        do_hard_hook(ctx, a0, ctx->send_timeout(), 16, CO_RAW_API(WSASendMsg)(a0, a1, a2, a3, a4, a5));
     }
+
+  end:
+    HOOKLOG << "hook_WSASendMsg, sock: " << a0 << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_select(
@@ -1039,33 +1137,55 @@ int WINAPI hook_select(
     fd_set* a3,
     const timeval* a4
 ) {
-    if (!co::gSched || (!a1 && !a2 && !a3)) return CO_RAW_API(select)(a0, a1, a2, a3, a4);
 
-    uint32 t = (uint32)-1;
+    const int64 max_ms = ((uint32)-1) >> 1;
+    int r, ms = -1, t, x = 1;
+    int64 sec, us;
+
     if (a4) {
-        const int64 us = (int64)a4->tv_sec * 1000000 + a4->tv_usec;
-        t = (us == 0 ? 0 : (us >= 1000 ? (uint32)(us / 1000) : 1));
+        sec = a4->tv_sec;
+        us = a4->tv_usec;
+        if (sec >= 0 && us >= 0) {
+            if (sec < max_ms / 1000 && us < max_ms * 1000) {
+                const int64 u = sec * 1000000 + us;
+                ms = u <= 1000 ? !!u : (u < max_ms * 1000 ? u / 1000 : max_ms);
+            } else {
+                ms = (int)max_ms;
+            }
+        }
+    } else {
+        sec = us = 0;
     }
-    HOOKLOG << "hook_select, nfds: " << a0 << ", ms: " << (int)t;
 
-    int r;
-    uint32 ms = 16;
-    struct timeval tv = { 0, 0 };
-    fd_set s[3];
-    if (a1) s[0] = *a1;
-    if (a2) s[1] = *a2;
-    if (a3) s[2] = *a3;
-
-    while (true) {
-        r = CO_RAW_API(select)(a0, a1, a2, a3, &tv);
-        if (r != 0 || t == 0) return r;
-        if (t < ms) ms = t;
-        co::gSched->sleep(ms);
-        if (t != (uint32)-1) t -= ms;
-        if (a1) *a1 = s[0];
-        if (a2) *a2 = s[1];
-        if (a3) *a3 = s[2];
+    if (!co::gSched || (!a1 && !a2 && !a3) || ms == 0 || sec < 0 || us < 0) {
+        r = CO_RAW_API(select)(a0, a1, a2, a3, a4);
+        goto end;
     }
+
+    {
+        struct timeval tv = { 0, 0 };
+        fd_set s[3];
+        if (a1) s[0] = *a1;
+        if (a2) s[1] = *a2;
+        if (a3) s[2] = *a3;
+
+        t = ms;
+        while (true) {
+            r = CO_RAW_API(select)(a0, a1, a2, a3, &tv);
+            if (r != 0 || t == 0) goto end;
+            co::gSched->sleep(t > x ? x : t);
+            if (t != -1) t = (t > x ? t - x : 0);
+            if (x < T) x <<= 1;
+            if (a1) *a1 = s[0];
+            if (a2) *a2 = s[1];
+            if (a3) *a3 = s[2];
+            tv.tv_sec = tv.tv_usec = 0;
+        }
+    }
+
+  end:
+    HOOKLOG << "hook_select, nfds: " << a0 << " ms: " << ms << " r: " << r;
+    return r;
 }
 
 int WINAPI hook_WSAPoll(
@@ -1073,19 +1193,26 @@ int WINAPI hook_WSAPoll(
     ULONG a1,
     INT a2
 ) {
-    HOOKLOG << "hook_WSAPoll, ms: " << a2;
-    if (!co::gSched || a2 == 0) return CO_RAW_API(WSAPoll)(a0, a1, a2);
-
     int r;
-    uint32 ms = 16;
-    uint32 t = a2 >= 0 ? a2 : (uint32)-1;
-    while (true) {
-        r = CO_RAW_API(WSAPoll)(a0, a1, 0);
-        if (r != 0 || t == 0) return r;
-        if (t < ms) ms = t;
-        co::gSched->sleep(ms);
-        if (t != (uint32)-1) t -= ms;
+    if (!co::gSched || a2 == 0) {
+        r = CO_RAW_API(WSAPoll)(a0, a1, a2);
+        goto end;
     }
+
+    {
+        uint32 t = a2 >= 0 ? a2 : -1, x = 1;
+        while (true) {
+            r = CO_RAW_API(WSAPoll)(a0, a1, 0);
+            if (r != 0 || t == 0) goto end;
+            co::gSched->sleep(t > x ? x : t);
+            if (t != -1) t = (t > x ? t - x : 0);
+            if (x < T) x <<= 1;
+        }
+    }
+
+  end:
+    HOOKLOG << "hook_WSAPoll, nfds: " << a1 <<  " ms: " << a2 << " r: " << r;
+    return r;
 }
 
 DWORD WINAPI hook_WSAWaitForMultipleEvents(
@@ -1095,19 +1222,24 @@ DWORD WINAPI hook_WSAWaitForMultipleEvents(
     DWORD a3,
     BOOL a4
 ) {
-    HOOKLOG << "WSAWaitForMultipleEvents: " << a3;
-    if (!co::gSched || a3 == 0) return CO_RAW_API(WSAWaitForMultipleEvents)(a0, a1, a2, a3, a4);
 
-    DWORD r;
-    uint32 ms = 8;
+    DWORD r, t = a3, x = 1;
+    if (!co::gSched || a3 == 0) {
+        r = CO_RAW_API(WSAWaitForMultipleEvents)(a0, a1, a2, a3, a4);
+        goto end;
+    }
+
     while (true) {
         r = CO_RAW_API(WSAWaitForMultipleEvents)(a0, a1, a2, 0, a4);
-        if (r != WSA_WAIT_TIMEOUT) return r;
-        if (a3 == 0) return r;
-        if (a3 < 8) ms = a3;
-        co::gSched->sleep(ms);
-        if (a3 != WSA_INFINITE) a3 -= ms;
+        if (r != WSA_WAIT_TIMEOUT || t == 0) goto end;
+        co::gSched->sleep(t > x ? x : t);
+        if (t != WSA_INFINITE) t = (t > x ? t - x : 0);
+        if (x < T) x <<= 1;
     }
+
+  end:
+    HOOKLOG << "hook_WSAWaitForMultipleEvents, n: " << a0 << " ms: " << a3 << " r: " << r;
+    return r;
 }
 
 BOOL WINAPI hook_GetQueuedCompletionStatus(
@@ -1117,19 +1249,24 @@ BOOL WINAPI hook_GetQueuedCompletionStatus(
     LPOVERLAPPED* a3,
     DWORD         a4
 ) {
-    HOOKLOG << "hook_GetQueuedCompletionStatus, handle: " << a0 << ", ms: " << a4;
-    if (!co::gSched) return CO_RAW_API(GetQueuedCompletionStatus)(a0, a1, a2, a3, a4);
-
-    HOOKLOG << "GetQueuedCompletionStatus: " << a4;
     BOOL r;
-    DWORD ms = 8;
+    DWORD t = a4, x = 1;
+    if (!co::gSched) {
+        r = CO_RAW_API(GetQueuedCompletionStatus)(a0, a1, a2, a3, a4);
+        goto end;
+    }
+
     while (true) {
         r = CO_RAW_API(GetQueuedCompletionStatus)(a0, a1, a2, a3, 0);
-        if (r == TRUE || a4 == 0) return r;
-        if (a4 < ms) ms = a4;
-        co::gSched->sleep(ms);
-        if (a4 != INFINITE) a4 -= ms;
+        if (r == TRUE || t == 0) goto end;
+        co::gSched->sleep(t > x ? x : t);
+        if (t != INFINITE) t = (t > x ? t - x : 0);
+        if (x < T) x <<= 1;
     }
+
+  end:
+    HOOKLOG << "hook_GetQueuedCompletionStatus, handle: " << a0 << " ms: " << a4 << " r: " << r;
+    return r;
 }
 
 BOOL WINAPI hook_GetQueuedCompletionStatusEx(
@@ -1140,19 +1277,24 @@ BOOL WINAPI hook_GetQueuedCompletionStatusEx(
     DWORD              a4,
     BOOL               a5
 ) {
-    HOOKLOG << "hook_GetQueuedCompletionStatusEx, handle: " << a0 << ", ms: " << a4;
-    if (!co::gSched) return CO_RAW_API(GetQueuedCompletionStatusEx)(a0, a1, a2, a3, a4, a5);
-
-    HOOKLOG << "GetQueuedCompletionStatusEx: " << a4;
     BOOL r;
-    DWORD ms = 8;
+    DWORD t = a4, x = 1;
+    if (!co::gSched || a4 == 0) {
+        r = CO_RAW_API(GetQueuedCompletionStatusEx)(a0, a1, a2, a3, a4, a5);
+        goto end;
+    }
+
     while (true) {
         r = CO_RAW_API(GetQueuedCompletionStatusEx)(a0, a1, a2, a3, 0, a5);
-        if (r == TRUE || a4 == 0) return r;
-        if (a4 < ms) ms = a4;
-        co::gSched->sleep(ms);
-        if (a4 != INFINITE) a4 -= ms;
+        if (r == TRUE || t == 0) goto end;
+        co::gSched->sleep(t > x ? x : t);
+        if (t != INFINITE) t = (t > x ? t - x : 0);
+        if (x < 16) x <<= 1;
     }
+
+  end:
+    HOOKLOG << "hook_GetQueuedCompletionStatusEx, handle: " << a0 << " ms: " << a4 << " r: " << r;
+    return r;
 }
 
 WSARecvMsg_fp_t get_WSARecvMsg_fp() {
