@@ -124,7 +124,7 @@ bool IoEvent::wait(uint32 ms) {
             }
             s->sleep(ms > x ? x : ms);
             if (ms != (uint32)-1) ms = (ms > x ? ms - x : 0);
-            if (x < 8) x <<= 1;
+            if (x < 16) x <<= 1;
         }
     }
 }
