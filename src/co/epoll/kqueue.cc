@@ -1,5 +1,6 @@
 #if !defined(_WIN32) && !defined(__linux__)
 #include "kqueue.h"
+#include "../close.h"
 
 namespace co {
 
@@ -100,8 +101,7 @@ void Kqueue::del_event(int fd) {
 
 inline void closesocket(int& fd) {
     if (fd >= 0) {
-        // just ignore EINTR here
-        CO_RAW_API(close)(fd);
+        _close_nocancel(fd);
         fd = -1;
     }
 }

@@ -1,5 +1,6 @@
 #ifdef __linux__
 #include "epoll.h"
+#include "../close.h"
 
 namespace co {
 
@@ -118,8 +119,7 @@ void Epoll::del_event(int fd) {
 
 inline void closesocket(int& fd) {
     if (fd >= 0) {
-        // No need to handle EINTR on Linux.
-        CO_RAW_API(close)(fd);
+        _close_nocancel(fd);
         fd = -1;
     }
 }

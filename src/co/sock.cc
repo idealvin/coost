@@ -1,5 +1,6 @@
 #ifndef _WIN32
 
+#include "close.h"
 #include "scheduler.h"
 #include <unordered_map>
 
@@ -37,14 +38,7 @@ int close(sock_t fd, int ms) {
     } else {
         co::get_sock_ctx(fd).del_event();
     }
-
-  #if defined(_hpux) || defined(__hpux)
-    int r;
-    while ((r = CO_RAW_API(close)(fd)) != 0 && errno == EINTR);
-    return r;
-  #else
-    return CO_RAW_API(close)(fd);
-  #endif
+    return _close_nocancel(fd);
 }
 
 int shutdown(sock_t fd, char c) {
