@@ -474,7 +474,10 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
         co::IoEvent ev(fd, co::ev_read);
         do {
             r = CO_RAW_API(accept)(fd, addr, addrlen);
-            if (r != -1) goto end;
+            if (r != -1) {
+                gHook().get_hook_ctx(r)->set_sock_or_pipe();
+                goto end;
+            }
 
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 ev.wait();
