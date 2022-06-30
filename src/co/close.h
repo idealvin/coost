@@ -20,7 +20,7 @@ inline int _close_nocancel(int fd) {
     typedef int (*close_t)(int);
     static close_t f = []() {
         void* p = dlsym(RTLD_DEFAULT, "close$NOCANCEL");
-        if (!p) p = dlsym(RTLD_DEFAULT, "close$NOCANCEL$UNIX2003")
+        if (!p) p = dlsym(RTLD_DEFAULT, "close$NOCANCEL$UNIX2003");
         return (close_t)p;
     }();
     return f ? f(fd) : CO_RAW_API(close)(fd);
