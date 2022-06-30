@@ -474,10 +474,7 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
         co::IoEvent ev(fd, co::ev_read);
         do {
             r = CO_RAW_API(accept)(fd, addr, addrlen);
-            if (r != -1) {
-                gHook().get_hook_ctx(r)->set_sock_or_pipe();
-                goto end;
-            }
+            if (r != -1) goto end;
 
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 ev.wait();
@@ -488,6 +485,7 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     }
 
   end:
+    if (r != -1) gHook().get_hook_ctx(r)->set_sock_or_pipe();
     HOOKLOG << "hook accept, fd: " << fd << ", r: " << r;
     return r;
 }
@@ -901,9 +899,9 @@ int epoll_wait(int epfd, struct epoll_event* events, int n, int ms) {
     return r;
 }
 
+#ifdef SOCK_NONBLOCK
 int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
     hook_api(accept4);
-    if (!CO_RAW_API(accept4)) { errno = ENOSYS; return -1; }
 
     int r;
     auto ctx = gHook().get_hook_ctx(fd);
@@ -928,9 +926,15 @@ int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
     }
 
   end:
+    if (r != -1) {
+        auto c = gHook().get_hook_ctx(r);
+        c->set_sock_or_pipe();
+        c->set_non_blocking(flags & SOCK_NONBLOCK);
+    }
     HOOKLOG << "hook accept4, fd: " << fd << ", flags: " << flags << ", r: " << r;
     return r;
 }
+#endif
 
 int gethostbyname_r(
     const char* name,
