@@ -399,15 +399,15 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
 
 static inline const char* init_s2e_table() {
     static char tb[256] = { 0 };
-    tb['r'] = '\r';
-    tb['n'] = '\n';
-    tb['t'] = '\t';
-    tb['b'] = '\b';
-    tb['f'] = '\f';
-    tb['"'] = '"';
-    tb['\\'] = '\\';
-    tb['/'] = '/';
-    tb['u'] = 'u';
+    tb[(unsigned char)'r'] = '\r';
+    tb[(unsigned char)'n'] = '\n';
+    tb[(unsigned char)'t'] = '\t';
+    tb[(unsigned char)'b'] = '\b';
+    tb[(unsigned char)'f'] = '\f';
+    tb[(unsigned char)'"'] = '"';
+    tb[(unsigned char)'\\'] = '\\';
+    tb[(unsigned char)'/'] = '/';
+    tb[(unsigned char)'u'] = 'u';
     return tb;
 }
 
@@ -615,13 +615,13 @@ bool Json::parse_from(const char* s, size_t n) {
 
 static inline const char* init_e2s_table() {
     static char tb[256] = { 0 };
-    tb['\r'] = 'r';
-    tb['\n'] = 'n';
-    tb['\t'] = 't';
-    tb['\b'] = 'b';
-    tb['\f'] = 'f';
-    tb['\"'] = '"';
-    tb['\\'] = '\\';
+    tb[(unsigned char)'\r'] = 'r';
+    tb[(unsigned char)'\n'] = 'n';
+    tb[(unsigned char)'\t'] = 't';
+    tb[(unsigned char)'\b'] = 'b';
+    tb[(unsigned char)'\f'] = 'f';
+    tb[(unsigned char)'\"'] = '"';
+    tb[(unsigned char)'\\'] = '\\';
     return tb;
 }
 

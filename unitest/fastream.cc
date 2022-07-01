@@ -25,7 +25,6 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.str(), "");
 
         s = x.data();
-        x = std::move(x);
         EXPECT_EQ(x.str(), "xx");
         EXPECT_EQ(x.data(), s);
 
