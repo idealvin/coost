@@ -1,6 +1,10 @@
 #ifndef _WIN32
 #include "stack_trace.h"
 
+#ifdef __APPLE__
+#include "TargetConditionals.h"
+#endif
+
 // We do not support stack trace on IOS, ANDROID
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__) || !defined(HAS_BACKTRACE_H)
 namespace ___ {
