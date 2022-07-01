@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __APPLE__
+#include "TargetConditionals.h"
+#endif
+
 namespace co {
 void disable_hook_sleep();
 void enable_hook_sleep();

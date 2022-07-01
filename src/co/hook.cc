@@ -92,8 +92,8 @@ class Hook {
         return s >= 0 ? &tb[s] : NULL;
     }
 
-    bool hook_sleep;
     co::table<HookCtx> tb;
+    bool hook_sleep;
 };
 
 } // co
