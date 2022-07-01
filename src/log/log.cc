@@ -249,6 +249,7 @@ bool Logger::start() {
         if ((uint32)ls > (bs >> 2)) ls = (int32)(bs >> 2);
         return true;
     }();
+    (void)x;
 
     if (atomic_bool_cas(&_log_thread, (void*)0, (void*)8)) {
         global().log_time->update();
@@ -429,6 +430,7 @@ void Logger::write_tlogs(co::array<PerTopic*>& v, LogTime* t) {
 
 void Logger::push(char* s, size_t n) {
     static bool ks = this->start();
+    (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;
@@ -459,6 +461,7 @@ void Logger::push(char* s, size_t n) {
 
 void Logger::push(const char* topic, char* s, size_t n) {
     static bool ks = this->start();
+    (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;

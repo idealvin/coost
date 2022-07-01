@@ -245,7 +245,6 @@ class __coapi Client final {
     };
     uint16 _port;
     uint8 _use_ssl;
-    uint8 _;
     int _fd;
 };
 
