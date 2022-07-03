@@ -248,6 +248,111 @@ size_t file::write(const void* s, size_t n) {
 
 #undef nullfd
 
+struct dctx {
+    size_t n;
+    HANDLE d;
+    WIN32_FIND_DATA e;
+};
+
+dir::~dir() {
+    if (_p) {
+        this->close();
+        co::free(_p, ((dctx*)_p)->n);
+        _p = 0;
+    }
+}
+
+bool dir::open(const char* path) {
+    this->close();
+    if (!path || !*path) return false;
+
+    const char c = strchr(path, '/') ? '/' : '\\';
+    const size_t n = strlen(path);
+    const size_t x = n + sizeof(dctx) + 3; // append "/*"
+    dctx* d = (dctx*)_p;
+
+    if (!d || d->n < x) {
+        _p = co::realloc(_p, d ? d->n : 0, x); assert(_p);
+        d = (dctx*)_p;
+        memcpy(d + 1, path, n);
+        d->n = x;
+    } else {
+        memcpy(d + 1, path, n);
+    }
+
+    char* p = (char*)(d + 1);
+    if (p[n - 1] != c) {
+        p[n] = c;
+        p[n + 1] = '*';
+        p[n + 2] = '\0';
+    } else {
+        p[n] = '*';
+        p[n + 1] = '\0';
+    }
+    d->d = ::FindFirstFileA(p, &d->e); 
+    p[n] = '\0';
+    return d->d != INVALID_HANDLE_VALUE;
+}
+
+void dir::close() {
+    dctx* p = (dctx*)_p;
+    if (p && p->d != INVALID_HANDLE_VALUE) {
+        ::FindClose(p->d);
+        p->d = INVALID_HANDLE_VALUE;
+    }
+}
+
+const char* dir::path() const {
+    return _p ? ((char*)_p + sizeof(dctx)) : "";
+}
+
+co::vector<fastring> dir::all() const {
+    dctx* d = (dctx*)_p;
+    if (!d || d->d == INVALID_HANDLE_VALUE) return co::vector<fastring>();
+
+    co::vector<fastring> r;
+    r.reserve(8);
+    do {
+        char* const p = d->e.cFileName;
+        if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) {
+            r.push_back(p);
+        }
+    } while (::FindNextFileA(d->d, &d->e));
+    return r;
+}
+
+fastring dir::iterator::operator*() const {
+    assert(_p);
+    return ((dctx*)_p)->e.cFileName;
+}
+
+dir::iterator& dir::iterator::operator++() {
+    dctx* d = (dctx*)_p;
+    if (d) {
+        BOOL x;
+        assert(d->d != INVALID_HANDLE_VALUE);
+        while ((x = ::FindNextFileA(d->d, &d->e))) {
+            char* const p = d->e.cFileName;
+            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+        }
+        if (!x) _p = NULL;
+    }
+    return *this;
+}
+
+dir::iterator dir::begin() const {
+    dctx* d = (dctx*)_p;
+    if (d && d->d != INVALID_HANDLE_VALUE) {
+        BOOL x = 1;
+        do {
+            char* const p = d->e.cFileName;
+            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+        } while ((x = ::FindNextFileA(d->d, &d->e)));
+        if (x) return dir::iterator(_p);
+    }
+    return dir::iterator(NULL);
+}
+
 } // namespace fs
 
 #endif

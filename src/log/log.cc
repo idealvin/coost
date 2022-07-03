@@ -429,8 +429,7 @@ void Logger::write_tlogs(co::array<PerTopic*>& v, LogTime* t) {
 }
 
 void Logger::push(char* s, size_t n) {
-    static bool ks = this->start();
-    (void)ks;
+    static bool ks = this->start(); (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;
@@ -460,8 +459,7 @@ void Logger::push(char* s, size_t n) {
 }
 
 void Logger::push(const char* topic, char* s, size_t n) {
-    static bool ks = this->start();
-    (void)ks;
+    static bool ks = this->start(); (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;
