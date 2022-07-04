@@ -51,7 +51,7 @@ class Iocp {
     }
 
     void signal() {
-        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
+        if (atomic_bool_cas(&_signaled, 0, 1, mo_acquire, mo_acquire)) {
             const BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
             ELOG_IF(!r) << "PostQueuedCompletionStatus error: " << co::strerror();
         }
