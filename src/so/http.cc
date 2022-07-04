@@ -471,7 +471,8 @@ const char* http_req_t::header(const char* key) const {
 }
 
 
-void http_res_t::set_body(const void* s, size_t n) {
+bool http_res_t::set_body(const void* s, size_t n) {
+    if(header_send>0) return false;
     body_size = n;
     if (status == 0) status = 200;
     buf->clear();
@@ -479,6 +480,25 @@ void http_res_t::set_body(const void* s, size_t n) {
            << "Content-Length: " << n << "\r\n"
            << header << "\r\n";
     buf->append(s, n);
+    header_send=-1; // cannot call 'send_body' anymore
+    return true;
+}
+
+int http_res_t::send_body(const void* data, size_t n) {
+    assert(pc_);
+    if(header_send<0) {
+        //use 'set_body', cannot use long-connection mode
+        return -1;
+    }
+    if(header_send==0) { //headers has not send yet
+        if (status == 0) status = 200;
+        (*buf) << version_str(version) << ' ' << status << ' ' << status_str(status) << "\r\n"
+            << header << "\r\n";
+        if(pc_->send(buf->data(),buf->size(),FLG_http_send_timeout)<0) s_err=-1;
+        header_send=1;
+    }
+    if(pc_->send(data,n,FLG_http_send_timeout)<0) s_err=-1;
+    return s_err==0? 0 : -2;
 }
 
 const char* Req::header(const char* key) const {
@@ -506,9 +526,14 @@ void Res::add_header(const char* k, int v) {
     _p->add_header(k, v);
 }
 
-void Res::set_body(const void* s, size_t n) {
-    _p->set_body(s, n);
+bool Res::set_body(const void* s, size_t n) {
+    return _p->set_body(s, n);
 }
+
+int Res::send_body(const void* s, size_t n) {
+    return _p->send_body(s, n);
+}
+
 
 Res::~Res() {
     if (_p) {
@@ -872,14 +897,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
 
             s.clear();
             pres->buf = &s;
+            pres->pc_ = &conn;
             _on_req(req, res);
-            if (s.empty()) pres->set_body("", 0);
+            
+            if(pres->header_send!=1) { //no use http-long-connection Mode.
+                if (s.empty()) pres->set_body("", 0);
 
-            r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
-            if (r <= 0) goto send_err;
+                r = conn.send(s.data(), (int)s.size(), FLG_http_send_timeout);
+                if (r <= 0) goto send_err;
 
-            s.resize(s.size() - pres->body_size);
-            HTTPLOG << "http send res: " << s;
+                s.resize(s.size() - pres->body_size);
+                HTTPLOG << "http send res: " << s;
+            }else {
+                need_close=true;
+            }
+
             if (need_close) { conn.close(); goto end; }
         };
 

@@ -2,6 +2,10 @@
 
 #include "co/fastring.h"
 
+namespace tcp{
+struct Connection;
+}
+
 namespace http {
 
 struct http_req_t {
@@ -44,14 +48,23 @@ struct http_res_t {
         header << k << ": " << v << "\r\n";
     }
 
-    void set_body(const void* s, size_t n);
+    bool set_body(const void* s, size_t n);
 
     void clear() {
         status = 0;
         buf = 0;
         header.clear();
         body_size = 0;
+
+        header_send=0;
+        s_err=-1;
+        pc_=nullptr;
     }
+
+    //for http long connection session
+    //User can call multiple times of 'send_body'. 
+    //The 1st call will also pack response Header data and send!
+    int send_body(const void* data, size_t n);
 
     // DO NOT change orders of the members here.
     uint32 status;
@@ -59,6 +72,11 @@ struct http_res_t {
     fastring* buf;
     fastring header;
     size_t body_size;
+
+    // new members for http long connection session implementation (like 'send_body')
+    tcp::Connection* pc_;
+    int header_send;
+    int s_err;
 };
 
 int parse_http_req(fastring* buf, size_t size, http_req_t* req);
