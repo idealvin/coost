@@ -17,23 +17,21 @@ DEF_test(mem) {
     }
 
     DEF_case(small) {
-        void* p = co::alloc(8);
+        void* p = co::alloc(2048);
         EXPECT_NE(p, (void*)0);
 
         *(uint32*)p = 7;
         EXPECT_EQ(*(uint32*)p, 7);
+        co::free(p, 2048);
 
         void* x = p;
+        p = co::alloc(8);
+        EXPECT_EQ(p, x);
         co::free(p, 8);
 
         p = co::alloc(72);
-        EXPECT_NE(p, (void*)0);
         EXPECT_EQ(p, x);
         co::free(p, 72);
-
-        p = co::alloc(2048);
-        EXPECT_EQ(p, x);
-        co::free(p, 2048);
 
         p = co::alloc(4096);
         EXPECT_NE(p, (void*)0);
