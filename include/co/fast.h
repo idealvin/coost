@@ -10,11 +10,20 @@
 #include <type_traits>
 #include <utility>
 
+namespace co {
+// max decimal places
+struct maxdp {
+    explicit maxdp(int n) : n(n) {}
+    int n;
+};
+} // co
+
 namespace fast {
 
 // double to ascii string, return length of the result
-inline int dtoa(double v, char* buf) {
-    return milo::dtoa(v, buf);
+// @mdp  max decimal places
+inline int dtoa(double v, char* buf, int mdp=324) {
+    return milo::dtoa(v, buf, mdp);
 }
 
 // unsigned integer to hex string, return length of the result
@@ -205,6 +214,46 @@ class __coapi stream {
         fs.swap(*this);
     }
 
+    friend class fpstream;
+    class fpstream {
+      public:
+        fpstream(stream* s, int mdp) : s(s), mdp(mdp) {}
+
+        fpstream& operator<<(double v) {
+            s->ensure(mdp + 8);
+            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
+            return *this;
+        }
+
+        fpstream& operator<<(float v) {
+            return this->operator<<((double)v);
+        }
+
+        fpstream& operator<<(co::maxdp x) {
+            mdp = x.n;
+            return *this;
+        }
+
+        template <typename T>
+        fpstream& operator<<(T&& t) {
+            s->operator<<(std::forward<T>(t));
+            return *this;
+        }
+
+        stream* s;
+        int mdp;
+    };
+
+    // set max decimal places as mdp.n
+    fpstream operator<<(co::maxdp mdp) {
+        return fpstream(this, mdp.n);
+    }
+
+    // set max decimal places for float point number, mdp must > 0
+    fpstream maxdp(int mdp) {
+        return fpstream(this, mdp);
+    }
+
   protected:
     stream& append(size_t n, char c) {
         this->ensure(n);
@@ -309,16 +358,16 @@ class __coapi stream {
 
     stream& operator<<(float v) {
         this->ensure(24);
-        _size += fast::dtoa(v, _p + _size);
+        _size += fast::dtoa(v, _p + _size, 6);
         return *this;
     }
 
     stream& operator<<(double v) {
         this->ensure(24);
-        _size += fast::dtoa(v, _p + _size);
+        _size += fast::dtoa(v, _p + _size, 6);
         return *this;
     }
-    
+
     size_t _cap;
     size_t _size;
     char* _p;

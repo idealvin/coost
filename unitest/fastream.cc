@@ -104,6 +104,14 @@ DEF_test(fastream) {
         fs << d;
         EXPECT_NE(fs.str(), "");
         EXPECT_EQ(fs.str(), "3.14159");
+
+        fs.clear();
+        fs << co::maxdp(3) << d;
+        EXPECT_EQ(fs.str(), "3.141");
+
+        fs.clear();
+        fs.maxdp(2) << d;
+        EXPECT_EQ(fs.str(), "3.14");
     }
 
     DEF_case(string) {

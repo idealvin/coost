@@ -134,6 +134,11 @@ class __coapi fastream : public fast::stream {
         return this->operator<<((const char*)s);
     }
 
+    // set max decimal places as mdp.n
+    fast::stream::fpstream operator<<(co::maxdp mdp) {
+        return fast::stream::operator<<(mdp);
+    }
+
     // Special optimization for string literal like "hello". The length of a string 
     // literal can be get at compile-time, no need to call strlen().
     template<typename T>
