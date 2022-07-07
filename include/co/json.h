@@ -412,15 +412,16 @@ class __coapi Json {
     //   - str() converts Json to minified string.
     //   - dbg() like the str(), but will truncate long string type (> 512 bytes).
     //   - pretty() converts Json to human readable string.
-    fastream& str(fastream& s)      const { return this->_json2str(s, false); }
-    fastring& str(fastring& s)      const { return (fastring&)this->str(*(fastream*)&s); }
-    fastream& dbg(fastream& s)      const { return this->_json2str(s, true); }
-    fastring& dbg(fastring& s)      const { return (fastring&)this->dbg(*(fastream*)&s); }
-    fastream& pretty(fastream& s)   const { return this->_json2pretty(s, 4, 4); }
-    fastring& pretty(fastring& s)   const { return (fastring&)this->pretty(*(fastream*)&s); }
-    fastring str(uint32 cap=256)    const { fastring s(cap); this->str(s); return s; }
-    fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(s); return s; }
-    fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(s); return s; }
+    //   - mdp: max decimal places for float point numbers.
+    fastream& str(fastream& s, int mdp=16)    const { return this->_json2str(s, false, mdp); }
+    fastring& str(fastring& s, int mdp=16)    const { return (fastring&)this->str((fastream&)s, mdp); }
+    fastream& dbg(fastream& s, int mdp=16)    const { return this->_json2str(s, true, mdp); }
+    fastring& dbg(fastring& s, int mdp=16)    const { return (fastring&)this->dbg((fastream&)s, mdp); }
+    fastream& pretty(fastream& s, int mdp=16) const { return this->_json2pretty(s, 4, 4, mdp); }
+    fastring& pretty(fastring& s, int mdp=16) const { return (fastring&)this->pretty((fastream&)s, mdp); }
+    fastring str(int mdp=16)    const { fastring s(256); this->str(s, mdp); return s; }
+    fastring dbg(int mdp=16)    const { fastring s(256); this->dbg(s, mdp); return s; }
+    fastring pretty(int mdp=16) const { fastring s(256); this->pretty(s, mdp); return s; }
 
     // Parse Json from string, inverse to stringify.
     bool parse_from(const char* s, size_t n);
@@ -439,8 +440,8 @@ class __coapi Json {
     Json& _set(uint32 i);
     Json& _set(int i) { return this->_set((uint32)i); }
     Json& _set(const char* key);
-    fastream& _json2str(fastream& fs, bool debug) const;
-    fastream& _json2pretty(fastream& fs, int indent, int n) const;
+    fastream& _json2str(fastream& fs, bool debug, int mdp) const;
+    fastream& _json2pretty(fastream& fs, int indent, int n, int mdp) const;
 
   private:
     _H* _h;
