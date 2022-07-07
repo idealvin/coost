@@ -110,7 +110,9 @@ void TaskedImpl::loop() {
                     ++i;
                 } else {
                     co::del(task);
-                    if (i != _tasks.size() - 1) _tasks[i] = _tasks.pop_back();
+                    if (i != _tasks.size() - 1) _tasks[i] = _tasks.back();
+                    // remove the tail task, don't ++i here.
+                    _tasks.pop_back();
                 }
             } else {
                 ++i;
