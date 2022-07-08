@@ -71,3 +71,7 @@ target("libco")
         end
         add_files("co/context/context.S")
     end
+
+    if is_plat("macosx", "iphoneos") then
+        add_files("co/fishhook/fishhook.c")
+    end
