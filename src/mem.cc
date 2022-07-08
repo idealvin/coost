@@ -221,7 +221,9 @@ class ThreadAlloc;
 
 class HugeBlock {
   public:
-    explicit HugeBlock(void* p) : _p((char*)p), _bits(0) {}
+    explicit HugeBlock(void* p) : _p((char*)p), _bits(0) {
+        (void)_next; (void)_prev;
+    }
 
     void* alloc(); // alloc a sub block
     bool free(void* p);
@@ -238,6 +240,7 @@ class LargeBlock {
   public:
     explicit LargeBlock(HugeBlock* parent)
         : _parent(parent), _p((char*)this + (1u << g_sb_bits)), _bits(0) {
+        (void)_next; (void)_prev;
     }
 
     void* alloc(); // alloc a sub block
@@ -525,6 +528,7 @@ LargeAlloc::LargeAlloc(HugeBlock* parent)
     _p = (char*)this + 4096;
     _pbs = (char*)this + god::align_up((uint32)sizeof(*this), 16);
     _xpbs = _pbs + (N >> 3);
+    (void)_next; (void)_prev;
 }
 
 void* LargeAlloc::try_hard_alloc(uint32 n) {
