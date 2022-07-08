@@ -596,6 +596,7 @@ SmallAlloc::SmallAlloc(LargeBlock* parent)
     _p = (char*)this + reserved_size;
     _pbs = (char*)this + n;
     _xpbs = _pbs + (bs_bits >> 3);
+    (void)_next; (void)_prev;
 }
 
 void* SmallAlloc::try_hard_alloc(uint32 n) {
