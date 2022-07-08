@@ -1,6 +1,10 @@
 #ifndef _WIN32
 #include "hook.h"
 
+#ifdef __APPLE__
+#include "fishhook/fishhook.h"
+#endif
+
 #ifdef _CO_DISABLE_HOOK
 namespace co {
 
@@ -164,9 +168,17 @@ _CO_DEF_RAW_API(gethostbyaddr_r);
 _CO_DEF_RAW_API(kevent);
 #endif
 
-
+#ifdef __APPLE__
+#define hook_api(f) \
+    if (!CO_RAW_API(f)) { \
+        void* origin;   \
+        rebind_symbols((rebinding[1]){{#f, (void*)::f, (void **)&origin}}, 1); \
+        atomic_store(&CO_RAW_API(f), origin, mo_relaxed); \
+    }
+#else
 #define hook_api(f) \
     if (!CO_RAW_API(f)) atomic_store(&CO_RAW_API(f), dlsym(RTLD_NEXT, #f), mo_relaxed)
+#endif
 
 #define do_hook(f, ev, ms) \
     do { \

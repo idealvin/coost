@@ -24,6 +24,10 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    list(APPEND CO_SRC_FILES co/fishhook/fishhook.c)
+endif()
+
 add_library(co ${CO_SRC_FILES})
 add_library(cocoyaxi::co ALIAS co)
 

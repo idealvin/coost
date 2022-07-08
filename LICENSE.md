@@ -38,3 +38,5 @@ Cocoyaxi includes code from the following projects, which have their own license
 - [StackWalker](https://github.com/idealvin/cocoyaxi/tree/master/src/log) [BSD-2-Clause] (See [StackWalker](https://github.com/JochenKalmbach/StackWalker/blob/master/LICENSE) by [Jochen Kalmbach](https://github.com/JochenKalmbach))
 
 - [detours](https://github.com/idealvin/cocoyaxi/tree/master/src/co/detours) [MIT] (See [Detours](https://github.com/microsoft/Detours/blob/master/LICENSE.md) by Microsoft)
+
+- [fishhook](https://github.com/facebook/fishhook) [BSD-3-Clause] (See [fishhook](https://github.com/facebook/fishhook/blob/main/LICENSE) by Facebook)
