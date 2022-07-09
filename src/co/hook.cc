@@ -169,13 +169,15 @@ _CO_DEF_RAW_API(kevent);
 #endif
 
 #ifdef __APPLE__
+#define _hook(f) hook_##f
 #define hook_api(f) \
     if (!CO_RAW_API(f)) { \
-        void* origin;   \
-        rebind_symbols((rebinding[1]){{#f, (void*)::f, (void **)&origin}}, 1); \
+        void* origin = 0;   \
+        rebind_symbols((rebinding[1]){{#f, (void*)::_hook(f), (void**)&origin}}, 1); \
         atomic_store(&CO_RAW_API(f), origin, mo_relaxed); \
     }
 #else
+#define _hook(f) f
 #define hook_api(f) \
     if (!CO_RAW_API(f)) atomic_store(&CO_RAW_API(f), dlsym(RTLD_NEXT, #f), mo_relaxed)
 #endif
@@ -196,7 +198,7 @@ inline void set_non_blocking(int fd, int x) {
     CO_RAW_API(ioctl)(fd, FIONBIO, (char*)&x);
 }
 
-int socket(int domain, int type, int protocol) {
+int _hook(socket)(int domain, int type, int protocol) {
     hook_api(socket);
     int s = CO_RAW_API(socket)(domain, type, protocol);
     auto ctx = gHook().get_hook_ctx(s);
@@ -210,7 +212,7 @@ int socket(int domain, int type, int protocol) {
     return s;
 }
 
-int socketpair(int domain, int type, int protocol, int sv[2]) {
+int _hook(socketpair)(int domain, int type, int protocol, int sv[2]) {
     hook_api(socketpair);
     int r = CO_RAW_API(socketpair)(domain, type, protocol, sv);
     if (r == 0) {
@@ -229,7 +231,7 @@ int socketpair(int domain, int type, int protocol, int sv[2]) {
     return r;
 }
 
-int pipe(int fds[2]) {
+int _hook(pipe)(int fds[2]) {
     hook_api(pipe);
     int r = CO_RAW_API(pipe)(fds);
     if (r == 0) {
@@ -240,7 +242,7 @@ int pipe(int fds[2]) {
     return r;
 }
 
-int pipe2(int fds[2], int flags) {
+int _hook(pipe2)(int fds[2], int flags) {
     hook_api(pipe2);
     int r = CO_RAW_API(pipe2)(fds, flags);
     if (r == 0) {
@@ -262,7 +264,7 @@ int pipe2(int fds[2], int flags) {
 #define F_DUPFD_CLOEXEC F_DUPFD 
 #endif
 
-int fcntl(int fd, int cmd, ... /* arg */) {
+int _hook(fcntl)(int fd, int cmd, ... /* arg */) {
     hook_api(fcntl);
 
     int r;
@@ -305,7 +307,7 @@ int fcntl(int fd, int cmd, ... /* arg */) {
 
 #define VARG_8_PARAMS a1,a2,a3,a4,a5,a6,a7,a8
 
-int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
+int _hook(ioctl)(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     hook_api(ioctl);
 
     int r;
@@ -334,7 +336,7 @@ int ioctl(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     return r;
 }
 
-int dup(int oldfd) {
+int _hook(dup)(int oldfd) {
     hook_api(dup);
 
     int r = CO_RAW_API(dup)(oldfd);
@@ -350,7 +352,7 @@ int dup(int oldfd) {
 }
 
 // if oldfd == newfd, dup2 does nothing and returns newfd
-int dup2(int oldfd, int newfd) {
+int _hook(dup2)(int oldfd, int newfd) {
     hook_api(dup2);
 
     int r = CO_RAW_API(dup2)(oldfd, newfd);
@@ -363,7 +365,7 @@ int dup2(int oldfd, int newfd) {
 }
 
 // if oldfd == newfd, dup3 failes with EINVAL
-int dup3(int oldfd, int newfd, int flags) {
+int _hook(dup3)(int oldfd, int newfd, int flags) {
     hook_api(dup3);
     if (!CO_RAW_API(dup3)) { errno = ENOSYS; return -1; }
 
@@ -376,7 +378,7 @@ int dup3(int oldfd, int newfd, int flags) {
     return r;
 }
 
-int setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen) {
+int _hook(setsockopt)(int fd, int level, int optname, const void* optval, socklen_t optlen) {
     hook_api(setsockopt);
 
     int r = CO_RAW_API(setsockopt)(fd, level, optname, optval, optlen);
@@ -395,7 +397,7 @@ int setsockopt(int fd, int level, int optname, const void* optval, socklen_t opt
     return r;
 }
 
-int close(int fd) {
+int _hook(close)(int fd) {
     hook_api(close);
     if (fd < 0) { errno = EBADF; return -1; }
 
@@ -412,7 +414,7 @@ int close(int fd) {
     return r;
 }
 
-int shutdown(int fd, int how) {
+int _hook(shutdown)(int fd, int how) {
     hook_api(shutdown);
     if (fd < 0) { errno = EBADF; return -1; }
 
@@ -451,7 +453,7 @@ int shutdown(int fd, int how) {
  *     with errno set to EAGAIN or EWOULDBLOCK, or EINPROGRESS (for connect(2))
  *     just as if the socket was specified to be nonblocking.
  */
-int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
+int _hook(connect)(int fd, const struct sockaddr* addr, socklen_t addrlen) {
     hook_api(connect);
 
     int r;
@@ -471,7 +473,7 @@ int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
     return r;
 }
 
-int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
+int _hook(accept)(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     hook_api(accept);
 
     int r;
@@ -502,7 +504,7 @@ int accept(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     return r;
 }
 
-ssize_t read(int fd, void* buf, size_t count) {
+ssize_t _hook(read)(int fd, void* buf, size_t count) {
     hook_api(read);
 
     ssize_t r;
@@ -523,7 +525,7 @@ ssize_t read(int fd, void* buf, size_t count) {
     return r;
 }
 
-ssize_t readv(int fd, const struct iovec* iov, int iovcnt) {
+ssize_t _hook(readv)(int fd, const struct iovec* iov, int iovcnt) {
     hook_api(readv);
 
     ssize_t r;
@@ -544,7 +546,7 @@ ssize_t readv(int fd, const struct iovec* iov, int iovcnt) {
     return r;
 }
 
-ssize_t recv(int fd, void* buf, size_t len, int flags) {
+ssize_t _hook(recv)(int fd, void* buf, size_t len, int flags) {
     hook_api(recv);
 
     ssize_t r;
@@ -565,7 +567,7 @@ ssize_t recv(int fd, void* buf, size_t len, int flags) {
     return r;
 }
 
-ssize_t recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr, socklen_t* addrlen) {
+ssize_t _hook(recvfrom)(int fd, void* buf, size_t len, int flags, struct sockaddr* addr, socklen_t* addrlen) {
     hook_api(recvfrom);
 
     ssize_t r;
@@ -586,7 +588,7 @@ ssize_t recvfrom(int fd, void* buf, size_t len, int flags, struct sockaddr* addr
     return r;
 }
 
-ssize_t recvmsg(int fd, struct msghdr* msg, int flags) {
+ssize_t _hook(recvmsg)(int fd, struct msghdr* msg, int flags) {
     hook_api(recvmsg);
 
     ssize_t r;
@@ -607,7 +609,7 @@ ssize_t recvmsg(int fd, struct msghdr* msg, int flags) {
     return r;
 }
 
-ssize_t write(int fd, const void* buf, size_t count) {
+ssize_t _hook(write)(int fd, const void* buf, size_t count) {
     hook_api(write);
 
     ssize_t r;
@@ -628,7 +630,7 @@ ssize_t write(int fd, const void* buf, size_t count) {
     return r;
 }
 
-ssize_t writev(int fd, const struct iovec* iov, int iovcnt) {
+ssize_t _hook(writev)(int fd, const struct iovec* iov, int iovcnt) {
     hook_api(writev);
 
     ssize_t r;
@@ -649,7 +651,7 @@ ssize_t writev(int fd, const struct iovec* iov, int iovcnt) {
     return r;
 }
 
-ssize_t send(int fd, const void* buf, size_t len, int flags) {
+ssize_t _hook(send)(int fd, const void* buf, size_t len, int flags) {
     hook_api(send);
 
     ssize_t r;
@@ -670,7 +672,7 @@ ssize_t send(int fd, const void* buf, size_t len, int flags) {
     return r;
 }
 
-ssize_t sendto(int fd, const void* buf, size_t len, int flags, const struct sockaddr* addr, socklen_t addrlen) {
+ssize_t _hook(sendto)(int fd, const void* buf, size_t len, int flags, const struct sockaddr* addr, socklen_t addrlen) {
     hook_api(sendto);
 
     ssize_t r;
@@ -691,7 +693,7 @@ ssize_t sendto(int fd, const void* buf, size_t len, int flags, const struct sock
     return r;
 }
 
-ssize_t sendmsg(int fd, const struct msghdr* msg, int flags) {
+ssize_t _hook(sendmsg)(int fd, const struct msghdr* msg, int flags) {
     hook_api(sendmsg);
 
     ssize_t r;
@@ -712,12 +714,12 @@ ssize_t sendmsg(int fd, const struct msghdr* msg, int flags) {
     return r;
 }
 
-int poll(struct pollfd* fds, nfds_t nfds, int ms) {
+int _hook(poll)(struct pollfd* fds, nfds_t nfds, int ms) {
     hook_api(poll);
 
     int r, fd = nfds > 0 ? fds[0].fd : -1;
     uint32 t = ms < 0 ? -1 : ms, x = 1;
-    if (!co::gSched || ms == 0 || nfds <= 0) {
+    if (!co::gSched || ms == 0) {
         r = CO_RAW_API(poll)(fds, nfds, ms);
         goto end;
     }
@@ -745,6 +747,11 @@ int poll(struct pollfd* fds, nfds_t nfds, int ms) {
         }
     } while (0);
 
+    if (nfds == 0 && t != -1) {
+        co::gSched->sleep(t);
+        goto end;
+    }
+
     // just check poll every x ms
     do {
         r = CO_RAW_API(poll)(fds, nfds, 0);
@@ -759,7 +766,7 @@ int poll(struct pollfd* fds, nfds_t nfds, int ms) {
     return r;
 }
 
-int select(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* tv) {
+int _hook(select)(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* tv) {
     hook_api(select);
 
     const int64 max_ms = ((uint32)-1) >> 1;
@@ -820,7 +827,7 @@ int select(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* tv) {
     return r;
 }
 
-unsigned int sleep(unsigned int n) {
+unsigned int _hook(sleep)(unsigned int n) {
     hook_api(sleep);
 
     unsigned int r;
@@ -837,7 +844,7 @@ unsigned int sleep(unsigned int n) {
     return r;
 }
 
-int usleep(useconds_t us) {
+int _hook(usleep)(useconds_t us) {
     hook_api(usleep);
 
     int r;
@@ -856,7 +863,7 @@ int usleep(useconds_t us) {
     return r;
 }
 
-int nanosleep(const struct timespec* req, struct timespec* rem) {
+int _hook(nanosleep)(const struct timespec* req, struct timespec* rem) {
     hook_api(nanosleep);
 
     int r, ms = -1;
@@ -891,7 +898,7 @@ int nanosleep(const struct timespec* req, struct timespec* rem) {
 }
 
 #ifdef __linux__
-int epoll_wait(int epfd, struct epoll_event* events, int n, int ms) {
+int _hook(epoll_wait)(int epfd, struct epoll_event* events, int n, int ms) {
     hook_api(epoll_wait);
 
     int r;
@@ -912,7 +919,7 @@ int epoll_wait(int epfd, struct epoll_event* events, int n, int ms) {
 }
 
 #ifdef SOCK_NONBLOCK
-int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
+int _hook(accept4)(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
     hook_api(accept4);
 
     int r;
@@ -948,7 +955,7 @@ int accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 }
 #endif
 
-int gethostbyname_r(
+int _hook(gethostbyname_r)(
     const char* name,
     struct hostent* ret, char* buf, size_t len,
     struct hostent** res, int* err)
@@ -960,7 +967,7 @@ int gethostbyname_r(
     return CO_RAW_API(gethostbyname_r)(name, ret, buf, len, res, err);
 }
 
-int gethostbyname2_r(
+int _hook(gethostbyname2_r)(
     const char* name, int af,
     struct hostent* ret, char* buf, size_t len,
     struct hostent** res, int* err)
@@ -972,7 +979,7 @@ int gethostbyname2_r(
     return CO_RAW_API(gethostbyname2_r)(name, af, ret, buf, len, res, err);
 }
 
-int gethostbyaddr_r(
+int _hook(gethostbyaddr_r)(
     const void* addr, socklen_t addrlen, int type,
     struct hostent* ret, char* buf, size_t len,
     struct hostent** res, int* err)
@@ -985,7 +992,7 @@ int gethostbyaddr_r(
 }
 
 #ifdef NETDB_INTERNAL
-struct hostent* gethostbyname2(const char* name, int af) {
+struct hostent* _hook(gethostbyname2)(const char* name, int af) {
     hook_api(gethostbyname2);
     HOOKLOG << "hook gethostbyname2, name: " << (name ? name : "");
     if (!co::gSched || !name) return CO_RAW_API(gethostbyname2)(name, af);
@@ -1012,17 +1019,16 @@ struct hostent* gethostbyname2(const char* name, int af) {
 #endif
 
 #else
-int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, const struct timespec* ts) {
+int _hook(kevent)(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, const struct timespec* ts) {
     hook_api(kevent);
 
-    int r;
+    int r, ms = -1, fd = -1;
     if (!co::gSched || c || kq < 0) {
         r = CO_RAW_API(kevent)(kq, c, nc, e, ne, ts);
         goto end;
     }
 
     {
-        int ms = -1;
         if (ts) {
             const int64 max_ms = ((uint32)-1) >> 1;
             const int64 sec = ts->tv_sec;
@@ -1047,12 +1053,18 @@ int kevent(int kq, const struct kevent* c, int nc, struct kevent* e, int ne, con
     }
 
   end:
-    HOOKLOG << "hook kevent, kq: " << kq << ", nc: " << nc << ", ne: " << ne << ", r: " << r;
+    if (!c) {
+        if (r > 0) fd = (int)e->ident;
+        HOOKLOG << "hook kevent, kq: " << kq << " ne: " << ne << " ms: " << ms << " fd: " << fd << " r: " << r;
+    } else {
+        fd = (int)c->ident;
+        HOOKLOG << "hook kevent, kq: " << kq << " nc: " << nc << " fd: " << fd << " r: " << r;
+    }
     return r;
 }
 #endif
 
-struct hostent* gethostbyname(const char* name) {
+struct hostent* _hook(gethostbyname)(const char* name) {
     hook_api(gethostbyname);
 
     HOOKLOG << "hook gethostbyname, name: " << (name ? name : "");
@@ -1067,7 +1079,7 @@ struct hostent* gethostbyname(const char* name) {
     return ent;
 }
 
-struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
+struct hostent* _hook(gethostbyaddr)(const void* addr, socklen_t len, int type) {
     hook_api(gethostbyaddr);
 
     HOOKLOG << "hook gethostbyaddr";
@@ -1087,11 +1099,7 @@ struct hostent* gethostbyaddr(const void* addr, socklen_t len, int type) {
 namespace co {
 
 // DO NOT call _init_hooks() elsewhere.
-static bool _init_hooks();
-static bool _dummy = _init_hooks();
-
 static bool _init_hooks() {
-    (void) _dummy;
     hook_api(socket);
     hook_api(socketpair);
     hook_api(pipe);
@@ -1139,7 +1147,14 @@ static bool _init_hooks() {
     return true;
 }
 
+#ifndef __APPLE__
+static bool _dummy = _init_hooks();
+#endif
+
 void init_hook() {
+  #ifdef __APPLE__
+    _init_hooks();
+  #else
     if (CO_RAW_API(close) == 0) { (void) ::close(-1); }
     if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
     if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
@@ -1150,13 +1165,12 @@ void init_hook() {
     CHECK(CO_RAW_API(write) != 0);
     CHECK(CO_RAW_API(pipe) != 0);
     CHECK(CO_RAW_API(fcntl) != 0);
+    (void) _dummy;
+  #endif
 
   #ifdef __linux__
     if (CO_RAW_API(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
     CHECK(CO_RAW_API(epoll_wait) != 0);
-  #else
-    if (CO_RAW_API(kevent) == 0) ::kevent(-1, 0, 0, 0, 0, 0);
-    CHECK(CO_RAW_API(kevent) != 0);
   #endif
 }
 
