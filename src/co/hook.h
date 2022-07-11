@@ -9,8 +9,8 @@ void disable_hook_sleep();
 void enable_hook_sleep();
 } // co
 
-// disable hook for ios and android
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR || defined(__ANDROID__)
+// disable hook for android
+#if defined(__ANDROID__)
 #define _CO_DISABLE_HOOK
 #endif
 

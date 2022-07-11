@@ -13,7 +13,7 @@ inline int _close_nocancel(int fd) {
     return syscall(SYS_close, fd);
 }
 
-#elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+#elif defined(__APPLE__)
 #include <dlfcn.h>
 
 inline int _close_nocancel(int fd) {
