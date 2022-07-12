@@ -35,7 +35,7 @@ void test_fun(int id) {
     }
     us = t.us();
     avg = us * 1000.0 / N - vavg;
-    s << "co alloc avg: " << avg << " ns\n";
+    s << "co::alloc avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = N - 1; i >= 0; --i) {
@@ -43,7 +43,7 @@ void test_fun(int id) {
     }
     us = t.us();
     avg = us * 1000.0 / N;
-    s << "co free avg: " << avg << " ns\n";
+    s << "co::free avg: " << avg << " ns\n";
 
     if (FLG_s) {
         v.clear();
@@ -53,7 +53,7 @@ void test_fun(int id) {
         }
         us = t.us();
         avg = us * 1000.0 / N - vavg;
-        s << "malloc avg: " << avg << " ns\n";
+        s << "::malloc avg: " << avg << " ns\n";
 
         t.restart();
         for (int i = 0; i < N; ++i) {
@@ -64,7 +64,7 @@ void test_fun(int id) {
         s << "::free avg: " << avg << " ns\n";
     }
 
-    COUT << "thread " << id << ": " << s;
+    COUT << "thread " << id << ":\n" << s;
     v.reset();
 }
 
