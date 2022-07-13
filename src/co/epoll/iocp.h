@@ -45,7 +45,7 @@ class Iocp {
 
     int wait(int ms) {
         ULONG n = 0;
-        const BOOL r = CO_RAW_API(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
+        const BOOL r = __sys_api(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
         if (r == TRUE) return (int)n;
         return ::GetLastError() == WAIT_TIMEOUT ? 0 : -1;
     }

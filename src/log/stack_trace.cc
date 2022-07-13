@@ -33,7 +33,7 @@ namespace ___ {
 namespace log {
 
 inline void write_to_stderr(const char* s, size_t n) {
-    auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
+    auto r = __sys_api(write)(STDERR_FILENO, s, n); (void)r;
 }
 
 inline void write_to_stderr(const char* s) {
@@ -47,7 +47,7 @@ class StackTraceImpl : public StackTrace {
         memset(_buf, 0, 4096);
         memset((char*)_fs.data(), 0, _fs.capacity());
         (void) _exe.c_str();
-        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+        if (__sys_api(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
     }
 
     virtual ~StackTraceImpl() {

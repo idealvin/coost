@@ -224,8 +224,8 @@ class Logger {
 Global::Global()
     : check_failed(false), logger(NULL) {
   #ifndef _WIN32
-    if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
-    if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
+    if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
+    if (!__sys_api(select)) ::select(-1, 0, 0, 0, 0);
   #endif
     s = co::static_new<fastring>(4096);
     exename = co::static_new<fastring>(os::exename());
@@ -275,7 +275,7 @@ void signal_safe_sleep(int ms) {
     co::enable_hook_sleep();
   #else
     struct timeval tv = { 0, ms * 1000 };
-    CO_RAW_API(select)(0, 0, 0, 0, &tv);
+    __sys_api(select)(0, 0, 0, 0, &tv);
   #endif
 }
 
@@ -508,7 +508,7 @@ inline void log2stderr(const char* s, size_t n) {
   #ifdef _WIN32
     auto r = ::fwrite(s, 1, n, stderr); (void)r;
   #else
-    auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
+    auto r = __sys_api(write)(STDERR_FILENO, s, n); (void)r;
   #endif
 }
 
