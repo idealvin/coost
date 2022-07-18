@@ -401,7 +401,7 @@ inline void list_push_front(list_t& l, DoubleLink* node) {
 
 // move heading node to the back
 inline void list_move_head_back(list_t& l) {
-    auto head = l->next;
+    const auto head = l->next;
     l->prev->next = l;
     l->next = NULL;
     l = head;
@@ -410,7 +410,7 @@ inline void list_move_head_back(list_t& l) {
 // erase non-heading node
 inline void list_erase(list_t& l, DoubleLink* node) {
     node->prev->next = node->next;
-    DoubleLink* x = node->next ? node->next : l;
+    const auto x = node->next ? node->next : l;
     x->prev = node->prev;
 }
 
@@ -535,19 +535,25 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    for (int i = M - 1; i >= 0; --i) {
-        const size_t x = atomic_load(&q[i], mo_relaxed);
-        if (x) {
-            atomic_and(&q[i], ~x, mo_relaxed);
-            p[i] &= ~x;
-            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
-            const int r = _bs.rfind(_cur_bit);
-            if (r >= lsb) break;
-            _cur_bit = r >= 0 ? lsb : 0;
-            if (_cur_bit == 0) break;
+    const int last_bit = _bs.rfind(_cur_bit);
+    const int k = last_bit >> B;
+    size_t x = atomic_load(&q[k], mo_relaxed);
+    if (x == 0) goto end;
+
+    for (int i = k;;) {
+        atomic_and(&q[i], ~x, mo_relaxed);
+        p[i] &= ~x;
+        if (p[i] != 0) {
+            const int m = (int)_find_msb(p[i]) + (i << B);
+            if (m < last_bit) _cur_bit = m;
+            goto end;
         }
+
+        while (--i >= 0 && (x = atomic_load(&q[i], mo_relaxed)) == 0);
+        if (i < 0) { _cur_bit = 0; goto end; }
     }
 
+  end:
     if (_cur_bit + n <= _max_bit) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 12);
@@ -560,7 +566,7 @@ inline void* LargeAlloc::alloc(uint32 n) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 12);
     }
-    return try_hard_alloc(n);
+    return NULL;
 }
 
 inline bool LargeAlloc::free(void* p) {
@@ -603,19 +609,25 @@ void* SmallAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    for (int i = M - 1; i >= 0; --i) {
-        const size_t x = atomic_load(&q[i], mo_relaxed);
-        if (x) {
-            atomic_and(&q[i], ~x, mo_relaxed);
-            p[i] &= ~x;
-            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
-            const int r = _bs.rfind(_cur_bit);
-            if (r >= lsb) break;
-            _cur_bit = r >= 0 ? lsb : 0;
-            if (_cur_bit == 0) break;
+    const int last_bit = _bs.rfind(_cur_bit);
+    const int k = last_bit >> B;
+    size_t x = atomic_load(&q[k], mo_relaxed);
+    if (x == 0) goto end;
+
+    for (int i = k;;) {
+        atomic_and(&q[i], ~x, mo_relaxed);
+        p[i] &= ~x;
+        if (p[i] != 0) {
+            const int m = (int)_find_msb(p[i]) + (i << B);
+            if (m < last_bit) _cur_bit = m;
+            goto end;
         }
+
+        while (--i >= 0 && (x = atomic_load(&q[i], mo_relaxed)) == 0);
+        if (i < 0) { _cur_bit = 0; goto end; }
     }
 
+  end:
     if (_cur_bit + n <= _max_bit) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 4);
@@ -629,11 +641,11 @@ inline void* SmallAlloc::alloc(uint32 n) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 4);
     }
-    return try_hard_alloc(n);
+    return NULL;
 }
 
 inline bool SmallAlloc::free(void* p) {
-    int i = (int)(((char*)p - _p) >> 4);
+    const int i = (int)(((char*)p - _p) >> 4);
     CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
 
     const int r = _bs.rfind(_cur_bit);
@@ -663,35 +675,37 @@ inline void* ThreadAlloc::alloc(size_t n) {
         const uint32 u = n > 16 ? (god::align_up((uint32)n, 16) >> 4) : 1;
         if (_sa && (p = _sa->alloc(u))) goto _end;
         {
-            auto& l = *(DoubleLink**)&_sa;
+            auto& l = (list_t&)_sa;
             if (l && l->next) {
                 list_move_head_back(l);
-                if ((p = _sa->alloc(u))) goto _end;
+                if ((p = _sa->try_hard_alloc(u))) goto _end;
+                list_move_head_back(l);
             }
         }
 
         if (_lb && (sa = _lb->make_small_alloc())) {
-            list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+            list_push_front((list_t&)_sa, (DoubleLink*)sa);
             p = sa->alloc(u);
             goto _end;
         }
 
         {
-            auto& l = *(DoubleLink**)&_lb;
+            auto& l = (list_t&)_lb;
             if (l && l->next) {
                 list_move_head_back(l);
                 if ((sa = _lb->make_small_alloc())) {
-                    list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                    list_push_front((list_t&)_sa, (DoubleLink*)sa);
                     p = sa->alloc(u);
                     goto _end;
                 }
+                list_move_head_back(l);
             }
 
             auto lb = galloc()->make_large_block(_id);
             if (lb) {
                 list_push_front(l, (DoubleLink*)lb);
                 sa = lb->make_small_alloc();
-                list_push_front(*(DoubleLink**)&_sa, (DoubleLink*)sa);
+                list_push_front((list_t&)_sa, (DoubleLink*)sa);
                 p = sa->alloc(u);
             }
             goto _end;
@@ -702,10 +716,11 @@ inline void* ThreadAlloc::alloc(size_t n) {
         if (_la && (p = _la->alloc(u))) goto _end;
 
         {
-            auto& l = *(DoubleLink**)&_la;
+            auto& l = (list_t&)_la;
             if (l && l->next) {
                 list_move_head_back(l);
-                if ((p = _la->alloc(u))) goto _end;
+                if ((p = _la->try_hard_alloc(u))) goto _end;
+                list_move_head_back(l);
             }
 
             auto la = galloc()->make_large_alloc(_id);
@@ -727,14 +742,14 @@ inline void* ThreadAlloc::alloc(size_t n) {
 inline void ThreadAlloc::free(void* p, size_t n) {
     if (p) {
         if (n <= 2048) {
-            auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
-            auto ta = sa->thread_alloc();
+            const auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
+            const auto ta = sa->thread_alloc();
             if (ta == this) {
                 if (sa->free(p) && sa != _sa) {
-                    list_erase(*(DoubleLink**)&_sa, (DoubleLink*)sa);
-                    auto lb = sa->parent();
+                    list_erase((list_t&)_sa, (DoubleLink*)sa);
+                    const auto lb = sa->parent();
                     if (lb->free(sa) && lb != _lb) {
-                        list_erase(*(DoubleLink**)&_lb, (DoubleLink*)lb);
+                        list_erase((list_t&)_lb, (DoubleLink*)lb);
                         galloc()->free(lb, lb->parent(), _id);
                     }
                 }
@@ -743,11 +758,11 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             }
 
         } else if (n <= g_max_alloc_size) {
-            auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
-            auto ta = la->thread_alloc();
+            const auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
+            const auto ta = la->thread_alloc();
             if (ta == this) {
                 if (la->free(p) && la != _la) {
-                    list_erase(*(DoubleLink**)&_la, (DoubleLink*)la);
+                    list_erase((list_t&)_la, (DoubleLink*)la);
                     galloc()->free(la, la->parent(), _id);
                 }
             } else {
@@ -769,7 +784,7 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
         const uint32 k = (o > 16 ? god::align_up((uint32)o, 16) : 16);
         if (n <= (size_t)k) return p;
 
-        auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
+        const auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
         if (sa == _sa && n <= 2048) {
             const uint32 l = god::align_up((uint32)n, 16);
             auto x = sa->realloc(p, k >> 4, l >> 4);
@@ -780,7 +795,7 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
         const uint32 k = god::align_up((uint32)o, 4096);
         if (n <= (size_t)k) return p;
 
-        auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
+        const auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
         if (la == _la && n <= g_max_alloc_size) {
             const uint32 l = god::align_up((uint32)n, 4096);
             auto x = la->realloc(p, k >> 12, l >> 12);
