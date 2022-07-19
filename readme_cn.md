@@ -1,42 +1,66 @@
-# cocoyaxi
+# Coost
 
 [English](readme.md) | 简体中文
 
-[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Linux/master.svg?logo=linux)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3ALinux)
-[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Windows/master.svg?logo=windows)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AWindows)
-[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/macOS/master.svg?logo=apple)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AmacOS)
-[![Release](https://img.shields.io/github/release/idealvin/cocoyaxi.svg)](https://github.com/idealvin/cocoyaxi/releases)
+[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/coost/Linux/master.svg?logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
+[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/coost/Windows/master.svg?logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/coost/macOS/master.svg?logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
-**A go-style coroutine library in C++11 and more.**
+**A tiny boost library in C++11.**
 
 
 
-## 0. cocoyaxi 简介
+## 0. Coost 简介
 
-**cocoyaxi (简称co)**，是一个优雅、高效的跨平台 C++ 基础库，它包含 **go-style 协程**、基于协程的网络编程框架、命令行参数与配置文件解析库、高性能日志库、单元测试框架、JSON 库等一系列高质量的基础组件。
+**Coost** 是一个优雅、高效的跨平台 C++ 基础库，它没有 [boost](https://www.boost.org/) 那么重，但仍然提供了足够强大的功能：
 
-> 传说在距离地球约23光年的地方，有一颗名为**娜美克**(**Namake**)的行星，娜美克星有一大两小三个太阳。娜美克星人以编程为生，他们按编程水平将所有人分成九个等级，水平最低的三个等级会被送往其他星球发展编程技术。这些外派的娜美克星人，必须通过一个项目，**集齐至少10000个赞**，才能重返娜美克星。
+- 命令行参数与配置文件解析库(flag)
+- 高性能日志库(log)
+- 单元测试框架(unitest)
+- go-style 协程
+- 基于协程的网络库编程框架
+- 高效 JSON 库
+- 基于 JSON 的 RPC 框架
+- 面向玄学编程
+- 原子操作(atomic)
+- 随机数生成器(random)
+- 高效字符流(fastream)
+- 高效字符串(fastring)
+- 字符串操作(str)
+- 时间库(time)
+- 线程库(thread)
+- 高效内存分配器
+- LruMap
+- hash 库
+- path 库
+- 文件系统操作(fs)
+- 系统操作(os)
+ 
+Coost 原名 cocoyaxi，因担心暴露过多信息而使 Namake 星遭受**黑暗森林法则**打击，故改名为 Coost，意为比 boost 更加轻量级的 C++ 基础库。
+
+> 传说在距离地球约xx光年的地方，有一颗名为**娜美克**(**Namake**)的行星，娜美克星有一大两小三个太阳。娜美克星人以编程为生，他们按编程水平将所有人分成九个等级，水平最低的三个等级会被送往其他星球发展编程技术。这些外派的娜美克星人，必须通过一个项目，**集齐至少10000个赞**，才能重返娜美克星。
 > 
-> 若干年前，两个娜美克星人 [ruki](https://github.com/waruqi) 和 [alvin](https://github.com/idealvin)，被发配到地球上。为了早日回到娜美克星，ruki 开发了一个好用的构建工具 [xmake](https://github.com/xmake-io/xmake)，该名字就是取自 Namake。alvin 则开发了一个与 goroutine 类似的 C++ 协程库 [cocoyaxi](https://github.com/idealvin/cocoyaxi)，该名字则取自 ruki 和 alvin 在娜美克星上居住的可可亚西村。
+> 若干年前，两个娜美克星人 [ruki](https://github.com/waruqi) 和 [alvin](https://github.com/idealvin)，被发配到地球上。为了早日回到娜美克星，ruki 开发了一个强大的构建工具 [xmake](https://github.com/xmake-io/xmake)，该名字就是取自 Namake。alvin 则开发了一个微型 boost 库 [coost](https://github.com/idealvin/coost), 其原名 cocoyaxi 取自 ruki 和 alvin 在娜美克星上居住的可可亚西村。
 
 
 
 ## 1. 赞助
 
-cocoyaxi 的发展离不开大家的帮助，如果您在使用或者喜欢 cocoyaxi，可以考虑赞助本项目，非常感谢🙏
+Coost 的发展离不开大家的帮助，如果您在使用或者喜欢 Coost，可以考虑赞助本项目，非常感谢🙏
 
 - [Github Sponsors](https://github.com/sponsors/idealvin)
-- [给作者来杯咖啡](https://cocoyaxi.gitee.io/cn/about/sponsor/)
+- [给作者来杯咖啡](https://coostdocs.gitee.io/cn/about/sponsor/)
 
 
 **特别赞助**
 
-cocoyaxi 由以下企业特别赞助，在此深表感谢🙏
+coost 由以下企业特别赞助，在此深表感谢🙏
 
 <a href="https://www.oneflow.org/index.html">
-<img src="https://cocoyaxi.github.io/images/sponsor/oneflow.png" width="175" height="125">
+<img src="https://coostdocs.github.io/images/sponsor/oneflow.png" width="175" height="125">
 </a>
 
 
@@ -44,8 +68,8 @@ cocoyaxi 由以下企业特别赞助，在此深表感谢🙏
 
 ## 2. 参考文档
 
-- 简体中文: [github](https://cocoyaxi.github.io/cn/about/co/) | [gitee](https://cocoyaxi.gitee.io/cn/about/co/)
-- English: [github](https://cocoyaxi.github.io/en/about/co/) | [gitee](https://cocoyaxi.gitee.io/en/about/co/)
+- 简体中文: [github](https://coostdocs.github.io/cn/about/co/) | [gitee](https://coostdocs.gitee.io/cn/about/co/)
+- English: [github](https://coostdocs.github.io/en/about/co/) | [gitee](https://coostdocs.gitee.io/en/about/co/)
 
 
 
@@ -68,7 +92,7 @@ void f() {
 
 ### 3.1 co/flag
 
-[co/flag](https://cocoyaxi.github.io/cn/co/flag/) 是一个命令行参数与配置文件解析库，用法与 [gflags](https://github.com/gflags/gflags) 类似，但功能更加强大：
+[co/flag](https://coostdocs.github.io/cn/co/flag/) 是一个命令行参数与配置文件解析库，用法与 [gflags](https://github.com/gflags/gflags) 类似，但功能更加强大：
 - 支持从命令行、配置文件传入参数。
 - 支持自动生成配置文件。
 - 支持 flag 别名。
@@ -107,7 +131,7 @@ int main(int argc, char** argv) {
 
 ### 3.2 co/log
 
-[co/log](https://cocoyaxi.github.io/cn/co/log/) 是一个内存友好的高性能日志系统，程序运行稳定后，打印日志不需要分配内存。
+[co/log](https://coostdocs.github.io/cn/co/log/) 是一个内存友好的高性能日志系统，程序运行稳定后，打印日志不需要分配内存。
 
 co/log 支持两种类型的日志：一种是级别日志，将日志分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**；另一种是 TLOG，日志按 topic 分类，不同 topic 的日志写入不同的文件。
 
@@ -130,7 +154,7 @@ CHECK_NE(p, NULL) << "malloc failed..";
 
 CHECK 断言失败时，co/log 会打印函数调用栈信息，然后终止程序的运行。在 linux 与 macosx 上，需要安装 [libbacktrace](https://github.com/ianlancetaylor/libbacktrace)。
 
-![stack](https://cocoyaxi.github.io/images/stack.png)
+![stack](https://coostdocs.github.io/images/stack.png)
 
 co/log 速度非常快，下面是一些测试结果，仅供参考：
 
@@ -145,7 +169,7 @@ co/log 速度非常快，下面是一些测试结果，仅供参考：
 
 
 
-- [co/log vs spdlog](https://github.com/idealvin/cocoyaxi/tree/benchmark/benchmark) (Linux)
+- [co/log vs spdlog](https://github.com/idealvin/coost/tree/benchmark/benchmark) (Linux)
 
   | threads | total logs | co/log time(seconds) | spdlog time(seconds)|
   | ------ | ------ | ------ | ------ |
@@ -158,7 +182,7 @@ co/log 速度非常快，下面是一些测试结果，仅供参考：
 
 ### 3.3 co/unitest
 
-[co/unitest](https://cocoyaxi.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，co 中的很多组件会用它写单元测试代码，为 co 的稳定性提供了保障。
+[co/unitest](https://coostdocs.github.io/cn/co/unitest/) 是一个简单易用的单元测试框架，co 中的很多组件会用它写单元测试代码，为 co 的稳定性提供了保障。
 
 ```cpp
 #include "co/unitest.h"
@@ -191,7 +215,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-[unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest) 目录下面是 co 中的单元测试代码，编译后可执行下述命令运行：
+[unitest](https://github.com/idealvin/coost/tree/master/unitest) 目录下面是 co 中的单元测试代码，编译后可执行下述命令运行：
 
 ```sh
 xmake r unitest      # 运行所有单元测试用例
@@ -202,7 +226,7 @@ xmake r unitest -os  # 仅运行 os 单元中的测试用例
 
 ### 3.4 JSON
 
-[co/json](https://cocoyaxi.github.io/cn/co/json/) 是一个兼具性能与易用性的 JSON 库。
+[co/json](https://coostdocs.github.io/cn/co/json/) 是一个兼具性能与易用性的 JSON 库。
 
 ```cpp
 // {"a":23,"b":false,"s":"xx","v":[1,2,3],"o":{"xx":0}}
@@ -231,7 +255,7 @@ x.get("v", 2).as_int();    // 3
 x.get("o", "xx").as_int(); // 0
 ```
 
-- [co/json vs rapidjson](https://github.com/idealvin/cocoyaxi/tree/benchmark/benchmark) (Linux)
+- [co/json vs rapidjson](https://github.com/idealvin/coost/tree/benchmark/benchmark) (Linux)
 
   |  | parse | stringify | parse(minimal) | stringify(minimal) |
   | ------ | ------ | ------ | ------ | ------ |
@@ -248,9 +272,9 @@ co 实现了类似 [golang goroutine](https://github.com/golang/go) 的协程，
 - 共享栈，同一线程中的协程共用若干个栈(大小默认为 1MB)，内存占用低，Linux 上的测试显示 1000 万协程只用了 2.8G 内存(仅供参考)。
 - 各协程之间为平级关系，可以在任何地方(包括在协程中)创建新的协程。
 - 支持系统 API hook (Windows/Linux/Mac)，可以直接在协程中使用三方网络库。
-- 支持协程锁 [co::Mutex](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E9%94%81comutex)、协程同步事件 [co::Event](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent)。
-- 支持 golang 中的 channel、waitgroup 等特性：[co::Chan](https://cocoyaxi.github.io/cn/co/coroutine/#channelcochan)、[co::WaitGroup](https://cocoyaxi.github.io/cn/co/coroutine/#waitgroupcowaitgroup)。
-- 支持协程池 [co::Pool](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E6%B1%A0copool)（无锁、无原子操作）。
+- 支持协程锁 [co::Mutex](https://coostdocs.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E9%94%81comutex)、协程同步事件 [co::Event](https://coostdocs.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%90%8C%E6%AD%A5%E4%BA%8B%E4%BB%B6coevent)。
+- 支持 golang 中的 channel、waitgroup 等特性：[co::Chan](https://coostdocs.github.io/cn/co/coroutine/#channelcochan)、[co::WaitGroup](https://coostdocs.github.io/cn/co/coroutine/#waitgroupcowaitgroup)。
+- 支持协程池 [co::Pool](https://coostdocs.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E6%B1%A0copool)（无锁、无原子操作）。
 
 
 ```cpp
@@ -290,9 +314,9 @@ for (auto& s : co::schedulers()) {
 
 ### 3.6 网络编程
 
-co 提供了一套协程化的 [socket API](https://cocoyaxi.github.io/cn/co/coroutine/#%E5%8D%8F%E7%A8%8B%E5%8C%96%E7%9A%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
+co 提供了一套协程化的 [socket API](https://coostdocs.github.io/cn/co/coroutine/#%e5%8d%8f%e7%a8%8b%e5%8c%96%e7%9a%84-socket-api)，它们大部分形式上与原生的 socket API 基本一致，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
 
-co 也实现了更高层的网络编程组件，包括 [TCP](https://cocoyaxi.github.io/cn/co/net/tcp/)、[HTTP](https://cocoyaxi.github.io/cn/co/net/http/) 以及基于 [JSON](https://cocoyaxi.github.io/cn/co/json/) 的 [RPC](https://cocoyaxi.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。
+co 也实现了更高层的网络编程组件，包括 [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[HTTP](https://coostdocs.github.io/cn/co/net/http/) 以及基于 [JSON](https://coostdocs.github.io/cn/co/json/) 的 [RPC](https://coostdocs.github.io/cn/co/net/rpc/) 框架，它们兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。
 
 
 - **RPC server**
@@ -383,23 +407,23 @@ go(f);
 
 ## 4. 代码构成
 
-- [include](https://github.com/idealvin/cocoyaxi/tree/master/include)  
+- [include](https://github.com/idealvin/coost/tree/master/include)  
 
   co 的头文件。
 
-- [src](https://github.com/idealvin/cocoyaxi/tree/master/src)  
+- [src](https://github.com/idealvin/coost/tree/master/src)  
 
   co 的源代码，编译生成 libco。
 
-- [test](https://github.com/idealvin/cocoyaxi/tree/master/test)  
+- [test](https://github.com/idealvin/coost/tree/master/test)  
 
   一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
 
-- [unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest)  
+- [unitest](https://github.com/idealvin/coost/tree/master/unitest)  
 
   一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
-- [gen](https://github.com/idealvin/cocoyaxi/tree/master/gen)  
+- [gen](https://github.com/idealvin/coost/tree/master/gen)  
 
   代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
 
@@ -457,7 +481,7 @@ xmake install -o /usr/local   # 安装到 /usr/local 目录
 #### 5.2.5 从 xrepo 安装 libco
 
 ```sh
-xrepo install -f "openssl=true,libcurl=true" cocoyaxi
+xrepo install -f "openssl=true,libcurl=true" coost
 ```
 
 
@@ -506,25 +530,25 @@ make -j8
 #### 5.3.5 从 vcpkg 安装 libco
 
 ```sh
-vcpkg install cocoyaxi:x64-windows
+vcpkg install coost:x64-windows
 
 # 启用 HTTP & SSL
-vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
+vcpkg install coost[libcurl,openssl]:x64-windows
 ```
 
 
 #### 5.3.6 从 conan 安装 libco
 
 ```sh
-conan install cocoyaxi
+conan install coost
 ```
 
 
-#### 5.3.7 Cmake 中查找 cocoyaxi 包
+#### 5.3.7 Cmake 中查找 coost 包
 
 ```cmake
-find_package(cocoyaxi REQUIRED CONFIG)
-target_link_libraries(userTarget cocoyaxi::co)
+find_package(coost REQUIRED CONFIG)
+target_link_libraries(userTarget coost::co)
 ```
 
 
@@ -532,14 +556,14 @@ target_link_libraries(userTarget cocoyaxi::co)
 
 ## 6. License
 
-The MIT license. cocoyaxi 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md)。
+The MIT license. coost 包含了一些其他项目的代码，可能使用了不同的 License，详情见 [LICENSE.md](https://github.com/idealvin/coost/blob/master/LICENSE.md)。
 
 
 
 
 ## 7. 特别致谢
 
-- [co/context](https://github.com/idealvin/cocoyaxi/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
+- [co/context](https://github.com/idealvin/coost/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
 - [Leedehai](https://github.com/Leedehai) 与 [daidai21](https://github.com/daidai21) 早期帮忙将 co 的中文参考文档翻译成英文，特别表示感谢！
 - [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
