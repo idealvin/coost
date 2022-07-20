@@ -37,7 +37,7 @@ class Kqueue {
     }
 
     void signal(char c = 'x') {
-        if (atomic_bool_cas(&_signaled, 0, 1, mo_acq_rel, mo_acq_rel)) {
+        if (atomic_bool_cas(&_signaled, 0, 1, mo_acq_rel, mo_acquire)) {
             const int r = (int) __sys_api(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
