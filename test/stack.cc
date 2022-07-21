@@ -23,10 +23,12 @@ void b() {
 void c() {
     b();
 }
-
+void d() {
+   throw std::runtime_error("test");
+}
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-
+    
     if (FLG_m) {
         c();
     } else if (FLG_t) {
@@ -34,8 +36,7 @@ int main(int argc, char** argv) {
     } else {
         go(c);
     }
-
+    go (d);
     while (1) sleep::sec(1024);
-
     return 0;
 }

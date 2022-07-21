@@ -107,7 +107,36 @@ using namespace ___;
 // TLOG are logs grouped by the topic.
 // TLOG("xxx") << "hello xxx" << 23;
 // It is better to use a literal string for the topic.
+
+#ifndef _WIN32
 #define TLOG(topic) log::xx::TLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__, topic).stream()
+#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__, lv).stream()
+#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__).stream()
+#else
+template <typename T, size_t S>
+inline constexpr size_t get_file_name_offset(const T(&str)[S], size_t i = S - 1){
+    return (str[i] == '/' || str[i] == '\\') ? i + 1 : (i > 0 ? get_file_name_offset(str, i - 1) : 0);
+}
+template <typename T>
+inline constexpr size_t get_file_name_offset(T(&str)[1]){
+    return 0;
+}
+namespace utility {
+
+    template <typename T, T v>
+    struct const_expr_value
+    {
+        static constexpr const T value = v;
+    };
+}
+#define UTILITY_CONST_EXPR_VALUE(exp) ::utility::const_expr_value<decltype(exp), exp>::value
+#define __FILENAME__ &__FILE__[UTILITY_CONST_EXPR_VALUE(get_file_name_offset(__FILE__))]
+
+#define TLOG(topic) log::xx::TLogSaver(__FILENAME__, sizeof(__FILENAME__) - 1, __LINE__, topic).stream()
+#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(__FILENAME__, sizeof(__FILE__)-UTILITY_CONST_EXPR_VALUE(get_file_name_offset(__FILE__)) - 1, __LINE__, lv).stream()
+#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(__FILENAME__, sizeof(__FILE__)-UTILITY_CONST_EXPR_VALUE(get_file_name_offset(__FILE__)) - 1, __LINE__).stream()
+#endif 
+
 #define TLOG_IF(topic, cond) if (cond) TLOG(topic)
 
 // DLOG  ->  debug log
@@ -119,8 +148,7 @@ using namespace ___;
 //
 // LOG << "hello world " << 23;
 // WLOG_IF(1 + 1 == 2) << "xx";
-#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__, lv).stream()
-#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(__FILE__, sizeof(__FILE__) - 1, __LINE__).stream()
+
 #define DLOG  if (FLG_min_log_level <= log::xx::debug)   _CO_LOG_STREAM(log::xx::debug)
 #define LOG   if (FLG_min_log_level <= log::xx::info)    _CO_LOG_STREAM(log::xx::info)
 #define WLOG  if (FLG_min_log_level <= log::xx::warning) _CO_LOG_STREAM(log::xx::warning)

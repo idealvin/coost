@@ -765,6 +765,8 @@ void FailureHandler::on_failure(int sig) {
 }
 
 #ifdef _WIN32
+//#include <ntstatus.h>
+#include <winnt.h>
 int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
     auto& g = global();
     const char* err = NULL;
@@ -813,8 +815,23 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
         err = "Error: EXCEPTION_PRIV_INSTRUCTION";
         break;
       case EXCEPTION_STACK_OVERFLOW:
-        err = "Error: EXCEPTION_STACK_OVERFLOW";
+        err = "Error: EXCEPTION_STACK_OVERFLOW  -- A new guard page for the stack cannot be created.";
         break;
+      case 0xE06D7363://STATUS_CPP_EH_EXCEPTION
+          err = "Error: STATUS_CPP_EH_EXCEPTION -- VC++ Runtime ERR";
+          break;
+      case 0xE0434f4D://STATUS_CLR_EXCEPTION
+          err = "Error: STATUS_CLR_EXCEPTION -- VC++ Runtime ERR";
+          break;
+      case 0xCFFFFFFF://STATUS_APPLICATION_HANG 
+          err = "Error: STATUS_APPLICATION_HANG -- Application hang";
+          break;
+      case STATUS_INVALID_HANDLE:
+          err = "Error: STATUS_INVALID_HANDLE -- An invalid HANDLE was specified.";
+          break;
+      case STATUS_STACK_BUFFER_OVERRUN:
+          err = "Error: STATUS_STACK_BUFFER_OVERRUN -- The system detected an overrun of a stack-based buffer in this application. ";
+          break;
       default:
         // ignore unrecognized exception here
         return EXCEPTION_CONTINUE_SEARCH;
@@ -830,7 +847,8 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
     if (_stack_trace) _stack_trace->dump_stack(&f, 6);
     if (f) { f.write('\n'); f.close(); }
 
-    return EXCEPTION_EXECUTE_HANDLER;
+    std::exit(0);
+    return EXCEPTION_CONTINUE_EXECUTION;
 }
 
 LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
