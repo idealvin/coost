@@ -139,7 +139,9 @@ class StaticAllocator {
 };
 
 inline void* StaticAllocator::alloc(size_t n) {
+    static size_t k = 0;
     n = god::align_up(n, 8);
+    k += n;
     if (_p + n <= _e) return god::fetch_add(&_p, n);
 
     if (n <= 4096) {
@@ -259,8 +261,11 @@ class LargeBlock {
 
 class LargeAlloc {
   public:
-    static const uint32 N = 1u << (g_lb_bits - 12);
-    static const uint32 M = (N >> 3) / sizeof(size_t);
+    //static const uint32 N = 1u << (g_lb_bits - 12);
+    //static const uint32 M = (N >> 3) / sizeof(size_t);
+    static const uint32 BS_BITS = 1u << (g_lb_bits - 12);
+    static const uint32 LA_SIZE = 64;
+    static const uint32 MAX_bIT = BS_BITS - 1;
     explicit LargeAlloc(HugeBlock* parent);
 
     // alloc n units
@@ -288,14 +293,18 @@ class LargeAlloc {
         char* _xpbs;
     };
     uint32 _cur_bit;
-    uint32 _max_bit;
+    //uint32 _max_bit;
     DISALLOW_COPY_AND_ASSIGN(LargeAlloc);
 };
 
 class SmallAlloc {
   public:
-    static const uint32 N = 1u << (g_sb_bits - 4);
-    static const uint32 M = (N >> 3) / sizeof(size_t);
+    //static const uint32 N = 1u << (g_sb_bits - 4);
+    //static const uint32 M = (N >> 3) / sizeof(size_t);
+    static const uint32 BS_BITS = 1u << (g_sb_bits - 4); // 2048
+    static const uint32 SA_SIZE = 64;
+    static const uint32 MAX_bIT = BS_BITS - ((SA_SIZE + (BS_BITS >> 2)) >> 4);
+
     explicit SmallAlloc(LargeBlock* parent);
 
     // alloc n units
@@ -323,7 +332,6 @@ class SmallAlloc {
         char* _xpbs;
     };
     uint32 _cur_bit;
-    uint32 _max_bit;
     DISALLOW_COPY_AND_ASSIGN(SmallAlloc);
 };
 
@@ -454,7 +462,7 @@ inline void* GlobalAlloc::alloc(uint32 alloc_id, HugeBlock** parent) {
             break;
         }
 
-        auto& l = *(DoubleLink**)&x.hb;
+        auto& l = (list_t&)x.hb;
         if (l && l->next) {
             list_move_head_back(l);
             if ((p = x.hb->alloc())) {
@@ -494,7 +502,7 @@ inline void GlobalAlloc::free(void* p, HugeBlock* hb, uint32 alloc_id) {
     {
         std::lock_guard<std::mutex> g(x.mtx);
         r = hb->free(p) && hb != x.hb;
-        if (r) list_erase(*(DoubleLink**)&x.hb, (DoubleLink*)hb);
+        if (r) list_erase((list_t&)x.hb, (DoubleLink*)hb);
     }
     if (r) _vm_free(hb, 1u << g_hb_bits);
 }
@@ -524,10 +532,10 @@ inline SmallAlloc* LargeBlock::make_small_alloc() {
 
 LargeAlloc::LargeAlloc(HugeBlock* parent)
     : _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
-    _max_bit = N - 1;
+    static_assert(sizeof(*this) <= LA_SIZE, "");
     _p = (char*)this + 4096;
-    _pbs = (char*)this + god::align_up((uint32)sizeof(*this), 16);
-    _xpbs = _pbs + (N >> 3);
+    _pbs = (char*)this + LA_SIZE;
+    _xpbs = (char*)this + (LA_SIZE + (BS_BITS >> 3));
     (void)_next; (void)_prev;
 }
 
@@ -535,26 +543,21 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    const int last_bit = _bs.rfind(_cur_bit);
-    const int k = last_bit >> B;
-    size_t x = atomic_load(&q[k], mo_relaxed);
-    if (x == 0) goto end;
-
-    for (int i = k;;) {
-        atomic_and(&q[i], ~x, mo_relaxed);
-        p[i] &= ~x;
-        if (p[i] != 0) {
-            const int m = (int)_find_msb(p[i]) + (i << B);
-            if (m < last_bit) _cur_bit = m;
-            goto end;
+    const int M = _cur_bit >> B;
+    for (int i = M; i >= 0; --i) {
+        const size_t x = atomic_load(&q[i], mo_relaxed);
+        if (x) {
+            atomic_and(&q[i], ~x, mo_relaxed);
+            p[i] &= ~x;
+            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+            const int r = _bs.rfind(_cur_bit);
+            if (r >= lsb) break;
+            _cur_bit = r >= 0 ? lsb : 0;
+            if (_cur_bit == 0) break;
         }
-
-        while (--i >= 0 && (x = atomic_load(&q[i], mo_relaxed)) == 0);
-        if (i < 0) { _cur_bit = 0; goto end; }
     }
 
-  end:
-    if (_cur_bit + n <= _max_bit) {
+    if (_cur_bit + n <= MAX_bIT) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 12);
     }
@@ -562,7 +565,7 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
 }
 
 inline void* LargeAlloc::alloc(uint32 n) {
-    if (_cur_bit + n <= _max_bit) {
+    if (_cur_bit + n <= MAX_bIT) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 12);
     }
@@ -585,7 +588,7 @@ inline void LargeAlloc::xfree(void* p) {
 
 inline void* LargeAlloc::realloc(void* p, uint32 o, uint32 n) {
     uint32 i = (uint32)(((char*)p - _p) >> 12);
-    if (_cur_bit == i + o && i + n <= _max_bit) {
+    if (_cur_bit == i + o && i + n <= MAX_bIT) {
         _cur_bit = i + n;
         return p;
     }
@@ -595,13 +598,10 @@ inline void* LargeAlloc::realloc(void* p, uint32 o, uint32 n) {
 
 SmallAlloc::SmallAlloc(LargeBlock* parent)
     : _next(0), _prev(0), _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
-    const uint32 bs_bits = (1u << (g_sb_bits - 4)); // 2048
-    const uint32 n = god::align_up((uint32)sizeof(*this), 16);
-    const uint32 reserved_size = n + (bs_bits >> 2); // n + 256 * 2
-    _max_bit = bs_bits - (reserved_size >> 4);
-    _p = (char*)this + reserved_size;
-    _pbs = (char*)this + n;
-    _xpbs = _pbs + (bs_bits >> 3);
+    static_assert(sizeof(*this) <= SA_SIZE, "");
+    _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
+    _pbs = (char*)this + SA_SIZE;
+    _xpbs = (char*)this + (SA_SIZE + (BS_BITS >> 3));
     (void)_next; (void)_prev;
 }
 
@@ -609,35 +609,29 @@ void* SmallAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    const int last_bit = _bs.rfind(_cur_bit);
-    const int k = last_bit >> B;
-    size_t x = atomic_load(&q[k], mo_relaxed);
-    if (x == 0) goto end;
-
-    for (int i = k;;) {
-        atomic_and(&q[i], ~x, mo_relaxed);
-        p[i] &= ~x;
-        if (p[i] != 0) {
-            const int m = (int)_find_msb(p[i]) + (i << B);
-            if (m < last_bit) _cur_bit = m;
-            goto end;
+    const int M = _cur_bit >> B;
+    for (int i = M; i >= 0; --i) {
+        const size_t x = atomic_load(&q[i], mo_relaxed);
+        if (x) {
+            atomic_and(&q[i], ~x, mo_relaxed);
+            p[i] &= ~x;
+            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+            const int r = _bs.rfind(_cur_bit);
+            if (r >= lsb) break;
+            _cur_bit = r >= 0 ? lsb : 0;
+            if (_cur_bit == 0) break;
         }
-
-        while (--i >= 0 && (x = atomic_load(&q[i], mo_relaxed)) == 0);
-        if (i < 0) { _cur_bit = 0; goto end; }
     }
 
-  end:
-    if (_cur_bit + n <= _max_bit) {
+    if (_cur_bit + n <= MAX_bIT) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 4);
     }
     return NULL;
-   
 }
 
 inline void* SmallAlloc::alloc(uint32 n) {
-    if (_cur_bit + n <= _max_bit) {
+    if (_cur_bit + n <= MAX_bIT) {
         _bs.set(_cur_bit);
         return _p + (god::fetch_add(&_cur_bit, n) << 4);
     }
@@ -647,10 +641,8 @@ inline void* SmallAlloc::alloc(uint32 n) {
 inline bool SmallAlloc::free(void* p) {
     const int i = (int)(((char*)p - _p) >> 4);
     CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
-
     const int r = _bs.rfind(_cur_bit);
-    if (r < i) _cur_bit = r >= 0 ? i : 0;
-    return _cur_bit == 0;
+    return r < i ? ((_cur_bit = r >= 0 ? i : 0) == 0) : false;
 }
 
 inline void SmallAlloc::xfree(void* p) {
@@ -660,13 +652,14 @@ inline void SmallAlloc::xfree(void* p) {
 
 inline void* SmallAlloc::realloc(void* p, uint32 o, uint32 n) {
     uint32 i = (uint32)(((char*)p - _p) >> 4);
-    if (_cur_bit == i + o && i + n <= _max_bit) {
+    if (_cur_bit == i + o && i + n <= MAX_bIT) {
         _cur_bit = i + n;
         return p;
     }
     return NULL;
 }
 
+static const int ntry = 4;
 
 inline void* ThreadAlloc::alloc(size_t n) {
     void* p = 0;
@@ -676,6 +669,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
         if (_sa && (p = _sa->alloc(u))) goto _end;
         {
             auto& l = (list_t&)_sa;
+
             if (l && l->next) {
                 list_move_head_back(l);
                 if ((p = _sa->try_hard_alloc(u))) goto _end;
