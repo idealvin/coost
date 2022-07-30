@@ -28,6 +28,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -308,7 +309,8 @@ inline void DigitGen(const DiyFp& W, const DiyFp& Mp, uint64_t delta, char* buff
         kappa--;
         if (p2 < delta) {
             *K += kappa;
-            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * kPow10[-kappa]);
+            const int index = -kappa;
+            GrisuRound(buffer, *len, delta, p2, one.f, wp_w.f * (index < 10 ? kPow10[index] : 0));
             return;
         }
     }
@@ -374,8 +376,7 @@ inline char* Prettify(char* buffer, int length, int k, int maxDecimalPlaces) {
 
     if (0 <= k && kk <= 21) {
         // 1234e7 -> 12340000000
-        for (int i = length; i < kk; i++)
-            buffer[i] = '0';
+        for (int i = length; i < kk; ++i) buffer[i] = '0';
         buffer[kk] = '.';
         buffer[kk + 1] = '0';
         return &buffer[kk + 2];
@@ -387,39 +388,31 @@ inline char* Prettify(char* buffer, int length, int k, int maxDecimalPlaces) {
         if (0 > k + maxDecimalPlaces) {
             // When maxDecimalPlaces = 2, 1.2345 -> 1.23, 1.102 -> 1.1
             // Remove extra trailing zeros (at least one) after truncation.
-            for (int i = kk + maxDecimalPlaces; i > kk + 1; i--)
-                if (buffer[i] != '0')
-                    return &buffer[i + 1];
+            for (int i = kk + maxDecimalPlaces; i > kk + 1; i--) {
+                if (buffer[i] != '0') return &buffer[i + 1];
+            }
             return &buffer[kk + 2]; // Reserve one zero
-        }
-        else
+        } else {
             return &buffer[length + 1];
+        }
     }
-    else if (-6 < kk && kk <= 0) {
+    else if (kk == 0 || (-3 < kk && kk < 0 && -maxDecimalPlaces <= k)) {
         // 1234e-6 -> 0.001234
         const int offset = 2 - kk;
         memmove(&buffer[offset], &buffer[0], static_cast<size_t>(length));
         buffer[0] = '0';
         buffer[1] = '.';
-        for (int i = 2; i < offset; i++)
-            buffer[i] = '0';
+        for (int i = 2; i < offset; i++) buffer[i] = '0';
         if (length - kk > maxDecimalPlaces) {
             // When maxDecimalPlaces = 2, 0.123 -> 0.12, 0.102 -> 0.1
             // Remove extra trailing zeros (at least one) after truncation.
-            for (int i = maxDecimalPlaces + 1; i > 2; i--)
-                if (buffer[i] != '0')
-                    return &buffer[i + 1];
+            for (int i = maxDecimalPlaces + 1; i > 2; i--) {
+                if (buffer[i] != '0') return &buffer[i + 1];
+            }
             return &buffer[3]; // Reserve one zero
-        }
-        else
+        } else {
             return &buffer[length + offset];
-    }
-    else if (kk < -maxDecimalPlaces) {
-        // Truncate to zero
-        buffer[0] = '0';
-        buffer[1] = '.';
-        buffer[2] = '0';
-        return &buffer[3];
+        }
     }
     else if (length == 1) {
         // 1e30
@@ -428,10 +421,13 @@ inline char* Prettify(char* buffer, int length, int k, int maxDecimalPlaces) {
     }
     else {
         // 1234e30 -> 1.234e33
-        memmove(&buffer[2], &buffer[1], static_cast<size_t>(length - 1));
+        // 12345e-8 -> 1.23e-4  (mdp = 2)
+        size_t x = maxDecimalPlaces < length - 1 ? maxDecimalPlaces + 1 : length;
+        memmove(&buffer[2], &buffer[1], x - 1);
         buffer[1] = '.';
-        buffer[length + 1] = 'e';
-        return WriteExponent(kk - 1, &buffer[0 + length + 2]);
+        while (x > 2 && buffer[x] == '0') --x;
+        buffer[x + 1] = 'e';
+        return WriteExponent(kk - 1, &buffer[x + 2]);
     }
 }
 
