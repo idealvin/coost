@@ -122,9 +122,53 @@ DEF_test(fast) {
         EXPECT_EQ(fastring(buf, fast::dtoa(3e-23, buf)), "3e-23");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.33e-23, buf)), "3.33e-23");
         EXPECT_EQ(fastring(buf, fast::dtoa(3e23, buf)), "3e23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1e30, buf)), "1e30");
         EXPECT_EQ(fastring(buf, fast::dtoa(3.33e23, buf)), "3.33e23");
         EXPECT_EQ(fastring(buf, fast::dtoa(1.79e308, buf)), "1.79e308");
         EXPECT_EQ(fastring(buf, fast::dtoa(2.23e-308, buf)), "2.23e-308");
+        EXPECT_EQ(fastring(buf, fast::dtoa(5e-324, buf)), "5e-324");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.001, buf)), "0.001");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.00123456, buf)), "0.00123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0001, buf)), "1e-4");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.000001, buf)), "1e-6");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0000001, buf)), "1e-7");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.123456789012, buf)), "0.123456789012");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-79.39773355813419, buf)), "-79.39773355813419");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.234567890123456e30, buf)), "1.234567890123456e30");
+        EXPECT_EQ(fastring(buf, fast::dtoa(2.225073858507201e-308, buf)), "2.225073858507201e-308");
+        EXPECT_EQ(fastring(buf, fast::dtoa(2.2250738585072014e-308, buf)), "2.2250738585072014e-308");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.7976931348623157e308, buf)), "1.7976931348623157e308");
+
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.123456, buf, 6)), "0.123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.123456, buf, 3)), "0.123");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.123456, buf, 6)), "-0.123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.123456, buf, 3)), "-0.123");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0123456, buf, 7)), "0.0123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0123456, buf, 6)), "1.23456e-2");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.0123456, buf, 3)), "1.234e-2");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.0123456, buf, 7)), "-0.0123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.0123456, buf, 3)), "-1.234e-2");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.00123456, buf, 8)), "0.00123456");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.00123456, buf, 3)), "1.234e-3");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.000123456, buf, 9)), "1.23456e-4");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.000123456, buf, 3)), "1.234e-4");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.0000123, buf, 8)), "-1.23e-5");
+        EXPECT_EQ(fastring(buf, fast::dtoa(-0.0000123, buf, 3)), "-1.23e-5");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.234567, buf, 6)), "1.234567");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.234567, buf, 3)), "1.234");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.1000234567, buf, 10)), "0.1000234567");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.1000234567, buf, 5)), "0.10002");
+        EXPECT_EQ(fastring(buf, fast::dtoa(0.1000234567, buf, 3)), "0.1");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.1000234567, buf, 10)), "1.1000234567");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.1000234567, buf, 3)), "1.1");
+        EXPECT_EQ(fastring(buf, fast::dtoa(12345e3, buf, 6)), "12345000.0");
+        EXPECT_EQ(fastring(buf, fast::dtoa(123456789012345678901234.0, buf, 6)), "1.234567e23");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.23456789e-9, buf, 5)), "1.23456e-9");
+        EXPECT_EQ(fastring(buf, fast::dtoa(1.23456789e-9, buf, 2)), "1.23e-9");
+        EXPECT_EQ(fastring(buf, fast::dtoa(123000e30, buf, 2)), "1.23e35");
+        EXPECT_EQ(fastring(buf, fast::dtoa(123000e30, buf, 1)), "1.2e35");
+        EXPECT_EQ(fastring(buf, fast::dtoa(12345e-8, buf, 4)), "1.2345e-4");
+        EXPECT_EQ(fastring(buf, fast::dtoa(12345e-8, buf, 2)), "1.23e-4");
     }
 }
 
