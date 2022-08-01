@@ -126,32 +126,37 @@ class __coapi fastream : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
-    fastream& operator<<(const signed char* s) {
-        return this->operator<<((const char*)s);
-    }
-
-    fastream& operator<<(const unsigned char* s) {
-        return this->operator<<((const char*)s);
-    }
-
     // set max decimal places as mdp.n
     fast::stream::fpstream operator<<(co::maxdp mdp) {
         return fast::stream::operator<<(mdp);
     }
 
+    fastream& operator<<(const signed char* s) {
+        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+    }
+
+    fastream& operator<<(const unsigned char* s) {
+        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+    }
+
+    template<typename T>
+    using _is_supported_type = god::enable_if_t<
+        god::is_basic<T>() || god::is_pointer<T>() ||
+        god::is_literal_string<T>() || god::is_c_str<T>() ||
+        god::is_same<god::remove_cv_t<T>, fastring, fastream, std::string>(), int
+    >;
+
     // Special optimization for string literal like "hello". The length of a string 
     // literal can be get at compile-time, no need to call strlen().
-    template<typename T>
+    template<typename T, _is_supported_type<god::remove_ref_t<T>> = 0>
     fastream& operator<<(T&& t) {
-        using A = god::remove_ref_t<decltype(t)>; // remove & or &&
-        using B = god::remove_arr_t<A>;           // remove []
-        using C = god::remove_cv_t<A>;            // remove const, volatile
+        using X = god::remove_ref_t<T>; // remove & or &&
+        using C = god::remove_cv_t<X>;  // remove const, volatile
 
         constexpr int N =
-            god::is_array<A>() && god::is_same<B, const char>() ? 1 :
-            god::is_pointer<A>() && god::is_same<C, const char*, char*>() ? 2 :
+            god::is_literal_string<X>() ? 1 :
+            god::is_c_str<X>() ? 2 :
             god::is_same<C, fastring, fastream, std::string>() ? 3 :
-            god::is_class<A>() ? 4 :
             0;
 
         return this->_out(std::forward<T>(t), I<N>());
@@ -182,11 +187,5 @@ class __coapi fastream : public fast::stream {
     template<typename T>
     fastream& _out(T&& t, I<3>) {
         return this->append((god::const_ref_t<T>)t);
-    }
-
-    // other classes, call global `fastream& operator<<(fastream&, const X&)`
-    template<typename T>
-    fastream& _out(T&& t, I<4>) {
-        return (*this) << (god::const_ref_t<T>)t;
     }
 };

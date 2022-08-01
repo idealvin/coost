@@ -1,6 +1,7 @@
 #pragma once
 
 #include "def.h"
+#include "god.h"
 #include "mem.h"
 #include "__/dtoa_milo.h"
 
@@ -244,11 +245,6 @@ class __coapi stream {
         int mdp;
     };
 
-    // set max decimal places as mdp.n
-    fpstream operator<<(co::maxdp mdp) {
-        return fpstream(this, mdp.n);
-    }
-
     // set max decimal places for float point number, mdp must > 0
     fpstream maxdp(int mdp) {
         return fpstream(this, mdp);
@@ -273,6 +269,11 @@ class __coapi stream {
         memcpy(_p + _size, p, n);
         _size += n;
         return *this;
+    }
+
+    // set max decimal places as mdp.n
+    fpstream operator<<(co::maxdp mdp) {
+        return fpstream(this, mdp.n);
     }
 
     stream& operator<<(bool v) {
@@ -341,6 +342,18 @@ class __coapi stream {
         return *this;
     }
 
+    stream& operator<<(float v) {
+        this->ensure(24);
+        _size += fast::dtoa(v, _p + _size, 6);
+        return *this;
+    }
+
+    stream& operator<<(double v) {
+        this->ensure(24);
+        _size += fast::dtoa(v, _p + _size, 6);
+        return *this;
+    }
+
     stream& operator<<(const char* v) {
         return this->append(v, strlen(v));
     }
@@ -354,18 +367,6 @@ class __coapi stream {
     stream& operator<<(std::nullptr_t) {
         this->ensure(4);
         return this->append("0x0", 3);
-    }
-
-    stream& operator<<(float v) {
-        this->ensure(24);
-        _size += fast::dtoa(v, _p + _size, 6);
-        return *this;
-    }
-
-    stream& operator<<(double v) {
-        this->ensure(24);
-        _size += fast::dtoa(v, _p + _size, 6);
-        return *this;
     }
 
     size_t _cap;

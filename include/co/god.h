@@ -184,6 +184,30 @@ inline constexpr bool is_scalar() {
     return std::is_scalar<T>::value;
 }
 
+// check whether T is one of the basic built-in types like bool, int, double...
+template<typename T>
+inline constexpr bool is_basic() {
+    return god::is_same<god::remove_cv_t<T>,
+        bool, char, signed char, unsigned char,
+        short, unsigned short, int, unsigned int,
+        long, unsigned long, long long, unsigned long long,
+        float, double
+    >();
+}
+
+// check whether T is a literal string like "hello"
+template<typename T>
+inline constexpr bool is_literal_string() {
+    return god::is_array<T>() && god::is_same<god::remove_arr_t<T>, const char>();
+}
+
+// check whether T is a c-style string: const char*, char*, char[]
+template<typename T>
+inline constexpr bool is_c_str() {
+    return god::is_same<god::remove_cv_t<T>, const char*, char*>() ||
+        (god::is_array<T>() && god::is_same<god::remove_arr_t<T>, char>());
+}
+
 #if defined(__GNUC__) && __GNUC__ < 5
 template <typename T>
 inline constexpr bool is_trivially_copyable() {
