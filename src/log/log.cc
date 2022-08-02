@@ -19,6 +19,14 @@
 #pragma warning (disable:4722)
 #endif
 
+#ifdef _WIN32
+#include "IATHook.h"
+LPTOP_LEVEL_EXCEPTION_FILTER
+WINAPI SetUnhandledExceptionFilterHook(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter){
+    LOG << "SetUnhandledExceptionFilterHook";
+    return nullptr;// // Don't set the exception filter. Please see above for comments.
+}
+#endif
 DEF_string(log_dir, "logs", ">>#0 log dir, will be created if not exists");
 DEF_string(log_file_name, "", ">>#0 name of log file, use exename if empty");
 DEF_int32(min_log_level, 0, ">>#0 write logs at or above this level, 0-4 (debug|info|warning|error|fatal)");
@@ -681,7 +689,8 @@ FailureHandler::FailureHandler()
     _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
     // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
     // not work for other threads. Use AddVectoredExceptixx::onHandler instead.
-    _ex_handler = AddVectoredExceptionHandler(1, xx::on_exception);
+    //_ex_handler = AddVectoredExceptionHandler( 1, xx::on_exception);
+     _ex_handler = SetUnhandledExceptionFilter( xx::on_exception);
   #else
     const int x = SA_RESTART | SA_ONSTACK;
     _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
@@ -700,7 +709,7 @@ FailureHandler::~FailureHandler() {
     os::signal(SIGABRT, SIG_DFL);
   #ifdef _WIN32
     if (_ex_handler) {
-        RemoveVectoredExceptionHandler(_ex_handler);
+      //  RemoveVectoredExceptionHandler(_ex_handler);
         _ex_handler = NULL;
     }
   #else
@@ -754,10 +763,18 @@ void FailureHandler::on_failure(int sig) {
         if (f) f.write(s);
         log2stderr(s.data(), s.size());
     }
-
+    #ifndef _WIN32
     if (_stack_trace) _stack_trace->dump_stack(
         &f, g.check_failed ? 7 : (sig == SIGABRT ? 4 : 3)
     );
+    #else
+     CONTEXT context;
+        RtlCaptureContext(&context);
+    if (_stack_trace) _stack_trace->dump_stack(
+        &f, 0,&context
+    );
+    #endif // !win32
+   
     if (f) { f.write('\n'); f.close(); }
 
     os::signal(sig, _old_handlers[sig]);
@@ -765,75 +782,108 @@ void FailureHandler::on_failure(int sig) {
 }
 
 #ifdef _WIN32
-int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
-    auto& g = global();
-    const char* err = NULL;
-
-    switch (p->ExceptionRecord->ExceptionCode) {
-      case EXCEPTION_ACCESS_VIOLATION:
-        err = "Error: EXCEPTION_ACCESS_VIOLATION";
-        break;
-      case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-        err = "Error: EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
-        break;
-      case EXCEPTION_DATATYPE_MISALIGNMENT:
-        err = "Error: EXCEPTION_DATATYPE_MISALIGNMENT";
-        break;
-      case EXCEPTION_FLT_DENORMAL_OPERAND:
-        err = "Error: EXCEPTION_FLT_DENORMAL_OPERAND";
-        break;
-      case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-        err = "Error: EXCEPTION_FLT_DIVIDE_BY_ZERO";
-        break;
-      case EXCEPTION_FLT_INVALID_OPERATION:
-        err = "Error: EXCEPTION_FLT_INVALID_OPERATION";
-        break;
-      case EXCEPTION_FLT_OVERFLOW:
-        err = "Error: EXCEPTION_FLT_OVERFLOW";
-        break;
-      case EXCEPTION_FLT_STACK_CHECK:
-        err = "Error: EXCEPTION_FLT_STACK_CHECK";
-        break;
-      case EXCEPTION_FLT_UNDERFLOW:
-        err = "Error: EXCEPTION_FLT_UNDERFLOW";
-        break;
-      case EXCEPTION_ILLEGAL_INSTRUCTION:
-        err = "Error: EXCEPTION_ILLEGAL_INSTRUCTION";
-        break;
-      case EXCEPTION_IN_PAGE_ERROR:
-        err = "Error: EXCEPTION_IN_PAGE_ERROR";
-        break;
-      case EXCEPTION_INT_DIVIDE_BY_ZERO:
-        err = "Error: EXCEPTION_INT_DIVIDE_BY_ZERO";
-        break;
-      case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-        err = "Error: EXCEPTION_NONCONTINUABLE_EXCEPTION";
-        break;
-      case EXCEPTION_PRIV_INSTRUCTION:
-        err = "Error: EXCEPTION_PRIV_INSTRUCTION";
-        break;
-      case EXCEPTION_STACK_OVERFLOW:
-        err = "Error: EXCEPTION_STACK_OVERFLOW";
-        break;
-      default:
-        // ignore unrecognized exception here
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-
-    if (g.logger) g.logger->stop();
-    auto& f = g.log_file->open(NULL, fatal, g.log_time);
-    auto& s = *g.s; s.clear();
+//#include <ntstatus.h>
+#include"co/flag.h"
+#include <winnt.h>
+int FailureHandler::on_exception(PEXCEPTION_POINTERS p)
+{
+    auto &g = global();
+    fastring err;
+    
+        switch (p->ExceptionRecord->ExceptionCode)
+        {
+        case EXCEPTION_ACCESS_VIOLATION:
+            err = "Error: EXCEPTION_ACCESS_VIOLATION";
+            break;
+        case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+            err = "Error: EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+            break;
+        case EXCEPTION_DATATYPE_MISALIGNMENT:
+            err = "Error: EXCEPTION_DATATYPE_MISALIGNMENT";
+            break;
+        case EXCEPTION_FLT_DENORMAL_OPERAND:
+            err = "Error: EXCEPTION_FLT_DENORMAL_OPERAND";
+            break;
+        case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+            err = "Error: EXCEPTION_FLT_DIVIDE_BY_ZERO";
+            break;
+        case EXCEPTION_FLT_INVALID_OPERATION:
+            err = "Error: EXCEPTION_FLT_INVALID_OPERATION";
+            break;
+        case EXCEPTION_FLT_OVERFLOW:
+            err = "Error: EXCEPTION_FLT_OVERFLOW";
+            break;
+        case EXCEPTION_FLT_STACK_CHECK:
+            err = "Error: EXCEPTION_FLT_STACK_CHECK";
+            break;
+        case EXCEPTION_FLT_UNDERFLOW:
+            err = "Error: EXCEPTION_FLT_UNDERFLOW";
+            break;
+        case EXCEPTION_ILLEGAL_INSTRUCTION:
+            err = "Error: EXCEPTION_ILLEGAL_INSTRUCTION";
+            break;
+        case EXCEPTION_IN_PAGE_ERROR:
+            err = "Error: EXCEPTION_IN_PAGE_ERROR";
+            break;
+        case EXCEPTION_INT_DIVIDE_BY_ZERO:
+            err = "Error: EXCEPTION_INT_DIVIDE_BY_ZERO";
+            break;
+        case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+            err = "Error: EXCEPTION_NONCONTINUABLE_EXCEPTION";
+            break;
+        case EXCEPTION_PRIV_INSTRUCTION:
+            err = "Error: EXCEPTION_PRIV_INSTRUCTION";
+            break;
+        case EXCEPTION_STACK_OVERFLOW:
+            err = "Error: EXCEPTION_STACK_OVERFLOW  -- A new guard page for the stack cannot be created.";
+            break;
+        case 0xE06D7363: // STATUS_CPP_EH_EXCEPTION
+            err = "Error: STATUS_CPP_EH_EXCEPTION -- C++ exception handling exception";
+            break;
+        case 0xE0434f4D: // STATUS_CLR_EXCEPTION
+            err = "Error: STATUS_CLR_EXCEPTION -- VC++ Runtime ERR";
+            break;
+        case 0xCFFFFFFF: // STATUS_APPLICATION_HANG
+            err = "Error: STATUS_APPLICATION_HANG -- Application hang";
+            break;
+        case STATUS_INVALID_HANDLE:
+            err = "Error: STATUS_INVALID_HANDLE -- An invalid HANDLE was specified.";
+            break;
+        case STATUS_STACK_BUFFER_OVERRUN:
+            err = "Error: STATUS_STACK_BUFFER_OVERRUN -- The system detected an overrun of a stack-based buffer in "
+                  "this application. ";
+            break;
+        default:
+            err << "Unknown ExceptionCode -- ExceptionCode:" << p->ExceptionRecord->ExceptionCode;
+            break;
+        }
+    if (g.logger)
+        g.logger->stop();
+    auto &f = g.log_file->open(NULL, fatal, g.log_time);
+    auto &s = *g.s;
+    s.clear();
     s << 'F' << g.log_time->get() << "] " << err << '\n';
-    if (f) f.write(s);
+    if (f)
+        f.write(s);
     log2stderr(s.data(), s.size());
-
-    if (_stack_trace) _stack_trace->dump_stack(&f, 6);
-    if (f) { f.write('\n'); f.close(); }
-
+#ifndef _WIN32
+    if (_stack_trace)
+        _stack_trace->dump_stack(&f, 6);
+#else
+    if (_stack_trace)
+        _stack_trace->dump_stack(&f, 0, p->ContextRecord);
+#endif // !_WIN32
+    if (f)
+    {
+        f.write('\n');
+        f.close();
+    }
+     std::exit(0);
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
 LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
+    
     return global().failure_handler->on_exception(p);
 }
 #endif
@@ -956,7 +1006,14 @@ TLogSaver::~TLogSaver() {
 void exit() {
     xx::global().logger->stop();
 }
-
+void init() {
+    xx::FailureHandler::FailureHandler();
+    IAT::Hook("kernel32.dll", "SetUnhandledExceptionFilter", &SetUnhandledExceptionFilterHook);//Disable SetUnhandledExceptionFilter
+}
+long co_seh_log(void* p){
+    xx::on_exception((PEXCEPTION_POINTERS)p);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
 void set_write_cb(const std::function<void(const void*, size_t)>& cb, int flags) {
     xx::global().logger->set_write_cb(cb, flags);
 }

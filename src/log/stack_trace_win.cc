@@ -23,10 +23,10 @@ class StackTraceImpl : public StackTrace, StackWalker {
 
     virtual ~StackTraceImpl() = default;
 
-    virtual void dump_stack(void* f, int skip) {
+    virtual void dump_stack(void* f, int skip,  void * connetx) {
         _f = (fs::file*) f;
         _skip = skip;
-        this->ShowCallstack(GetCurrentThread());
+        this->ShowCallstack(GetCurrentThread(), (const CONTEXT*)connetx );
     }
 
   private:
