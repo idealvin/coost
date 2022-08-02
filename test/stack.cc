@@ -26,7 +26,8 @@ void c() {
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-
+    log::init();
+    throw std::runtime_error("runtime_error");
     if (FLG_m) {
         c();
     } else if (FLG_t) {

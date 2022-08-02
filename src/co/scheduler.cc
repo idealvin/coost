@@ -31,9 +31,16 @@ void SchedulerImpl::stop() {
     }
 }
 
-void SchedulerImpl::main_func(tb_context_from_t from) {
-    ((Coroutine*)from.priv)->ctx = from.ctx;
-    gSched->running()->cb->run(); // run the coroutine function
+void SchedulerImpl::main_func(tb_context_from_t from){
+    ((Coroutine *)from.priv)->ctx = from.ctx;
+    #ifdef _WIN32
+    __try{
+        gSched->running()->cb->run(); // run the coroutine function
+    }
+    __except (log::co_seh_log(GetExceptionInformation())){}
+    #else
+        gSched->running()->cb->run(); // run the coroutine function
+    #endif // _WIN32
     tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 

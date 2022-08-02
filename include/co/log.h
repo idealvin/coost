@@ -16,6 +16,8 @@ namespace log {
  *   - This function will be automatically called at exit.
  */
 __coapi void exit();
+__coapi void init() ;
+__coapi long co_seh_log(void* p);
 
 enum {
     log2local = 1,
