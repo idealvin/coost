@@ -1,7 +1,6 @@
 #pragma once
 
 #include "def.h"
-#include "god.h"
 #include "mem.h"
 #include "__/dtoa_milo.h"
 

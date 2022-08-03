@@ -2,8 +2,85 @@
 #include "co/mem.h"
 
 namespace test {
+namespace mem {
+
+struct DoubleLink {
+    DoubleLink* next;
+    DoubleLink* prev;
+};
+
+typedef DoubleLink* list_t;
+
+inline void list_push_front(list_t& l, DoubleLink* node) {
+    if (l) {
+        node->next = l;
+        node->prev = l->prev;
+        l->prev = node;
+        l = node;
+    } else {
+        node->next = NULL;
+        node->prev = node;
+        l = node;
+    }
+}
+
+// move heading node to the back
+inline void list_move_head_back(list_t& l) {
+    const auto head = l->next;
+    l->prev->next = l;
+    l->next = NULL;
+    l = head;
+}
+
+// erase non-heading node
+inline void list_erase(list_t& l, DoubleLink* node) {
+    node->prev->next = node->next;
+    const auto x = node->next ? node->next : l;
+    x->prev = node->prev;
+}
+
+inline size_t list_size(list_t& l) {
+    size_t x = 0;
+    for (DoubleLink* p = l; p; p = p->next) ++x;
+    return x;
+}
+
+} // mem
 
 DEF_test(mem) {
+    DEF_case(list) {
+        mem::DoubleLink* h = 0;
+        mem::list_t& l = h;
+        EXPECT_EQ(mem::list_size(l), 0);
+
+        mem::DoubleLink a;
+        mem::DoubleLink b;
+        mem::DoubleLink c;
+
+        mem::list_push_front(l, &a);
+        EXPECT_EQ(mem::list_size(l), 1);
+        EXPECT_EQ(l->next, (void*)0);
+        EXPECT_EQ(l->prev, &a);
+
+        mem::list_push_front(l, &b);
+        mem::list_push_front(l, &c);
+        EXPECT_EQ(l, &c);
+        EXPECT_EQ(mem::list_size(l), 3);
+        EXPECT_EQ(l->prev, &a);
+
+        mem::list_move_head_back(l);
+        EXPECT_EQ(l, &b);
+        EXPECT_EQ(mem::list_size(l), 3);
+
+        mem::list_erase(l, &a);
+        EXPECT_EQ(mem::list_size(l), 2);
+        EXPECT_EQ(l->next, &c);
+
+        mem::list_erase(l, &c);
+        EXPECT_EQ(mem::list_size(l), 1);
+        EXPECT_EQ(l, &b);
+    }
+
     DEF_case(static) {
         void* p = co::static_alloc(24);
         EXPECT_NE(p, (void*)0);

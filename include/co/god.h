@@ -61,9 +61,20 @@ inline X align_up(X x, A align) {
     return (x + o) & ~o;
 }
 
+template <size_t A, typename X>
+inline X align_up(X x) {
+    const X o = static_cast<X>(A) - 1;
+    return (x + o) & ~o;
+}
+
 template <typename X, typename A>
 inline X* align_up(X* x, A align) {
     return (X*) align_up((size_t)x, align);
+}
+
+template <size_t A, typename X>
+inline X* align_up(X* x) {
+    return (X*) align_up<A>((size_t)x);
 }
 
 // @align must be power of 2
@@ -73,9 +84,20 @@ inline X align_down(X x, A align) {
     return x & ~o;
 }
 
+template <size_t A, typename X>
+inline X align_down(X x) {
+    const X o = static_cast<X>(A) - 1;
+    return x & ~o;
+}
+
 template <typename X, typename A>
 inline X* align_down(X* x, A align) {
     return (X*) align_down((size_t)x, align);
+}
+
+template <typename X, size_t A>
+inline X* align_down(X* x) {
+    return (X*) align_down<A>((size_t)x);
 }
 
 /**

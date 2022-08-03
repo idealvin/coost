@@ -154,6 +154,9 @@ inline void* StaticAllocator::alloc(size_t n) {
 }
 
 
+size_t g_a = 0;
+size_t g_f = 0;
+
 #if __arch64
 static const uint32 B = 6;
 static const uint32 g_array_size = 32;
@@ -221,6 +224,8 @@ class GlobalAlloc;
 // thread-local allocator
 class ThreadAlloc;
 
+__thread ThreadAlloc* g_thread_alloc = NULL;
+
 class HugeBlock {
   public:
     explicit HugeBlock(void* p) : _p((char*)p), _bits(0) {
@@ -261,12 +266,18 @@ class LargeBlock {
 
 class LargeAlloc {
   public:
-    //static const uint32 N = 1u << (g_lb_bits - 12);
-    //static const uint32 M = (N >> 3) / sizeof(size_t);
     static const uint32 BS_BITS = 1u << (g_lb_bits - 12);
     static const uint32 LA_SIZE = 64;
     static const uint32 MAX_bIT = BS_BITS - 1;
-    explicit LargeAlloc(HugeBlock* parent);
+
+    explicit LargeAlloc(HugeBlock* parent)
+        : _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
+        static_assert(sizeof(*this) <= LA_SIZE, "");
+        _p = (char*)this + 4096;
+        _pbs = (char*)this + LA_SIZE;
+        _xpbs = (char*)this + (LA_SIZE + (BS_BITS >> 3));
+        (void)_next; (void)_prev;
+    }
 
     // alloc n units
     void* alloc(uint32 n);
@@ -293,19 +304,23 @@ class LargeAlloc {
         char* _xpbs;
     };
     uint32 _cur_bit;
-    //uint32 _max_bit;
     DISALLOW_COPY_AND_ASSIGN(LargeAlloc);
 };
 
 class SmallAlloc {
   public:
-    //static const uint32 N = 1u << (g_sb_bits - 4);
-    //static const uint32 M = (N >> 3) / sizeof(size_t);
     static const uint32 BS_BITS = 1u << (g_sb_bits - 4); // 2048
     static const uint32 SA_SIZE = 64;
     static const uint32 MAX_bIT = BS_BITS - ((SA_SIZE + (BS_BITS >> 2)) >> 4);
 
-    explicit SmallAlloc(LargeBlock* parent);
+    explicit SmallAlloc(LargeBlock* parent)
+        : _next(0), _prev(0), _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
+        static_assert(sizeof(*this) <= SA_SIZE, "");
+        _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
+        _pbs = (char*)this + SA_SIZE;
+        _xpbs = (char*)this + (SA_SIZE + (BS_BITS >> 3));
+        (void)_next; (void)_prev;
+    }
 
     // alloc n units
     void* alloc(uint32 n);
@@ -360,8 +375,8 @@ class ThreadAlloc {
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
 
+    uint32 id() const { return _id; }
     void* static_alloc(size_t n) { return _ka.alloc(n); }
-    void* fixed_alloc(size_t n);
     void* alloc(size_t n);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
@@ -374,8 +389,6 @@ class ThreadAlloc {
     StaticAllocator _ka;
 };
 
-
-__thread ThreadAlloc* g_thread_alloc = NULL;
 
 inline GlobalAlloc* galloc() {
     static GlobalAlloc* ga = new GlobalAlloc();
@@ -403,6 +416,18 @@ inline void list_push_front(list_t& l, DoubleLink* node) {
     } else {
         node->next = NULL;
         node->prev = node;
+        l = node;
+    }
+}
+
+// move non-tailing node to the front
+inline void list_move_front(list_t& l, DoubleLink* node) {
+    if (node != l) {
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+        node->prev = l->prev;
+        node->next = l;
+        l->prev = node;
         l = node;
     }
 }
@@ -435,15 +460,14 @@ inline void* HugeBlock::alloc() {
 
 inline bool HugeBlock::free(void* p) {
     const uint32 i = (uint32)(((char*)p - _p) >> g_lb_bits);
-    _bits &= ~(C << i);
-    return _bits == 0;
+    return (_bits &= ~(C << i)) == 0;
 }
 
 inline HugeBlock* make_huge_block() {
     void* x = _vm_reserve(1u << g_hb_bits);
     if (x) {
         _vm_commit(x, 4096);
-        void* p = god::align_up(x, 1u << g_lb_bits);
+        void* p = god::align_up<(1u << g_lb_bits)>(x);
         if (p == x) p = (char*)x + (1u << g_lb_bits);
         return new (x) HugeBlock(p);
     }
@@ -459,26 +483,36 @@ inline void* GlobalAlloc::alloc(uint32 alloc_id, HugeBlock** parent) {
         std::lock_guard<std::mutex> g(x.mtx);
         if (x.hb && (p = x.hb->alloc())) {
             *parent = x.hb;
-            break;
+            goto end;
         }
 
-        auto& l = (list_t&)x.hb;
-        if (l && l->next) {
-            list_move_head_back(l);
-            if ((p = x.hb->alloc())) {
-                *parent = x.hb;
-                break;
+        {
+            auto& l = (list_t&)x.hb;
+            if (l && l->next) {
+                DoubleLink* const h = l;
+                DoubleLink* k = l->next;
+                list_move_head_back(l);
+                for (int i = 0; i < 8 && k != h; k = k->next, ++i) {
+                    if ((p = ((HugeBlock*)k)->alloc())) {
+                        *parent = (HugeBlock*)k;
+                        list_move_front(l, k);
+                        goto end;
+                    }
+                }
             }
         }
 
-        auto hb = make_huge_block();
-        if (hb) {
-            list_push_front(l, (DoubleLink*)hb);
-            p = hb->alloc();
-            *parent = hb;
+        {
+            auto hb = make_huge_block();
+            if (hb) {
+                list_push_front((list_t&)x.hb, (DoubleLink*)hb);
+                p = hb->alloc();
+                *parent = hb;
+            }
         }
     } while (0);
 
+  end:
     if (p) _vm_commit(p, 1u << g_lb_bits);
     return p;
 }
@@ -520,8 +554,7 @@ inline void* LargeBlock::alloc() {
 
 inline bool LargeBlock::free(void* p) {
     const uint32 i = (uint32)(((char*)p - _p) >> g_sb_bits);
-    _bits &= ~(C << i);
-    return _bits == 0;
+    return (_bits &= ~(C << i)) == 0;
 }
 
 inline SmallAlloc* LargeBlock::make_small_alloc() {
@@ -529,15 +562,6 @@ inline SmallAlloc* LargeBlock::make_small_alloc() {
     return x ? new (x) SmallAlloc(this) : NULL;
 }
 
-
-LargeAlloc::LargeAlloc(HugeBlock* parent)
-    : _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
-    static_assert(sizeof(*this) <= LA_SIZE, "");
-    _p = (char*)this + 4096;
-    _pbs = (char*)this + LA_SIZE;
-    _xpbs = (char*)this + (LA_SIZE + (BS_BITS >> 3));
-    (void)_next; (void)_prev;
-}
 
 void* LargeAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
@@ -595,15 +619,6 @@ inline void* LargeAlloc::realloc(void* p, uint32 o, uint32 n) {
     return NULL;
 }
 
-
-SmallAlloc::SmallAlloc(LargeBlock* parent)
-    : _next(0), _prev(0), _parent(parent), _ta(g_thread_alloc), _cur_bit(0) {
-    static_assert(sizeof(*this) <= SA_SIZE, "");
-    _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
-    _pbs = (char*)this + SA_SIZE;
-    _xpbs = (char*)this + (SA_SIZE + (BS_BITS >> 3));
-    (void)_next; (void)_prev;
-}
 
 void* SmallAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
@@ -669,11 +684,10 @@ inline void* ThreadAlloc::alloc(size_t n) {
         if (_sa && (p = _sa->alloc(u))) goto _end;
         {
             auto& l = (list_t&)_sa;
-
             if (l && l->next) {
                 list_move_head_back(l);
                 if ((p = _sa->try_hard_alloc(u))) goto _end;
-                list_move_head_back(l);
+                //list_move_head_back(l);
             }
         }
 
@@ -692,7 +706,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
                     p = sa->alloc(u);
                     goto _end;
                 }
-                list_move_head_back(l);
+                //list_move_head_back(l);
             }
 
             auto lb = galloc()->make_large_block(_id);
@@ -714,7 +728,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
             if (l && l->next) {
                 list_move_head_back(l);
                 if ((p = _la->try_hard_alloc(u))) goto _end;
-                list_move_head_back(l);
+                //list_move_head_back(l);
             }
 
             auto la = galloc()->make_large_alloc(_id);
