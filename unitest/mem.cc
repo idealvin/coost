@@ -24,6 +24,18 @@ inline void list_push_front(list_t& l, DoubleLink* node) {
     }
 }
 
+// move non-tailing node to the front
+inline void list_move_front(list_t& l, DoubleLink* node) {
+    if (node != l) {
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+        node->prev = l->prev;
+        node->next = l;
+        l->prev = node;
+        l = node;
+    }
+}
+
 // move heading node to the back
 inline void list_move_head_back(list_t& l) {
     const auto head = l->next;
@@ -79,6 +91,18 @@ DEF_test(mem) {
         mem::list_erase(l, &c);
         EXPECT_EQ(mem::list_size(l), 1);
         EXPECT_EQ(l, &b);
+
+        mem::list_push_front(l, &a);
+        mem::list_push_front(l, &c);
+        EXPECT_EQ(mem::list_size(l), 3);
+
+        mem::list_move_front(l, &a);
+        mem::list_move_front(l, &a);
+        EXPECT_EQ(mem::list_size(l), 3);
+        EXPECT_EQ(l, &a);
+        EXPECT_EQ(l->next, &c);
+        EXPECT_EQ(c.next, &b);
+        EXPECT_EQ(b.next, (void*)0);
     }
 
     DEF_case(static) {

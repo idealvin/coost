@@ -41,9 +41,10 @@ inline int _find_msb(size_t x) { /* x != 0 */
     return (int)i;
 }
 
-inline uint32 _find_lsb(size_t x) {
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
     unsigned long r;
-    return _BitScanForward64(&r, x) ? r : 64;
+    _BitScanForward64(&r, x);
+    return r;
 }
 
 #else
@@ -53,9 +54,10 @@ inline int _find_msb(size_t x) { /* x != 0 */
     return (int)i;
 }
 
-inline uint32 _find_lsb(size_t x) {
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
     unsigned long r;
-    return _BitScanForward(&r, x) ? r : 32;
+    _BitScanForward(&r, x);
+    return r;
 }
 #endif
 
@@ -99,9 +101,8 @@ inline int _find_msb(size_t x) { /* x != 0 */
     return 63 - __builtin_clzll(x);
 }
 
-inline uint32 _find_lsb(size_t x) {
-    const uint32 r = __builtin_ffsll(x);
-    return r > 0 ? r - 1 : 64;
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffsll(x) - 1;
 }
 
 #else
@@ -109,9 +110,8 @@ inline int _find_msb(size_t v) { /* x != 0 */
     return 31 - __builtin_clz(v);
 }
 
-inline uint32 _find_lsb(size_t x) {
-    const uint32 r = __builtin_ffs(x);
-    return r > 0 ? r - 1 : 32;
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffs(x) - 1;
 }
 #endif
 
@@ -140,7 +140,7 @@ class StaticAllocator {
 
 inline void* StaticAllocator::alloc(size_t n) {
     static size_t k = 0;
-    n = god::align_up(n, 8);
+    n = god::align_up<8>(n);
     k += n;
     if (_p + n <= _e) return god::fetch_add(&_p, n);
 
@@ -153,9 +153,6 @@ inline void* StaticAllocator::alloc(size_t n) {
     return ::malloc(n);
 }
 
-
-size_t g_a = 0;
-size_t g_f = 0;
 
 #if __arch64
 static const uint32 B = 6;
@@ -178,6 +175,10 @@ class Bitset {
 
     void set(uint32 i) {
         _s[i >> B] |= (C << (i & R));
+    }
+
+    void unset(uint32 i) {
+        _s[i >> B] &= ~(C << (i & R));
     }
 
     bool test_and_unset(uint32 i) {
@@ -475,6 +476,12 @@ inline HugeBlock* make_huge_block() {
 }
 
 
+#define _try_alloc(l, n) \
+    DoubleLink* const h = l; \
+    DoubleLink* k = l->next; \
+    list_move_head_back(l); \
+    for (int i = 0; i < n && k != h; k = k->next, ++i)
+
 inline void* GlobalAlloc::alloc(uint32 alloc_id, HugeBlock** parent) {
     void* p = NULL;
     auto& x = _x[alloc_id & (g_array_size - 1)];
@@ -485,14 +492,10 @@ inline void* GlobalAlloc::alloc(uint32 alloc_id, HugeBlock** parent) {
             *parent = x.hb;
             goto end;
         }
-
         {
             auto& l = (list_t&)x.hb;
             if (l && l->next) {
-                DoubleLink* const h = l;
-                DoubleLink* k = l->next;
-                list_move_head_back(l);
-                for (int i = 0; i < 8 && k != h; k = k->next, ++i) {
+                _try_alloc(l, 8) {
                     if ((p = ((HugeBlock*)k)->alloc())) {
                         *parent = (HugeBlock*)k;
                         list_move_front(l, k);
@@ -501,7 +504,6 @@ inline void* GlobalAlloc::alloc(uint32 alloc_id, HugeBlock** parent) {
                 }
             }
         }
-
         {
             auto hb = make_huge_block();
             if (hb) {
@@ -598,11 +600,10 @@ inline void* LargeAlloc::alloc(uint32 n) {
 
 inline bool LargeAlloc::free(void* p) {
     int i = (int)(((char*)p - _p) >> 12);
-    CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
-
+    //CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
+    _bs.unset(i);
     const int r = _bs.rfind(_cur_bit);
-    if (r < i) _cur_bit = r >= 0 ? i : 0;
-    return _cur_bit == 0;
+    return r < i ? ((_cur_bit = r >= 0 ? i : 0) == 0) : false;
 }
 
 inline void LargeAlloc::xfree(void* p) {
@@ -655,7 +656,8 @@ inline void* SmallAlloc::alloc(uint32 n) {
 
 inline bool SmallAlloc::free(void* p) {
     const int i = (int)(((char*)p - _p) >> 4);
-    CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
+    //CHECK(_bs.test_and_unset((uint32)i)) << "free invalid pointer: " << p;
+    _bs.unset(i);
     const int r = _bs.rfind(_cur_bit);
     return r < i ? ((_cur_bit = r >= 0 ? i : 0) == 0) : false;
 }
@@ -674,39 +676,44 @@ inline void* SmallAlloc::realloc(void* p, uint32 o, uint32 n) {
     return NULL;
 }
 
-static const int ntry = 4;
 
 inline void* ThreadAlloc::alloc(size_t n) {
     void* p = 0;
     SmallAlloc* sa;
     if (n <= 2048) {
-        const uint32 u = n > 16 ? (god::align_up((uint32)n, 16) >> 4) : 1;
-        if (_sa && (p = _sa->alloc(u))) goto _end;
+        const uint32 u = n > 16 ? (god::align_up<16>((uint32)n) >> 4) : 1;
+        if (_sa && (p = _sa->alloc(u))) goto end;
         {
             auto& l = (list_t&)_sa;
             if (l && l->next) {
-                list_move_head_back(l);
-                if ((p = _sa->try_hard_alloc(u))) goto _end;
                 //list_move_head_back(l);
+                //if ((p = _sa->try_hard_alloc(u))) goto end;
+                //list_move_head_back(l);
+                _try_alloc(l, 2) {
+                    if ((p = ((SmallAlloc*)k)->try_hard_alloc(u))) {
+                        list_move_front(l, k);
+                        goto end;
+                    }
+                }
             }
         }
 
         if (_lb && (sa = _lb->make_small_alloc())) {
             list_push_front((list_t&)_sa, (DoubleLink*)sa);
             p = sa->alloc(u);
-            goto _end;
+            goto end;
         }
 
         {
             auto& l = (list_t&)_lb;
             if (l && l->next) {
-                list_move_head_back(l);
-                if ((sa = _lb->make_small_alloc())) {
-                    list_push_front((list_t&)_sa, (DoubleLink*)sa);
-                    p = sa->alloc(u);
-                    goto _end;
+                _try_alloc(l, 4) {
+                    if ((sa = ((LargeBlock*)k)->make_small_alloc())) {
+                        list_move_front(l, k);
+                        p = sa->alloc(u);
+                        goto end;
+                    }
                 }
-                //list_move_head_back(l);
             }
 
             auto lb = galloc()->make_large_block(_id);
@@ -716,19 +723,22 @@ inline void* ThreadAlloc::alloc(size_t n) {
                 list_push_front((list_t&)_sa, (DoubleLink*)sa);
                 p = sa->alloc(u);
             }
-            goto _end;
+            goto end;
         }
 
     } else if (n <= g_max_alloc_size) {
-        const uint32 u = god::align_up((uint32)n, 4096) >> 12;
-        if (_la && (p = _la->alloc(u))) goto _end;
+        const uint32 u = god::align_up<4096>((uint32)n) >> 12;
+        if (_la && (p = _la->alloc(u))) goto end;
 
         {
             auto& l = (list_t&)_la;
             if (l && l->next) {
-                list_move_head_back(l);
-                if ((p = _la->try_hard_alloc(u))) goto _end;
-                //list_move_head_back(l);
+                _try_alloc(l, 4) {
+                    if ((p = ((LargeAlloc*)k)->try_hard_alloc(u))) {
+                        list_move_front(l, k);
+                        goto end;
+                    }
+                }
             }
 
             auto la = galloc()->make_large_alloc(_id);
@@ -736,21 +746,21 @@ inline void* ThreadAlloc::alloc(size_t n) {
                 list_push_front(l, (DoubleLink*)la);
                 p = la->alloc(u);
             }
-            goto _end;
+            goto end;
         }
 
     } else {
         p = ::malloc(n);
     }
 
-  _end:
+  end:
     return p;
 }
 
 inline void ThreadAlloc::free(void* p, size_t n) {
     if (p) {
         if (n <= 2048) {
-            const auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
+            const auto sa = (SmallAlloc*) god::align_down<1u << g_sb_bits>(p);
             const auto ta = sa->thread_alloc();
             if (ta == this) {
                 if (sa->free(p) && sa != _sa) {
@@ -766,7 +776,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             }
 
         } else if (n <= g_max_alloc_size) {
-            const auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
+            const auto la = (LargeAlloc*) god::align_down<1u << g_lb_bits>(p);
             const auto ta = la->thread_alloc();
             if (ta == this) {
                 if (la->free(p) && la != _la) {
@@ -789,23 +799,23 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     CHECK_LT(o, n) << "realloc error, new size must be greater than old size..";
 
     if (o <= 2048) {
-        const uint32 k = (o > 16 ? god::align_up((uint32)o, 16) : 16);
+        const uint32 k = (o > 16 ? god::align_up<16>((uint32)o) : 16);
         if (n <= (size_t)k) return p;
 
-        const auto sa = (SmallAlloc*) god::align_down(p, 1u << g_sb_bits);
+        const auto sa = (SmallAlloc*) god::align_down<1u << g_sb_bits>(p);
         if (sa == _sa && n <= 2048) {
-            const uint32 l = god::align_up((uint32)n, 16);
+            const uint32 l = god::align_up<16>((uint32)n);
             auto x = sa->realloc(p, k >> 4, l >> 4);
             if (x) return x;
         }
 
     } else {
-        const uint32 k = god::align_up((uint32)o, 4096);
+        const uint32 k = god::align_up<4096>((uint32)o);
         if (n <= (size_t)k) return p;
 
-        const auto la = (LargeAlloc*) god::align_down(p, 1u << g_lb_bits);
+        const auto la = (LargeAlloc*) god::align_down<1u << g_lb_bits>(p);
         if (la == _la && n <= g_max_alloc_size) {
-            const uint32 l = god::align_up((uint32)n, 4096);
+            const uint32 l = god::align_up<4096>((uint32)n);
             auto x = la->realloc(p, k >> 12, l >> 12);
             if (x) return x;
         }

@@ -95,7 +95,7 @@ inline X* align_down(X* x, A align) {
     return (X*) align_down((size_t)x, align);
 }
 
-template <typename X, size_t A>
+template <size_t A, typename X>
 inline X* align_down(X* x) {
     return (X*) align_down<A>((size_t)x);
 }

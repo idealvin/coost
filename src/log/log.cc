@@ -255,7 +255,7 @@ bool Logger::start() {
         global().log_time->update();
         memcpy(_llog.time_str, global().log_time->get(), 24);
         _llog.buf.reserve(N);
-        _llog.buf.reserve(N);
+        _llog.logs.reserve(N);
         for (int i = 0; i < A; ++i) {
             memcpy(_tlog.v[i].time_str, global().log_time->get(), 24);
         }
