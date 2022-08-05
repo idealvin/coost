@@ -31,6 +31,12 @@ DEF_bool(cout, false, ">>#0 also logging to terminal");
 DEF_bool(log_daily, false, ">>#0 if true, enable daily log rotation");
 DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz");
 
+// Detect if it is safe to start the logging thread.
+// When this value is true, the flag log_dir and log_file_name should have been 
+// initialized, and we are safe to start the logging thread.
+static bool _is_safe_to_start = false;
+static fastring _co_log_xx = []() { _is_safe_to_start = true; return ""; }();
+
 namespace ___ {
 namespace log {
 namespace xx {
@@ -331,6 +337,7 @@ void Logger::stop(bool signal_safe) {
 }
 
 void Logger::thread_fun() {
+    while (!_is_safe_to_start) _log_event.wait(8);
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
