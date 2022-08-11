@@ -5,7 +5,7 @@ namespace co {
 
 class EventImpl {
   public:
-    EventImpl() : _counter(0), _signaled(false), _has_cond(false) {}
+    EventImpl() : _count(0), _signaled(false), _has_cond(false) {}
     ~EventImpl() { if (_has_cond) co::xx::cond_destroy(&_cond); }
 
     bool wait(uint32 ms);
@@ -16,7 +16,13 @@ class EventImpl {
     ::Mutex _mtx;
     co::xx::cond_t _cond;
     co::hash_set<co::waitx_t*> _co_wait;
-    uint32 _counter;
+    union {
+        uint64 _count;
+        struct {
+            uint32 nco; // waiting coroutines
+            uint32 nth; // waiting threads
+        } _wait;
+    };
     bool _signaled;
     bool _has_cond;
 };
@@ -28,7 +34,8 @@ bool EventImpl::wait(uint32 ms) {
         if (co->s != s) co->s = s;
         {
             ::MutexGuard g(_mtx);
-            if (_signaled) { if (_counter == 0) _signaled = false; return true; }
+            if (_signaled) { if (_count == 0) _signaled = false; return true; }
+            ++_wait.nco;
             co->waitx = co::make_waitx(co);
             _co_wait.insert(co->waitx);
         }
@@ -36,11 +43,16 @@ bool EventImpl::wait(uint32 ms) {
         if (ms != (uint32)-1) s->add_timer(ms);
         s->yield();
         if (!s->timeout()) {
+            {
+                ::MutexGuard g(_mtx);
+                if (--_wait.nco == 0 && _wait.nth == 0) _signaled = false;
+            }
             co::free(co->waitx, sizeof(co::waitx_t));
         } else {
             bool erased;
             {
                 ::MutexGuard g(_mtx);
+                if (--_wait.nco == 0 && _wait.nth == 0) _signaled = false;
                 erased = _co_wait.erase(co->waitx) == 1;
             }
             if (erased) co::free(co->waitx, sizeof(co::waitx_t));
@@ -52,7 +64,7 @@ bool EventImpl::wait(uint32 ms) {
     } else { /* not in coroutine */
         ::MutexGuard g(_mtx);
         if (!_signaled) {
-            ++_counter;
+            ++_wait.nth;
             if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
             bool r = true;
             if (ms == (uint32)-1) {
@@ -60,11 +72,11 @@ bool EventImpl::wait(uint32 ms) {
             } else {
                 r = co::xx::cond_wait(&_cond, _mtx.mutex(), ms);
             }
-            --_counter;
+            --_wait.nth;
             if (!r) return false;
             assert(_signaled);
         }
-        if (_counter == 0) _signaled = false;
+        if (_count == 0) _signaled = false;
         return true;
     }
 }
@@ -76,7 +88,7 @@ void EventImpl::signal() {
         if (!_co_wait.empty()) _co_wait.swap(co_wait);
         if (!_signaled) {
             _signaled = true;
-            if (_counter > 0) {
+            if (_wait.nth > 0) {
                 if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
                 co::xx::cond_notify(&_cond);
             }

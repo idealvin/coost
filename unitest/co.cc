@@ -43,6 +43,10 @@ DEF_test(co) {
         wg.wait();
         EXPECT_EQ(v, 2);
         v = 0;
+
+        ev.signal();
+        EXPECT_EQ(ev.wait(1), true);
+        EXPECT_EQ(ev.wait(1), false);
     }
 
     DEF_case(channel) {
