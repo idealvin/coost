@@ -52,7 +52,8 @@ bool EventImpl::wait(uint32 ms) {
             bool erased;
             {
                 ::MutexGuard g(_mtx);
-                if (--_wait.nco == 0 && _wait.nth == 0) _signaled = false;
+                --_wait.nco;
+                if (_signaled && _count == 0) _signaled = false;
                 erased = _co_wait.erase(co->waitx) == 1;
             }
             if (erased) co::free(co->waitx, sizeof(co::waitx_t));
@@ -131,10 +132,10 @@ void Event::signal() const {
 }
 
 // memory: |4(refn)|4(counter)|EventImpl|
-WaitGroup::WaitGroup() {
+WaitGroup::WaitGroup(uint32 n) {
     _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
-    _p[1] = 0; // counter
+    _p[1] = n; // counter
     new (_p + 2) EventImpl();
 }
 
@@ -142,6 +143,7 @@ WaitGroup::~WaitGroup() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((EventImpl*)(_p + 2))->~EventImpl();
         co::free(_p, sizeof(EventImpl) + 8);
+        _p = 0;
     }
 }
 
@@ -150,8 +152,9 @@ void WaitGroup::add(uint32 n) const {
 }
 
 void WaitGroup::done() const {
-    CHECK_GT(atomic_load(_p + 1, mo_relaxed), (uint32)0);
-    if (atomic_dec(_p + 1, mo_acq_rel) == 0) ((EventImpl*)(_p + 2))->signal();
+    const uint32 x = atomic_dec(_p + 1, mo_acq_rel);
+    CHECK(x != (uint32)-1);
+    if (x == 0) ((EventImpl*)(_p + 2))->signal();
 }
 
 void WaitGroup::wait() const {

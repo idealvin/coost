@@ -7,7 +7,12 @@ namespace co {
 
 class __coapi WaitGroup {
   public:
-    WaitGroup();
+    // initialize the counter as @n
+    explicit WaitGroup(uint32 n);
+
+    // the counter is 0 by default
+    WaitGroup() : WaitGroup(0) {}
+
     ~WaitGroup();
 
     WaitGroup(WaitGroup&& wg) : _p(wg._p) {

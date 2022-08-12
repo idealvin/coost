@@ -94,8 +94,7 @@ int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
     flag::init(argc, argv); \
     int r; \
-    co::WaitGroup wg; \
-    wg.add(); \
+    co::WaitGroup wg(1); \
     go([&](){ \
         r = _co_main(argc, argv); \
         wg.done(); \
