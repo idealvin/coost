@@ -20,10 +20,11 @@ class Array {
         T p[];
     };
 
-    static const uint32 R = sizeof(_H) / sizeof(T);
+    static const size_t N = sizeof(T);
+    static const uint32 R = sizeof(_H) / N;
 
     explicit Array(uint32 cap) {
-        _h = (_H*) co::alloc(sizeof(_H) + sizeof(T) * cap);
+        _h = (_H*) co::alloc(N * (R + cap));
         _h->cap = cap;
         _h->size = 0;
     }
@@ -31,7 +32,7 @@ class Array {
     Array() : Array(1024 - R) {}
 
     ~Array() {
-        co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
+        co::free(_h, N * (R + _h->cap));
     }
 
     T* data() const { return _h->p; }
@@ -44,7 +45,7 @@ class Array {
 
     void push_back(T v) {
         if (_h->size == _h->cap) {
-            const size_t n = sizeof(T) * _h->cap;
+            const size_t n = N * _h->cap;
             const size_t o = sizeof(_H) + n;
             _h = (_H*) co::realloc(_h, o, o + n); assert(_h);
             _h->cap <<= 1;
@@ -56,10 +57,21 @@ class Array {
         return _h->p[--_h->size];
     }
 
+    void remove(uint32 i) {
+        if (i != --_h->size) _h->p[i] = _h->p[_h->size];
+    }
+
+    void remove_pair(uint32 i) {
+        if (i != (_h->size -= 2)) {
+            _h->p[i] = _h->p[_h->size];
+            _h->p[i + 1] = _h->p[_h->size + 1];
+        }
+    }
+
     void reset() {
         _h->size = 0;
         if (_h->cap > 8192) {
-            co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
+            co::free(_h, N * (R + _h->cap));
             new(this) Array();
         }
     }
@@ -278,10 +290,21 @@ class __coapi Json {
         return this->push_back(std::move(v));
     }
 
+    // remove the ith element from an array
+    void remove(uint32 i) {
+        if (this->is_array() && i < this->array_size()) {
+            ((Json&)_array()[i]).reset();
+            _array().remove(i);
+        }
+    }
+
+    void remove(int i) { this->remove((uint32)i); }
+    void remove(const char* key);
+
     // it is better to use get() instead of this method.
     Json& operator[](uint32 i) const {
         assert(this->is_array() && !_array().empty());
-        return *(Json*)&_array()[i];
+        return (Json&)_array()[i];
     }
 
     Json& operator[](int i) const {
@@ -384,8 +407,8 @@ class __coapi Json {
         iterator operator++(int) = delete;
 
         const char* key() const { return (const char*)_p[0]; }
-        Json& value() const { return *(Json*)&_p[1]; }
-        Json& operator*() const { return *(Json*)&_p[0]; }
+        Json& value() const { return (Json&)_p[1]; }
+        Json& operator*() const { return (Json&)_p[0]; }
 
       private:
         T* _p;
@@ -436,7 +459,7 @@ class __coapi Json {
   private:
     friend class Parser;
     void* _dup() const;
-    xx::Array& _array() const { return *((xx::Array*)&_h->p); }
+    xx::Array& _array() const { return (xx::Array&)_h->p; }
     Json& _set(uint32 i);
     Json& _set(int i) { return this->_set((uint32)i); }
     Json& _set(const char* key);
