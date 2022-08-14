@@ -144,6 +144,13 @@ __coapi const co::vector<Scheduler*>& schedulers();
 __coapi Scheduler* scheduler();
 
 /**
+ * get the current coroutine
+ * 
+ * @return a pointer to the current coroutine
+ */
+__coapi void* coroutine();
+
+/**
  * get next scheduler 
  *   - It is useful when users want to create coroutines in the same scheduler. 
  *   - eg. 
@@ -229,6 +236,14 @@ __coapi void del_io_event(sock_t fd);
  *     or the timer expires, the scheduler will resume the coroutine. 
  */
 __coapi void yield();
+
+/**
+ * resume the coroutine
+ *   - It is thread safe and can be called anywhere.
+ * 
+ * @param co  a pointer to the coroutine (result of co::coroutine())
+ */
+__coapi void resume(void* co);
 
 /**
  * sleep for milliseconds 

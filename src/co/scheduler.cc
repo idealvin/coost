@@ -276,6 +276,16 @@ const co::vector<Scheduler*>& schedulers() {
 
 Scheduler* scheduler() { return gSched; }
 
+void* coroutine() {
+    const auto s = gSched;
+    if (s) {
+        auto co = s->running();
+        if (co->s != s) co->s = s;
+        return (void*)co;
+    }
+    return NULL;
+}
+
 Scheduler* next_scheduler() {
     return scheduler_manager()->next_scheduler();
 }
@@ -316,6 +326,11 @@ void del_io_event(sock_t fd) {
 void yield() {
     CHECK(gSched) << "MUST be called in coroutine..";
     gSched->yield();
+}
+
+void resume(void* p) {
+    const auto co = (Coroutine*)p;
+    ((SchedulerImpl*)co->s)->add_ready_task(co);
 }
 
 void sleep(uint32 ms) {
