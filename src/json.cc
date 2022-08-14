@@ -833,6 +833,24 @@ void Json::remove(const char* key) {
     }
 }
 
+void Json::erase(const char* key) {
+    if (this->is_object()) {
+        const uint32 n = _h->p ? _array().size() : 0;
+        if (n > 0) {
+            auto& a = _array();
+            for (uint32 i = 0; i < n; i += 2) {
+                const auto s = (const char*)a[i];
+                if (strcmp(key, s) == 0) {
+                    xx::jalloc().free((void*)s, (uint32)strlen(s) + 1);
+                    ((Json&)a[i + 1]).reset();
+                    a.erase_pair(i);
+                    return;
+                }
+            }
+        }
+    }
+}
+
 Json& Json::_set(uint32 i) {
   beg:
     if (this->is_null()) {

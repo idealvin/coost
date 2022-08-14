@@ -68,6 +68,18 @@ class Array {
         }
     }
 
+    void erase(uint32 i) {
+        if (i != --_h->size) {
+            memmove(_h->p + i, _h->p + i + 1, (_h->size - i) * N);
+        }
+    }
+
+    void erase_pair(uint32 i) {
+        if (i != (_h->size -= 2)) {
+            memmove(_h->p + i, _h->p + i + 2, (_h->size - i) * N);
+        }
+    }
+
     void reset() {
         _h->size = 0;
         if (_h->cap > 8192) {
@@ -291,6 +303,7 @@ class __coapi Json {
     }
 
     // remove the ith element from an array
+    // the last element will be moved to the ith place
     void remove(uint32 i) {
         if (this->is_array() && i < this->array_size()) {
             ((Json&)_array()[i]).reset();
@@ -300,6 +313,17 @@ class __coapi Json {
 
     void remove(int i) { this->remove((uint32)i); }
     void remove(const char* key);
+
+    // erase the ith element from an array
+    void erase(uint32 i) {
+        if (this->is_array() && i < this->array_size()) {
+            ((Json&)_array()[i]).reset();
+            _array().erase(i);
+        }
+    }
+
+    void erase(int i) { this->erase((uint32)i); }
+    void erase(const char* key);
 
     // it is better to use get() instead of this method.
     Json& operator[](uint32 i) const {
