@@ -139,9 +139,7 @@ class StaticAllocator {
 };
 
 inline void* StaticAllocator::alloc(size_t n) {
-    static size_t k = 0;
     n = god::align_up<8>(n);
-    k += n;
     if (_p + n <= _e) return god::fetch_add(&_p, n);
 
     if (n <= 4096) {
