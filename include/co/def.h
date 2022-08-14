@@ -57,9 +57,9 @@ typedef uint64_t uint64;
 // generated from config.h.in
 #include "config.h"
 
-// __coapi: used to export symbols in shared co
-// Do not use (or reuse outside of cocoyaxi) this definiton  yourself
-#if COCOYAXI_SHARED > 0
+// __coapi: used to export symbols in shared library
+// Do not use (or reuse outside of coost) this definiton  yourself
+#if COOST_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED
       #define __coapi __declspec(dllexport)
