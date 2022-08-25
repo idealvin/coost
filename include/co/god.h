@@ -9,47 +9,45 @@ inline void bless_no_bugs() {}
 
 inline void give_me_a_raise() {}
 
-/**
- * x = *p; *p = v; return x; 
- */
+// x = *p; *p = v; return x; 
 template <typename T, typename V>
 inline T swap(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p = (T)v;
     return x;
 }
 
 template <typename T, typename V>
 inline T fetch_add(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p += v;
     return x;
 }
 
 template <typename T, typename V>
 inline T fetch_sub(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p -= v;
     return x;
 }
 
 template <typename T, typename V>
 inline T fetch_and(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p &= (T)v;
     return x;
 }
 
 template <typename T, typename V>
 inline T fetch_or(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p |= (T)v;
     return x;
 }
 
 template <typename T, typename V>
 inline T fetch_xor(T* p, V v) {
-    T x = *p;
+    const T x = *p;
     *p ^= (T)v;
     return x;
 }
@@ -100,27 +98,31 @@ inline X* align_down(X* x) {
     return (X*) align_down<A>((size_t)x);
 }
 
-/**
- * calculate number of 4-byte blocks
- *   - b4(15) -> 4, b4(32) -> 8
- */
+// b4(15) -> 4, b4(32) -> 8
 template <typename T>
 inline T b4(T n) {
     return (n >> 2) + !!(n & 3);
 }
 
-/**
- * calculate number of 8-byte blocks
- *   - b8(15) -> 2, b8(32) -> 4
- */
+// b8(15) -> 2, b8(32) -> 4
 template <typename T>
 inline T b8(T n) {
     return (n >> 3) + !!(n & 7);
 }
 
-/**
- * whether the first sizeof(T) bytes are equal
- */
+// b16(15) -> 1, b16(32) -> 2
+template <typename T>
+inline T b16(T n) {
+    return (n >> 4) + !!(n & 15);
+}
+
+// b4k(4095) -> 1, b4k(8192) -> 2
+template <typename T>
+inline T b4k(T n) {
+    return (n >> 12) + !!(n & 4095);
+}
+
+// whether the first sizeof(T) bytes are equal
 template <typename T>
 inline bool byte_eq(const void* p, const void* q) {
     return *(const T*)p == *(const T*)q;
