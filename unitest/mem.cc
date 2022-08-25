@@ -1,108 +1,100 @@
 #include "co/unitest.h"
 #include "co/mem.h"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <intrin.h>
+#endif
+
+
 namespace test {
 namespace mem {
 
-struct DoubleLink {
-    DoubleLink* next;
-    DoubleLink* prev;
-};
-
-typedef DoubleLink* list_t;
-
-inline void list_push_front(list_t& l, DoubleLink* node) {
-    if (l) {
-        node->next = l;
-        node->prev = l->prev;
-        l->prev = node;
-        l = node;
-    } else {
-        node->next = NULL;
-        node->prev = node;
-        l = node;
-    }
+#ifdef _WIN32
+#if __arch64
+inline int _find_msb(size_t x) { /* x != 0 */
+    unsigned long i;
+    _BitScanReverse64(&i, x);
+    return (int)i;
 }
 
-// move non-tailing node to the front
-inline void list_move_front(list_t& l, DoubleLink* node) {
-    if (node != l) {
-        node->prev->next = node->next;
-        node->next->prev = node->prev;
-        node->prev = l->prev;
-        node->next = l;
-        l->prev = node;
-        l = node;
-    }
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    unsigned long r;
+    _BitScanForward64(&r, x);
+    return r;
 }
 
-// move heading node to the back
-inline void list_move_head_back(list_t& l) {
-    const auto head = l->next;
-    l->prev->next = l;
-    l->next = NULL;
-    l = head;
+#else
+inline int _find_msb(size_t x) { /* x != 0 */
+    unsigned long i;
+    _BitScanReverse(&i, x);
+    return (int)i;
 }
 
-// erase non-heading node
-inline void list_erase(list_t& l, DoubleLink* node) {
-    node->prev->next = node->next;
-    const auto x = node->next ? node->next : l;
-    x->prev = node->prev;
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    unsigned long r;
+    _BitScanForward(&r, x);
+    return r;
+}
+#endif
+
+inline uint32 _pow2_align(uint32 n) {
+    unsigned long r;
+    _BitScanReverse(&r, n - 1);
+    return 2u << r;
 }
 
-inline size_t list_size(list_t& l) {
-    size_t x = 0;
-    for (DoubleLink* p = l; p; p = p->next) ++x;
-    return x;
+#else
+#if __arch64
+inline int _find_msb(size_t x) { /* x != 0 */
+    return 63 - __builtin_clzll(x);
 }
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffsll(x) - 1;
+}
+
+#else
+inline int _find_msb(size_t v) { /* x != 0 */
+    return 31 - __builtin_clz(v);
+}
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffs(x) - 1;
+}
+#endif
+
+inline uint32 _pow2_align(uint32 n) {
+    return 1u << (32 - __builtin_clz(n - 1));
+}
+
+#endif
 
 } // mem
 
 DEF_test(mem) {
-    DEF_case(list) {
-        mem::DoubleLink* h = 0;
-        mem::list_t& l = h;
-        EXPECT_EQ(mem::list_size(l), 0);
-
-        mem::DoubleLink a;
-        mem::DoubleLink b;
-        mem::DoubleLink c;
-
-        mem::list_push_front(l, &a);
-        EXPECT_EQ(mem::list_size(l), 1);
-        EXPECT_EQ(l->next, (void*)0);
-        EXPECT_EQ(l->prev, &a);
-
-        mem::list_push_front(l, &b);
-        mem::list_push_front(l, &c);
-        EXPECT_EQ(l, &c);
-        EXPECT_EQ(mem::list_size(l), 3);
-        EXPECT_EQ(l->prev, &a);
-
-        mem::list_move_head_back(l);
-        EXPECT_EQ(l, &b);
-        EXPECT_EQ(mem::list_size(l), 3);
-
-        mem::list_erase(l, &a);
-        EXPECT_EQ(mem::list_size(l), 2);
-        EXPECT_EQ(l->next, &c);
-
-        mem::list_erase(l, &c);
-        EXPECT_EQ(mem::list_size(l), 1);
-        EXPECT_EQ(l, &b);
-
-        mem::list_push_front(l, &a);
-        mem::list_push_front(l, &c);
-        EXPECT_EQ(mem::list_size(l), 3);
-
-        mem::list_move_front(l, &a);
-        mem::list_move_front(l, &a);
-        EXPECT_EQ(mem::list_size(l), 3);
-        EXPECT_EQ(l, &a);
-        EXPECT_EQ(l->next, &c);
-        EXPECT_EQ(c.next, &b);
-        EXPECT_EQ(b.next, (void*)0);
+    DEF_case(bitops) {
+        EXPECT_EQ(mem::_find_lsb(1), 0);
+        EXPECT_EQ(mem::_find_lsb(12), 2);
+        EXPECT_EQ(mem::_find_lsb(3u << 20), 20);
+      #if __arch64
+        EXPECT_EQ(mem::_find_msb(1), 0);
+        EXPECT_EQ(mem::_find_msb(12), 3);
+        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
+        EXPECT_EQ(mem::_find_msb(1ull << 63), 63);
+        EXPECT_EQ(mem::_find_msb(~0ull), 63);
+        EXPECT_EQ(mem::_find_lsb(~0ull), 0);
+      #else
+        EXPECT_EQ(mem::_find_msb(1), 0);
+        EXPECT_EQ(mem::_find_msb(12), 3);
+        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
+        EXPECT_EQ(mem::_find_msb(1ull << 31), 31);
+        EXPECT_EQ(mem::_find_msb(~0u), 31);
+        EXPECT_EQ(mem::_find_lsb(~0u), 0);
+      #endif
     }
 
     DEF_case(static) {
