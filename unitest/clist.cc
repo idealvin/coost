@@ -87,6 +87,11 @@ DEF_test(clist) {
         l.erase(&a);
         EXPECT_EQ(l.front(), &b);
         EXPECT_EQ(l.back(), &e);
+
+        l.erase(&b);
+        l.erase(&d);
+        l.erase(&e);
+        EXPECT(l.empty());
     }
 
     DEF_case(move) {
