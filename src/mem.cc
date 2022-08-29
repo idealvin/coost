@@ -189,7 +189,6 @@ class Bitset {
         return god::fetch_and(&_s[i >> B], ~x) & x;
     }
 
-    // TODO: for unfold
     // find for a bit from MSB to LSB, starts from position @i
     int rfind(uint32 i) const {
         int n = static_cast<int>(i >> B);
@@ -590,7 +589,6 @@ inline LargeBlock* GlobalAlloc::make_large_block(uint32 alloc_id) {
 inline LargeAlloc* GlobalAlloc::make_large_alloc(uint32 alloc_id) {
     HugeBlock* parent;
     auto p = this->alloc(alloc_id, &parent);
-    assert(g_thread_alloc);
     return p ? new (p) LargeAlloc(parent, g_thread_alloc) : NULL;
 }
 
@@ -625,6 +623,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
             _try_alloc(_llb, 4, k) {
                 if ((sa = make_small_alloc((LargeBlock*)k, this))) {
                     _llb.move_front(k);
+                    _lsa.push_front(sa);
                     p = sa->alloc(u);
                     goto end;
                 }
