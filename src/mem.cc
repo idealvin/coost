@@ -578,7 +578,7 @@ inline void GlobalAlloc::free(void* p, HugeBlock* hb, uint32 alloc_id) {
     bool r;
     {
         std::lock_guard<std::mutex> g(x.mtx);
-        r = hb->free(p) && (hb != x.hb || hb->next);
+        r = hb->free(p) && hb != x.hb;
         if (r) x.lhb.erase(hb);
     }
     if (r) _vm_free(hb, 1u << g_hb_bits);
@@ -681,10 +681,10 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             const auto sa = (SmallAlloc*) god::align_down<1u << g_sb_bits>(p);
             const auto ta = sa->thread_alloc();
             if (ta == this) {
-                if (sa->free(p) && (sa != _sa || sa->next)) {
+                if (sa->free(p) && sa != _sa) {
                     _lsa.erase(sa);
                     const auto lb = sa->parent();
-                    if (lb->free(sa) && (lb != _lb || lb->next)) {
+                    if (lb->free(sa) && lb != _lb) {
                         _llb.erase(lb);
                         galloc()->free(lb, lb->parent(), _id);
                     }
@@ -697,7 +697,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             const auto la = (LargeAlloc*) god::align_down<1u << g_lb_bits>(p);
             const auto ta = la->thread_alloc();
             if (ta == this) {
-                if (la->free(p) && (la != _la || la->next)) {
+                if (la->free(p) && la != _la) {
                     _lla.erase(la);
                     galloc()->free(la, la->parent(), _id);
                 }
