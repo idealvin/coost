@@ -37,14 +37,12 @@ inline void _vm_free(void* p, size_t n) {
 
 #if __arch64
 inline int _find_msb(size_t x) { /* x != 0 */
-    assert(x);
     unsigned long i;
     _BitScanReverse64(&i, x);
     return (int)i;
 }
 
 inline uint32 _find_lsb(size_t x) { /* x != 0 */
-    assert(x);
     unsigned long r;
     _BitScanForward64(&r, x);
     return r;
@@ -101,12 +99,10 @@ inline void _vm_free(void* p, size_t n) {
 
 #if __arch64
 inline int _find_msb(size_t x) { /* x != 0 */
-    assert(x);
     return 63 - __builtin_clzll(x);
 }
 
 inline uint32 _find_lsb(size_t x) { /* x != 0 */
-    assert(x);
     return __builtin_ffsll(x) - 1;
 }
 
@@ -212,7 +208,7 @@ class Bitset {
 class HugeBlock : public co::clink {
   public:
     explicit HugeBlock(void* p) : _p((char*)p) {
-        assert(!next && !prev && _bits == 0);
+        //assert(!next && !prev && _bits == 0);
     }
 
     void* alloc() {
@@ -252,7 +248,7 @@ class LargeBlock : public co::clink {
   public:
     explicit LargeBlock(HugeBlock* parent)
         : _p((char*)this + (1u << g_sb_bits)), _parent(parent) {
-        assert(!next && !prev && _bits == 0);
+        //assert(!next && !prev && _bits == 0);
     }
 
     void* alloc() {
@@ -300,7 +296,7 @@ class LargeAlloc : public co::clink {
         _p = (char*)this + 4096;
         _pbs = (char*)this + LA_SIZE;
         _xpbs = (char*)this + (LA_SIZE + (BS_BITS >> 3));
-        assert(!next && !prev && _bit == 0);
+        //assert(!next && !prev && _bit == 0);
     }
 
     // alloc n units
@@ -359,18 +355,22 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    assert(_bit != 0);
-    const int M = _bit >> B;
-    for (int i = M; i >= 0; --i) {
-        const size_t x = atomic_load(&q[i], mo_relaxed);
-        if (x) {
-            atomic_and(&q[i], ~x, mo_relaxed);
-            p[i] &= ~x;
-            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
-            const int r = _bs.rfind(_bit);
-            if (r >= lsb) break;
-            _bit = r >= 0 ? lsb : 0;
-            if (_bit == 0) break;
+    int i = _bit >> B;
+    while (p[i] == 0) --i;
+    size_t x = atomic_load(&q[i], mo_relaxed);
+    if (x) {
+        for (;;) {
+            if (x) {
+                atomic_and(&q[i], ~x, mo_relaxed);
+                p[i] &= ~x;
+                const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+                const int r = _bs.rfind(_bit);
+                if (r >= lsb) break;
+                _bit = r >= 0 ? lsb : 0;
+                if (_bit == 0) break;
+            }
+            if (--i < 0) break;
+            x = atomic_load(&q[i], mo_relaxed);
         }
     }
 
@@ -390,7 +390,6 @@ class SmallAlloc : public co::clink {
 
     explicit SmallAlloc(LargeBlock* parent, ThreadAlloc* ta)
         : _parent(parent), _ta(ta), _bit(0) {
-        // TODO: memset(0)
         static_assert(sizeof(*this) <= SA_SIZE, "");
         _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
         _pbs = (char*)this + SA_SIZE;
@@ -454,17 +453,22 @@ void* SmallAlloc::try_hard_alloc(uint32 n) {
     size_t* const p = (size_t*)_pbs;
     size_t* const q = (size_t*)_xpbs;
 
-    const int M = _bit >> B;
-    for (int i = M; i >= 0; --i) {
-        const size_t x = atomic_load(&q[i], mo_relaxed);
-        if (x) {
-            atomic_and(&q[i], ~x, mo_relaxed);
-            p[i] &= ~x;
-            const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
-            const int r = _bs.rfind(_bit);
-            if (r >= lsb) break;
-            _bit = r >= 0 ? lsb : 0;
-            if (_bit == 0) break;
+    int i = _bit >> B;
+    while (p[i] == 0) --i;
+    size_t x = atomic_load(&q[i], mo_relaxed);
+    if (x) {
+        for (;;) {
+            if (x) {
+                atomic_and(&q[i], ~x, mo_relaxed);
+                p[i] &= ~x;
+                const int lsb = static_cast<int>(_find_lsb(x) + (i << B));
+                const int r = _bs.rfind(_bit);
+                if (r >= lsb) break;
+                _bit = r >= 0 ? lsb : 0;
+                if (_bit == 0) break;
+            }
+            if (--i < 0) break;
+            x = atomic_load(&q[i], mo_relaxed);
         }
     }
 
