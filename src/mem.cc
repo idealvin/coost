@@ -389,7 +389,7 @@ class SmallAlloc : public co::clink {
     static const uint32 MAX_bIT = BS_BITS - ((SA_SIZE + (BS_BITS >> 2)) >> 4);
 
     explicit SmallAlloc(LargeBlock* parent, ThreadAlloc* ta)
-        : _parent(parent), _ta(ta), _bit(0) {
+        : _bit(0), _parent(parent), _ta(ta) {
         static_assert(sizeof(*this) <= SA_SIZE, "");
         _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
         _pbs = (char*)this + SA_SIZE;
