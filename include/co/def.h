@@ -54,6 +54,19 @@ typedef uint64_t uint64;
 #define unlikely(x) (x)
 #endif
 
+template <size_t N>
+constexpr const char* _co_fname(const char(&s)[N], size_t i = N - 1) {
+    return (s[i] == '/' || s[i] == '\\') ? (s + i + 1) : (i == 0 ? s : _co_fname(s, i - 1));
+}
+
+template <size_t N>
+constexpr size_t _co_fnlen(const char(&s)[N]) {
+    return  N - 1 - (_co_fname(s) - s);
+}
+
+#define __fname__ _co_fname(__FILE__)
+#define __fnlen__ _co_fnlen(__FILE__)
+
 // generated from config.h.in
 #include "config.h"
 
