@@ -5,6 +5,10 @@ DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, def
 DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
 DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
 
+#ifdef _MSC_VER
+extern LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p);
+#endif
+
 namespace co {
 
 __thread SchedulerImpl* gSched = 0;
@@ -33,7 +37,14 @@ void SchedulerImpl::stop() {
 
 void SchedulerImpl::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
+  #ifdef _MSC_VER
+    __try {
+        gSched->running()->cb->run(); // run the coroutine function
+    } __except(_co_on_exception(GetExceptionInformation())) {
+    }
+  #else
     gSched->running()->cb->run(); // run the coroutine function
+  #endif // _WIN32
     tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 

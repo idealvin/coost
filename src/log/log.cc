@@ -37,6 +37,10 @@ DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz"
 static bool _is_safe_to_start = false;
 static fastring _co_log_xx = []() { _is_safe_to_start = true; return ""; }();
 
+#ifdef _WIN32
+LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p); // handler for win32 exceptions
+#endif
+
 namespace ___ {
 namespace log {
 namespace xx {
@@ -147,9 +151,6 @@ class FailureHandler {
   private:
     log::StackTrace* _stack_trace;
     co::map<int, os::sig_handler_t> _old_handlers;
-  #ifdef _WIN32
-    void* _ex_handler; // exception handler for windows
-  #endif
 };
 
 class Logger {
@@ -687,8 +688,8 @@ FailureHandler::FailureHandler()
   #ifdef _WIN32
     _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
     // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
-    // not work for other threads. Use AddVectoredExceptixx::onHandler instead.
-    _ex_handler = AddVectoredExceptionHandler(1, xx::on_exception);
+    // not work for other threads. Use SetUnhandledExceptionFilter instead.
+    SetUnhandledExceptionFilter(_co_on_exception);
   #else
     const int x = SA_RESTART | SA_ONSTACK;
     _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
@@ -705,12 +706,7 @@ FailureHandler::~FailureHandler() {
     os::signal(SIGINT, SIG_DFL);
     os::signal(SIGTERM, SIG_DFL);
     os::signal(SIGABRT, SIG_DFL);
-  #ifdef _WIN32
-    if (_ex_handler) {
-        RemoveVectoredExceptionHandler(_ex_handler);
-        _ex_handler = NULL;
-    }
-  #else
+  #ifndef _WIN32
     os::signal(SIGSEGV, SIG_DFL);
     os::signal(SIGFPE, SIG_DFL);
     os::signal(SIGBUS, SIG_DFL);
@@ -822,6 +818,12 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
       case EXCEPTION_STACK_OVERFLOW:
         err = "Error: EXCEPTION_STACK_OVERFLOW";
         break;
+      case 0xE06D7363: // STATUS_CPP_EH_EXCEPTION, std::runtime_error()
+        err = "Error: STATUS_CPP_EH_EXCEPTION";
+        break;
+      case 0xE0434f4D: // STATUS_CLR_EXCEPTION, VC++ Runtime error
+        err = "Error: STATUS_CLR_EXCEPTION";
+        break;
       default:
         // ignore unrecognized exception here
         return EXCEPTION_CONTINUE_SEARCH;
@@ -837,11 +839,8 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
     if (_stack_trace) _stack_trace->dump_stack(&f, 6);
     if (f) { f.write('\n'); f.close(); }
 
+    ::exit(0);
     return EXCEPTION_EXECUTE_HANDLER;
-}
-
-LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
-    return global().failure_handler->on_exception(p);
 }
 #endif
 
@@ -974,3 +973,9 @@ void set_write_cb(const std::function<void(const char*, const void*, size_t)>& c
 
 } // namespace log
 } // namespace ___
+
+#ifdef _WIN32
+LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p) {
+    return ___::log::xx::global().failure_handler->on_exception(p);
+}
+#endif
