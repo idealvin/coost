@@ -10,6 +10,8 @@ DEF_string(version, "", ">>.version of the program");
 DEF_bool(mkconf, false, ">>.generate config file");
 DEF_bool(daemon, false, ">>#0 run program as a daemon");
 
+extern void _co_set_except_handler();
+
 namespace flag {
 namespace xx {
 
@@ -51,8 +53,7 @@ Flag::Flag(char type, const char* name, const char* alias, const char* value,
            const char* help, const char* file, int line, void* addr)
     : type(type), inco(false), name(name), alias(alias), value(value),
       help(help), file(file), line(line), lv(5), addr(addr) {
-    // flag defined in co
-    if (help[0] == '>' && help[1] == '>') {
+    if (help[0] == '>' && help[1] == '>') { /* flag defined in co */
         this->inco = true;
         this->help += 2;
     }
@@ -605,6 +606,7 @@ co::vector<fastring> init(int argc, const char** argv) {
 
 void init(const fastring& path) {
     xx::parse_config(path);
+    _co_set_except_handler();
 }
 
 fastring set_value(const fastring& name, const fastring& value) {

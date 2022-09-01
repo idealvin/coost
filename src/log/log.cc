@@ -39,6 +39,12 @@ static fastring _co_log_xx = []() { _is_safe_to_start = true; return ""; }();
 
 #ifdef _WIN32
 LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p); // handler for win32 exceptions
+
+void _co_set_except_handler() {
+    SetUnhandledExceptionFilter(_co_on_exception);
+}
+#else
+void _co_set_except_handler() {}
 #endif
 
 namespace ___ {
@@ -339,11 +345,6 @@ void Logger::stop(bool signal_safe) {
 
 void Logger::thread_fun() {
     while (!_is_safe_to_start) _log_event.wait(8);
-  #ifdef _WIN32
-    // set except handler again
-    SetUnhandledExceptionFilter(_co_on_exception);
-  #endif
-
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
@@ -694,7 +695,7 @@ FailureHandler::FailureHandler()
     _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
     // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
     // not work for other threads. Use SetUnhandledExceptionFilter instead.
-    SetUnhandledExceptionFilter(_co_on_exception);
+    _co_set_except_handler();
   #else
     const int x = SA_RESTART | SA_ONSTACK;
     _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
