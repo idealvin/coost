@@ -339,6 +339,11 @@ void Logger::stop(bool signal_safe) {
 
 void Logger::thread_fun() {
     while (!_is_safe_to_start) _log_event.wait(8);
+  #ifdef _WIN32
+    // set except handler again
+    SetUnhandledExceptionFilter(_co_on_exception);
+  #endif
+
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
@@ -824,15 +829,26 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
       case 0xE0434f4D: // STATUS_CLR_EXCEPTION, VC++ Runtime error
         err = "Error: STATUS_CLR_EXCEPTION";
         break;
+      case 0xCFFFFFFF: // STATUS_APPLICATION_HANG
+        err = "Error: STATUS_APPLICATION_HANG -- Application hang";
+        break;
+      case STATUS_INVALID_HANDLE:
+        err = "Error: STATUS_INVALID_HANDLE";
+        break;
+      case STATUS_STACK_BUFFER_OVERRUN:
+        err = "Error: STATUS_STACK_BUFFER_OVERRUN";
+        break;
       default:
-        // ignore unrecognized exception here
-        return EXCEPTION_CONTINUE_SEARCH;
+        err = "Unexpected error: ";
+        break;
     }
 
     if (g.logger) g.logger->stop();
     auto& f = g.log_file->open(NULL, fatal, g.log_time);
     auto& s = *g.s; s.clear();
-    s << 'F' << g.log_time->get() << "] " << err << '\n';
+    s << 'F' << g.log_time->get() << "] " << err;
+    if (err[0] == 'U') s << (void*)(size_t)p->ExceptionRecord->ExceptionCode;
+    s << '\n';
     if (f) f.write(s);
     log2stderr(s.data(), s.size());
 
