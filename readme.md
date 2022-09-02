@@ -32,6 +32,7 @@ English | [简体中文](readme_cn.md)
 - String utility (str)
 - Time library (time)
 - Thread library (thread)
+- Timed Task Scheduler
 - Fast memory allocator
 - LruMap
 - hash library
