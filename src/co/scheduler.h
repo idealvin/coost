@@ -107,8 +107,8 @@ inline waitx_t* make_waitx(void* co) {
 class Copool {
   public:
     // _tb(14, 14) can hold 2^28=256M coroutines.
-    Copool() : _tb(14, 14), _id(0) {
-        _ids.reserve(1u << 14);
+    Copool()
+        : _tb(14, 14), _ids(1u << 14), _id(0) {
     }
 
     ~Copool() {
@@ -140,7 +140,7 @@ class Copool {
 
   private:
     co::table<Coroutine> _tb;
-    co::vector<int> _ids; // id of available coroutines in the table
+    co::array<int> _ids; // id of available coroutines in the table
     int _id;
 };
 
@@ -161,8 +161,8 @@ class TaskManager {
     }
 
     void get_all_tasks(
-        co::vector<Closure*>& new_tasks,
-        co::vector<Coroutine*>& ready_tasks
+        co::array<Closure*>& new_tasks,
+        co::array<Coroutine*>& ready_tasks
     ) {
         ::MutexGuard g(_mtx);
         if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
@@ -171,8 +171,8 @@ class TaskManager {
  
   private:
     ::Mutex _mtx;
-    co::vector<Closure*> _new_tasks;
-    co::vector<Coroutine*> _ready_tasks;
+    co::array<Closure*> _new_tasks;
+    co::array<Coroutine*> _ready_tasks;
 };
 
 inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
@@ -200,7 +200,7 @@ class TimerManager {
 
     // return time(ms) to wait for the next timeout.
     // all timedout coroutines will be pushed into @res.
-    uint32 check_timeout(co::vector<Coroutine*>& res);
+    uint32 check_timeout(co::array<Coroutine*>& res);
 
   private:
     co::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>

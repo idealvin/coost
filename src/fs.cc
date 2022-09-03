@@ -2,13 +2,14 @@
 
 #include "co/fs.h"
 #include "co/mem.h"
-#include "./co/hook.h"
+#include "./co/close.h"
 #include <assert.h>
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 
 namespace fs {
@@ -146,11 +147,11 @@ const char* file::path() const {
 }
 
 bool file::open(const char* path, char mode) {
-    // make sure CO_RAW_API(close, read, write) are not NULL
+    // make sure __sys_api(close, read, write) are not NULL
     static bool kx = []() {
-        if (CO_RAW_API(close) == 0) ::close(-1);
-        if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
-        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+        if (__sys_api(close) == 0) ::close(-1);
+        if (__sys_api(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+        if (__sys_api(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
         return true;
     }();
     (void) kx;
@@ -178,7 +179,7 @@ bool file::open(const char* path, char mode) {
 void file::close() {
     fctx* p = (fctx*)_p;
     if (p && p->fd != nullfd) {
-        while (CO_RAW_API(close)(p->fd) != 0 && errno == EINTR);
+        _close_nocancel(p->fd);
         p->fd = nullfd;
     }
 }
@@ -202,7 +203,7 @@ size_t file::read(void* s, size_t n) {
 
     while (true) {
         size_t toread = (remain < N ? remain : N);
-        auto r = CO_RAW_API(read)(p->fd, c, toread);
+        auto r = __sys_api(read)(p->fd, c, toread);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -231,7 +232,7 @@ size_t file::write(const void* s, size_t n) {
 
     while (true) {
         size_t towrite = (remain < N ? remain : N);
-        auto r = CO_RAW_API(write)(p->fd, c, towrite);
+        auto r = __sys_api(write)(p->fd, c, towrite);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -243,6 +244,101 @@ size_t file::write(const void* s, size_t n) {
 }
 
 #undef nullfd
+
+struct dctx {
+    size_t n;
+    DIR* d;
+    struct dirent* e;
+};
+
+dir::~dir() {
+    if (_p) {
+        this->close();
+        co::free(_p, ((dctx*)_p)->n);
+        _p = 0;
+    }
+}
+
+bool dir::open(const char* path) {
+    this->close();
+    if (!path || !*path) return false;
+
+    const size_t n = strlen(path) + 1;
+    const size_t x = n + sizeof(dctx);
+    dctx* d = (dctx*)_p;
+
+    if (!d || d->n < x) {
+        _p = co::realloc(_p, d ? d->n : 0, x); assert(_p);
+        d = (dctx*)_p;
+        memcpy(d + 1, path, n);
+        d->n = x;
+    } else {
+        memcpy(d + 1, path, n);
+    }
+
+    d->d = ::opendir(path);
+    d->e = NULL;
+    return d->d;
+}
+
+void dir::close() {
+    dctx* d = (dctx*)_p;
+    if (d && d->d) {
+        ::closedir(d->d);
+        d->d = NULL;
+    }
+}
+
+const char* dir::path() const {
+    return _p ? ((char*)_p + sizeof(dctx)) : "";
+}
+
+co::vector<fastring> dir::all() const {
+    dctx* d = (dctx*)_p;
+    if (!d || !d->d) return co::vector<fastring>();
+
+    co::vector<fastring> r;
+    r.reserve(8);
+
+    while ((d->e = ::readdir(d->d))) {
+        char* const p = d->e->d_name;
+        // ignore . and ..
+        if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) {
+            r.push_back(p);
+        }
+    }
+    return r;
+}
+
+fastring dir::iterator::operator*() const {
+    assert(_p);
+    return ((dctx*)_p)->e->d_name;
+}
+
+dir::iterator& dir::iterator::operator++() {
+    dctx* d = (dctx*)_p;
+    if (d) {
+        assert(d->d);
+        while ((d->e = ::readdir(d->d))) {
+            char* const p = d->e->d_name;
+            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+        }
+        if (!d->e) _p = NULL;
+    }
+    return *this;
+}
+
+dir::iterator dir::begin() const {
+    dctx* d = (dctx*)_p;
+    if (d && d->d) {
+        while ((d->e = ::readdir(d->d))) {
+            char* const p = d->e->d_name;
+            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+        }
+        if (d->e) return dir::iterator(_p);
+    }
+    return dir::iterator(NULL);
+}
 
 } // namespace fs
 

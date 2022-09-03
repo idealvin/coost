@@ -1,6 +1,6 @@
-// This is a C++ implement for nanoid.
-// See https://github.com/ai/nanoid for details.
-
+// A thread-safe C++ implement for nanoid.
+// It is inspired by github.com/mcmikecreations/nanoid_cpp.
+// Also see https://github.com/ai/nanoid for details.
 #include "co/hash/nanoid.h"
 #include "co/god.h"
 #include <math.h>

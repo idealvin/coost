@@ -1,5 +1,6 @@
 #ifdef __linux__
 #include "epoll.h"
+#include "../close.h"
 
 namespace co {
 
@@ -8,7 +9,7 @@ Epoll::Epoll(int sched_id) : _signaled(0), _sched_id(sched_id) {
     CHECK_NE(_ep, -1) << "epoll create error: " << co::strerror();
     co::set_cloexec(_ep);
 
-    CHECK_NE(CO_RAW_API(pipe)(_pipe_fds), -1) << "create pipe error: " << co::strerror();
+    CHECK_NE(__sys_api(pipe)(_pipe_fds), -1) << "create pipe error: " << co::strerror();
     co::set_cloexec(_pipe_fds[0]);
     co::set_cloexec(_pipe_fds[1]);
 
@@ -118,7 +119,7 @@ void Epoll::del_event(int fd) {
 
 inline void closesocket(int& fd) {
     if (fd >= 0) {
-        while (CO_RAW_API(close)(fd) != 0 && errno == EINTR);
+        _close_nocancel(fd);
         fd = -1;
     }
 }
@@ -132,7 +133,7 @@ void Epoll::close() {
 void Epoll::handle_ev_pipe() {
     int32 dummy;
     while (true) {
-        int r = CO_RAW_API(read)(_pipe_fds[0], &dummy, 4);
+        int r = __sys_api(read)(_pipe_fds[0], &dummy, 4);
         if (r != -1) {
             if (r < 4) break;
             continue;

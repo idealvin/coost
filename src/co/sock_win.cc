@@ -18,10 +18,10 @@ inline void set_skip_iocp_on_success(sock_t fd) {
 
 sock_t socket(int domain, int type, int protocol) {
     static_assert(INVALID_SOCKET == (sock_t)-1, "");
-    sock_t fd = CO_RAW_API(WSASocketW)(domain, type, protocol, 0, 0, WSA_FLAG_OVERLAPPED);
+    sock_t fd = __sys_api(WSASocketW)(domain, type, protocol, 0, 0, WSA_FLAG_OVERLAPPED);
     if (fd != (sock_t)-1) {
         unsigned long mode = 1;
-        CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
+        __sys_api(ioctlsocket)(fd, FIONBIO, &mode);
         if (type != SOCK_STREAM) set_skip_iocp_on_success(fd);
     } else {
         co::error() = WSAGetLastError();
@@ -35,7 +35,7 @@ int close(sock_t fd, int ms) {
     co::get_sock_ctx(fd).del_event();
     if (ms > 0 && gSched) gSched->sleep(ms);
 
-    int r = CO_RAW_API(closesocket)(fd);
+    int r = __sys_api(closesocket)(fd);
     if (r == 0) return 0;
     co::error() = WSAGetLastError();
     return r;
@@ -49,15 +49,15 @@ int shutdown(sock_t fd, char c) {
     switch (c) {
       case 'r':
         ctx.del_ev_read();
-        r = CO_RAW_API(shutdown)(fd, SD_RECEIVE);
+        r = __sys_api(shutdown)(fd, SD_RECEIVE);
         break;
       case 'w':
         ctx.del_ev_write();
-        r = CO_RAW_API(shutdown)(fd, SD_SEND);
+        r = __sys_api(shutdown)(fd, SD_SEND);
         break;
       default:
         ctx.del_event();
-        r = CO_RAW_API(shutdown)(fd, SD_BOTH);
+        r = __sys_api(shutdown)(fd, SD_BOTH);
     }
 
     if (r == 0) return 0;
@@ -139,7 +139,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 
   err:
     co::error() = e;
-    CO_RAW_API(closesocket)(connfd);
+    __sys_api(closesocket)(connfd);
     return (sock_t)-1;
 }
 
@@ -197,7 +197,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     int r, e;
 
     do {
-        r = CO_RAW_API(recv)(fd, (char*)buf, n, 0);
+        r = __sys_api(recv)(fd, (char*)buf, n, 0);
         if (r != -1) return r;
 
         e = WSAGetLastError();
@@ -217,7 +217,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
     IoEvent ev(fd, ev_read);
 
     do {
-        r = CO_RAW_API(recv)(fd, s, remain, 0);
+        r = __sys_api(recv)(fd, s, remain, 0);
         if (r == remain) return n;
         if (r == 0) return 0;
 
@@ -246,9 +246,9 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     if (N > 0) {
         s = ev->s;
         *(int*)s = sizeof(SOCKADDR_STORAGE);
-        r = CO_RAW_API(WSARecvFrom)(fd, &ev->buf, 1, &ev->n, &ev->flags, (sockaddr*)(s + 8), (int*)s, &ev->ol, 0);
+        r = __sys_api(WSARecvFrom)(fd, &ev->buf, 1, &ev->n, &ev->flags, (sockaddr*)(s + 8), (int*)s, &ev->ol, 0);
     } else {
-        r = CO_RAW_API(WSARecvFrom)(fd, &ev->buf, 1, &ev->n, &ev->flags, 0, 0, &ev->ol, 0);
+        r = __sys_api(WSARecvFrom)(fd, &ev->buf, 1, &ev->n, &ev->flags, 0, 0, &ev->ol, 0);
     }
 
     if (r == 0) {
@@ -278,7 +278,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
     IoEvent ev(fd, ev_write);
 
     do {
-        r = CO_RAW_API(send)(fd, s, remain, 0);
+        r = __sys_api(send)(fd, s, remain, 0);
         if (r == remain) return n;
 
         if (r == -1) {
@@ -302,7 +302,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     IoEvent ev(fd, ev_write, buf, n);
 
     do {
-        r = CO_RAW_API(WSASendTo)(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
+        r = __sys_api(WSASendTo)(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);
         if (r == 0) {
             if (!can_skip_iocp_on_success) ev.wait();
         } else {
@@ -329,7 +329,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
 
 void set_nonblock(sock_t fd) {
    unsigned long mode = 1;
-   CO_RAW_API(ioctlsocket)(fd, FIONBIO, &mode);
+   __sys_api(ioctlsocket)(fd, FIONBIO, &mode);
 }
 
 bool _can_skip_iocp_on_success() {

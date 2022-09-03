@@ -11,6 +11,7 @@ set_xmakever("2.3.1")
 set_languages("c++11")
 set_warnings("all")     -- -Wall
 --set_symbols("debug")    -- dbg symbols
+add_rules("mode.debug", "mode.release")
 
 
 if is_plat("windows") then
@@ -27,7 +28,7 @@ elseif is_plat("mingw") then
     set_optimize("faster")
 else
     set_optimize("faster")   -- faster: -O2  fastest: -O3  none: -O0
-    --add_cxflags("-Wno-narrowing", "-Wno-sign-compare", "-Wno-class-memaccess", "-Wno-strict-aliasing")
+    --add_cxflags("-Wno-narrowing", "-Wno-sign-compare", "-Wno-strict-aliasing")
     if is_plat("macosx", "iphoneos") then
         add_cxflags("-fno-pie")
     end

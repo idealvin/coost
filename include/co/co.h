@@ -4,7 +4,7 @@
 #include "closure.h"
 #include "flag.h"
 #include "log.h"
-#include "vector.h"
+#include "stl.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"
@@ -94,8 +94,7 @@ int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
     flag::init(argc, argv); \
     int r; \
-    co::WaitGroup wg; \
-    wg.add(); \
+    co::WaitGroup wg(1); \
     go([&](){ \
         r = _co_main(argc, argv); \
         wg.done(); \
@@ -143,6 +142,13 @@ __coapi const co::vector<Scheduler*>& schedulers();
  * @return a pointer to the current scheduler, or NULL if called from a non-scheduler thread.
  */
 __coapi Scheduler* scheduler();
+
+/**
+ * get the current coroutine
+ * 
+ * @return a pointer to the current coroutine
+ */
+__coapi void* coroutine();
 
 /**
  * get next scheduler 
@@ -230,6 +236,14 @@ __coapi void del_io_event(sock_t fd);
  *     or the timer expires, the scheduler will resume the coroutine. 
  */
 __coapi void yield();
+
+/**
+ * resume the coroutine
+ *   - It is thread safe and can be called anywhere.
+ * 
+ * @param co  a pointer to the coroutine (result of co::coroutine())
+ */
+__coapi void resume(void* co);
 
 /**
  * sleep for milliseconds 

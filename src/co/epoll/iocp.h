@@ -45,13 +45,13 @@ class Iocp {
 
     int wait(int ms) {
         ULONG n = 0;
-        const BOOL r = CO_RAW_API(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
+        const BOOL r = __sys_api(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
         if (r == TRUE) return (int)n;
         return ::GetLastError() == WAIT_TIMEOUT ? 0 : -1;
     }
 
     void signal() {
-        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
+        if (atomic_bool_cas(&_signaled, 0, 1, mo_acquire, mo_acquire)) {
             const BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
             ELOG_IF(!r) << "PostQueuedCompletionStatus error: " << co::strerror();
         }

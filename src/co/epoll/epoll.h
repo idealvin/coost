@@ -33,13 +33,13 @@ class Epoll {
     void del_event(int fd);
 
     int wait(int ms) {
-        return CO_RAW_API(epoll_wait)(_ep, _ev, 1024, ms);
+        return __sys_api(epoll_wait)(_ep, _ev, 1024, ms);
     }
 
     // write one byte to the pipe to wake up the epoll.
     void signal(char c = 'x') {
-        if (atomic_compare_swap(&_signaled, 0, 1, mo_acquire, mo_acquire) == 0) {
-            const int r = (int) CO_RAW_API(write)(_pipe_fds[1], &c, 1);
+        if (atomic_bool_cas(&_signaled, 0, 1, mo_acq_rel, mo_acquire)) {
+            const int r = (int) __sys_api(write)(_pipe_fds[1], &c, 1);
             ELOG_IF(r != 1) << "pipe write error..";
         }
     }

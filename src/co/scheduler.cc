@@ -5,6 +5,10 @@ DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, def
 DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
 DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
 
+#ifdef _MSC_VER
+extern LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p);
+#endif
+
 namespace co {
 
 __thread SchedulerImpl* gSched = 0;
@@ -33,7 +37,14 @@ void SchedulerImpl::stop() {
 
 void SchedulerImpl::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
+  #ifdef _MSC_VER
+    __try {
+        gSched->running()->cb->run(); // run the coroutine function
+    } __except(_co_on_exception(GetExceptionInformation())) {
+    }
+  #else
     gSched->running()->cb->run(); // run the coroutine function
+  #endif // _WIN32
     tb_context_jump(from.ctx, 0); // jump back to the from context
 }
 
@@ -97,8 +108,8 @@ void SchedulerImpl::resume(Coroutine* co) {
 
 void SchedulerImpl::loop() {
     gSched = this;
-    co::vector<Closure*> new_tasks;
-    co::vector<Coroutine*> ready_tasks;
+    co::array<Closure*> new_tasks;
+    co::array<Coroutine*> ready_tasks;
 
     while (!_stop) {
         int n = _epoll->wait(_wait_ms);
@@ -186,7 +197,7 @@ void SchedulerImpl::loop() {
     _ev.signal();
 }
 
-uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
+uint32 TimerManager::check_timeout(co::array<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();
@@ -276,6 +287,16 @@ const co::vector<Scheduler*>& schedulers() {
 
 Scheduler* scheduler() { return gSched; }
 
+void* coroutine() {
+    const auto s = gSched;
+    if (s) {
+        auto co = s->running();
+        if (co->s != s) co->s = s;
+        return (void*)co;
+    }
+    return NULL;
+}
+
 Scheduler* next_scheduler() {
     return scheduler_manager()->next_scheduler();
 }
@@ -316,6 +337,11 @@ void del_io_event(sock_t fd) {
 void yield() {
     CHECK(gSched) << "MUST be called in coroutine..";
     gSched->yield();
+}
+
+void resume(void* p) {
+    const auto co = (Coroutine*)p;
+    ((SchedulerImpl*)co->s)->add_ready_task(co);
 }
 
 void sleep(uint32 ms) {

@@ -69,14 +69,14 @@ bool IoEvent::wait(uint32 ms) {
     // we should know that the socket is readable or writable when the IOCP completes.
     if (_nb_tcp != 0) {
         if (_nb_tcp == nb_tcp_recv) {
-            r = CO_RAW_API(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
+            r = __sys_api(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
             if (r == 0 && can_skip_iocp_on_success) return true;
             if (r == -1) {
                 e = WSAGetLastError();
                 if (e != WSA_IO_PENDING) goto err;
             }
         } else {
-            r = CO_RAW_API(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
+            r = __sys_api(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
             if (r == 0 && can_skip_iocp_on_success) return true;
             if (r == -1) {
                 e = WSAGetLastError();
@@ -94,6 +94,7 @@ bool IoEvent::wait(uint32 ms) {
 
         CancelIo((HANDLE)_fd);
         co::error() = ETIMEDOUT;
+        WSASetLastError(WSAETIMEDOUT);
         return false;
     } else {
         s->yield();
@@ -109,18 +110,21 @@ bool IoEvent::wait(uint32 ms) {
         // as no IO operation was posted to IOCP, remove ioinfo from coroutine.
         gSched->running()->waitx = 0;
 
-        // check whether the socket is connected or not every 16 ms.
-        uint32 t = 16;
+        // check whether the socket is connected or not every x ms.
+        uint32 x = 1;
         int r, sec = 0, len = sizeof(int);
         while (true) {
             r = co::getsockopt(_fd, SOL_SOCKET, SO_CONNECT_TIME, &sec, &len);
             if (r != 0) return false;
             if (sec >= 0) return true; // connect ok
-            if (ms == 0) { co::error() = ETIMEDOUT; return false; }
-            if (ms < t) t = ms;
-            s->sleep(t); // sleep for t ms in this coroutine
-            if (ms != (uint32)-1) ms -= t;
-            if (t < 64) t <<= 1;
+            if (ms == 0) {
+                co::error() = ETIMEDOUT;
+                WSASetLastError(WSAETIMEDOUT);
+                return false;
+            }
+            s->sleep(ms > x ? x : ms);
+            if (ms != (uint32)-1) ms = (ms > x ? ms - x : 0);
+            if (x < 16) x <<= 1;
         }
     }
 }

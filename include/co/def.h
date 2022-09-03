@@ -54,12 +54,25 @@ typedef uint64_t uint64;
 #define unlikely(x) (x)
 #endif
 
+template <size_t N>
+constexpr const char* _co_fname(const char(&s)[N], size_t i = N - 1) {
+    return (s[i] == '/' || s[i] == '\\') ? (s + i + 1) : (i == 0 ? s : _co_fname(s, i - 1));
+}
+
+template <size_t N>
+constexpr size_t _co_fnlen(const char(&s)[N]) {
+    return  N - 1 - (_co_fname(s) - s);
+}
+
+#define __fname__ _co_fname(__FILE__)
+#define __fnlen__ _co_fnlen(__FILE__)
+
 // generated from config.h.in
 #include "config.h"
 
-// __coapi: used to export symbols in shared co
-// Do not use (or reuse outside of cocoyaxi) this definiton  yourself
-#if COCOYAXI_SHARED > 0
+// __coapi: used to export symbols in shared library
+// Do not use (or reuse outside of coost) this definiton  yourself
+#if COOST_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED
       #define __coapi __declspec(dllexport)

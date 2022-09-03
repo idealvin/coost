@@ -4,8 +4,8 @@
 
 namespace unitest {
 
-inline co::vector<Test*>& gTests() {
-    static co::vector<Test*> tests(32);
+inline co::array<Test*>& gTests() {
+    static co::array<Test*> tests(32);
     return tests;
 }
 
@@ -23,7 +23,7 @@ struct FailedMsg {
     fastring msg;
 };
 
-typedef co::map<fastring, co::vector<FailedMsg*>> CMap; // <case_name, msgs>
+typedef co::map<fastring, co::array<FailedMsg*>> CMap; // <case_name, msgs>
 typedef co::map<fastring, CMap> TMap;                   // <test_name, cases>
 
 inline TMap& failed_tests() {
@@ -42,7 +42,7 @@ void run_all_tests() {
     int n = 0;
     auto& tests = gTests();
 
-    co::vector<Test*> enabled;
+    co::array<Test*> enabled;
     for (auto& test : tests) {
         if (test->enabled()) enabled.push_back(test);
     }
@@ -97,7 +97,7 @@ void run_all_tests() {
             for (auto ct = cases.begin(); ct != cases.end(); ++ct) {
                 cout << color::red << " case " << ct->first << ":\n" << color::deflt;
 
-                co::vector<FailedMsg*>& msgs = ct->second;
+                co::array<FailedMsg*>& msgs = ct->second;
                 for (size_t i = 0; i < msgs.size(); ++i) {
                     FailedMsg* msg = msgs[i];
                     cout << color::yellow << "  " << msg->file << ':' << msg->line << "] "

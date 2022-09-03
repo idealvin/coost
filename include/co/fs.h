@@ -3,6 +3,7 @@
 #include "def.h"
 #include "fastring.h"
 #include "fastream.h"
+#include "stl.h"
 
 namespace fs {
 
@@ -280,6 +281,65 @@ class __coapi fstream {
     fs::file _f;
 
     DISALLOW_COPY_AND_ASSIGN(fstream);
+};
+
+class __coapi dir {
+  public:
+    dir() : _p(0) {}
+    ~dir();
+
+    explicit dir(const char* path) : _p(0) {
+        this->open(path);
+    }
+
+    explicit dir(const fastring& path) : dir(path.c_str()) {}
+    explicit dir(const std::string& path) : dir(path.c_str()) {}
+
+    dir(dir&& d) : _p(d._p) { d._p = 0; }
+
+    dir(const dir&) = delete;
+    void operator=(const dir&) = delete;
+    void operator=(dir&&) = delete;
+
+    // open the dir
+    bool open(const char* path);
+    bool open(const fastring& path) { return this->open(path.c_str()); }
+    bool open(const std::string& path) { return this->open(path.c_str()); }
+
+    // close the dir
+    void close();
+
+    // return path of the dir
+    const char* path() const;
+
+    // return all entries
+    co::vector<fastring> all() const;
+
+    class iterator {
+      public:
+        explicit iterator(void* p) : _p(p) {}
+        ~iterator() = default;
+
+        fastring operator*() const;
+        iterator& operator++();
+
+        bool operator==(const iterator& it) const {
+            return _p == it._p;
+        }
+
+        bool operator!=(const iterator& it) const {
+            return !this->operator==(it);
+        }
+
+      private:
+        void* _p;
+    };
+
+    iterator begin() const;
+    iterator end() const { return iterator(NULL); }
+
+  private:
+    void* _p;
 };
 
 } // fs

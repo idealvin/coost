@@ -399,15 +399,15 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
 
 static inline const char* init_s2e_table() {
     static char tb[256] = { 0 };
-    tb['r'] = '\r';
-    tb['n'] = '\n';
-    tb['t'] = '\t';
-    tb['b'] = '\b';
-    tb['f'] = '\f';
-    tb['"'] = '"';
-    tb['\\'] = '\\';
-    tb['/'] = '/';
-    tb['u'] = 'u';
+    tb[(unsigned char)'r'] = '\r';
+    tb[(unsigned char)'n'] = '\n';
+    tb[(unsigned char)'t'] = '\t';
+    tb[(unsigned char)'b'] = '\b';
+    tb[(unsigned char)'f'] = '\f';
+    tb[(unsigned char)'"'] = '"';
+    tb[(unsigned char)'\\'] = '\\';
+    tb[(unsigned char)'/'] = '/';
+    tb[(unsigned char)'u'] = 'u';
     return tb;
 }
 
@@ -615,13 +615,13 @@ bool Json::parse_from(const char* s, size_t n) {
 
 static inline const char* init_e2s_table() {
     static char tb[256] = { 0 };
-    tb['\r'] = 'r';
-    tb['\n'] = 'n';
-    tb['\t'] = 't';
-    tb['\b'] = 'b';
-    tb['\f'] = 'f';
-    tb['\"'] = '"';
-    tb['\\'] = '\\';
+    tb[(unsigned char)'\r'] = 'r';
+    tb[(unsigned char)'\n'] = 'n';
+    tb[(unsigned char)'\t'] = 't';
+    tb[(unsigned char)'\b'] = 'b';
+    tb[(unsigned char)'\f'] = 'f';
+    tb[(unsigned char)'\"'] = '"';
+    tb[(unsigned char)'\\'] = '\\';
     return tb;
 }
 
@@ -662,7 +662,7 @@ inline const char* find_escapse(const char* b, const char* e, char& c) {
   #endif
 }
 
-fastream& Json::_json2str(fastream& fs, bool debug) const {
+fastream& Json::_json2str(fastream& fs, bool debug, int mdp) const {
     if (!_h) return fs.append("null", 4);
 
     switch (_h->type) {
@@ -691,7 +691,7 @@ fastream& Json::_json2str(fastream& fs, bool debug) const {
             auto& a = *(xx::Array*)&_h->p;
             for (uint32 i = 0; i < a.size(); i += 2) {
                 fs << '"' << (S)a[i] << '"' << ':';
-                ((Json*)&a[i + 1])->_json2str(fs, debug) << ',';
+                ((Json*)&a[i + 1])->_json2str(fs, debug, mdp) << ',';
             }
         }
         fs.back() == ',' ? (void)(fs.back() = '}') : (void)(fs.append('}'));
@@ -703,7 +703,7 @@ fastream& Json::_json2str(fastream& fs, bool debug) const {
         if (_h->p) {
             auto& a = *(xx::Array*)&_h->p;
             for (uint32 i = 0; i < a.size(); ++i) {
-                ((Json*)&a[i])->_json2str(fs, debug) << ',';
+                ((Json*)&a[i])->_json2str(fs, debug, mdp) << ',';
             }
         }
         fs.back() == ',' ? (void)(fs.back() = ']') : (void)(fs.append(']'));
@@ -717,7 +717,7 @@ fastream& Json::_json2str(fastream& fs, bool debug) const {
         fs << _h->b;
         break;
       case t_double:
-        fs << _h->d;
+        fs.maxdp(mdp) << _h->d;
         break;
     }
 
@@ -726,7 +726,7 @@ fastream& Json::_json2str(fastream& fs, bool debug) const {
 
 // @indent:  4 spaces by default
 // @n:       number of spaces to insert at the beginning for the current line
-fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
+fastream& Json::_json2pretty(fastream& fs, int indent, int n, int mdp) const {
     if (!_h) return fs.append("null", 4);
 
     switch (_h->type) {
@@ -737,7 +737,7 @@ fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
             for (uint32 i = 0; i < a.size(); i += 2) {
                 fs.append('\n').append(n, ' ');
                 fs << '"' << (S)a[i] << '"' << ": ";
-                ((Json*)&a[i + 1])->_json2pretty(fs, indent, n + indent) << ',';
+                ((Json*)&a[i + 1])->_json2pretty(fs, indent, n + indent, mdp) << ',';
             }
         }
         if (fs.back() == ',') {
@@ -754,7 +754,7 @@ fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
             auto& a = *(xx::Array*)&_h->p;
             for (uint32 i = 0; i < a.size(); ++i) {
                 fs.append('\n').append(n, ' ');
-                ((Json*)&a[i])->_json2pretty(fs, indent, n + indent) << ',';
+                ((Json*)&a[i])->_json2pretty(fs, indent, n + indent, mdp) << ',';
             }
         }
         if (fs.back() == ',') {
@@ -766,7 +766,7 @@ fastream& Json::_json2pretty(fastream& fs, int indent, int n) const {
       }
 
       default:
-        _json2str(fs, false);
+        _json2str(fs, false, mdp);
     }
 
     return fs;
@@ -813,6 +813,42 @@ Json& Json::get(const char* key) const {
         }
     }
     return xx::jalloc().null();
+}
+
+void Json::remove(const char* key) {
+    if (this->is_object()) {
+        const uint32 n = _h->p ? _array().size() : 0;
+        if (n > 0) {
+            auto& a = _array();
+            for (uint32 i = 0; i < n; i += 2) {
+                const auto s = (const char*)a[i];
+                if (strcmp(key, s) == 0) {
+                    xx::jalloc().free((void*)s, (uint32)strlen(s) + 1);
+                    ((Json&)a[i + 1]).reset();
+                    a.remove_pair(i);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void Json::erase(const char* key) {
+    if (this->is_object()) {
+        const uint32 n = _h->p ? _array().size() : 0;
+        if (n > 0) {
+            auto& a = _array();
+            for (uint32 i = 0; i < n; i += 2) {
+                const auto s = (const char*)a[i];
+                if (strcmp(key, s) == 0) {
+                    xx::jalloc().free((void*)s, (uint32)strlen(s) + 1);
+                    ((Json&)a[i + 1]).reset();
+                    a.erase_pair(i);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 Json& Json::_set(uint32 i) {

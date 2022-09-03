@@ -3,6 +3,7 @@
 #include "co/os.h"
 #include "co/mem.h"
 #include "co/str.h"
+#include "co/array.h"
 #include "co/time.h"
 #include "co/thread.h"
 #include "../co/hook.h"
@@ -29,6 +30,22 @@ DEF_uint32(log_flush_ms, 128, ">>#0 flush the log buffer every n ms");
 DEF_bool(cout, false, ">>#0 also logging to terminal");
 DEF_bool(log_daily, false, ">>#0 if true, enable daily log rotation");
 DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz");
+
+// Detect if it is safe to start the logging thread.
+// When this value is true, the flag log_dir and log_file_name should have been 
+// initialized, and we are safe to start the logging thread.
+static bool _is_safe_to_start = false;
+static fastring _co_log_xx = []() { _is_safe_to_start = true; return ""; }();
+
+#ifdef _WIN32
+LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p); // handler for win32 exceptions
+
+void _co_set_except_handler() {
+    SetUnhandledExceptionFilter(_co_on_exception);
+}
+#else
+void _co_set_except_handler() {}
+#endif
 
 namespace ___ {
 namespace log {
@@ -140,9 +157,6 @@ class FailureHandler {
   private:
     log::StackTrace* _stack_trace;
     co::map<int, os::sig_handler_t> _old_handlers;
-  #ifdef _WIN32
-    void* _ex_handler; // exception handler for windows
-  #endif
 };
 
 class Logger {
@@ -203,13 +217,13 @@ class Logger {
             LogTime log_time;
             char time_str[24];
         } v[A];
-        co::vector<PerTopic*> pts;
+        co::array<PerTopic*> pts;
         std::function<void(const char*, const void*, size_t)> write_cb;
         int write_flags;
     };
 
     void write_logs(const char* p, size_t n, LogTime* t);
-    void write_tlogs(co::vector<PerTopic*>& v, LogTime* t);
+    void write_tlogs(co::array<PerTopic*>& v, LogTime* t);
     void thread_fun();
 
   private:
@@ -223,8 +237,8 @@ class Logger {
 Global::Global()
     : check_failed(false), logger(NULL) {
   #ifndef _WIN32
-    if (!CO_RAW_API(write)) { auto r = ::write(-1, 0, 0); (void)r; }
-    if (!CO_RAW_API(select)) ::select(-1, 0, 0, 0, 0);
+    if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
+    if (!__sys_api(select)) ::select(-1, 0, 0, 0, 0);
   #endif
     s = co::static_new<fastring>(4096);
     exename = co::static_new<fastring>(os::exename());
@@ -248,12 +262,13 @@ bool Logger::start() {
         if ((uint32)ls > (bs >> 2)) ls = (int32)(bs >> 2);
         return true;
     }();
+    (void)x;
 
     if (atomic_bool_cas(&_log_thread, (void*)0, (void*)8)) {
         global().log_time->update();
         memcpy(_llog.time_str, global().log_time->get(), 24);
         _llog.buf.reserve(N);
-        _llog.buf.reserve(N);
+        _llog.logs.reserve(N);
         for (int i = 0; i < A; ++i) {
             memcpy(_tlog.v[i].time_str, global().log_time->get(), 24);
         }
@@ -273,7 +288,7 @@ void signal_safe_sleep(int ms) {
     co::enable_hook_sleep();
   #else
     struct timeval tv = { 0, ms * 1000 };
-    CO_RAW_API(select)(0, 0, 0, 0, &tv);
+    __sys_api(select)(0, 0, 0, 0, &tv);
   #endif
 }
 
@@ -329,6 +344,7 @@ void Logger::stop(bool signal_safe) {
 }
 
 void Logger::thread_fun() {
+    while (!_is_safe_to_start) _log_event.wait(8);
     while (!_stop) {
         bool signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
@@ -398,7 +414,7 @@ void Logger::write_logs(const char* p, size_t n, LogTime* t) {
     }
 }
 
-void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
+void Logger::write_tlogs(co::array<PerTopic*>& v, LogTime* t) {
     for (size_t i = 0; i < v.size(); ++i) {
         auto pt = v[i];
         if (!_tlog.write_cb || (_tlog.write_flags & log::log2local)) {
@@ -427,7 +443,7 @@ void Logger::write_tlogs(co::vector<PerTopic*>& v, LogTime* t) {
 }
 
 void Logger::push(char* s, size_t n) {
-    static bool ks = this->start();
+    static bool ks = this->start(); (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;
@@ -457,7 +473,7 @@ void Logger::push(char* s, size_t n) {
 }
 
 void Logger::push(const char* topic, char* s, size_t n) {
-    static bool ks = this->start();
+    static bool ks = this->start(); (void)ks;
     if (!_stop) {
         if (unlikely(n > (uint32)FLG_max_log_size)) {
             n = FLG_max_log_size;
@@ -506,7 +522,7 @@ inline void log2stderr(const char* s, size_t n) {
   #ifdef _WIN32
     auto r = ::fwrite(s, 1, n, stderr); (void)r;
   #else
-    auto r = CO_RAW_API(write)(STDERR_FILENO, s, n); (void)r;
+    auto r = __sys_api(write)(STDERR_FILENO, s, n); (void)r;
   #endif
 }
 
@@ -678,8 +694,8 @@ FailureHandler::FailureHandler()
   #ifdef _WIN32
     _old_handlers[SIGABRT] = os::signal(SIGABRT, xx::on_failure);
     // Signal handler for SIGSEGV and SIGFPE installed in main thread does 
-    // not work for other threads. Use AddVectoredExceptixx::onHandler instead.
-    _ex_handler = AddVectoredExceptionHandler(1, xx::on_exception);
+    // not work for other threads. Use SetUnhandledExceptionFilter instead.
+    _co_set_except_handler();
   #else
     const int x = SA_RESTART | SA_ONSTACK;
     _old_handlers[SIGQUIT] = os::signal(SIGQUIT, xx::on_signal);
@@ -696,12 +712,7 @@ FailureHandler::~FailureHandler() {
     os::signal(SIGINT, SIG_DFL);
     os::signal(SIGTERM, SIG_DFL);
     os::signal(SIGABRT, SIG_DFL);
-  #ifdef _WIN32
-    if (_ex_handler) {
-        RemoveVectoredExceptionHandler(_ex_handler);
-        _ex_handler = NULL;
-    }
-  #else
+  #ifndef _WIN32
     os::signal(SIGSEGV, SIG_DFL);
     os::signal(SIGFPE, SIG_DFL);
     os::signal(SIGBUS, SIG_DFL);
@@ -813,26 +824,40 @@ int FailureHandler::on_exception(PEXCEPTION_POINTERS p) {
       case EXCEPTION_STACK_OVERFLOW:
         err = "Error: EXCEPTION_STACK_OVERFLOW";
         break;
+      case 0xE06D7363: // STATUS_CPP_EH_EXCEPTION, std::runtime_error()
+        err = "Error: STATUS_CPP_EH_EXCEPTION";
+        break;
+      case 0xE0434f4D: // STATUS_CLR_EXCEPTION, VC++ Runtime error
+        err = "Error: STATUS_CLR_EXCEPTION";
+        break;
+      case 0xCFFFFFFF: // STATUS_APPLICATION_HANG
+        err = "Error: STATUS_APPLICATION_HANG -- Application hang";
+        break;
+      case STATUS_INVALID_HANDLE:
+        err = "Error: STATUS_INVALID_HANDLE";
+        break;
+      case STATUS_STACK_BUFFER_OVERRUN:
+        err = "Error: STATUS_STACK_BUFFER_OVERRUN";
+        break;
       default:
-        // ignore unrecognized exception here
-        return EXCEPTION_CONTINUE_SEARCH;
+        err = "Unexpected error: ";
+        break;
     }
 
     if (g.logger) g.logger->stop();
     auto& f = g.log_file->open(NULL, fatal, g.log_time);
     auto& s = *g.s; s.clear();
-    s << 'F' << g.log_time->get() << "] " << err << '\n';
+    s << 'F' << g.log_time->get() << "] " << err;
+    if (err[0] == 'U') s << (void*)(size_t)p->ExceptionRecord->ExceptionCode;
+    s << '\n';
     if (f) f.write(s);
     log2stderr(s.data(), s.size());
 
     if (_stack_trace) _stack_trace->dump_stack(&f, 6);
     if (f) { f.write('\n'); f.close(); }
 
+    ::exit(0);
     return EXCEPTION_EXECUTE_HANDLER;
-}
-
-LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
-    return global().failure_handler->on_exception(p);
 }
 #endif
 
@@ -965,3 +990,9 @@ void set_write_cb(const std::function<void(const char*, const void*, size_t)>& c
 
 } // namespace log
 } // namespace ___
+
+#ifdef _WIN32
+LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p) {
+    return ___::log::xx::global().failure_handler->on_exception(p);
+}
+#endif

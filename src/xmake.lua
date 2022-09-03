@@ -30,9 +30,9 @@ target("libco")
     if is_kind("shared") then
         set_symbols("debug", "hidden")
         add_defines("BUILDING_CO_SHARED")
-        set_configvar("COCOYAXI_SHARED", 1)
+        set_configvar("COOST_SHARED", 1)
     else
-        set_configvar("COCOYAXI_SHARED", 0)
+        set_configvar("COOST_SHARED", 0)
     end
     add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
 
@@ -70,4 +70,8 @@ target("libco")
             add_syslinks("dl")
         end
         add_files("co/context/context.S")
+    end
+
+    if is_plat("macosx", "iphoneos") then
+        add_files("co/fishhook/fishhook.c")
     end

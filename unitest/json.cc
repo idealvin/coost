@@ -249,6 +249,10 @@ DEF_test(json) {
         EXPECT_EQ(v.size(), 3);
         EXPECT_EQ(v.array_size(), 3);
         EXPECT_EQ(v.str(), "[1,\"hello\",1.23]");
+
+        v.add_member("x", 23);
+        EXPECT(v.is_object());
+        EXPECT_EQ(v["x"].as_int(), 23);
     }
 
     DEF_case(object) {
@@ -297,6 +301,11 @@ DEF_test(json) {
         o.add_member("a", a);
         EXPECT(o["a"].is_array());
         EXPECT_EQ(o["a"][0].as_int(), 1);
+
+        o.push_back(1).push_back(2).push_back(3);
+        EXPECT(o.is_array());
+        EXPECT_EQ(o.array_size(), 3);
+        EXPECT_EQ(o[1].as_int(), 2);
     }
 
     DEF_case(has_member) {
@@ -350,6 +359,62 @@ DEF_test(json) {
         x.set("a", 3, 88);
         EXPECT(x.get("a", 2).is_null());
         EXPECT_EQ(x.get("a", 3).as_int(), 88);
+    }
+
+    DEF_case(remove) {
+        Json x = {
+            { "a", 1 },
+            { "b", 2 },
+            { "c", {1,2,3} },
+        };
+
+        x.remove("a");
+        EXPECT_EQ(x.object_size(), 2);
+        {
+            auto it = x.begin();
+            EXPECT(strcmp(it.key(), "c") == 0);
+        }
+
+        x.remove("b");
+        EXPECT_EQ(x.object_size(), 1);
+
+        auto& c = x.get("c");
+        EXPECT(c.is_array() && c.array_size() == 3);
+        c.remove(0);
+        EXPECT_EQ(c.array_size(), 2);
+        EXPECT_EQ(c[0].as_int(), 3);
+        EXPECT_EQ(c[1].as_int(), 2);
+        c.remove(1);
+        EXPECT_EQ(c.array_size(), 1);
+        EXPECT_EQ(c[0].as_int(), 3);
+    }
+
+    DEF_case(erase) {
+        Json x = {
+            { "a", 1 },
+            { "b", 2 },
+            { "c", {1,2,3} },
+        };
+
+        x.erase("a");
+        EXPECT_EQ(x.object_size(), 2);
+        {
+            auto it = x.begin();
+            EXPECT(strcmp(it.key(), "b") == 0);
+        }
+
+        x.erase("b");
+        EXPECT_EQ(x.object_size(), 1);
+
+        auto& c = x.get("c");
+        EXPECT(c.is_array() && c.array_size() == 3);
+        c.erase(0);
+        EXPECT_EQ(c.array_size(), 2);
+        EXPECT_EQ(c[0].as_int(), 2);
+        EXPECT_EQ(c[1].as_int(), 3);
+        c.erase(1);
+        EXPECT_EQ(c.array_size(), 1);
+        EXPECT_EQ(c[0].as_int(), 2);
     }
 
     DEF_case(iterator) {

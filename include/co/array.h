@@ -9,54 +9,54 @@
 namespace co {
 
 template <typename T, typename Alloc=co::default_allocator>
-class vector {
+class array {
   public:
-    vector() noexcept
+    array() noexcept
         : _cap(0), _size(0), _p(0) {
     }
 
     /**
      * constructor with a capacity
-     *   - NOTE: size of the vector will be 0, which is different from std::vector
+     *   - NOTE: size of the array will be 0, which is different from std::vector
      * 
-     * @param cap  capacity of the vector.
+     * @param cap  capacity of the array.
      */
-    explicit vector(size_t cap)
+    explicit array(size_t cap)
         : _cap(cap), _size(0), _p((T*) Alloc::alloc(sizeof(T) * cap)) {
     }
 
-    vector(size_t n, const T& x)
+    array(size_t n, const T& x)
         : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T(x);
     }
 
-    vector(const vector& x) {
-        this->_make_vector(x, B<god::is_trivially_copyable<T>()>());
+    array(const array& x) {
+        this->_make_array(x, B<god::is_trivially_copyable<T>()>());
     }
 
-    vector(vector&& x) noexcept
+    array(array&& x) noexcept
         : _cap(x._cap), _size(x._size), _p(x._p) {
         x._p = 0;
         x._cap = x._size = 0;
     }
 
-    // co::vector<int> v = { 1, 2, 3 };
-    vector(std::initializer_list<T> x)
+    // co::array<int> v = { 1, 2, 3 };
+    array(std::initializer_list<T> x)
         : _cap(x.size()), _size(0), _p((T*) Alloc::alloc(sizeof(T) * _cap)) {
         for (const auto& e : x) new (_p + _size++) T(e);
     }
 
     template <typename It, god::enable_if_t<god::is_class<It>(), int> = 0>
-    vector(It beg, It end) : vector(8) {
+    array(It beg, It end) : array(8) {
         this->push_back(beg, end);
     }
 
-    // create vector from an array
-    vector(T* p, size_t n) : vector(n) {
+    // create array from an array
+    array(T* p, size_t n) : array(n) {
         this->_push_back(p, n, B<god::is_trivially_copyable<T>()>());
     }
 
-    ~vector() {
+    ~array() {
         this->reset();
     }
 
@@ -74,25 +74,25 @@ class vector {
     T& operator[](size_t n) { return _p[n]; }
     const T& operator[](size_t n) const { return _p[n]; }
 
-    vector& operator=(const vector& x) {
+    array& operator=(const array& x) {
         if (&x != this) {
             this->reset();
-            new (this) vector(x);
+            new (this) array(x);
         }
         return *this;
     }
 
-    vector& operator=(vector&& x) {
+    array& operator=(array&& x) {
         if (&x != this) {
             this->reset();
-            new (this) vector(std::move(x));
+            new (this) array(std::move(x));
         }
         return *this;
     }
 
-    vector& operator=(std::initializer_list<T> x) {
+    array& operator=(std::initializer_list<T> x) {
         this->reset();
-        new (this) vector(x);
+        new (this) array(x);
         return *this;
     }
 
@@ -182,13 +182,13 @@ class vector {
         }
     }
 
-    void swap(vector& x) noexcept {
+    void swap(array& x) noexcept {
         std::swap(_cap, x._cap);
         std::swap(_size, x._size);
         std::swap(_p, x._p);
     }
 
-    void swap(vector&& x) noexcept {
+    void swap(array&& x) noexcept {
         x.swap(*this);
     }
 
@@ -241,14 +241,14 @@ class vector {
   private:
     template<bool> struct B {};
 
-    void _make_vector(const vector& x, B<true>) {
+    void _make_array(const array& x, B<true>) {
         _cap = _size = x.size();
         const size_t n = sizeof(T) * _cap;
         _p = (T*) Alloc::alloc(n);
         memcpy(_p, x._p, n);
     }
 
-    void _make_vector(const vector& x, B<false>) {
+    void _make_array(const array& x, B<false>) {
         _cap = _size = x.size();
         _p = (T*) Alloc::alloc(sizeof(T) * _cap);
         for (size_t i = 0; i < _cap; ++i) new (_p + i) T(x[i]);

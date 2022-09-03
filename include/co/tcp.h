@@ -236,7 +236,7 @@ class __coapi Client final {
     const char* strerror() const;
 
     // get the socket fd 
-    int socket() const { return _fd; }
+    int socket() const { (void)_; return _fd; }
 
   private:
     union {

@@ -10,6 +10,6 @@ liberapay: # Replace with a single Liberapay username
 issuehunt: # Replace with a single IssueHunt username
 otechie: # Replace with a single Otechie username
 custom: [
-  'https://idealvin.github.io/en/about/sponsor/',
-  'https://idealvin.gitee.io/cn/about/sponsor/',
+  'https://coostdocs.github.io/en/about/sponsor/',
+  'https://coostdocs.gitee.io/cn/about/sponsor/',
 ]
