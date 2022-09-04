@@ -225,11 +225,11 @@ xmake r unitest -os  # Run test cases in the os unit
 [co/json](https://coostdocs.github.io/cn/co/json/) is a fast JSON library, and it is quite easy to use.
 
 ```cpp
-// {"a":23,"b":false,"s":"xx","v":[1,2,3],"o":{"xx":0}}
+// {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
 Json x = {
     { "a", 23 },
     { "b", false },
-    { "s", "xx" },
+    { "s", "123" },
     { "v", {1,2,3} },
     { "o", {
         {"xx", 0}
@@ -240,15 +240,20 @@ Json x = {
 Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
-    .add_member("s", "xx")
+    .add_member("s", "123")
     .add_member("v", Json().push_back(1).push_back(2).push_back(3))
     .add_member("o", Json().add_member("xx", 0));
 
 x.get("a").as_int();       // 23
-x.get("s").as_string();    // "xx"
+x.get("s").as_string();    // "123"
+x.get("s").as_int();       // 123, string -> int
 x.get("v", 0).as_int();    // 1
 x.get("v", 2).as_int();    // 3
 x.get("o", "xx").as_int(); // 0
+
+x["a"] == 23;          // true
+x["s"] == "123";       // true
+x.get("o", "xx") != 0; // false
 ```
 
 - [co/json vs rapidjson](https://github.com/idealvin/coost/tree/benchmark/benchmark) (Linux)
@@ -496,8 +501,26 @@ xrepo install -f "openssl=true,libcurl=true" coost
 ### 5.3 Build with cmake
 
 [izhengfan](https://github.com/izhengfan) helped to provide cmake support, [SpaceIm](https://github.com/SpaceIm) improved it and made it perfect.
+>>>>>>> master
 
+  # get twitter.json
+  wget https://raw.githubusercontent.com/simdjson/simdjson/master/jsonexamples/twitter.json
 
+<<<<<<< HEAD
+  # build json benchmark
+  xmake -b json_bm
+
+  # copy twitter.json to the release dir
+  cp twitter.json build/windows/x64/release/twitter.json
+  cp twitter.json build/linux/x86_64/release/twitter.json
+
+  # run benchmark with twitter.json
+  xmake r json_bm
+
+  # run benchmark with minimal twitter.json
+  xmake r json_bm -minimal
+  ```
+=======
 #### 5.3.1 Build libco
 
 ```sh
@@ -514,8 +537,24 @@ mkdir build && cd build
 cmake .. -DBUILD_ALL=ON
 make -j8
 ```
+>>>>>>> master
 
+- results on linux
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 1233.701 us | 2503 us | 1057.799 us | 2243 us |
+  | simdjson | 385.3 us | 1779 us| 351.752 us | 2298 us |
+  | co/json | 666.979 us | 1660 us | 457.381 us | 981 us |
 
+<<<<<<< HEAD
+
+- results on windows
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 4197.339 us | 3008 us | 4078.067 us | 2216 us |
+  | simdjson | 843.06 us | 2373 us| 607.946 us | 2119 us |
+  | co/json | 717.444 us | 1514 us | 623.745 us | 993 us |
+=======
 #### 5.3.3 Enable HTTP/SSL features
 
 ```sh

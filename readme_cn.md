@@ -229,11 +229,11 @@ xmake r unitest -os  # 仅运行 os 单元中的测试用例
 [co/json](https://coostdocs.github.io/cn/co/json/) 是一个兼具性能与易用性的 JSON 库。
 
 ```cpp
-// {"a":23,"b":false,"s":"xx","v":[1,2,3],"o":{"xx":0}}
+// {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
 Json x = {
     { "a", 23 },
     { "b", false },
-    { "s", "xx" },
+    { "s", "123" },
     { "v", {1,2,3} },
     { "o", {
         {"xx", 0}
@@ -244,15 +244,20 @@ Json x = {
 Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
-    .add_member("s", "xx")
+    .add_member("s", "123")
     .add_member("v", Json().push_back(1).push_back(2).push_back(3))
     .add_member("o", Json().add_member("xx", 0));
 
 x.get("a").as_int();       // 23
-x.get("s").as_string();    // "xx"
+x.get("s").as_string();    // "123"
+x.get("s").as_int();       // 123, string -> int
 x.get("v", 0).as_int();    // 1
 x.get("v", 2).as_int();    // 3
 x.get("o", "xx").as_int(); // 0
+
+x["a"] == 23;          // true
+x["s"] == "123";       // true
+x.get("o", "xx") != 0; // false
 ```
 
 - [co/json vs rapidjson](https://github.com/idealvin/coost/tree/benchmark/benchmark) (Linux)
