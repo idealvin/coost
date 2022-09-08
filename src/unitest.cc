@@ -37,7 +37,7 @@ void push_failed_msg(const fastring& test_name, const fastring& case_name,
     x[test_name][case_name].push_back(co::make<FailedMsg>(file, line, msg));
 }
 
-void run_all_tests() {
+int run_all_tests() {
     Timer t;
     int n = 0;
     auto& tests = gTests();
@@ -112,6 +112,8 @@ void run_all_tests() {
         cout << color::deflt;
         cout.flush();
     }
+
+    return failed.size();
 }
 
 } // namespace unitest
