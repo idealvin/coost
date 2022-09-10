@@ -113,7 +113,7 @@ int run_all_tests() {
         cout.flush();
     }
 
-    return failed.size();
+    return (int) failed.size();
 }
 
 } // namespace unitest
