@@ -69,14 +69,14 @@ bool IoEvent::wait(uint32 ms) {
     // we should know that the socket is readable or writable when the IOCP completes.
     if (_nb_tcp != 0) {
         if (_nb_tcp == nb_tcp_recv) {
-            r = CO_RAW_API(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
+            r = __sys_api(WSARecv)(_fd, &_info->buf, 1, &_info->n, &_info->flags, &_info->ol, 0);
             if (r == 0 && can_skip_iocp_on_success) return true;
             if (r == -1) {
                 e = WSAGetLastError();
                 if (e != WSA_IO_PENDING) goto err;
             }
         } else {
-            r = CO_RAW_API(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
+            r = __sys_api(WSASend)(_fd, &_info->buf, 1, &_info->n, 0, &_info->ol, 0);
             if (r == 0 && can_skip_iocp_on_success) return true;
             if (r == -1) {
                 e = WSAGetLastError();

@@ -1,9 +1,10 @@
 #include "co/all.h"
 
 DEF_bool(s, false, "use system allocator");
-DEF_int32(n, 50000, "n times");
+DEF_int32(n, 50000, "n");
+DEF_int32(m, 200, "m");
 DEF_int32(t, 1, "thread num");
-DEF_int32(x, 97, "x");
+DEF_bool(xfree, false, "test xfree");
 
 void test_fun(int id) {
     int N = FLG_n;
@@ -35,7 +36,7 @@ void test_fun(int id) {
     }
     us = t.us();
     avg = us * 1000.0 / N - vavg;
-    s << "co alloc avg: " << avg << " ns\n";
+    s << "co::alloc avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = N - 1; i >= 0; --i) {
@@ -43,7 +44,7 @@ void test_fun(int id) {
     }
     us = t.us();
     avg = us * 1000.0 / N;
-    s << "co free avg: " << avg << " ns\n";
+    s << "co::free avg: " << avg << " ns\n";
 
     if (FLG_s) {
         v.clear();
@@ -53,7 +54,7 @@ void test_fun(int id) {
         }
         us = t.us();
         avg = us * 1000.0 / N - vavg;
-        s << "malloc avg: " << avg << " ns\n";
+        s << "::malloc avg: " << avg << " ns\n";
 
         t.restart();
         for (int i = 0; i < N; ++i) {
@@ -64,7 +65,7 @@ void test_fun(int id) {
         s << "::free avg: " << avg << " ns\n";
     }
 
-    COUT << "thread " << id << ": " << s;
+    COUT << "thread " << id << ":\n" << s;
     v.reset();
 }
 
@@ -79,7 +80,7 @@ void test_string() {
     for (int i = 0; i < N; ++i) {
         fastring x;
         for (int k = 0; k < 64; ++k) {
-            x.append(32, (char)FLG_x);
+            x.append(32, 'x');
         }
     }
     us = t.us();
@@ -90,7 +91,7 @@ void test_string() {
     for (int i = 0; i < N; ++i) {
         std::string x;
         for (int k = 0; k < 64; ++k) {
-            x.append(32, (char)FLG_x);
+            x.append(32, 'x');
         }
     }
     us = t.us();
@@ -192,16 +193,58 @@ void test_unordered_map() {
     COUT << s << '\n';
 }
 
+::Mutex gMtx;
+co::array<void*> gA(1024 * 1024);
+co::array<void*> gB(1024 * 1024);
+
+void test_xalloc() {
+    for (int i = 0; i < FLG_n; ++i) {
+        for (int k = 0; k < FLG_m; ++k) {
+            void* p = co::alloc(32);
+            {
+                ::MutexGuard g(gMtx);
+                gA.push_back(p);
+            }
+        }
+        if (i % 100 == 0) co::sleep(1);
+    }
+}
+
+void test_xfree() {
+    size_t n = FLG_m * FLG_n;
+    while (true) {
+        {
+            ::MutexGuard g(gMtx);
+            gB.swap(gA);
+        }
+        if (!gB.empty()) {
+            for (auto& x : gB) {
+                co::free(x, 32);
+            }
+            n -= gB.size();
+            gB.clear();
+            if (n == 0) break;
+        } else {
+            co::sleep(1);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
-    test_string();
-    test_vector();
-    test_map();
-    test_unordered_map();
+    if (!FLG_xfree) {
+        test_string();
+        test_vector();
+        test_map();
+        test_unordered_map();
 
-    for (int i = 0; i < FLG_t; ++i) {
-        Thread(test_fun, i).detach();
+        for (int i = 0; i < FLG_t; ++i) {
+            Thread(test_fun, i).detach();
+        }
+    } else {
+        go(test_xalloc);
+        go(test_xfree);
     }
 
     while (true) sleep::sec(8);

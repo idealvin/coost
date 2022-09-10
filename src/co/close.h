@@ -13,7 +13,7 @@ inline int _close_nocancel(int fd) {
     return syscall(SYS_close, fd);
 }
 
-#elif defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+#elif defined(__APPLE__)
 #include <dlfcn.h>
 
 inline int _close_nocancel(int fd) {
@@ -23,7 +23,7 @@ inline int _close_nocancel(int fd) {
         if (!p) p = dlsym(RTLD_DEFAULT, "close$NOCANCEL$UNIX2003");
         return (close_t)p;
     }();
-    return f ? f(fd) : CO_RAW_API(close)(fd);
+    return f ? f(fd) : __sys_api(close)(fd);
 }
 
 #elif defined(_hpux) || defined(__hpux)
@@ -31,13 +31,13 @@ inline int _close_nocancel(int fd) {
 
 inline int _close_nocancel(int fd) {
     int r;
-    while ((r = CO_RAW_API(close)(fd)) != 0 && errno == EINTR);
+    while ((r = __sys_api(close)(fd)) != 0 && errno == EINTR);
     return r;
 }
 
 #else
 inline int _close_nocancel(int fd) {
-    return CO_RAW_API(close)(fd);
+    return __sys_api(close)(fd);
 }
 #endif
 #endif // #ifndef _WIN32

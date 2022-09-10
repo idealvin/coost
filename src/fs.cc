@@ -147,11 +147,11 @@ const char* file::path() const {
 }
 
 bool file::open(const char* path, char mode) {
-    // make sure CO_RAW_API(close, read, write) are not NULL
+    // make sure __sys_api(close, read, write) are not NULL
     static bool kx = []() {
-        if (CO_RAW_API(close) == 0) ::close(-1);
-        if (CO_RAW_API(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
-        if (CO_RAW_API(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
+        if (__sys_api(close) == 0) ::close(-1);
+        if (__sys_api(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
+        if (__sys_api(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
         return true;
     }();
     (void) kx;
@@ -203,7 +203,7 @@ size_t file::read(void* s, size_t n) {
 
     while (true) {
         size_t toread = (remain < N ? remain : N);
-        auto r = CO_RAW_API(read)(p->fd, c, toread);
+        auto r = __sys_api(read)(p->fd, c, toread);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
@@ -232,7 +232,7 @@ size_t file::write(const void* s, size_t n) {
 
     while (true) {
         size_t towrite = (remain < N ? remain : N);
-        auto r = CO_RAW_API(write)(p->fd, c, towrite);
+        auto r = __sys_api(write)(p->fd, c, towrite);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;

@@ -1,48 +1,74 @@
-# cocoyaxi
+# Coost
 
 English | [简体中文](readme_cn.md)
 
-[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Linux/master.svg?logo=linux)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3ALinux)
-[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/Windows/master.svg?logo=windows)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AWindows)
-[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/cocoyaxi/macOS/master.svg?logo=apple)](https://github.com/idealvin/cocoyaxi/actions?query=workflow%3AmacOS)
-[![Release](https://img.shields.io/github/release/idealvin/cocoyaxi.svg)](https://github.com/idealvin/cocoyaxi/releases)
+[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/coost/Linux/master.svg?logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
+[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/coost/Windows/master.svg?logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/coost/macOS/master.svg?logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A go-style coroutine library in C++11 and more.**
+
+**A tiny boost library in C++11.**
 
 
 
 ## 0. Introduction
 
-**cocoyaxi (co for short)**, is an elegant and efficient cross-platform C++ base library. It contains a series of high-quality base components, such as **go-style coroutine**, coroutine-based network programming framework, command line and config file parser, high-performance log library, unit testing framework, JSON library, etc.
+**Coost** is an elegant and efficient cross-platform C++ base library, it is not as heavy as [boost](https://www.boost.org/), but still provides enough powerful features:
 
-> It was said that about 23 light-years from the Earth, there is a planet named **Namake**. Namake has three suns, a large one and two small ones. The Namakians make a living by programming. They divide themselves into nine levels according to their programming level, and the three lowest levels will be sent to other planets to develop programming technology. These wandering Namakians must collect at least **10,000 stars** through a project before they can return to Namake.
+- Command line and config file parser (flag)
+- High performance log library (log)
+- Unit testing framework (unitest)
+- go-style coroutine
+- Coroutine-based network programming framework
+- Efficient JSON library
+- JSON based RPC framework
+- God-oriented programming
+- Atomic operation (atomic)
+- Random number generator (random)
+- Efficient stream (fastream)
+- Efficient string (fastring)
+- String utility (str)
+- Time library (time)
+- Thread library (thread)
+- Timed Task Scheduler
+- Fast memory allocator
+- LruMap
+- hash library
+- path library
+- File system operations (fs)
+- System operations (os)
+ 
+Coost, formerly known as **cocoyaxi (co for short)**, for fear of exposing too much information and causing the Namake planet to suffer attack from **[the Dark Forest](https://en.wikipedia.org/wiki/The_Dark_Forest)**, was renamed Coost, which means a more lightweight C++ base library than boost.
+
+> It was said that about xx light-years from the Earth, there is a planet named **Namake**. Namake has three suns, a large one and two small ones. The Namakians make a living by programming. They divide themselves into nine levels according to their programming level, and the three lowest levels will be sent to other planets to develop programming technology. These wandering Namakians must collect at least **10,000 stars** through a project before they can return to Namake.
 > 
-> Several years ago, two Namakians, [ruki](https://github.com/waruqi) and [alvin](https://github.com/idealvin), were dispatched to the Earth. In order to go back to the Namake planet as soon as possible, ruki has developed a nice build tool [xmake](https://github.com/xmake-io/xmake), whose name is taken from Namake. At the same time, alvin has developed a go-style C++ coroutine library [cocoyaxi](https://github.com/idealvin/cocoyaxi), whose name is taken from the **Cocoyaxi village** where ruki and alvin live on Namake.
+> Several years ago, two Namakians, [ruki](https://github.com/waruqi) and [alvin](https://github.com/idealvin), were dispatched to the Earth. To go back to the Namake planet as soon as possible, ruki has developed a powerful build tool [xmake](https://github.com/xmake-io/xmake), whose name is taken from Namake. At the same time, alvin has developed a tiny boost library [coost](https://github.com/idealvin/coost), whose original name cocoyaxi is taken from the Cocoyaxi village where ruki and alvin lived on Namake.
 
 
 
 ## 1. Sponsor
 
-cocoyaxi needs your help. If you are using it or like it, you may consider becoming a sponsor. Thank you very much!
+Coost needs your help. If you are using it or like it, you may consider becoming a sponsor. Thank you very much!
 
 - [Github Sponsors](https://github.com/sponsors/idealvin)
-- [A cup of coffee](https://cocoyaxi.github.io/en/about/sponsor/)
+- [A cup of coffee](https://coostdocs.github.io/en/about/sponsor/)
 
 **Special Sponsors**
 
-cocoyaxi is specially sponsored by the following companies, thank you very much!
+Coost is specially sponsored by the following companies, thank you very much!
 
 <a href="https://www.oneflow.org/index.html">
-<img src="https://cocoyaxi.github.io/images/sponsor/oneflow.png" width="175" height="125">
+<img src="https://coostdocs.github.io/images/sponsor/oneflow.png" width="175" height="125">
 </a>
 
 
 
 ## 2. Documents
 
-- English: [github](https://cocoyaxi.github.io/en/about/co/) | [gitee](https://cocoyaxi.gitee.io/en/about/co/)
-- 简体中文: [github](https://cocoyaxi.github.io/cn/about/co/) | [gitee](https://cocoyaxi.gitee.io/cn/about/co/)
+- English: [github](https://coostdocs.github.io/en/about/co/) | [gitee](https://coostdocs.gitee.io/en/about/co/)
+- 简体中文: [github](https://coostdocs.github.io/cn/about/co/) | [gitee](https://coostdocs.gitee.io/cn/about/co/)
 
 
 
@@ -56,7 +82,6 @@ cocoyaxi is specially sponsored by the following companies, thank you very much!
 #include "co/god.h"
 
 void f() {
-    // 🙏
     god::bless_no_bugs();
 }
 ```
@@ -65,7 +90,7 @@ void f() {
 
 ### 3.1 co/flag
 
-[co/flag](https://cocoyaxi.github.io/en/co/flag/) is a command line and config file parser. It is similar to [gflags](https://github.com/gflags/gflags), but more powerful:
+[co/flag](https://coostdocs.github.io/en/co/flag/) is a command line and config file parser. It is similar to [gflags](https://github.com/gflags/gflags), but more powerful:
 - Support input parameters from command line and config file.
 - Support automatic generation of the config file.
 - Support flag aliases.
@@ -104,7 +129,7 @@ In the above example, the macros start with `DEF_` define 3 flags. Each flag cor
 
 ### 3.2 co/log
 
-[co/log](https://cocoyaxi.github.io/en/co/log/) is a high-performance and memory-friendly log library, which nearly needs no memory allocation.
+[co/log](https://coostdocs.github.io/en/co/log/) is a high-performance and memory-friendly log library, which nearly needs no memory allocation.
 
 co/log supports two types of logs: one is the level log, which divides the logs into 5 levels: debug, info, warning, error and fatal. **Printing a fatal log will terminate the program**; the other one is TLOG, logs are classified by topic, and logs of different topics are written to different files.
 
@@ -127,7 +152,7 @@ CHECK_NE(p, NULL) << "malloc failed..";
 
 When the CHECK assertion failed, co/log will print the function call stack information, and then terminate the program. On linux and macosx, make sure you have installed [libbacktrace](https://github.com/ianlancetaylor/libbacktrace) on your system.
 
-![stack](https://cocoyaxi.github.io/images/stack.png)
+![stack](https://coostdocs.github.io/images/stack.png)
 
 co/log is very fast. The following are some test results, for reference only:
 
@@ -153,7 +178,7 @@ co/log is very fast. The following are some test results, for reference only:
 
 ### 3.3 co/unitest
 
-[co/unitest](https://cocoyaxi.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in co use it to write unit test code, which guarantees the stability of co.
+[co/unitest](https://coostdocs.github.io/en/co/unitest/) is a simple and easy-to-use unit test framework. Many components in co use it to write unit test code, which guarantees the stability of co.
 
 ```cpp
 #include "co/unitest.h"
@@ -186,7 +211,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-[unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest) contains the unit test code in cocoyaxi. Users can run unitest with the following commands:
+[unitest](https://github.com/idealvin/coost/tree/master/unitest) contains the unit test code in coost. Users can run unitest with the following commands:
 
 ```sh
 xmake r unitest      # Run all test cases
@@ -197,14 +222,14 @@ xmake r unitest -os  # Run test cases in the os unit
 
 ### 3.4 JSON
 
-[co/json](https://cocoyaxi.github.io/cn/co/json/) is a fast JSON library, and it is quite easy to use.
+[co/json](https://coostdocs.github.io/cn/co/json/) is a fast JSON library, and it is quite easy to use.
 
 ```cpp
-// {"a":23,"b":false,"s":"xx","v":[1,2,3],"o":{"xx":0}}
+// {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
 Json x = {
     { "a", 23 },
     { "b", false },
-    { "s", "xx" },
+    { "s", "123" },
     { "v", {1,2,3} },
     { "o", {
         {"xx", 0}
@@ -215,18 +240,23 @@ Json x = {
 Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
-    .add_member("s", "xx")
+    .add_member("s", "123")
     .add_member("v", Json().push_back(1).push_back(2).push_back(3))
     .add_member("o", Json().add_member("xx", 0));
 
 x.get("a").as_int();       // 23
-x.get("s").as_string();    // "xx"
+x.get("s").as_string();    // "123"
+x.get("s").as_int();       // 123, string -> int
 x.get("v", 0).as_int();    // 1
 x.get("v", 2).as_int();    // 3
 x.get("o", "xx").as_int(); // 0
+
+x["a"] == 23;          // true
+x["s"] == "123";       // true
+x.get("o", "xx") != 0; // false
 ```
 
-- [co/json vs rapidjson](https://github.com/idealvin/cocoyaxi/tree/benchmark/benchmark) (Linux)
+- [co/json vs rapidjson](https://github.com/idealvin/coost/tree/benchmark/benchmark) (Linux)
 
   |  | parse | stringify | parse(minimal) | stringify(minimal) |
   | ------ | ------ | ------ | ------ | ------ |
@@ -244,9 +274,9 @@ co has implemented a [go-style](https://github.com/golang/go) coroutine, which h
 - There is a flat relationship between coroutines, and new coroutines can be created from anywhere (including in coroutines).
 - Support system API hook (Windows/Linux/Mac), you can directly use third-party network library in coroutine.
 
-- Support coroutine lock [co::Mutex](https://cocoyaxi.github.io/en/co/coroutine/#comutex), coroutine synchronization event [co::Event](https://cocoyaxi.github.io/en/co/coroutine/#coevent).
-- Support channel and waitgroup in golang: [co::Chan](https://cocoyaxi.github.io/en/co/coroutine/#cochan), [co::WaitGroup](https://cocoyaxi.github.io/en/co/coroutine/#cowaitgroup).
-- Support coroutine pool [co::Pool](https://cocoyaxi.github.io/en/co/coroutine/#copool) (no lock, no atomic operation).
+- Support coroutine lock [co::Mutex](https://coostdocs.github.io/en/co/coroutine/#comutex), coroutine synchronization event [co::Event](https://coostdocs.github.io/en/co/coroutine/#coevent).
+- Support channel and waitgroup in golang: [co::Chan](https://coostdocs.github.io/en/co/coroutine/#cochan), [co::WaitGroup](https://coostdocs.github.io/en/co/coroutine/#cowaitgroup).
+- Support coroutine pool [co::Pool](https://coostdocs.github.io/en/co/coroutine/#copool) (no lock, no atomic operation).
 
 
 ```cpp
@@ -286,9 +316,9 @@ for (auto& s : co::schedulers()) {
 
 ### 3.6 network programming
 
-co provides a set of coroutineized [socket APIs](https://cocoyaxi.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
+co provides a set of coroutineized [socket APIs](https://coostdocs.github.io/en/co/coroutine/#coroutineized-socket-api), most of them are consistent with the native socket APIs in form, with which, you can easily write high-performance network programs in a synchronous manner.
 
-In addition, co has also implemented higher-level network programming components, including [TCP](https://cocoyaxi.github.io/en/co/net/tcp/), [HTTP](https://cocoyaxi.github.io/en/co/net/http/) and [RPC](https://cocoyaxi.github.io/en/co/net/rpc/) framework based on [JSON](https://cocoyaxi.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs.
+In addition, co has also implemented higher-level network programming components, including [TCP](https://coostdocs.github.io/en/co/net/tcp/), [HTTP](https://coostdocs.github.io/en/co/net/http/) and [RPC](https://coostdocs.github.io/en/co/net/rpc/) framework based on [JSON](https://coostdocs.github.io/en/co/json/), they are IPv6-compatible and support SSL at the same time, which is more convenient than socket APIs.
 
 
 - **RPC server**
@@ -379,23 +409,23 @@ go(f);
 
 ## 4. Code composition
 
-- [include](https://github.com/idealvin/cocoyaxi/tree/master/include)
+- [include](https://github.com/idealvin/coost/tree/master/include)
 
   Header files of co.
 
-- [src](https://github.com/idealvin/cocoyaxi/tree/master/src)
+- [src](https://github.com/idealvin/coost/tree/master/src)
 
   Source files of co, built as libco.
 
-- [test](https://github.com/idealvin/cocoyaxi/tree/master/test)
+- [test](https://github.com/idealvin/coost/tree/master/test)
 
   Some test code, each `.cc` file will be compiled into a separate test program.
 
-- [unitest](https://github.com/idealvin/cocoyaxi/tree/master/unitest)
+- [unitest](https://github.com/idealvin/coost/tree/master/unitest)
 
   Some unit test code, each `.cc` file corresponds to a different test unit, and all code will be compiled into a single test program.
 
-- [gen](https://github.com/idealvin/cocoyaxi/tree/master/gen)
+- [gen](https://github.com/idealvin/coost/tree/master/gen)
 
   A code generator for the RPC framework.
 
@@ -463,7 +493,7 @@ xmake install -o /usr/local  # install to the /usr/local directory
 #### 5.2.6 Install libco from xrepo
 
 ```sh
-xrepo install -f "openssl=true,libcurl=true" cocoyaxi
+xrepo install -f "openssl=true,libcurl=true" coost
 ```
 
 
@@ -471,8 +501,26 @@ xrepo install -f "openssl=true,libcurl=true" cocoyaxi
 ### 5.3 Build with cmake
 
 [izhengfan](https://github.com/izhengfan) helped to provide cmake support, [SpaceIm](https://github.com/SpaceIm) improved it and made it perfect.
+>>>>>>> master
 
+  # get twitter.json
+  wget https://raw.githubusercontent.com/simdjson/simdjson/master/jsonexamples/twitter.json
 
+<<<<<<< HEAD
+  # build json benchmark
+  xmake -b json_bm
+
+  # copy twitter.json to the release dir
+  cp twitter.json build/windows/x64/release/twitter.json
+  cp twitter.json build/linux/x86_64/release/twitter.json
+
+  # run benchmark with twitter.json
+  xmake r json_bm
+
+  # run benchmark with minimal twitter.json
+  xmake r json_bm -minimal
+  ```
+=======
 #### 5.3.1 Build libco
 
 ```sh
@@ -489,8 +537,24 @@ mkdir build && cd build
 cmake .. -DBUILD_ALL=ON
 make -j8
 ```
+>>>>>>> master
 
+- results on linux
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 1233.701 us | 2503 us | 1057.799 us | 2243 us |
+  | simdjson | 385.3 us | 1779 us| 351.752 us | 2298 us |
+  | co/json | 666.979 us | 1660 us | 457.381 us | 981 us |
 
+<<<<<<< HEAD
+
+- results on windows
+  |  | parse | stringify | parse(minimal) | stringify(minimal) |
+  | ------ | ------ | ------ | ------ | ------ |
+  | rapidjson | 4197.339 us | 3008 us | 4078.067 us | 2216 us |
+  | simdjson | 843.06 us | 2373 us| 607.946 us | 2119 us |
+  | co/json | 717.444 us | 1514 us | 623.745 us | 993 us |
+=======
 #### 5.3.3 Enable HTTP/SSL features
 
 ```sh
@@ -511,25 +575,25 @@ make -j8
 #### 5.3.5 Install libco from vcpkg
 
 ```sh
-vcpkg install cocoyaxi:x64-windows
+vcpkg install coost:x64-windows
 
 # HTTP & SSL support
-vcpkg install cocoyaxi[libcurl,openssl]:x64-windows
+vcpkg install coost[libcurl,openssl]:x64-windows
 ```
 
 
 #### 5.3.6 Install libco from conan
 
 ```sh
-conan install cocoyaxi
+conan install coost
 ```
 
 
-#### 5.3.7 Find cocoyaxi in Cmake
+#### 5.3.7 Find coost in Cmake
 
 ```cmake
-find_package(cocoyaxi REQUIRED CONFIG)
-target_link_libraries(userTarget cocoyaxi::co)
+find_package(coost REQUIRED CONFIG)
+target_link_libraries(userTarget coost::co)
 ```
 
 
@@ -537,14 +601,14 @@ target_link_libraries(userTarget cocoyaxi::co)
 
 ## 6. License
 
-The MIT license. cocoyaxi contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/cocoyaxi/blob/master/LICENSE.md).
+The MIT license. coost contains codes from some other projects, which have their own licenses, see details in [LICENSE.md](https://github.com/idealvin/coost/blob/master/LICENSE.md).
 
 
 
 
 ## 7. Special thanks
 
-- The code of [co/context](https://github.com/idealvin/cocoyaxi/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
+- The code of [co/context](https://github.com/idealvin/coost/tree/master/src/co/context) is from [tbox](https://github.com/tboox/tbox) by [ruki](https://github.com/waruqi), special thanks!
 - The early English documents of co are translated by [Leedehai](https://github.com/Leedehai) and [daidai21](https://github.com/daidai21), special thanks!
 - [ruki](https://github.com/waruqi) has helped to improve the xmake building scripts, thanks in particular!
 - [izhengfan](https://github.com/izhengfan) provided cmake building scripts, thank you very much!

@@ -3,8 +3,8 @@ exec_prefix=${prefix}
 includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 libdir=${exec_prefix}/@CMAKE_INSTALL_LIBDIR@
 
-Name: cocoyaxi
-Description: A go-style coroutine library in C++11 and more.
+Name: coost
+Description: A tiny boost library in C++11.
 Version: @PROJECT_VERSION@
 Cflags: -I${includedir}
 Libs: -L${libdir} -lco@CO_PKG_EXTRA_LIBS@

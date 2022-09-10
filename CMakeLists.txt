@@ -4,7 +4,7 @@ if(POLICY CMP0090)
     cmake_policy(SET CMP0090 NEW)
 endif()
 
-project(cocoyaxi VERSION 2.0.3)
+project(coost VERSION 3.0.0)
 
 if(MSVC)
     enable_language(C CXX ASM_MASM)

@@ -20,10 +20,11 @@ class Array {
         T p[];
     };
 
-    static const uint32 R = sizeof(_H) / sizeof(T);
+    static const size_t N = sizeof(T);
+    static const uint32 R = sizeof(_H) / N;
 
     explicit Array(uint32 cap) {
-        _h = (_H*) co::alloc(sizeof(_H) + sizeof(T) * cap);
+        _h = (_H*) co::alloc(N * (R + cap));
         _h->cap = cap;
         _h->size = 0;
     }
@@ -31,7 +32,7 @@ class Array {
     Array() : Array(1024 - R) {}
 
     ~Array() {
-        co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
+        co::free(_h, N * (R + _h->cap));
     }
 
     T* data() const { return _h->p; }
@@ -44,7 +45,7 @@ class Array {
 
     void push_back(T v) {
         if (_h->size == _h->cap) {
-            const size_t n = sizeof(T) * _h->cap;
+            const size_t n = N * _h->cap;
             const size_t o = sizeof(_H) + n;
             _h = (_H*) co::realloc(_h, o, o + n); assert(_h);
             _h->cap <<= 1;
@@ -56,10 +57,33 @@ class Array {
         return _h->p[--_h->size];
     }
 
+    void remove(uint32 i) {
+        if (i != --_h->size) _h->p[i] = _h->p[_h->size];
+    }
+
+    void remove_pair(uint32 i) {
+        if (i != (_h->size -= 2)) {
+            _h->p[i] = _h->p[_h->size];
+            _h->p[i + 1] = _h->p[_h->size + 1];
+        }
+    }
+
+    void erase(uint32 i) {
+        if (i != --_h->size) {
+            memmove(_h->p + i, _h->p + i + 1, (_h->size - i) * N);
+        }
+    }
+
+    void erase_pair(uint32 i) {
+        if (i != (_h->size -= 2)) {
+            memmove(_h->p + i, _h->p + i + 2, (_h->size - i) * N);
+        }
+    }
+
     void reset() {
         _h->size = 0;
         if (_h->cap > 8192) {
-            co::free(_h, sizeof(_H) + sizeof(T) * _h->cap);
+            co::free(_h, N * (R + _h->cap));
             new(this) Array();
         }
     }
@@ -76,6 +100,7 @@ __coapi char* alloc_string(const void* p, size_t n);
 class __coapi Json {
   public:
     enum {
+        t_null = 0,
         t_bool = 1,
         t_int = 2,
         t_double = 4,
@@ -159,6 +184,7 @@ class __coapi Json {
     // make Json from initializer_list
     Json(std::initializer_list<Json> v);
 
+    int type() const { return _h ? _h->type : t_null; }
     bool is_null() const { return _h == 0; }
     bool is_bool() const { return _h && (_h->type & t_bool); }
     bool is_int() const { return _h && (_h->type & t_int); }
@@ -278,10 +304,33 @@ class __coapi Json {
         return this->push_back(std::move(v));
     }
 
+    // remove the ith element from an array
+    // the last element will be moved to the ith place
+    void remove(uint32 i) {
+        if (this->is_array() && i < this->array_size()) {
+            ((Json&)_array()[i]).reset();
+            _array().remove(i);
+        }
+    }
+
+    void remove(int i) { this->remove((uint32)i); }
+    void remove(const char* key);
+
+    // erase the ith element from an array
+    void erase(uint32 i) {
+        if (this->is_array() && i < this->array_size()) {
+            ((Json&)_array()[i]).reset();
+            _array().erase(i);
+        }
+    }
+
+    void erase(int i) { this->erase((uint32)i); }
+    void erase(const char* key);
+
     // it is better to use get() instead of this method.
     Json& operator[](uint32 i) const {
         assert(this->is_array() && !_array().empty());
-        return *(Json*)&_array()[i];
+        return (Json&)_array()[i];
     }
 
     Json& operator[](int i) const {
@@ -384,8 +433,8 @@ class __coapi Json {
         iterator operator++(int) = delete;
 
         const char* key() const { return (const char*)_p[0]; }
-        Json& value() const { return *(Json*)&_p[1]; }
-        Json& operator*() const { return *(Json*)&_p[0]; }
+        Json& value() const { return (Json&)_p[1]; }
+        Json& operator*() const { return (Json&)_p[0]; }
 
       private:
         T* _p;
@@ -412,15 +461,16 @@ class __coapi Json {
     //   - str() converts Json to minified string.
     //   - dbg() like the str(), but will truncate long string type (> 512 bytes).
     //   - pretty() converts Json to human readable string.
-    fastream& str(fastream& s)      const { return this->_json2str(s, false); }
-    fastring& str(fastring& s)      const { return (fastring&)this->str(*(fastream*)&s); }
-    fastream& dbg(fastream& s)      const { return this->_json2str(s, true); }
-    fastring& dbg(fastring& s)      const { return (fastring&)this->dbg(*(fastream*)&s); }
-    fastream& pretty(fastream& s)   const { return this->_json2pretty(s, 4, 4); }
-    fastring& pretty(fastring& s)   const { return (fastring&)this->pretty(*(fastream*)&s); }
-    fastring str(uint32 cap=256)    const { fastring s(cap); this->str(s); return s; }
-    fastring dbg(uint32 cap=256)    const { fastring s(cap); this->dbg(s); return s; }
-    fastring pretty(uint32 cap=256) const { fastring s(cap); this->pretty(s); return s; }
+    //   - mdp: max decimal places for float point numbers.
+    fastream& str(fastream& s, int mdp=16)    const { return this->_json2str(s, false, mdp); }
+    fastring& str(fastring& s, int mdp=16)    const { return (fastring&)this->str((fastream&)s, mdp); }
+    fastream& dbg(fastream& s, int mdp=16)    const { return this->_json2str(s, true, mdp); }
+    fastring& dbg(fastring& s, int mdp=16)    const { return (fastring&)this->dbg((fastream&)s, mdp); }
+    fastream& pretty(fastream& s, int mdp=16) const { return this->_json2pretty(s, 4, 4, mdp); }
+    fastring& pretty(fastring& s, int mdp=16) const { return (fastring&)this->pretty((fastream&)s, mdp); }
+    fastring str(int mdp=16)    const { fastring s(256); this->str(s, mdp); return s; }
+    fastring dbg(int mdp=16)    const { fastring s(256); this->dbg(s, mdp); return s; }
+    fastring pretty(int mdp=16) const { fastring s(256); this->pretty(s, mdp); return s; }
 
     // Parse Json from string, inverse to stringify.
     bool parse_from(const char* s, size_t n);
@@ -435,12 +485,12 @@ class __coapi Json {
   private:
     friend class Parser;
     void* _dup() const;
-    xx::Array& _array() const { return *((xx::Array*)&_h->p); }
+    xx::Array& _array() const { return (xx::Array&)_h->p; }
     Json& _set(uint32 i);
     Json& _set(int i) { return this->_set((uint32)i); }
     Json& _set(const char* key);
-    fastream& _json2str(fastream& fs, bool debug) const;
-    fastream& _json2pretty(fastream& fs, int indent, int n) const;
+    fastream& _json2str(fastream& fs, bool debug, int mdp) const;
+    fastream& _json2pretty(fastream& fs, int indent, int n, int mdp) const;
 
   private:
     _H* _h;

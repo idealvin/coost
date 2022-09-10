@@ -93,7 +93,7 @@ Cout::~Cout() {
 fastream& Cout::stream() {
     static auto ks = []() {
         static char kbuf[sizeof(fastream)];
-        return new (kbuf) fastream(128);
+        return new (kbuf) fastream(256);
     }();
     return *ks;
 }

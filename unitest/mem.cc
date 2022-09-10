@@ -1,9 +1,102 @@
 #include "co/unitest.h"
 #include "co/mem.h"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <intrin.h>
+#endif
+
+
 namespace test {
+namespace mem {
+
+#ifdef _WIN32
+#if __arch64
+inline int _find_msb(size_t x) { /* x != 0 */
+    unsigned long i;
+    _BitScanReverse64(&i, x);
+    return (int)i;
+}
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    unsigned long r;
+    _BitScanForward64(&r, x);
+    return r;
+}
+
+#else
+inline int _find_msb(size_t x) { /* x != 0 */
+    unsigned long i;
+    _BitScanReverse(&i, x);
+    return (int)i;
+}
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    unsigned long r;
+    _BitScanForward(&r, x);
+    return r;
+}
+#endif
+
+inline uint32 _pow2_align(uint32 n) {
+    unsigned long r;
+    _BitScanReverse(&r, n - 1);
+    return 2u << r;
+}
+
+#else
+#if __arch64
+inline int _find_msb(size_t x) { /* x != 0 */
+    return 63 - __builtin_clzll(x);
+}
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffsll(x) - 1;
+}
+
+#else
+inline int _find_msb(size_t v) { /* x != 0 */
+    return 31 - __builtin_clz(v);
+}
+
+inline uint32 _find_lsb(size_t x) { /* x != 0 */
+    return __builtin_ffs(x) - 1;
+}
+#endif
+
+inline uint32 _pow2_align(uint32 n) {
+    return 1u << (32 - __builtin_clz(n - 1));
+}
+
+#endif
+
+} // mem
 
 DEF_test(mem) {
+    DEF_case(bitops) {
+        EXPECT_EQ(mem::_find_lsb(1), 0);
+        EXPECT_EQ(mem::_find_lsb(12), 2);
+        EXPECT_EQ(mem::_find_lsb(3u << 20), 20);
+      #if __arch64
+        EXPECT_EQ(mem::_find_msb(1), 0);
+        EXPECT_EQ(mem::_find_msb(12), 3);
+        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
+        EXPECT_EQ(mem::_find_msb(1ull << 63), 63);
+        EXPECT_EQ(mem::_find_msb(~0ull), 63);
+        EXPECT_EQ(mem::_find_lsb(~0ull), 0);
+      #else
+        EXPECT_EQ(mem::_find_msb(1), 0);
+        EXPECT_EQ(mem::_find_msb(12), 3);
+        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
+        EXPECT_EQ(mem::_find_msb(1ull << 31), 31);
+        EXPECT_EQ(mem::_find_msb(~0u), 31);
+        EXPECT_EQ(mem::_find_lsb(~0u), 0);
+      #endif
+    }
+
     DEF_case(static) {
         void* p = co::static_alloc(24);
         EXPECT_NE(p, (void*)0);
@@ -19,7 +112,6 @@ DEF_test(mem) {
     DEF_case(small) {
         void* p = co::alloc(2048);
         EXPECT_NE(p, (void*)0);
-
         *(uint32*)p = 7;
         EXPECT_EQ(*(uint32*)p, 7);
         co::free(p, 2048);

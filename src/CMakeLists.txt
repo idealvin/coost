@@ -24,8 +24,12 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    list(APPEND CO_SRC_FILES co/fishhook/fishhook.c)
+endif()
+
 add_library(co ${CO_SRC_FILES})
-add_library(cocoyaxi::co ALIAS co)
+add_library(coost::co ALIAS co)
 
 target_include_directories(co
     PUBLIC
@@ -49,7 +53,7 @@ if(WITH_LIBCURL OR WITH_OPENSSL)
     target_link_libraries(co PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     if(WIN32)
         # FindOpenSSL.cmake shipped in CMake < 3.21.0 doesn't properly propagate
-        # crypt32. We should also handle ws2_32 but cocoyaxi link to it later.
+        # crypt32. We should also handle ws2_32 but coost link to it later.
         target_link_libraries(co PRIVATE crypt32)
     endif()
 endif()
@@ -73,9 +77,9 @@ if(BUILD_SHARED_LIBS)
             VISIBILITY_INLINES_HIDDEN ON
     )
     target_compile_definitions(co PRIVATE BUILDING_CO_SHARED)
-    set(COCOYAXI_SHARED 1)
+    set(COOST_SHARED 1)
 else()
-    set(COCOYAXI_SHARED 0)
+    set(COOST_SHARED 0)
 endif()
 configure_file(
     "${PROJECT_SOURCE_DIR}/include/co/config.h.in"
@@ -108,7 +112,7 @@ endif()
 ## library & public headers
 install(
     TARGETS co
-    EXPORT cocoyaxiExport
+    EXPORT coostExport
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -147,13 +151,13 @@ if((WITH_LIBCURL OR WITH_OPENSSL) AND NOT BUILD_SHARED_LIBS)
 endif()
 
 configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/cocoyaxi.pc.in
-    cocoyaxi.pc
+    ${PROJECT_SOURCE_DIR}/cmake/coost.pc.in
+    coost.pc
     @ONLY
 )
 
 install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxi.pc
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/coost.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
@@ -167,35 +171,35 @@ if(WITH_LIBCURL OR WITH_OPENSSL)
 endif()
 
 configure_package_config_file(
-    ${PROJECT_SOURCE_DIR}/cmake/cocoyaxiConfig.cmake.in
-    cocoyaxiConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+    ${PROJECT_SOURCE_DIR}/cmake/coostConfig.cmake.in
+    coostConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/coost
 )
 
 write_basic_package_version_file(
-    cocoyaxiConfigVersion.cmake
+    coostConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
 export(
-    EXPORT cocoyaxiExport
-    NAMESPACE cocoyaxi::
-    FILE cocoyaxiTargets.cmake
+    EXPORT coostExport
+    NAMESPACE coost::
+    FILE coostTargets.cmake
 )
 
 install(
-    EXPORT cocoyaxiExport
-    NAMESPACE cocoyaxi::
-    FILE cocoyaxiTargets.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+    EXPORT coostExport
+    NAMESPACE coost::
+    FILE coostTargets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/coost
 )
 
 install(
     FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxiConfig.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/cocoyaxiConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cocoyaxi
+        ${CMAKE_CURRENT_BINARY_DIR}/coostConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/coostConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/coost
 )
 
-export(PACKAGE cocoyaxi)
+export(PACKAGE coost)

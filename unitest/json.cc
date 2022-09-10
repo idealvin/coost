@@ -361,6 +361,62 @@ DEF_test(json) {
         EXPECT_EQ(x.get("a", 3).as_int(), 88);
     }
 
+    DEF_case(remove) {
+        Json x = {
+            { "a", 1 },
+            { "b", 2 },
+            { "c", {1,2,3} },
+        };
+
+        x.remove("a");
+        EXPECT_EQ(x.object_size(), 2);
+        {
+            auto it = x.begin();
+            EXPECT(strcmp(it.key(), "c") == 0);
+        }
+
+        x.remove("b");
+        EXPECT_EQ(x.object_size(), 1);
+
+        auto& c = x.get("c");
+        EXPECT(c.is_array() && c.array_size() == 3);
+        c.remove(0);
+        EXPECT_EQ(c.array_size(), 2);
+        EXPECT_EQ(c[0].as_int(), 3);
+        EXPECT_EQ(c[1].as_int(), 2);
+        c.remove(1);
+        EXPECT_EQ(c.array_size(), 1);
+        EXPECT_EQ(c[0].as_int(), 3);
+    }
+
+    DEF_case(erase) {
+        Json x = {
+            { "a", 1 },
+            { "b", 2 },
+            { "c", {1,2,3} },
+        };
+
+        x.erase("a");
+        EXPECT_EQ(x.object_size(), 2);
+        {
+            auto it = x.begin();
+            EXPECT(strcmp(it.key(), "b") == 0);
+        }
+
+        x.erase("b");
+        EXPECT_EQ(x.object_size(), 1);
+
+        auto& c = x.get("c");
+        EXPECT(c.is_array() && c.array_size() == 3);
+        c.erase(0);
+        EXPECT_EQ(c.array_size(), 2);
+        EXPECT_EQ(c[0].as_int(), 2);
+        EXPECT_EQ(c[1].as_int(), 3);
+        c.erase(1);
+        EXPECT_EQ(c.array_size(), 1);
+        EXPECT_EQ(c[0].as_int(), 2);
+    }
+
     DEF_case(iterator) {
         Json v;
         EXPECT(v.begin() == v.end());
