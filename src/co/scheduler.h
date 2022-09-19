@@ -361,33 +361,7 @@ class SchedulerImpl : public co::Scheduler {
     bool _timeout;
 };
 
-class __coapi SchedulerManager {
-  public:
-    SchedulerManager();
-    SchedulerManager(uint32 co_sched_num);
 
-    ~SchedulerManager();
-
-    Scheduler* next_scheduler() {
-        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n, mo_relaxed) & _s];
-        uint32 n = atomic_inc(&_n, mo_relaxed);
-        if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
-        return _scheds[now::us() % _scheds.size()];
-    }
-
-    const co::vector<Scheduler*>& schedulers() const {
-        return _scheds;
-    }
-
-    void stop();
-
-  private:
-    co::vector<Scheduler*> _scheds;
-    uint32 _n;  // index, initialized as -1
-    uint32 _r;  // 2^32 % sched_num
-    uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
-    bool _standalone = false;
-};
 
 inline bool& is_active() {
     static bool ka = false;

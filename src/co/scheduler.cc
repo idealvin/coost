@@ -262,6 +262,17 @@ SchedulerManager::SchedulerManager(uint32 co_sched_num) {
     _standalone = true;
 }
 
+Scheduler* SchedulerManager::next_scheduler() {
+    if (_s != (uint32)-1) return _scheds[atomic_inc(&_n, mo_relaxed) & _s];
+    uint32 n = atomic_inc(&_n, mo_relaxed);
+    if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
+    return _scheds[now::us() % _scheds.size()];
+}
+
+const co::vector<Scheduler*>& SchedulerManager::schedulers() const {
+    return _scheds;
+}
+
 SchedulerManager::~SchedulerManager() {
     if(_standalone) {
         this->stop();

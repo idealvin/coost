@@ -129,6 +129,37 @@ class __coapi Scheduler {
     ~Scheduler() = default;
 };
 
+class __coapi SchedulerManager {
+public:
+    SchedulerManager();
+    explicit SchedulerManager(uint32 co_sched_num);
+
+    ~SchedulerManager();
+
+    Scheduler* next_scheduler();
+
+    const co::vector<Scheduler*>& schedulers() const;
+
+    void stop();
+
+private:
+    co::vector<Scheduler*> _scheds;
+    uint32 _n;  // index, initialized as -1
+    uint32 _r;  // 2^32 % sched_num
+    uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
+    bool _standalone = false;
+};
+
+/**
+ * create a standalone SchedulerManager
+ *   - It creates a coroutine scheduler manager with the specified number of threads
+ *   - eg.
+ *     auto s = co::scheduler_manager(2);
+ *
+ * @return a non-null pointer.
+ */
+__coapi SchedulerManager* scheduler_manager(uint32 co_sched_num);
+
 /**
  * get all schedulers 
  *   
@@ -149,17 +180,6 @@ __coapi Scheduler* scheduler();
  * @return a pointer to the current coroutine
  */
 __coapi void* coroutine();
-
-class SchedulerManager;
-/**
- * create a standalone SchedulerManager
- *   - It creates a coroutine scheduler manager with the specified number of threads
- *   - eg.
- *     auto s = co::scheduler_manager(2);
- *
- * @return a non-null pointer.
- */
-__coapi SchedulerManager* scheduler_manager(uint32 co_sched_num);
 
 /**
  * get next scheduler 
