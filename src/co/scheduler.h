@@ -364,6 +364,8 @@ class SchedulerImpl : public co::Scheduler {
 class SchedulerManager {
   public:
     SchedulerManager();
+    SchedulerManager(uint32 co_sched_num);
+
     ~SchedulerManager();
 
     Scheduler* next_scheduler() {
@@ -384,6 +386,7 @@ class SchedulerManager {
     uint32 _n;  // index, initialized as -1
     uint32 _r;  // 2^32 % sched_num
     uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
+    bool _standalone = false;
 };
 
 inline bool& is_active() {

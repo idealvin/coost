@@ -2,3 +2,5 @@
 build
 lib
 config.h
+.idea
+cmake-build-debug

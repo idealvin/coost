@@ -245,7 +245,29 @@ SchedulerManager::SchedulerManager() {
     is_active() = true;
 }
 
+SchedulerManager::SchedulerManager(uint32 co_sched_num) {
+    co::init_sock();
+    co::init_hook();
+    if (co_sched_num == 0) co_sched_num = 1;
+    if (FLG_co_stack_size == 0) FLG_co_stack_size = 1024 * 1024;
+    _n = (uint32)-1;
+    _r = static_cast<uint32>((1ULL << 32) % co_sched_num);
+    _s = _r == 0 ? (co_sched_num - 1) : -1;
+
+    for (uint32 i = 0; i < co_sched_num; ++i) {
+        SchedulerImpl* s = new SchedulerImpl(i, co_sched_num, FLG_co_stack_size);
+        s->start();
+        _scheds.push_back(s);
+    }
+    _standalone = true;
+}
+
 SchedulerManager::~SchedulerManager() {
+    if(_standalone) {
+        this->stop();
+        co::cleanup_hook();
+        co::cleanup_sock();
+    }
     for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
 }
 
@@ -253,6 +275,11 @@ inline SchedulerManager* scheduler_manager() {
     static auto ksm = co::static_new<SchedulerManager>();
     return ksm;
 }
+
+SchedulerManager* scheduler_manager(uint32 co_sched_num) {
+    return co::static_new<SchedulerManager>(co_sched_num);
+}
+
 
 struct Cleanup {
     ~Cleanup() {
@@ -270,7 +297,9 @@ void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
         ((SchedulerImpl*)_scheds[i])->stop();
     }
-    atomic_swap(&is_active(), false, mo_acq_rel);
+    if(!_standalone) {
+        atomic_swap(&is_active(), false, mo_acq_rel);
+    }
 }
 
 void Scheduler::go(Closure* cb) {

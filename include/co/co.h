@@ -150,6 +150,17 @@ __coapi Scheduler* scheduler();
  */
 __coapi void* coroutine();
 
+class SchedulerManager;
+/**
+ * create a standalone SchedulerManager
+ *   - It creates a coroutine scheduler manager with the specified number of threads
+ *   - eg.
+ *     auto s = co::scheduler_manager(2);
+ *
+ * @return a non-null pointer.
+ */
+__coapi SchedulerManager* scheduler_manager(uint32 co_sched_num);
+
 /**
  * get next scheduler 
  *   - It is useful when users want to create coroutines in the same scheduler. 
