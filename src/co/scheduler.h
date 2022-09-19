@@ -361,7 +361,7 @@ class SchedulerImpl : public co::Scheduler {
     bool _timeout;
 };
 
-class SchedulerManager {
+class __coapi SchedulerManager {
   public:
     SchedulerManager();
     SchedulerManager(uint32 co_sched_num);
