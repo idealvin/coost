@@ -164,7 +164,7 @@ void WaitGroup::wait() const {
 class MutexImpl {
   public:
     MutexImpl() : _lock(0), _has_cond(false) {}
-    ~MutexImpl() = default;
+    ~MutexImpl() { if (_has_cond) co::xx::cond_destroy(&_cond); }
 
     void lock();
 
