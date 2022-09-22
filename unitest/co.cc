@@ -1,5 +1,6 @@
 #include "co/unitest.h"
 #include "co/co.h"
+#include "co/thread.h"
 
 namespace test {
 
@@ -74,12 +75,26 @@ DEF_test(co) {
         co::WaitGroup wg;
         wg.add(8);
 
-        for (int i = 0; i < 8; ++i) {
+        m.lock();
+        EXPECT_EQ(m.try_lock(), false);
+        m.unlock();
+        EXPECT_EQ(m.try_lock(), true);
+        m.unlock();
+
+        for (int i = 0; i < 4; ++i) {
             go([wg, m, &v]() {
                 co::MutexGuard g(m);
                 ++v;
                 wg.done();
             });
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            Thread([wg, m, &v]() {
+                co::MutexGuard g(m);
+                ++v;
+                wg.done();
+            }).detach();
         }
 
         wg.wait();

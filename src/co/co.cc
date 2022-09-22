@@ -91,7 +91,7 @@ void EventImpl::signal() {
             _signaled = true;
             if (_wait.nth > 0) {
                 if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
-                co::xx::cond_notify(&_cond);
+                co::xx::cond_notify_all(&_cond);
             }
         }
     }
@@ -163,7 +163,7 @@ void WaitGroup::wait() const {
 
 class MutexImpl {
   public:
-    MutexImpl() : _lock(false) {}
+    MutexImpl() : _lock(0), _has_cond(false) {}
     ~MutexImpl() = default;
 
     void lock();
@@ -174,41 +174,64 @@ class MutexImpl {
 
   private:
     ::Mutex _mtx;
+    co::xx::cond_t _cond;
     co::deque<Coroutine*> _co_wait;
-    bool _lock;
+    int32 _lock;
+    bool _has_cond;
 };
 
 inline bool MutexImpl::try_lock() {
     ::MutexGuard g(_mtx);
-    return _lock ? false : (_lock = true);
+    return _lock ? false : (_lock = 1);
 }
 
-inline void MutexImpl::lock() {
+void MutexImpl::lock() {
     auto s = gSched;
-    CHECK(s) << "must be called in coroutine..";
-    _mtx.lock();
-    if (!_lock) {
-        _lock = true;
-        _mtx.unlock();
-    } else {
-        Coroutine* co = s->running();
-        if (co->s != s) co->s = s;
-        _co_wait.push_back(co);
-        _mtx.unlock();
-        s->yield();
+    if (s) { /* in coroutine */
+        _mtx.lock();
+        if (!_lock) {
+            _lock = 1;
+            _mtx.unlock();
+        } else {
+            Coroutine* co = s->running();
+            if (co->s != s) co->s = s;
+            _co_wait.push_back(co);
+            _mtx.unlock();
+            s->yield();
+        }
+
+    } else { /* non-coroutine */
+        ::MutexGuard g(_mtx);
+        if (!_lock) {
+            _lock = 1;
+        } else {
+            _co_wait.push_back(nullptr);
+            if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+            for (;;) {
+                co::xx::cond_wait(&_cond, _mtx.mutex());
+                if (_lock == 2) { _lock = 1; break; }
+            }
+        }
     }
 }
 
-inline void MutexImpl::unlock() {
+void MutexImpl::unlock() {
     _mtx.lock();
     if (_co_wait.empty()) {
-        _lock = false;
+        _lock = 0;
         _mtx.unlock();
     } else {
         Coroutine* co = _co_wait.front();
         _co_wait.pop_front();
-        _mtx.unlock();
-        ((SchedulerImpl*)co->s)->add_ready_task(co);
+        if (co) {
+            _mtx.unlock();
+            ((SchedulerImpl*)co->s)->add_ready_task(co);
+        } else {
+            if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+            _lock = 2;
+            _mtx.unlock();
+            co::xx::cond_notify_one(&_cond);
+        }
     }
 }
 
