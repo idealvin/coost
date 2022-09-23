@@ -23,31 +23,56 @@ DEF_test(co) {
     }
 
     DEF_case(event) {
-        co::Event ev;
-        co::WaitGroup wg;
-        wg.add(2);
+        {
+            co::Event ev;
+            co::WaitGroup wg;
+            wg.add(2);
 
-        go([wg, ev, &v]() {
-            ev.wait();
-            if (v == 1) v = 2;
-            wg.done();
-        });
+            go([wg, ev, &v]() {
+                ev.wait();
+                if (v == 1) v = 2;
+                wg.done();
+            });
 
-        go([wg, ev, &v]() {
-            if (v == 0) {
-                v = 1;
-                ev.signal();
-            }
-            wg.done();
-        });
+            go([wg, ev, &v]() {
+                if (v == 0) {
+                    v = 1;
+                    ev.signal();
+                }
+                wg.done();
+            });
 
-        wg.wait();
-        EXPECT_EQ(v, 2);
-        v = 0;
+            wg.wait();
+            EXPECT_EQ(v, 2);
+            v = 0;
 
-        ev.signal();
-        EXPECT_EQ(ev.wait(1), true);
-        EXPECT_EQ(ev.wait(1), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(1), true);
+            EXPECT_EQ(ev.wait(1), false);
+        }
+        {
+            co::Event ev(true); // manual reset
+            co::WaitGroup wg;
+            wg.add(1);
+            go([wg, ev, &v]() {
+                if (ev.wait(32)) {
+                    ev.reset();
+                    v = 1;
+                }
+                wg.done();
+            });
+
+            ev.signal();
+            wg.wait();
+            EXPECT_EQ(v, 1);
+            EXPECT_EQ(ev.wait(1), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(1), true);
+            EXPECT_EQ(ev.wait(1), true);
+
+            ev.reset();
+            EXPECT_EQ(ev.wait(1), false);
+        }
     }
 
     DEF_case(channel) {

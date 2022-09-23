@@ -5,12 +5,16 @@ namespace co {
 
 class EventImpl {
   public:
-    EventImpl() : _count(0), _signaled(false), _has_cond(false) {}
+    EventImpl(bool manual_reset, bool signaled)
+        : _count(0), _manual_reset(manual_reset), _signaled(signaled), _has_cond(false) {
+    }
     ~EventImpl() { if (_has_cond) co::xx::cond_destroy(&_cond); }
 
     bool wait(uint32 ms);
 
     void signal();
+
+    void reset();
 
   private:
     ::Mutex _mtx;
@@ -23,6 +27,7 @@ class EventImpl {
             uint32 nth; // waiting threads
         } _wait;
     };
+    const bool _manual_reset;
     bool _signaled;
     bool _has_cond;
 };
@@ -34,7 +39,10 @@ bool EventImpl::wait(uint32 ms) {
         if (co->s != s) co->s = s;
         {
             ::MutexGuard g(_mtx);
-            if (_signaled) { if (_count == 0) _signaled = false; return true; }
+            if (_signaled) {
+                if (!_manual_reset && _count == 0) _signaled = false;
+                return true;
+            }
             ++_wait.nco;
             co->waitx = co::make_waitx(co);
             _co_wait.insert(co->waitx);
@@ -45,7 +53,8 @@ bool EventImpl::wait(uint32 ms) {
         if (!s->timeout()) {
             {
                 ::MutexGuard g(_mtx);
-                if (--_wait.nco == 0 && _wait.nth == 0) _signaled = false;
+                --_wait.nco;
+                if (!_manual_reset && _count == 0) _signaled = false;
             }
             co::free(co->waitx, sizeof(co::waitx_t));
         } else {
@@ -53,7 +62,7 @@ bool EventImpl::wait(uint32 ms) {
             {
                 ::MutexGuard g(_mtx);
                 --_wait.nco;
-                if (_signaled && _count == 0) _signaled = false;
+                if (_signaled && !_manual_reset && _count == 0) _signaled = false;
                 erased = _co_wait.erase(co->waitx) == 1;
             }
             if (erased) co::free(co->waitx, sizeof(co::waitx_t));
@@ -77,7 +86,7 @@ bool EventImpl::wait(uint32 ms) {
             if (!r) return false;
             assert(_signaled);
         }
-        if (_count == 0) _signaled = false;
+        if (!_manual_reset && _count == 0) _signaled = false;
         return true;
     }
 }
@@ -109,11 +118,16 @@ void EventImpl::signal() {
     }
 }
 
+inline void EventImpl::reset() {
+    ::MutexGuard g(_mtx);
+    _signaled = false;
+}
+
 // memory: |4(refn)|4|EventImpl|
-Event::Event() {
+Event::Event(bool manual_reset, bool signaled) {
     _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1;
-    new (_p + 2) EventImpl();
+    new (_p + 2) EventImpl(manual_reset, signaled);
 }
 
 Event::~Event() {
@@ -131,12 +145,16 @@ void Event::signal() const {
     ((EventImpl*)(_p + 2))->signal();
 }
 
+void Event::reset() const {
+    ((EventImpl*)(_p + 2))->reset();
+}
+
 // memory: |4(refn)|4(counter)|EventImpl|
 WaitGroup::WaitGroup(uint32 n) {
     _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
     _p[1] = n; // counter
-    new (_p + 2) EventImpl();
+    new (_p + 2) EventImpl(false, false);
 }
 
 WaitGroup::~WaitGroup() {

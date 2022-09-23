@@ -12,7 +12,7 @@ namespace co {
  */
 class __coapi Event {
   public:
-    Event();
+    explicit Event(bool manual_reset=false, bool signaled=false);
     ~Event();
 
     Event(Event&& e) : _p(e._p) {
@@ -52,6 +52,9 @@ class __coapi Event {
      *   - When a signal was present, all the waiting coroutines will be waken up.
      */
     void signal() const;
+
+    // reset the state of the event to unsignaled.
+    void reset() const;
 
   private:
     uint32* _p;
