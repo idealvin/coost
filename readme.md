@@ -24,11 +24,11 @@ The original name of coost is **co** or cocoyaxi. It is like [boost](https://www
 
 - Command line and config file parser (flag)
 - **High performance log library (log)**
-- Unit testing framework (unitest)
+- Unit testing framework
 - **go-style coroutine**
 - Coroutine-based network library
 - Efficient JSON library
-- **JSON based RPC framework**
+- **JSON RPC framework**
 
 </td><td width=34% valign=top>
 
@@ -46,7 +46,7 @@ The original name of coost is **co** or cocoyaxi. It is like [boost](https://www
 - LruMap
 - hash library
 - path library
-- File system operations (fs)
+- File utilities (fs)
 - System operations (os)
 - **Fast memory allocator**
  
