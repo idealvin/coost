@@ -139,7 +139,7 @@ In the above example, the macros start with `DEF_` define 4 flags. Each flag cor
 
 ### 3.2 log
 
-**[log](https://coostdocs.github.io/en/co/log/)** is a high-performance log library.
+**[log](https://coostdocs.github.io/en/co/log/)** is a high-performance log library, some components in coost use it to print logs.
 
 log supports two types of logs: one is level log, which is divided into 5 levels: debug, info, warning, error and fatal, **printing a fatal log will terminate the program**; the other is topic log, logs are grouped by topic, and logs of different topics are written to different files.
 
