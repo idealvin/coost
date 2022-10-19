@@ -48,24 +48,19 @@ typedef uint64_t uint64;
 #endif
 #endif
 
+#ifndef unlikely
 #if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__clang__)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #else
 #define unlikely(x) (x)
 #endif
+#endif
 
-template <size_t N>
-constexpr const char* _co_fname(const char(&s)[N], size_t i = N - 1) {
-    return (s[i] == '/' || s[i] == '\\') ? (s + i + 1) : (i == 0 ? s : _co_fname(s, i - 1));
-}
-
-template <size_t N>
-constexpr size_t _co_fnlen(const char(&s)[N]) {
-    return  N - 1 - (_co_fname(s) - s);
-}
-
-#define __fname__ _co_fname(__FILE__)
-#define __fnlen__ _co_fnlen(__FILE__)
+#define _CO_CONCAT(x, y) x##y
+#define _CO_STRINGIFY(x) #x
+#define CO_CONCAT(x, y) _CO_CONCAT(x, y)
+#define CO_STRINGIFY(x) _CO_STRINGIFY(x)
+#define CO_ANONYMOUS_VAR(x) CO_CONCAT(x, __LINE__)
 
 // generated from config.h.in
 #include "config.h"
