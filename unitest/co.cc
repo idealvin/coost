@@ -1,5 +1,6 @@
 #include "co/unitest.h"
 #include "co/co.h"
+#include "co/thread.h"
 
 namespace test {
 
@@ -22,31 +23,56 @@ DEF_test(co) {
     }
 
     DEF_case(event) {
-        co::Event ev;
-        co::WaitGroup wg;
-        wg.add(2);
+        {
+            co::Event ev;
+            co::WaitGroup wg;
+            wg.add(2);
 
-        go([wg, ev, &v]() {
-            ev.wait();
-            if (v == 1) v = 2;
-            wg.done();
-        });
+            go([wg, ev, &v]() {
+                ev.wait();
+                if (v == 1) v = 2;
+                wg.done();
+            });
 
-        go([wg, ev, &v]() {
-            if (v == 0) {
-                v = 1;
-                ev.signal();
-            }
-            wg.done();
-        });
+            go([wg, ev, &v]() {
+                if (v == 0) {
+                    v = 1;
+                    ev.signal();
+                }
+                wg.done();
+            });
 
-        wg.wait();
-        EXPECT_EQ(v, 2);
-        v = 0;
+            wg.wait();
+            EXPECT_EQ(v, 2);
+            v = 0;
 
-        ev.signal();
-        EXPECT_EQ(ev.wait(1), true);
-        EXPECT_EQ(ev.wait(1), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(1), true);
+            EXPECT_EQ(ev.wait(1), false);
+        }
+        {
+            co::Event ev(true); // manual reset
+            co::WaitGroup wg;
+            wg.add(1);
+            go([wg, ev, &v]() {
+                if (ev.wait(32)) {
+                    ev.reset();
+                    v = 1;
+                }
+                wg.done();
+            });
+
+            ev.signal();
+            wg.wait();
+            EXPECT_EQ(v, 1);
+            EXPECT_EQ(ev.wait(1), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(1), true);
+            EXPECT_EQ(ev.wait(1), true);
+
+            ev.reset();
+            EXPECT_EQ(ev.wait(1), false);
+        }
     }
 
     DEF_case(channel) {
@@ -74,12 +100,26 @@ DEF_test(co) {
         co::WaitGroup wg;
         wg.add(8);
 
-        for (int i = 0; i < 8; ++i) {
+        m.lock();
+        EXPECT_EQ(m.try_lock(), false);
+        m.unlock();
+        EXPECT_EQ(m.try_lock(), true);
+        m.unlock();
+
+        for (int i = 0; i < 4; ++i) {
             go([wg, m, &v]() {
                 co::MutexGuard g(m);
                 ++v;
                 wg.done();
             });
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            Thread([wg, m, &v]() {
+                co::MutexGuard g(m);
+                ++v;
+                wg.done();
+            }).detach();
         }
 
         wg.wait();

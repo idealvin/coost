@@ -8,7 +8,7 @@
 
 namespace unitest {
 
-__coapi void run_all_tests();
+__coapi int run_all_tests();
 
 __coapi void push_failed_msg(
     const fastring& test_name, const fastring& case_name, 

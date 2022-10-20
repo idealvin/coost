@@ -5,12 +5,16 @@ namespace co {
 
 class EventImpl {
   public:
-    EventImpl() : _count(0), _signaled(false), _has_cond(false) {}
+    EventImpl(bool manual_reset, bool signaled)
+        : _count(0), _manual_reset(manual_reset), _signaled(signaled), _has_cond(false) {
+    }
     ~EventImpl() { if (_has_cond) co::xx::cond_destroy(&_cond); }
 
     bool wait(uint32 ms);
 
     void signal();
+
+    void reset();
 
   private:
     ::Mutex _mtx;
@@ -23,6 +27,7 @@ class EventImpl {
             uint32 nth; // waiting threads
         } _wait;
     };
+    const bool _manual_reset;
     bool _signaled;
     bool _has_cond;
 };
@@ -34,7 +39,10 @@ bool EventImpl::wait(uint32 ms) {
         if (co->s != s) co->s = s;
         {
             ::MutexGuard g(_mtx);
-            if (_signaled) { if (_count == 0) _signaled = false; return true; }
+            if (_signaled) {
+                if (!_manual_reset && _count == 0) _signaled = false;
+                return true;
+            }
             ++_wait.nco;
             co->waitx = co::make_waitx(co);
             _co_wait.insert(co->waitx);
@@ -45,7 +53,8 @@ bool EventImpl::wait(uint32 ms) {
         if (!s->timeout()) {
             {
                 ::MutexGuard g(_mtx);
-                if (--_wait.nco == 0 && _wait.nth == 0) _signaled = false;
+                --_wait.nco;
+                if (!_manual_reset && _count == 0) _signaled = false;
             }
             co::free(co->waitx, sizeof(co::waitx_t));
         } else {
@@ -53,7 +62,7 @@ bool EventImpl::wait(uint32 ms) {
             {
                 ::MutexGuard g(_mtx);
                 --_wait.nco;
-                if (_signaled && _count == 0) _signaled = false;
+                if (_signaled && !_manual_reset && _count == 0) _signaled = false;
                 erased = _co_wait.erase(co->waitx) == 1;
             }
             if (erased) co::free(co->waitx, sizeof(co::waitx_t));
@@ -77,7 +86,7 @@ bool EventImpl::wait(uint32 ms) {
             if (!r) return false;
             assert(_signaled);
         }
-        if (_count == 0) _signaled = false;
+        if (!_manual_reset && _count == 0) _signaled = false;
         return true;
     }
 }
@@ -91,7 +100,7 @@ void EventImpl::signal() {
             _signaled = true;
             if (_wait.nth > 0) {
                 if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
-                co::xx::cond_notify(&_cond);
+                co::xx::cond_notify_all(&_cond);
             }
         }
     }
@@ -109,11 +118,16 @@ void EventImpl::signal() {
     }
 }
 
+inline void EventImpl::reset() {
+    ::MutexGuard g(_mtx);
+    _signaled = false;
+}
+
 // memory: |4(refn)|4|EventImpl|
-Event::Event() {
+Event::Event(bool manual_reset, bool signaled) {
     _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1;
-    new (_p + 2) EventImpl();
+    new (_p + 2) EventImpl(manual_reset, signaled);
 }
 
 Event::~Event() {
@@ -131,12 +145,16 @@ void Event::signal() const {
     ((EventImpl*)(_p + 2))->signal();
 }
 
+void Event::reset() const {
+    ((EventImpl*)(_p + 2))->reset();
+}
+
 // memory: |4(refn)|4(counter)|EventImpl|
 WaitGroup::WaitGroup(uint32 n) {
     _p = (uint32*) co::alloc(sizeof(EventImpl) + 8);
     _p[0] = 1; // refn
     _p[1] = n; // counter
-    new (_p + 2) EventImpl();
+    new (_p + 2) EventImpl(false, false);
 }
 
 WaitGroup::~WaitGroup() {
@@ -163,8 +181,8 @@ void WaitGroup::wait() const {
 
 class MutexImpl {
   public:
-    MutexImpl() : _lock(false) {}
-    ~MutexImpl() = default;
+    MutexImpl() : _lock(0), _has_cond(false) {}
+    ~MutexImpl() { if (_has_cond) co::xx::cond_destroy(&_cond); }
 
     void lock();
 
@@ -174,41 +192,64 @@ class MutexImpl {
 
   private:
     ::Mutex _mtx;
+    co::xx::cond_t _cond;
     co::deque<Coroutine*> _co_wait;
-    bool _lock;
+    int32 _lock;
+    bool _has_cond;
 };
 
 inline bool MutexImpl::try_lock() {
     ::MutexGuard g(_mtx);
-    return _lock ? false : (_lock = true);
+    return _lock ? false : (_lock = 1);
 }
 
-inline void MutexImpl::lock() {
+void MutexImpl::lock() {
     auto s = gSched;
-    CHECK(s) << "must be called in coroutine..";
-    _mtx.lock();
-    if (!_lock) {
-        _lock = true;
-        _mtx.unlock();
-    } else {
-        Coroutine* co = s->running();
-        if (co->s != s) co->s = s;
-        _co_wait.push_back(co);
-        _mtx.unlock();
-        s->yield();
+    if (s) { /* in coroutine */
+        _mtx.lock();
+        if (!_lock) {
+            _lock = 1;
+            _mtx.unlock();
+        } else {
+            Coroutine* co = s->running();
+            if (co->s != s) co->s = s;
+            _co_wait.push_back(co);
+            _mtx.unlock();
+            s->yield();
+        }
+
+    } else { /* non-coroutine */
+        ::MutexGuard g(_mtx);
+        if (!_lock) {
+            _lock = 1;
+        } else {
+            _co_wait.push_back(nullptr);
+            if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+            for (;;) {
+                co::xx::cond_wait(&_cond, _mtx.mutex());
+                if (_lock == 2) { _lock = 1; break; }
+            }
+        }
     }
 }
 
-inline void MutexImpl::unlock() {
+void MutexImpl::unlock() {
     _mtx.lock();
     if (_co_wait.empty()) {
-        _lock = false;
+        _lock = 0;
         _mtx.unlock();
     } else {
         Coroutine* co = _co_wait.front();
         _co_wait.pop_front();
-        _mtx.unlock();
-        ((SchedulerImpl*)co->s)->add_ready_task(co);
+        if (co) {
+            _mtx.unlock();
+            ((SchedulerImpl*)co->s)->add_ready_task(co);
+        } else {
+            if (!_has_cond) { co::xx::cond_init(&_cond); _has_cond = true; }
+            _lock = 2;
+            _mtx.unlock();
+            co::xx::cond_notify_one(&_cond);
+        }
     }
 }
 

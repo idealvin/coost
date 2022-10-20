@@ -935,12 +935,12 @@ inline fastream& log_stream() {
     return kls ? *kls : *(kls = new fastream(256));
 }
 
-LevelLogSaver::LevelLogSaver(const char* file, int len, unsigned int line, int level)
+LevelLogSaver::LevelLogSaver(const char* prefix, int n, int level)
     : _s(log_stream()) {
     _n = _s.size();
     _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
     _s[_n] = "DIWE"[level];
-    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
 }
 
 LevelLogSaver::~LevelLogSaver() {
@@ -949,11 +949,11 @@ LevelLogSaver::~LevelLogSaver() {
     _s.resize(_n);
 }
 
-FatalLogSaver::FatalLogSaver(const char* file, int len, unsigned int line)
+FatalLogSaver::FatalLogSaver(const char* prefix, int n)
     : _s(log_stream()) {
     _s.resize(LogTime::t_len + 1);
     _s.front() = 'F';
-    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
 }
 
 FatalLogSaver::~FatalLogSaver() {
@@ -961,11 +961,11 @@ FatalLogSaver::~FatalLogSaver() {
     global().logger->push_fatal_log((char*)_s.data(), _s.size());
 }
 
-TLogSaver::TLogSaver(const char* file, int len, unsigned int line, const char* topic)
+TLogSaver::TLogSaver(const char* prefix, int n, const char* topic)
     : _s(log_stream()), _topic(topic) {
     _n = _s.size();
     _s.resize(_n + (LogTime::t_len)); // make room for: "0523 17:00:00.123"
-    (_s << ' ' << co::thread_id() << ' ').append(file, len) << ':' << line << ']' << ' ';
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
 }
 
 TLogSaver::~TLogSaver() {
