@@ -11,6 +11,7 @@ namespace color {
 
 struct __coapi Color {
     Color(const char* s, int i);
+    Color(const Color& c) noexcept : s(c.s) {}
 
     union {
         int i;
@@ -26,6 +27,20 @@ __coapi extern const Color deflt; // default color
 
 } // color
 
+namespace text {
+
+struct Text {
+    Text(const char* s, size_t n, const color::Color& c) noexcept
+        : s(s), n(n), c(c) {
+    }
+    const char* s;
+    size_t n;
+    color::Color c;
+};
+
+} // text
+
+
 __coapi std::ostream& operator<<(std::ostream&, const color::Color&);
 
 #else /* unix */
@@ -38,7 +53,61 @@ const char* const yellow = "\033[38;5;3m"; // or 11
 const char* const deflt = "\033[39m";
 
 } // color
+
+namespace text {
+
+struct Text {
+    constexpr Text(const char* s, size_t n, const char* c) noexcept
+        : s(s), n(n), c(c) {
+    }
+    const char* s;
+    size_t n;
+    const char* c;
+};
+
+} // text
+
 #endif
+
+namespace text {
+
+inline Text red(const char* s, size_t n) {
+    return Text(s, n, color::red);
+}
+
+inline Text red(const char* s) {
+    return red(s, strlen(s));
+}
+
+inline Text green(const char* s, size_t n) {
+    return Text(s, n, color::green);
+}
+
+inline Text green(const char* s) {
+    return green(s, strlen(s));
+}
+
+inline Text blue(const char* s, size_t n) {
+    return Text(s, n, color::blue);
+}
+
+inline Text blue(const char* s) {
+    return blue(s, strlen(s));
+}
+
+inline Text yellow(const char* s, size_t n) {
+    return Text(s, n, color::yellow);
+}
+
+inline Text yellow(const char* s) {
+    return yellow(s, strlen(s));
+}
+
+} // text
+
+inline std::ostream& operator<<(std::ostream& os, const text::Text& t) {
+    return (os << t.c).write(t.s, t.n) << color::deflt;
+}
 
 namespace co {
 namespace xx {

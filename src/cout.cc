@@ -19,13 +19,12 @@ inline bool ansi_color_seq_enabled() {
     return x;
 }
 
-inline HANDLE& std_handle() {
-    static HANDLE handle = []() {
-        HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (handle != INVALID_HANDLE_VALUE && handle != NULL) return handle;
-        return (HANDLE)NULL;
+inline HANDLE std_handle() {
+    static HANDLE h = []() {
+        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+        return (h != INVALID_HANDLE_VALUE && h != NULL) ? h : (HANDLE)NULL;
     }();
-    return handle;
+    return h;
 }
 
 inline int get_default_color() {
@@ -49,10 +48,9 @@ const Color deflt("\033[39m", get_default_color());
 
 } // color
 
-std::ostream& operator<<(std::ostream& os, const color::Color& color) {
+std::ostream& operator<<(std::ostream& os, const color::Color& c) {
     if (color::ansi_color_seq_enabled()) {
-        os << color.s;
-        return os;
+        return os << c.s;
     } else {
         auto h = color::std_handle();
         if (h) SetConsoleTextAttribute(h, (WORD)color.i);
