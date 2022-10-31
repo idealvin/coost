@@ -5,11 +5,14 @@
 
 namespace now {
 
-// monotonic timestamp in milliseconds
-__coapi int64 ms();
+// monotonic timestamp in nanoseconds
+__coapi int64 ns();
 
 // monotonic timestamp in microseconds
 __coapi int64 us();
+
+// monotonic timestamp in milliseconds
+__coapi int64 ms();
 
 // "%Y-%m-%d %H:%M:%S" ==> 2018-08-08 08:08:08
 __coapi fastring str(const char* fm = "%Y-%m-%d %H:%M:%S");
@@ -18,11 +21,11 @@ __coapi fastring str(const char* fm = "%Y-%m-%d %H:%M:%S");
 
 namespace epoch {
 
-// milliseconds since epoch
-__coapi int64 ms();
-
 // microseconds since epoch
 __coapi int64 us();
+
+// milliseconds since epoch
+__coapi int64 ms();
 
 } // epoch
 
@@ -41,19 +44,23 @@ using namespace ___;
 class __coapi Timer {
   public:
     Timer() {
-        _start = now::us();
+        _start = now::ns();
     }
 
     void restart() {
-        _start = now::us();
+        _start = now::ns();
+    }
+
+    int64 ns() const {
+        return now::ns() - _start;
     }
 
     int64 us() const {
-        return now::us() - _start;
+        return this->ns() / 1000;
     }
 
     int64 ms() const {
-        return this->us() / 1000;
+        return this->ns() / 1000000;
     }
 
   private:
