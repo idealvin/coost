@@ -39,10 +39,10 @@ __coapi void use(void* p, int n);
     static bool _co_bm_v_##_name_ = bm::xx::add_group(#_name_, _co_bm_group_##_name_); \
     void _co_bm_group_##_name_(bm::xx::Group& _g_)
 
-// run a benchmark, it must be inside BM_group
-#define BM_run(_name_) _g_.bm = #_name_; _BM_run
+// add a benchmark, it must be inside BM_group
+#define BM_add(_name_) _g_.bm = #_name_; _BM_add
 
-#define _BM_run(e) { \
+#define _BM_add(e) { \
     auto _f_ = [&]() {e;}; \
     _g_.timer.restart(); \
     _f_(); \

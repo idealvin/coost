@@ -4,11 +4,11 @@
 BM_group(atomic) {
     int i = 0;
 
-    BM_run(++)(
+    BM_add(++)(
         atomic_inc(&i);
     );
 
-    BM_run(--)(
+    BM_add(--)(
         atomic_dec(&i);
     );
 }
@@ -16,12 +16,12 @@ BM_group(atomic) {
 BM_group(malloc) {
     void* p;
 
-    BM_run(malloc)(
+    BM_add(malloc)(
         p = ::malloc(32);
     );
     BM_use(p);
 
-    BM_run(co::alloc)(
+    BM_add(co::alloc)(
         p = co::alloc(32);
     );
 }
@@ -29,13 +29,13 @@ BM_group(malloc) {
 BM_group(malloc_free) {
     void* p;
 
-    BM_run(malloc+free)(
+    BM_add(malloc+free)(
         p = ::malloc(32);
         ::free(p);
     );
     BM_use(p);
 
-    BM_run(co::alloc+free)(
+    BM_add(co::alloc+free)(
         p = co::alloc(32);
         co::free(p, 32);
     );
