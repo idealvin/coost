@@ -53,7 +53,7 @@ std::ostream& operator<<(std::ostream& os, const color::Color& c) {
         return os << c.s;
     } else {
         auto h = color::std_handle();
-        if (h) SetConsoleTextAttribute(h, (WORD)color.i);
+        if (h) SetConsoleTextAttribute(h, (WORD)c.i);
         return os;
     }
 }
