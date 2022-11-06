@@ -74,7 +74,7 @@ std::ostream& operator<<(std::ostream& os, const text::Bold& b) {
     if (color::ansi_esc_seq_enabled()) {
         return (os << "\033[1m" << b._c).write(b._s, b._n) << color::deflt;
     } else {
-        b._c.i |= FOREGROUND_INTENSITY;
+        ((text::Bold&)b)._c.i |= FOREGROUND_INTENSITY;
         return (os.flush() << b._c).write(b._s, b._n).flush() << color::deflt; 
     }
 }
