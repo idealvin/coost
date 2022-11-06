@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fastream.h"
+#include "stref.h"
 #include <iostream>
 
 using std::cout;
@@ -23,9 +24,32 @@ __coapi extern const Color red;
 __coapi extern const Color green;
 __coapi extern const Color blue;
 __coapi extern const Color yellow;
+__coapi extern const Color magenta;
+__coapi extern const Color cyan;
+__coapi extern const Color none;
+__coapi extern const Color bold;
 __coapi extern const Color deflt; // default color
 
 } // color
+
+#else /* unix */
+namespace color {
+
+const char red[] = "\033[31m";     // "\033[38;5;1m";
+const char green[] = "\033[32m";   // "\033[38;5;2m";
+const char blue[] = "\033[34m";    // "\033[38;5;4m";
+const char yellow[] = "\033[33m";  // "\033[38;5;3m"; // or 11
+const char magenta[] = "\033[95m"; // bright magenta
+const char cyan[] = "\033[96m";    // "\033[38;5;3m"; // or 11
+const char none[] = "";
+const char bold[] = "\033[1m";
+const char deflt[] = "\033[0m";    //"\033[39m";
+
+typedef const char* Color;
+
+} // color
+
+#endif
 
 namespace text {
 
@@ -38,76 +62,65 @@ struct Text {
     color::Color c;
 };
 
-} // text
+inline Text red(const co::stref& s) {
+    return Text(s.data(), s.size(), color::red);
+}
 
+inline Text green(const co::stref& s) {
+    return Text(s.data(), s.size(), color::green);
+}
 
-__coapi std::ostream& operator<<(std::ostream&, const color::Color&);
+inline Text blue(const co::stref& s) {
+    return Text(s.data(), s.size(), color::blue);
+}
 
-#else /* unix */
-namespace color {
+inline Text yellow(const co::stref& s) {
+    return Text(s.data(), s.size(), color::yellow);
+}
 
-const char* const red = "\033[38;5;1m";
-const char* const green = "\033[38;5;2m";
-const char* const blue = "\033[38;5;12m";
-const char* const yellow = "\033[38;5;3m"; // or 11
-const char* const deflt = "\033[39m";
+inline Text magenta(const co::stref& s) {
+    return Text(s.data(), s.size(), color::magenta);
+}
 
-} // color
+inline Text cyan(const co::stref& s) {
+    return Text(s.data(), s.size(), color::cyan);
+}
 
-namespace text {
+struct Bold {
+    Bold(const char* s, size_t n) noexcept : _s(s), _n(n), _c(color::none) {}
+    Bold& red() noexcept { _c = color::red; return *this; }
+    Bold& green() noexcept { _c = color::green; return *this; }
+    Bold& blue() noexcept { _c = color::blue; return *this; }
+    Bold& yellow() noexcept { _c = color::yellow; return *this; }
+    Bold& magenta() noexcept { _c = color::magenta; return *this; }
+    Bold& cyan() noexcept { _c = color::cyan; return *this; }
 
-struct Text {
-    constexpr Text(const char* s, size_t n, const char* c) noexcept
-        : s(s), n(n), c(c) {
-    }
-    const char* s;
-    size_t n;
-    const char* c;
+    const char* _s;
+    size_t _n;
+    color::Color _c;
 };
 
-} // text
-
-#endif
-
-namespace text {
-
-inline Text red(const char* s, size_t n) {
-    return Text(s, n, color::red);
-}
-
-inline Text red(const char* s) {
-    return red(s, strlen(s));
-}
-
-inline Text green(const char* s, size_t n) {
-    return Text(s, n, color::green);
-}
-
-inline Text green(const char* s) {
-    return green(s, strlen(s));
-}
-
-inline Text blue(const char* s, size_t n) {
-    return Text(s, n, color::blue);
-}
-
-inline Text blue(const char* s) {
-    return blue(s, strlen(s));
-}
-
-inline Text yellow(const char* s, size_t n) {
-    return Text(s, n, color::yellow);
-}
-
-inline Text yellow(const char* s) {
-    return yellow(s, strlen(s));
+inline Bold bold(const co::stref& s) noexcept {
+    return Bold(s.data(), s.size());
 }
 
 } // text
 
+#ifdef _WIN32
+__coapi std::ostream& operator<<(std::ostream&, const color::Color&);
+__coapi std::ostream& operator<<(std::ostream&, const text::Text&);
+__coapi std::ostream& operator<<(std::ostream&, const text::Bold&);
+
+#else
 inline std::ostream& operator<<(std::ostream& os, const text::Text& t) {
     return (os << t.c).write(t.s, t.n) << color::deflt;
 }
+
+inline std::ostream& operator<<(std::ostream& os, const text::Bold& b) {
+    return (os << color::bold << b._c).write(b._s, b._n) << color::deflt;
+}
+#endif
+
 
 namespace co {
 namespace xx {
