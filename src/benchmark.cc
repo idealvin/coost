@@ -41,8 +41,12 @@ struct Num {
         } else if (v < 1000000000.0) {
             s.maxdp(2) << (v / 1000000) << 'M';
         } else {
-            s.maxdp(2) << (v / 1000000000) << 'G';
-            if (s.size() > 7) s = "> 1000G";
+            const double x = v / 1000000000;
+            if (x <= 1000.0) {
+                s.maxdp(2) << x << 'G';
+            } else {
+                s << "> 1000G";
+            }
         }
         return s;
     }
@@ -62,10 +66,10 @@ void print_results(Group& g) {
         if (maxlen < x) maxlen = x;
     }
 
-    cout << "|  " << text::blue(g.name) << fastring(maxlen - grplen + 2, ' ')
-         << "|  " << text::blue("ns/iter  ")
-         << "|  " << text::blue("iters/s  ")
-         << "|  " << text::blue("speedup  ") << "|\n";
+    cout << "|  " << text::bold(g.name).blue() << fastring(maxlen - grplen + 2, ' ')
+         << "|  " << text::bold("ns/iter  ").blue()
+         << "|  " << text::bold("iters/s  ").blue()
+         << "|  " << text::bold("speedup  ").blue() << "|\n";
 
     cout << "| " << fastring(maxlen + 2, '-') << ' '
          << "| " << fastring(9, '-') << ' '
@@ -78,13 +82,13 @@ void print_results(Group& g) {
         fastring t = Num(r.ns).str();
         size_t p = t.size() <= 7 ? 9 - t.size() : 2;
 
-        cout << "|  " << text::green(r.bm, bmlen) << fastring(maxlen - bmlen + 2, ' ')
-             << "|  " << text::red(t.data(), t.size()) << fastring(p, ' ');
+        cout << "|  " << text::green(r.bm) << fastring(maxlen - bmlen + 2, ' ')
+             << "|  " << text::red(t) << fastring(p, ' ');
 
         double x = r.ns > 0 ? 1000000000.0 / r.ns : 1.2e12;
         t = Num(x).str();
         p = t.size() <= 7 ? 9 - t.size() : 2;
-        cout << "|  " << text::red(t.data(), t.size()) << fastring(p, ' ');
+        cout << "|  " << text::red(t) << fastring(p, ' ');
 
         if (i == 0) {
             t = "1.0";
@@ -95,7 +99,7 @@ void print_results(Group& g) {
         }
 
         p = t.size() <= 7 ? 9 - t.size() : 2;
-        cout << "|  " << text::yellow(t.data(), t.size()) << fastring(p, ' ') << "|\n";
+        cout << "|  " << text::yellow(t) << fastring(p, ' ') << "|\n";
     }
 } 
 
