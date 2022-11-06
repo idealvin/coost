@@ -253,3 +253,19 @@ template <bool C, typename T=void>
 using enable_if_t = typename std::enable_if<C, T>::type;
 
 } // god
+
+// detect whether a class has a specified method
+// https://stackoverflow.com/a/257382/4984605
+#define DEF_has_method(f) \
+namespace god { \
+template <typename _T_> \
+struct _has_method_##f { \
+    struct _R_ { int _[2]; }; \
+    template <typename _X_> static int test(decltype(&_X_::f)); \
+    template <typename _X_> static _R_ test(...); \
+    enum { value = sizeof(test<_T_>(0)) == sizeof(int) }; \
+}; \
+\
+template <typename _T_> \
+constexpr bool has_method_##f() noexcept { return _has_method_##f<_T_>::value; } \
+}
