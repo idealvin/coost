@@ -2,7 +2,7 @@
 
 #include "god.h"
 #include <string.h>
-#include <iostream>
+#include <ostream>
 
 DEF_has_method(c_str);
 
@@ -33,5 +33,5 @@ class stref {
 } // co
 
 inline std::ostream& operator<<(std::ostream& os, const co::stref& s) {
-    os.write(s.data(), s.size());
+    return os.write(s.data(), s.size());
 }
