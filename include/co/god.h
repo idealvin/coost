@@ -194,6 +194,16 @@ inline constexpr bool is_ref() {
 }
 
 template <typename T>
+inline constexpr bool is_rvalue_ref() {
+    return std::is_rvalue_reference<T>::value;
+}
+
+template <typename T>
+inline constexpr bool is_lvalue_ref() {
+    return std::is_lvalue_reference<T>::value;
+}
+
+template <typename T>
 inline constexpr bool is_array() {
     return std::is_array<T>::value;
 }
@@ -216,6 +226,14 @@ inline constexpr bool is_basic() {
         short, unsigned short, int, unsigned int,
         long, unsigned long, long long, unsigned long long,
         float, double
+    >();
+}
+
+template<typename T>
+inline constexpr bool is_integer() {
+    return god::is_same<god::remove_cv_t<T>,
+        short, unsigned short, int, unsigned int,
+        long, unsigned long, long long, unsigned long long
     >();
 }
 
@@ -263,7 +281,7 @@ struct _has_method_##f { \
     struct _R_ { int _[2]; }; \
     template <typename _X_> static int test(decltype(&_X_::f)); \
     template <typename _X_> static _R_ test(...); \
-    enum { value = sizeof(test<_T_>(0)) == sizeof(int) }; \
+    enum { value = sizeof(test<god::remove_cvref_t<_T_>>(0)) == sizeof(int) }; \
 }; \
 \
 template <typename _T_> \
