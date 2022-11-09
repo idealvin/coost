@@ -87,7 +87,13 @@ class __coapi stream {
     }
     
     explicit stream(size_t cap)
-        : _cap(cap), _size(0), _p((char*)co::alloc(cap)) {
+        : _cap(cap), _size(0) {
+        _p = (char*) co::alloc(cap); assert(_p);
+    }
+
+    stream(size_t cap, size_t size)
+        : _cap(cap), _size(size) {
+        _p = (char*) co::alloc(cap); assert(_p);
     }
 
     stream(void* p, size_t size, size_t cap) noexcept
@@ -321,9 +327,11 @@ class __coapi stream {
         return *this;
     }
 
+#if 0
     stream& operator<<(const char* v) {
         return this->append(v, strlen(v));
     }
+#endif
 
     stream& operator<<(const void* v) {
         this->ensure(sizeof(v) * 3);
