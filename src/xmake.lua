@@ -1,11 +1,10 @@
-option("libbacktrace")
-    add_cincludes("backtrace.h")
-option_end()
-
 option("cxxabi")
     add_cxxincludes("cxxabi.h")
 option_end()
 
+if is_plat("linux", "macosx") then
+    add_requires("libbacktrace")
+end
 
 target("libco")
     set_kind("$(kind)")
@@ -25,7 +24,7 @@ target("libco")
     elseif has_config("with_openssl") then
         add_defines("HAS_OPENSSL")
         add_packages("openssl")
-    end 
+    end
 
     if is_kind("shared") then
         set_symbols("debug", "hidden")
@@ -58,9 +57,9 @@ target("libco")
         end
     else
         add_cxflags("-Wno-strict-aliasing")
-        if has_config("libbacktrace") then
+        add_packages("libbacktrace", { public = true })
+        if has_package("libbacktrace") then
             add_defines("HAS_BACKTRACE_H")
-            add_syslinks("backtrace", { public = true })
         end
         if has_config("cxxabi") then
             add_defines("HAS_CXXABI_H")
