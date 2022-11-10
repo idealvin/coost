@@ -54,10 +54,7 @@ class __coapi fastring : public fast::stream {
         _size = _cap - 1;
     }
 
-    template<typename S, god::enable_if_t<
-        god::has_method_c_str<S>() && !god::is_same<god::remove_cvref_t<S>, fastring>(), int> = 0
-    >
-    fastring(S&& s)
+    fastring(const std::string& s)
         : fastring(s.data(), s.size()) {
     }
 
