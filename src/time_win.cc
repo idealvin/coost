@@ -12,43 +12,51 @@
 namespace now {
 namespace _Mono {
 
-inline int64 _QueryFrequency() {
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-    return freq.QuadPart;
+inline int64 _query_counts() {
+    LARGE_INTEGER x;
+    QueryPerformanceCounter(&x);
+    return x.QuadPart;
 }
 
-inline int64 _QueryCounter() {
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return counter.QuadPart;
-}
-
-inline const int64& _Frequency() {
-    static int64 freq = _QueryFrequency();
+inline const int64& _counts_per_sec() {
+    static const int64 freq = [](){
+        LARGE_INTEGER x;
+        QueryPerformanceFrequency(&x);
+        return x.QuadPart;
+    }();
     return freq;
 }
 
-inline int64 ms() {
-    int64 count = _QueryCounter();
-    const int64& freq = _Frequency();
-    return (count / freq) * 1000 + (count % freq * 1000 / freq);
+inline int64 ns() {
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000000000 / freq);
 }
 
 inline int64 us() {
-    int64 count = _QueryCounter();
-    const int64& freq = _Frequency();
-    return (count / freq) * 1000000 + (count % freq * 1000000 / freq);
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000000 / freq);
+}
+
+inline int64 ms() {
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000 / freq);
 }
 
 } // _Mono
 
-int64 ms() {
-    return _Mono::ms();
+int64 ns() {
+    return _Mono::ns();
 }
 
 int64 us() {
     return _Mono::us();
+}
+
+int64 ms() {
+    return _Mono::ms();
 }
 
 fastring str(const char* fm) {
