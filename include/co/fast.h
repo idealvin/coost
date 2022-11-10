@@ -149,7 +149,7 @@ class __coapi stream {
     }
 
     char& operator[](size_t i) const {
-        assert(_size > i);
+        assert(_cap > i);
         return _p[i];
     }
 
