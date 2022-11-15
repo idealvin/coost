@@ -19,7 +19,7 @@ class stref {
     template <typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
     constexpr stref(S&& s) noexcept : _s(s), _n(strlen(s)) {}
 
-    template <typename S, god::enable_if_t<god::has_method_c_str<god::remove_cvref_t<S>>(), int> = 0>
+    template <typename S, god::enable_if_t<god::has_method_c_str<S>(), int> = 0>
     constexpr stref(S && s) noexcept : _s(s.data()), _n(s.size()) {}
 
     constexpr const char* data() const noexcept { return _s; }

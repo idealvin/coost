@@ -1,19 +1,5 @@
 #include "co/fastring.h"
 
-fastring& fastring::append(const void* s, size_t n) {
-    const char* const p = (const char*) s;
-    if (!this->_is_inside(p)) {
-        return (fastring&) fast::stream::append(p, n);
-    }
-
-    assert(p + n <= _p + _size);
-    const size_t pos = p - _p;
-    this->ensure(n);
-    memcpy(_p + _size, _p + pos, n);
-    _size += n;
-    return *this;
-}
-
 size_t fastring::rfind(const char* sub) const {
     size_t m = strlen(sub);
     if (m == 1) return this->rfind(*sub);

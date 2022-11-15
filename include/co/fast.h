@@ -17,6 +17,8 @@ struct maxdp {
 };
 } // co
 
+typedef co::maxdp maxdp_t;
+
 namespace fast {
 
 // double to ascii string, return length of the result
@@ -127,6 +129,7 @@ class __coapi stream {
     size_t capacity() const noexcept { return _cap; }
     void clear() noexcept { _size = 0; }
 
+    // like clear(), but will fill the internal memory with zeros
     void safe_clear() {
         memset(_p, 0, _size);
         _size = 0;
@@ -149,12 +152,20 @@ class __coapi stream {
     }
 
     char& operator[](size_t i) const {
-        assert(_cap > i);
+        assert(i < _size);
         return _p[i];
     }
 
     void resize(size_t n) {
         this->reserve(n);
+        _size = n;
+    }
+
+    void safe_resize(size_t n) {
+        if (_size < n) {
+            this->reserve(n);
+            memset(_p + _size, 0, n - _size);
+        }
         _size = n;
     }
 
@@ -188,41 +199,6 @@ class __coapi stream {
         fs.swap(*this);
     }
 
-    friend class fpstream;
-    class fpstream {
-      public:
-        fpstream(stream* s, int mdp) noexcept : s(s), mdp(mdp) {}
-
-        fpstream& operator<<(double v) {
-            s->ensure(mdp + 8);
-            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
-            return *this;
-        }
-
-        fpstream& operator<<(float v) {
-            return this->operator<<((double)v);
-        }
-
-        fpstream& operator<<(co::maxdp x) noexcept {
-            mdp = x.n;
-            return *this;
-        }
-
-        template <typename T>
-        fpstream& operator<<(T&& t) {
-            s->operator<<(std::forward<T>(t));
-            return *this;
-        }
-
-        stream* s;
-        int mdp;
-    };
-
-    // set max decimal places for float point number, mdp must > 0
-    fpstream maxdp(int mdp) noexcept {
-        return fpstream(this, mdp);
-    }
-
   protected:
     stream& append(size_t n, char c) {
         this->ensure(n);
@@ -244,9 +220,16 @@ class __coapi stream {
         return *this;
     }
 
-    // set max decimal places as mdp.n
-    fpstream operator<<(co::maxdp mdp) {
-        return fpstream(this, mdp.n);
+    stream& safe_append(const void* s, size_t n) {
+        const char* const p = (const char*) s;
+        if (!(_p <= p && p < _p + _size)) return this->append(p, n);
+
+        assert(p + n <= _p + _size);
+        const size_t pos = p - _p;
+        this->ensure(n);
+        memcpy(_p + _size, _p + pos, n);
+        _size += n;
+        return *this;
     }
 
     stream& operator<<(bool v) {
@@ -327,11 +310,9 @@ class __coapi stream {
         return *this;
     }
 
-#if 0
-    stream& operator<<(const char* v) {
-        return this->append(v, strlen(v));
+    stream& operator<<(const char* s) {
+        return this->append(s, strlen(s));
     }
-#endif
 
     stream& operator<<(const void* v) {
         this->ensure(sizeof(v) * 3);

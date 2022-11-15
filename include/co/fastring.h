@@ -75,10 +75,7 @@ class __coapi fastring : public fast::stream {
         return *this;
     }
 
-    template<typename S, god::enable_if_t<
-        god::has_method_c_str<S>() && !god::is_same<god::remove_cvref_t<S>, fastring>(), int> = 0
-    >
-    fastring& operator=(S&& s) {
+    fastring& operator=(const std::string& s) {
         return this->_assign(s.data(), s.size());
     }
 
@@ -92,13 +89,12 @@ class __coapi fastring : public fast::stream {
         return this->assign(s, strlen(s));
     }
 
+    // s may points to part of the fastring itself
     fastring& assign(const void* s, size_t n) {
-        if (!this->_is_inside((const char*)s)) {
-            return this->_assign(s, n);
-        } else if (s != _p) {
-            _size -= ((const char*)s - _p);
-            memmove(_p, s, n);
-        }
+        if (!this->_is_inside((const char*)s)) return this->_assign(s, n);
+        assert((const char*)s + n <= _p + _size);
+        if (s != _p) memmove(_p, s, n);
+        _size = n;
         return *this;
     }
 
@@ -107,34 +103,28 @@ class __coapi fastring : public fast::stream {
         return this->operator=(std::forward<S>(s));
     }
 
-    fastring& append(const void* s, size_t n);
- 
-    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastring& append(S&& s) {
-        return (fastring&) fast::stream::append(s, sizeof(s) - 1);
+    fastring& append(const void* s, size_t n) {
+        return (fastring&) fast::stream::safe_append(s, n);
     }
-
-    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastring& append(S&& s) {
+ 
+    fastring& append(const char* s) {
         return this->append(s, strlen(s));
     }
 
-    template<typename S, god::enable_if_t<
-        god::has_method_c_str<S>() && !god::is_same<god::remove_cvref_t<S>, fastring>(), int> = 0
-    >
-    fastring& append(S&& s) {
-        return (fastring&) fast::stream::append(s.data(), s.size());
-    }
-
-    template<typename S, god::enable_if_t<
-        god::is_same<god::remove_cvref_t<S>, fastring>(), int> = 0
-    >
-    fastring& append(S&& s) {
+    fastring& append(const fastring& s) {
         if (&s != this) return (fastring&) fast::stream::append(s.data(), s.size());
         this->reserve(_size << 1);
         memcpy(_p + _size, _p, _size); // append itself
         _size <<= 1;
         return *this;
+    }
+
+    fastring& append(const std::string& s) {
+        return (fastring&) fast::stream::append(s.data(), s.size());
+    }
+
+    fastring& append(const co::stref& s) {
+        return (fastring&) fast::stream::safe_append(s.data(), s.size());
     }
 
     fastring& append(size_t n, char c) {
@@ -145,11 +135,17 @@ class __coapi fastring : public fast::stream {
         return this->append(n, c);
     }
 
-    template<typename T, god::enable_if_t<
-        god::is_same<god::remove_cvref_t<T>, char, signed char, unsigned char>(), int> = 0
-    >
-    fastring& append(T&& c) {
-        return (fastring&) fast::stream::append((char)c);
+    // append a single character
+    fastring& append(char c) {
+        return (fastring&)fast::stream::append(c);
+    }
+
+    fastring& append(signed char c) {
+        return this->append((char)c);
+    }
+
+    fastring& append(unsigned char c) {
+        return this->append((char)c);
     }
 
     template<typename T>
@@ -168,9 +164,44 @@ class __coapi fastring : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
+    friend class fpstream;
+    class fpstream {
+      public:
+        fpstream(fastring* s, int mdp) noexcept : s(s), mdp(mdp) {}
+
+        fpstream& operator<<(double v) {
+            s->ensure(mdp + 8);
+            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
+            return *this;
+        }
+
+        fpstream& operator<<(float v) {
+            return this->operator<<((double)v);
+        }
+
+        fpstream& operator<<(maxdp_t x) noexcept {
+            mdp = x.n;
+            return *this;
+        }
+
+        template <typename T>
+        fpstream& operator<<(T&& t) {
+            s->operator<<(std::forward<T>(t));
+            return *this;
+        }
+
+        fastring* s;
+        int mdp;
+    };
+
+    // set max decimal places for float point number, mdp must > 0
+    fpstream maxdp(int mdp) noexcept {
+        return fpstream(this, mdp);
+    }
+
     // set max decimal places as mdp.n
-    fast::stream::fpstream operator<<(co::maxdp mdp) {
-        return fast::stream::operator<<(mdp);
+    fpstream operator<<(maxdp_t mdp) {
+        return fpstream(this, mdp.n);
     }
 
     fastring& operator<<(const signed char* s) {
@@ -183,7 +214,7 @@ class __coapi fastring : public fast::stream {
 
     template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
     fastring& operator<<(S&& s) {
-        return this->append(std::forward<S>(s));
+        return (fastring&) fast::stream::append(s, sizeof(s) - 1);
     }
 
     template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
@@ -191,15 +222,15 @@ class __coapi fastring : public fast::stream {
         return this->append(s, strlen(s));
     }
 
-    template<typename S, god::enable_if_t<god::has_method_c_str<god::remove_cvref_t<S>>(), int> = 0>
-    fastring& operator<<(S&& s) {
-        return this->append(std::forward<S>(s));
+    fastring& operator<<(const fastring& s) {
+        return this->append(s);
     }
 
-    template<typename S, god::enable_if_t<
-        god::is_same<god::remove_cvref_t<S>, co::stref>(), int> = 0
-    >
-    fastring& operator<<(S&& s) {
+    fastring& operator<<(const std::string& s) {
+        return this->append(s);
+    }
+
+    fastring& operator<<(const co::stref& s) {
         return this->append(s.data(), s.size());
     }
 
@@ -209,10 +240,10 @@ class __coapi fastring : public fast::stream {
     }
 
     template<typename T, god::enable_if_t<
-        !god::is_c_str<god::remove_ref_t<T>>() && god::is_pointer<god::remove_ref_t<T>>(), int> = 0
+        god::is_pointer<god::remove_ref_t<T>>() && !god::is_c_str<god::remove_ref_t<T>>(), int> = 0
     >
-    fastring& operator<<(T&& t) {
-        return (fastring&) fast::stream::operator<<(std::forward<T>(t));
+    fastring& operator<<(T&& p) {
+        return (fastring&) fast::stream::operator<<(std::forward<T>(p));
     }
 
     fastring substr(size_t pos) const {
@@ -256,15 +287,19 @@ class __coapi fastring : public fast::stream {
     }
 
     size_t find(const char* s) const {
-        if (this->empty()) return npos;
-        const char* p = strstr(this->c_str(), s);
-        return p ? p - _p : npos;
+        if (!this->empty()) {
+            const char* p = strstr(this->c_str(), s);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t find(const char* s, size_t pos) const {
-        if (this->size() <= pos) return npos;
-        const char* p = strstr(this->c_str() + pos, s);
-        return p ? p - _p : npos;
+        if (pos < _size) {
+            const char* const p = strstr(this->c_str() + pos, s);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t rfind(char c) const {
