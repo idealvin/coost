@@ -1136,7 +1136,7 @@ static bool _init_hooks() {
         r = ::nanosleep(0, 0);
         r = ::kevent(-1, 0, 0, 0, 0, 0);
         auto x = ::gethostbyaddr("0", 1, -1);
-        x = ::gethostbyname("");
+        x = ::gethostbyname("localhost");
         (void)r; (void)x;
     }
   #endif

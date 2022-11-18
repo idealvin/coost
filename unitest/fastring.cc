@@ -80,6 +80,21 @@ DEF_test(fastring) {
         EXPECT_EQ(std::string("x") + fastring("x"), "xx");
     }
 
+    DEF_case(assign) {
+        fastring s;
+        s = "hello";
+        EXPECT_EQ(s, "hello");
+
+        s.assign("12345");
+        EXPECT_EQ(s, "12345");
+
+        s.assign(s.data() + 1, 4);
+        EXPECT_EQ(s, "2345");
+
+        s = s.c_str() + 1;
+        EXPECT_EQ(s, "345");
+    }
+
     DEF_case(cat) {
         fastring s;
         EXPECT_EQ(s.cat(), "");
@@ -388,13 +403,14 @@ DEF_test(fastring) {
         fastring s("xxx");
         s.safe_clear();
         EXPECT_EQ(s.size(), 0);
+        s.resize(3);
         EXPECT_EQ(s[0], 0);
         EXPECT_EQ(s[1], 0);
         EXPECT_EQ(s[2], 0);
 
         fastring x;
         x.safe_clear();
-        EXPECT_EQ(s.size(), 0);
+        EXPECT_EQ(x.size(), 0);
     }
 
     DEF_case(shrink) {

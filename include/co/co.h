@@ -269,6 +269,9 @@ __coapi bool timeout();
  */
 __coapi bool on_stack(const void* p);
 
+// stop coroutine schedulers
+__coapi void stop_schedulers();
+
 } // namespace co
 
 using co::go;

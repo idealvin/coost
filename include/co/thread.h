@@ -27,7 +27,8 @@ inline void cond_init(cond_t* c)                        { InitializeConditionVar
 inline void cond_destroy(cond_t*)                     {}
 inline void cond_wait(cond_t* c, mutex_t* m)            { SleepConditionVariableCS(c, m, INFINITE); }
 inline bool cond_wait(cond_t* c, mutex_t* m, uint32 ms) { return SleepConditionVariableCS(c, m, ms) == TRUE; }
-inline void cond_notify(cond_t* c)                      { WakeAllConditionVariable(c); }
+inline void cond_notify_one(cond_t* c)                  { WakeConditionVariable(c); }
+inline void cond_notify_all(cond_t* c)                  { WakeAllConditionVariable(c); }
 
 typedef HANDLE thread_t;
 typedef DWORD (WINAPI *thread_fun_t)(void*);
@@ -65,7 +66,8 @@ __coapi void cond_init(cond_t* c);
 __coapi bool cond_wait(cond_t* c, mutex_t* m, uint32 ms);
 inline void cond_destroy(cond_t* c)          { pthread_cond_destroy(c); }
 inline void cond_wait(cond_t* c, mutex_t* m) { pthread_cond_wait(c, m); }
-inline void cond_notify(cond_t* c)           { pthread_cond_broadcast(c); }
+inline void cond_notify_one(cond_t* c)       { pthread_cond_signal(c); }
+inline void cond_notify_all(cond_t* c)       { pthread_cond_broadcast(c); }
 
 typedef pthread_t thread_t;
 typedef void* (*thread_fun_t)(void*);
@@ -151,7 +153,7 @@ class __coapi SyncEvent {
         MutexGuard g(_mutex);
         if (!_signaled) {
             _signaled = true;
-            co::xx::cond_notify(&_cond);
+            co::xx::cond_notify_all(&_cond);
         }
     }
 

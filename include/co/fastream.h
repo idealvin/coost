@@ -2,11 +2,12 @@
 
 #include "god.h"
 #include "fast.h"
+#include "stref.h"
 #include "fastring.h"
 
 class __coapi fastream : public fast::stream {
   public:
-    fastream() noexcept
+    constexpr fastream() noexcept
         : fast::stream() {
     }
     
@@ -27,7 +28,7 @@ class __coapi fastream : public fast::stream {
         : fast::stream(std::move(fs)) {
     }
 
-    fastream& operator=(fastream&& fs) noexcept {
+    fastream& operator=(fastream&& fs) {
         return (fastream&) fast::stream::operator=(std::move(fs));
     }
 
@@ -36,12 +37,32 @@ class __coapi fastream : public fast::stream {
         return fastring(_p, _size);
     }
 
+    // It is not safe if p points to part of the fastream itself, this is by design.
+    // Use safe_append() in that case.
     fastream& append(const void* p, size_t n) {
         return (fastream&) fast::stream::append(p, n);
     }
 
+    // p may points to part of the fastream itself.
+    fastream& safe_append(const void* p, size_t n) {
+        return (fastream&) fast::stream::safe_append(p, n);
+    }
+
+    // append n characters
+    fastream& append(size_t n, char c) {
+        return (fastream&) fast::stream::append(n, c);
+    }
+
+    fastream& append(char c, size_t n) {
+        return this->append(n, c);
+    }
+
     fastream& append(const char* s) {
         return this->append(s, strlen(s));
+    }
+
+    fastream& safe_append(const char* s) {
+        return this->safe_append(s, strlen(s));
     }
 
     fastream& append(const fastring& s) {
@@ -60,18 +81,13 @@ class __coapi fastream : public fast::stream {
         return *this;
     }
 
-    // append n characters
-    fastream& append(size_t n, char c) {
-        return (fastream&) fast::stream::append(n, c);
-    }
-
-    fastream& append(char c, size_t n) {
-        return this->append(n, c);
+    fastream& append(const co::stref& s) {
+        return this->append(s.data(), s.size());
     }
 
     // append a single character
     fastream& append(char c) {
-        return (fastream&) fast::stream::append(c);
+        return (fastream&)fast::stream::append(c);
     }
 
     fastream& append(signed char c) {
@@ -83,39 +99,19 @@ class __coapi fastream : public fast::stream {
     }
 
     // append binary data of integer types
-    fastream& append(short v) {
+    fastream& append(uint16 v) {
         return this->append(&v, sizeof(v));
     }
 
-    fastream& append(unsigned short v) {
+    fastream& append(uint32 v) {
         return this->append(&v, sizeof(v));
     }
 
-    fastream& append(int v) {
+    fastream& append(uint64 v) {
         return this->append(&v, sizeof(v));
     }
 
-    fastream& append(unsigned int v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(unsigned long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(long long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(unsigned long long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& cat() { return *this; }
+    fastream& cat() noexcept { return *this; }
 
     // concatenate fastream to any number of elements
     //   - fastream s("hello");
@@ -126,66 +122,89 @@ class __coapi fastream : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
+    friend class fpstream;
+    class fpstream {
+      public:
+        fpstream(fastream* s, int mdp) noexcept : s(s), mdp(mdp) {}
+
+        fpstream& operator<<(double v) {
+            s->ensure(mdp + 8);
+            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
+            return *this;
+        }
+
+        fpstream& operator<<(float v) {
+            return this->operator<<((double)v);
+        }
+
+        fpstream& operator<<(maxdp_t x) noexcept {
+            mdp = x.n;
+            return *this;
+        }
+
+        template <typename T>
+        fpstream& operator<<(T&& t) {
+            s->operator<<(std::forward<T>(t));
+            return *this;
+        }
+
+        fastream* s;
+        int mdp;
+    };
+
+    // set max decimal places for float point number, mdp must > 0
+    fpstream maxdp(int mdp) noexcept {
+        return fpstream(this, mdp);
+    }
+
     // set max decimal places as mdp.n
-    fast::stream::fpstream operator<<(co::maxdp mdp) {
-        return fast::stream::operator<<(mdp);
+    fpstream operator<<(maxdp_t mdp) {
+        return fpstream(this, mdp.n);
     }
 
     fastream& operator<<(const signed char* s) {
-        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+        return this->append(s, strlen((const char*)s));
     }
 
     fastream& operator<<(const unsigned char* s) {
-        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+        return this->append(s, strlen((const char*)s));
     }
 
-    template<typename T>
-    using _is_supported_type = god::enable_if_t<
-        god::is_basic<T>() || god::is_pointer<T>() ||
-        god::is_literal_string<T>() || god::is_c_str<T>() ||
-        god::is_same<god::remove_cv_t<T>, fastring, fastream, std::string>(), int
-    >;
+    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
+    fastream& operator<<(S&& s) {
+        return this->append(s, sizeof(s) - 1);
+    }
 
-    // Special optimization for string literal like "hello". The length of a string 
-    // literal can be get at compile-time, no need to call strlen().
-    template<typename T, _is_supported_type<god::remove_ref_t<T>> = 0>
+    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
+    fastream& operator<<(S&& s) {
+        return this->append(s, strlen(s));
+    }
+
+    fastream& operator<<(const fastring& s) {
+        return this->append(s.data(), s.size());
+    }
+
+    fastream& operator<<(const std::string& s) {
+        return this->append(s.data(), s.size());
+    }
+
+    fastream& operator<<(const fastream& s) {
+        return this->append(s);
+    }
+
+    fastream& operator<<(const co::stref& s) {
+        return this->append(s.data(), s.size());
+    }
+
+    template<typename T, god::enable_if_t<god::is_basic<god::remove_ref_t<T>>(), int> = 0>
     fastream& operator<<(T&& t) {
-        using X = god::remove_ref_t<T>; // remove & or &&
-        using C = god::remove_cv_t<X>;  // remove const, volatile
-
-        constexpr int N =
-            god::is_literal_string<X>() ? 1 :
-            god::is_c_str<X>() ? 2 :
-            god::is_same<C, fastring, fastream, std::string>() ? 3 :
-            0;
-
-        return this->_out(std::forward<T>(t), I<N>());
-    }
-
-  private:
-    template<int N> struct I {};
-
-    // built-in types or pointer types
-    template<typename T>
-    fastream& _out(T&& t, I<0>) {
         return (fastream&) fast::stream::operator<<(std::forward<T>(t));
     }
 
-    // string literal like "hello"
-    template<typename T>
-    fastream& _out(T&& t, I<1>) {
-        return this->append(t, sizeof(t) - 1);
-    }
-
-    // const char* or char*
-    template<typename T>
-    fastream& _out(T&& t, I<2>) {
-        return this->append(t);
-    }
-
-    // fastring, fastream, std::string
-    template<typename T>
-    fastream& _out(T&& t, I<3>) {
-        return this->append((god::const_ref_t<T>)t);
+    template<typename T, god::enable_if_t<
+        god::is_pointer<god::remove_ref_t<T>>() && !god::is_c_str<god::remove_ref_t<T>>(), int> = 0
+    >
+    fastream& operator<<(T&& p) {
+        return (fastream&) fast::stream::operator<<(std::forward<T>(p));
     }
 };

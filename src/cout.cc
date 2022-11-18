@@ -14,51 +14,71 @@
 
 namespace color {
 
-inline bool ansi_color_seq_enabled() {
+inline bool ansi_esc_seq_enabled() {
     static const bool x = !os::env("TERM").empty();
     return x;
 }
 
-inline HANDLE& std_handle() {
-    static HANDLE handle = []() {
-        HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (handle != INVALID_HANDLE_VALUE && handle != NULL) return handle;
-        return (HANDLE)NULL;
+inline HANDLE std_handle() {
+    static HANDLE h = []() {
+        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+        return (h != INVALID_HANDLE_VALUE && h != NULL) ? h : (HANDLE)NULL;
     }();
-    return handle;
+    return h;
 }
 
-inline int get_default_color() {
-    auto h = std_handle();
-    if (!h) return 15;
-
+inline int get_current_color() {
     CONSOLE_SCREEN_BUFFER_INFO buf;
-    if (!GetConsoleScreenBufferInfo(h, &buf)) return 15;
-    return buf.wAttributes & 0x0f;
+    auto h = std_handle();
+    if (h && GetConsoleScreenBufferInfo(h, &buf)) {
+        return buf.wAttributes & 0x0f;
+    } 
+    return 15;
 }
 
 Color::Color(const char* ansi_seq, int win_color) {
-    ansi_color_seq_enabled() ? (void)(s = ansi_seq) : (void)(i = win_color);
+    ansi_esc_seq_enabled() ? (void)(s = ansi_seq) : (void)(i = win_color);
 }
 
-const Color red("\033[38;5;1m", FOREGROUND_RED);     // 12
-const Color green("\033[38;5;2m", FOREGROUND_GREEN); // 10
-const Color blue("\033[38;5;12m", FOREGROUND_BLUE);  // 9
-const Color yellow("\033[38;5;11m", 14);
-const Color deflt("\033[39m", get_default_color());
+const Color red("\033[31m", FOREGROUND_RED);     // 4
+const Color green("\033[32m", FOREGROUND_GREEN); // 2
+const Color blue("\033[34m", FOREGROUND_BLUE);   // 1
+const Color yellow("\033[33m", FOREGROUND_RED | FOREGROUND_GREEN);
+const Color magenta("\033[95m", FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+const Color cyan("\033[96m", FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+const Color none("", 0);
+const Color bold("\033[1m", FOREGROUND_INTENSITY);
+const Color deflt("\033[0m", get_current_color());
 
 } // color
 
-std::ostream& operator<<(std::ostream& os, const color::Color& color) {
-    if (color::ansi_color_seq_enabled()) {
-        os << color.s;
-        return os;
+std::ostream& operator<<(std::ostream& os, const color::Color& c) {
+    if (color::ansi_esc_seq_enabled()) {
+        return os << c.s;
     } else {
         auto h = color::std_handle();
-        if (h) SetConsoleTextAttribute(h, (WORD)color.i);
+        if (h && c.i) SetConsoleTextAttribute(h, (WORD)c.i);
         return os;
     }
 }
+
+std::ostream& operator<<(std::ostream& os, const text::Text& t) {
+    if (color::ansi_esc_seq_enabled()) {
+        return (os << t.c).write(t.s, t.n) << color::deflt;
+    } else {
+        return (os.flush() << t.c).write(t.s, t.n).flush() << color::deflt; 
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, const text::Bold& b) {
+    if (color::ansi_esc_seq_enabled()) {
+        return (os << "\033[1m" << b._c).write(b._s, b._n) << color::deflt;
+    } else {
+        ((text::Bold&)b)._c.i |= FOREGROUND_INTENSITY;
+        return (os.flush() << b._c).write(b._s, b._n).flush() << color::deflt; 
+    }
+}
+
 #endif
 
 namespace co {

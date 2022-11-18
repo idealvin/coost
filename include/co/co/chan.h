@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../def.h"
+#include "../god.h"
 #include "../atomic.h"
 
 namespace co {
@@ -34,7 +35,7 @@ class __coapi Pipe {
 
 } // xx
 
-template <typename T>
+template <typename T, god::enable_if_t<god::is_trivially_copyable<T>(), int> = 0>
 class Chan {
   public:
     /**
