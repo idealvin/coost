@@ -60,6 +60,22 @@ DEF_test(fastream) {
         EXPECT_EQ(s.cat(' ', "hello ", false).str(), "123 hello false");
     }
 
+    DEF_case(safe) {
+        fastream s(16);
+        s << "1234567890";
+        s.safe_append(s.data() + 1, 8);
+        EXPECT_EQ(s.str(), "123456789023456789");
+
+        s.safe_clear();
+        EXPECT_EQ(*s.data(), 0);
+        EXPECT_EQ(*(s.data() + 3), 0);
+
+        s.append("12345678");
+        s.safe_resize(10);
+        EXPECT_EQ(*(s.data() + 8), 0);
+        EXPECT_EQ(*(s.data() + 9), 0);
+    }
+
     DEF_case(bool) {
         fastream fs;
         fs << false << ' ' << true;

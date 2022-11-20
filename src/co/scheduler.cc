@@ -397,4 +397,8 @@ bool on_stack(const void* p) {
     return gSched->on_stack(p);
 }
 
+void stop_schedulers() {
+    scheduler_manager()->stop();
+}
+
 } // co

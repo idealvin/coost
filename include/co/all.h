@@ -29,3 +29,4 @@
 #include "thread.h"
 #include "tasked.h"
 #include "unitest.h"
+#include "benchmark.h"
