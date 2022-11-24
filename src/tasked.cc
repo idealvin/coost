@@ -18,7 +18,8 @@ class TaskedImpl {
     };
 
     TaskedImpl()
-        : _stop(0), _mtx(), _ev(), _t(&TaskedImpl::loop, this) {
+        : _stop(0), _tasks(), _tmp(),
+          _mtx(), _ev(), _t(&TaskedImpl::loop, this) {
     }
 
     ~TaskedImpl() {
@@ -50,12 +51,11 @@ class TaskedImpl {
 
   private:
     bool _stop;
+    co::array<Task*> _tasks;
+    co::array<Task*> _tmp;
     Mutex _mtx;
     SyncEvent _ev;
     Thread _t;
-
-    co::array<Task*> _tasks;
-    co::array<Task*> _tmp;
 };
 
 // if @daily is false, run f() only once, otherwise run f() every day at hour:minute:second
