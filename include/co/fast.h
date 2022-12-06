@@ -141,21 +141,36 @@ class __coapi stream {
         return _p;
     }
 
-    char& back() const {
+    char& back() {
         assert(_size > 0);
         return _p[_size - 1];
     }
 
-    char& front() const {
+    const char& back() const {
+        assert(_size > 0);
+        return _p[_size - 1];
+    }
+
+    char& front() {
         assert(_size > 0);
         return _p[0];
     }
 
-    char& operator[](size_t i) const {
+    const char& front() const {
+        assert(_size > 0);
+        return _p[0];
+    }
+
+    char& operator[](size_t i) {
         assert(i < _size);
         return _p[i];
     }
 
+    const char& operator[](size_t i) const {
+        assert(i < _size);
+        return _p[i];
+    }
+    
     void resize(size_t n) {
         this->reserve(n);
         _size = n;
