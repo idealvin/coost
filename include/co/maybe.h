@@ -49,7 +49,7 @@ class maybe<T, god::enable_if_t<god::is_same<T, void>()>> final {
     }
 
     maybe(const maybe&) = delete;
-    void operator=(const maybe&) = delete;
+    maybe& operator=(const maybe&) = delete;
 
     ~maybe() = default;
 
@@ -96,7 +96,7 @@ class maybe<T, god::enable_if_t<god::is_scalar<T>()>> final {
     }
 
     maybe(const maybe&) = delete;
-    void operator=(const maybe&) = delete;
+    maybe& operator=(const maybe&) = delete;
 
     ~maybe() = default;
 
@@ -145,7 +145,7 @@ class maybe<T, god::enable_if_t<god::is_ref<T>()>> final {
     }
 
     maybe(const maybe&) = delete;
-    void operator=(const maybe&) = delete;
+    maybe& operator=(const maybe&) = delete;
 
     ~maybe() = default;
 
@@ -196,7 +196,7 @@ class maybe<T, god::enable_if_t<god::is_class<T>()>> final {
     }
 
     maybe(const maybe&) = delete;
-    void operator=(const maybe&) = delete;
+    maybe& operator=(const maybe&) = delete;
 
     ~maybe() {
         if (!this->has_error()) _t.~T();

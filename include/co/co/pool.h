@@ -42,7 +42,7 @@ class __coapi Pool {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Pool&) = delete;
+    Pool& operator=(const Pool&) = delete;
 
     /**
      * pop an element from the pool of the current thread 

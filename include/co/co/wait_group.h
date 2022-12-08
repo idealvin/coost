@@ -24,7 +24,7 @@ class __coapi WaitGroup {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const WaitGroup&) = delete;
+    WaitGroup& operator=(const WaitGroup&) = delete;
 
     // increase WaitGroup counter by n (1 by default)
     void add(uint32 n=1) const;

@@ -127,8 +127,8 @@ class __coapi file {
     }
 
     file(const file& x) = delete;
-    void operator=(const file& x) = delete;
-    void operator=(file&& x) = delete;
+    file& operator=(const file& x) = delete;
+    file& operator=(file&& x) = delete;
 
     explicit operator bool() const;
     
@@ -298,8 +298,8 @@ class __coapi dir {
     dir(dir&& d) : _p(d._p) { d._p = 0; }
 
     dir(const dir&) = delete;
-    void operator=(const dir&) = delete;
-    void operator=(dir&&) = delete;
+    dir& operator=(const dir&) = delete;
+    dir& operator=(dir&&) = delete;
 
     // open the dir
     bool open(const char* path);

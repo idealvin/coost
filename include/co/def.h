@@ -30,7 +30,7 @@ typedef uint64_t uint64;
 
 #define DISALLOW_COPY_AND_ASSIGN(T) \
     T(const T&) = delete; \
-    void operator=(const T&) = delete
+    T& operator=(const T&) = delete
 
 #if SIZE_MAX == UINT64_MAX
 #define __arch64 1

@@ -22,7 +22,7 @@ class __coapi fastream : public fast::stream {
     ~fastream() = default;
 
     fastream(const fastream&) = delete;
-    void operator=(const fastream&) = delete;
+    fastream& operator=(const fastream&) = delete;
 
     fastream(fastream&& fs) noexcept
         : fast::stream(std::move(fs)) {

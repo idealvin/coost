@@ -182,7 +182,7 @@ class __coapi Client final {
      */
     ~Client();
 
-    void operator=(const Client& c) = delete;
+    Client& operator=(const Client& c) = delete;
 
     /**
      * recv using co::recv or ssl::recv

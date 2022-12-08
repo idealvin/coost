@@ -69,7 +69,7 @@ class __coapi Client {
     Client(const Client& c);
     ~Client();
 
-    void operator=(const Client& c) = delete;
+    Client& operator=(const Client& c) = delete;
 
     // perform a rpc request
     void call(const Json& req, Json& res);

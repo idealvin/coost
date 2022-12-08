@@ -21,7 +21,7 @@ class __coapi Mutex {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Mutex&) = delete;
+    Mutex& operator=(const Mutex&) = delete;
 
     /**
      * acquire the lock

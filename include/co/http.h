@@ -40,7 +40,7 @@ class __coapi Client {
     ~Client();
 
     Client(const Client&) = delete;
-    void operator=(const Client&) = delete;
+    Client& operator=(const Client&) = delete;
 
     /**
      * add a HTTP header

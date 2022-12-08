@@ -102,12 +102,12 @@ class __coapi stream {
         : _cap(cap), _size(size), _p((char*)p) {
     }
 
-    ~stream() {
+    virtual ~stream() {
         if (_p) co::free(_p, _cap);
     }
 
     stream(const stream&) = delete;
-    void operator=(const stream&) = delete;
+    stream& operator=(const stream&) = delete;
 
     stream(stream&& s) noexcept
         : _cap(s._cap), _size(s._size), _p(s._p) {

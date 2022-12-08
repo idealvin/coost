@@ -11,7 +11,7 @@ class __coapi Tasked {
     ~Tasked();
 
     Tasked(const Tasked&) = delete;
-    void operator=(const Tasked&) = delete;
+    Tasked& operator=(const Tasked&) = delete;
 
     Tasked(Tasked&& t) {
         _p = t._p;

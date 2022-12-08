@@ -21,7 +21,7 @@ class __coapi Pipe {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Pipe&) = delete;
+    Pipe& operator=(const Pipe&) = delete;
 
     // read a block
     void read(void* p) const;
@@ -52,7 +52,7 @@ class Chan {
 
     Chan(const Chan& c) : _p(c._p) {}
 
-    void operator=(const Chan&) = delete;
+    Chan& operator=(const Chan&) = delete;
 
     void operator<<(const T& x) const {
         _p.write(&x);

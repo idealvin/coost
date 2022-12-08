@@ -33,7 +33,7 @@ class table {
     }
 
     table(const table&) = delete;
-    void operator=(const table&) = delete;
+    table& operator=(const table&) = delete;
 
     T& operator[](size_t i) {
         const size_t q = i >> _xbits;      // i / _xsize

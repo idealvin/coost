@@ -24,7 +24,7 @@ class __coapi Event {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Event&) = delete;
+    Event& operator=(const Event&) = delete;
 
     /**
      * wait for a signal
