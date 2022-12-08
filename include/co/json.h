@@ -138,6 +138,7 @@ class __coapi Json {
     Json() noexcept : _h(0) {}
     Json(decltype(nullptr)) noexcept : _h(0) {}
     Json(Json&& v) noexcept : _h(v._h) { v._h = 0; }
+    Json(Json& v) noexcept : _h(v._h) { v._h = 0; }
     ~Json() { if (_h) this->reset(); }
 
     Json(const Json& v) = delete;
@@ -150,6 +151,11 @@ class __coapi Json {
             v._h = 0;
         }
         return *this;
+    }
+
+    // after this operation, v will be moved and becomes null
+    Json& operator=(Json& v) {
+        return this->operator=(std::move(v));
     }
 
     // make a duplicate 
