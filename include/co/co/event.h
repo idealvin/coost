@@ -6,25 +6,24 @@
 namespace co {
 
 /**
- * co::Event is for communications between coroutines
- *   - It is similar to SyncEvent for threads.
- *   - It can be used anywhere since co 2.0.1.
+ * co::event is for communications between coroutines
+ *   - It can be also used in non-coroutines since v2.0.1.
  */
-class __coapi Event {
+class __coapi event {
   public:
-    explicit Event(bool manual_reset=false, bool signaled=false);
-    ~Event();
+    explicit event(bool manual_reset=false, bool signaled=false);
+    ~event();
 
-    Event(Event&& e) : _p(e._p) {
+    event(event&& e) noexcept : _p(e._p) {
         e._p = 0;
     }
 
-    // copy constructor, allow co::Event to be captured by value in lambda.
-    Event(const Event& e) : _p(e._p) {
+    // copy constructor, just increment the reference count
+    event(const event& e) : _p(e._p) {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Event&) = delete;
+    void operator=(const event&) = delete;
 
     /**
      * wait for a signal
@@ -49,7 +48,7 @@ class __coapi Event {
     /**
      * generate a signal on this event
      *   - It can be called from anywhere.
-     *   - When a signal was present, all the waiting coroutines will be waken up.
+     *   - It will wake up all the waiting coroutines and threads.
      */
     void signal() const;
 
@@ -59,5 +58,7 @@ class __coapi Event {
   private:
     uint32* _p;
 };
+
+typedef event Event;
 
 } // co
