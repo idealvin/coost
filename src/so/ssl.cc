@@ -3,7 +3,6 @@
 #include "co/co.h"
 #include "co/log.h"
 #include "co/fastream.h"
-#include "co/thread.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
@@ -16,7 +15,7 @@ static int errcb(const char* p, size_t n, void* u) {
 }
 
 const char* strerror(S* s) {
-    static thread_ptr<fastream> fs;
+    static co::thread_ptr<fastream> fs;
     if (fs == NULL) fs.reset(new fastream(256));
     fs->clear();
 

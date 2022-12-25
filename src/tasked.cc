@@ -1,7 +1,7 @@
 #include "co/tasked.h"
 #include "co/array.h"
 #include "co/time.h"
-#include "co/thread.h"
+#include "co/co/thread.h"
 
 class TaskedImpl {
   public:
@@ -19,7 +19,7 @@ class TaskedImpl {
 
     TaskedImpl()
         : _stop(0), _tasks(), _tmp(),
-          _mtx(), _ev(), _t(&TaskedImpl::loop, this) {
+          _ev(), _mtx(), _t(&TaskedImpl::loop, this) {
     }
 
     ~TaskedImpl() {
@@ -27,13 +27,13 @@ class TaskedImpl {
     }
 
     void run_in(F&& f, int sec) {
-        MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         _tmp.push_back(co::make<Task>(std::move(f), 0, sec));
         if (sec <= 0) _ev.signal();
     }
 
     void run_every(F&& f, int sec) {
-        MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         _tmp.push_back(co::make<Task>(std::move(f), sec, sec));
     }
 
@@ -53,9 +53,9 @@ class TaskedImpl {
     bool _stop;
     co::array<Task*> _tasks;
     co::array<Task*> _tmp;
-    Mutex _mtx;
-    SyncEvent _ev;
-    Thread _t;
+    co::sync_event _ev;
+    std::mutex _mtx;
+    std::thread _t;
 };
 
 // if @daily is false, run f() only once, otherwise run f() every day at hour:minute:second
@@ -74,7 +74,7 @@ void TaskedImpl::run_at(F&& f, int hour, int minute, int second, bool daily) {
     if (seconds < now_seconds) seconds += 86400;
     int diff = seconds - now_seconds;
 
-    MutexGuard g(_mtx);
+    std::lock_guard<std::mutex> g(_mtx);
     _tmp.push_back(co::make<Task>(std::move(f), (daily ? 86400 : 0), diff));
 }
 
@@ -87,7 +87,7 @@ void TaskedImpl::loop() {
     while (!_stop) {
         t.restart();
         {
-            MutexGuard g(_mtx);
+            std::lock_guard<std::mutex> g(_mtx);
             if (!_tmp.empty()) _tmp.swap(tmp);
         }
 
@@ -129,7 +129,7 @@ void TaskedImpl::stop() {
     if (atomic_swap(&_stop, 1) == 0) {
         _ev.signal();
         _t.join();
-        MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         this->clear(_tasks);
         this->clear(_tmp);
     }

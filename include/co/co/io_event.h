@@ -26,7 +26,7 @@ class __coapi IoEvent {
         // co::waitx_t:  {co, state}
         void* co;      // Coroutine
         union {
-            int state; // co_state_t
+            uint8 state; // co_state_t
             void* dummy;
         };
 

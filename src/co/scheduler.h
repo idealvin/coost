@@ -11,7 +11,6 @@
 #include "co/stl.h"
 #include "co/time.h"
 #include "co/closure.h"
-#include "co/thread.h"
 #include "co/fastream.h"
 #include "context/context.h"
 
@@ -93,7 +92,7 @@ struct Coroutine {
 // header of wait info
 struct waitx_t {
     Coroutine* co;
-    union { int state; void* dummy; };
+    union { uint8 state; void* dummy; };
 };
 
 inline waitx_t* make_waitx(void* co) {
@@ -151,12 +150,12 @@ class TaskManager {
     ~TaskManager() = default;
 
     void add_new_task(Closure* cb) {
-        ::MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         _new_tasks.push_back(cb);
     }
 
     void add_ready_task(Coroutine* co) {
-        ::MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         _ready_tasks.push_back(co);
     }
 
@@ -164,13 +163,13 @@ class TaskManager {
         co::array<Closure*>& new_tasks,
         co::array<Coroutine*>& ready_tasks
     ) {
-        ::MutexGuard g(_mtx);
+        std::lock_guard<std::mutex> g(_mtx);
         if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
         if (!_ready_tasks.empty()) _ready_tasks.swap(ready_tasks);
     }
  
   private:
-    ::Mutex _mtx;
+    std::mutex _mtx;
     co::array<Closure*> _new_tasks;
     co::array<Coroutine*> _ready_tasks;
 };
@@ -318,7 +317,7 @@ class SchedulerImpl : public co::Scheduler {
     }
 
     // start the scheduler thread
-    void start() { Thread(&SchedulerImpl::loop, this).detach(); }
+    void start() { std::thread(&SchedulerImpl::loop, this).detach(); }
 
     // stop the scheduler thread
     void stop();
@@ -356,7 +355,7 @@ class SchedulerImpl : public co::Scheduler {
     TaskManager _task_mgr;
     TimerManager _timer_mgr;
 
-    SyncEvent _ev;
+    co::sync_event _ev;
     bool _stop;
     bool _timeout;
 };

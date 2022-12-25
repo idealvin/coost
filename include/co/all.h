@@ -26,7 +26,6 @@
 #include "lru_map.h"
 #include "random.h"
 #include "time.h"
-#include "thread.h"
 #include "tasked.h"
 #include "unitest.h"
 #include "benchmark.h"

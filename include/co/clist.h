@@ -11,13 +11,13 @@ class clist {
   public:
     constexpr static clink* const null = (clink*)0;
 
-    clist() : _head(0) {}
+    constexpr clist() noexcept : _head(0) {}
     ~clist() = default;
 
-    clink* front() const { return _head; }
-    clink* back() const { return _head ? _head->prev : 0; }
-    bool empty() const { return _head == null; }
-    void clear() { _head = 0; }
+    clink* front() const noexcept { return _head; }
+    clink* back() const noexcept { return _head ? _head->prev : 0; }
+    bool empty() const noexcept { return _head == null; }
+    void clear() noexcept { _head = 0; }
 
     // push a new node to the front
     void push_front(clink* node) {

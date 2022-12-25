@@ -5,6 +5,7 @@
 #include "flag.h"
 #include "log.h"
 #include "stl.h"
+#include "./co/thread.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"
@@ -223,7 +224,7 @@ __coapi bool add_io_event(sock_t fd, io_event_t ev);
 __coapi void del_io_event(sock_t fd, io_event_t ev);
 
 /**
- * remove all events on the socket 
+ * remove all IO events on the socket 
  *   - It MUST be called in a coroutine.
  */
 __coapi void del_io_event(sock_t fd);

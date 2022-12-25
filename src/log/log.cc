@@ -5,7 +5,7 @@
 #include "co/str.h"
 #include "co/array.h"
 #include "co/time.h"
-#include "co/thread.h"
+#include "co/co.h"
 #include "../co/hook.h"
 #include "stack_trace.h"
 
@@ -187,7 +187,7 @@ class Logger {
   private:
     struct LevelLog {
         LevelLog() : bytes(0), counter(0), write_cb(NULL), write_flags(0) {}
-        ::Mutex mtx;
+        std::mutex mtx;
         fastream buf;      // logs will be pushed to this buffer
         fastream logs;     // to swap out logs in buf
         char time_str[24]; // "0723 17:00:00.123"
@@ -212,7 +212,7 @@ class Logger {
     struct TLog {
         TLog() : pts(8), write_cb(NULL), write_flags(0) {}
         struct {
-            ::Mutex mtx;
+            std::mutex mtx;
             co::hash_map<Key, PerTopic> mp;
             LogTime log_time;
             char time_str[24];
@@ -229,8 +229,8 @@ class Logger {
   private:
     LevelLog _llog;
     TLog _tlog;
-    SyncEvent _log_event;
-    Thread* _log_thread;
+    co::sync_event _log_event;
+    std::thread* _log_thread;
     int _stop; // 0: init, 1: stopping, 2: logging thread stopped, 3: final
 };
 
@@ -272,9 +272,9 @@ bool Logger::start() {
         for (int i = 0; i < A; ++i) {
             memcpy(_tlog.v[i].time_str, global().log_time->get(), 24);
         }
-        atomic_store(&_log_thread, co::static_new<Thread>(&Logger::thread_fun, this));
+        atomic_store(&_log_thread, co::static_new<std::thread>(&Logger::thread_fun, this));
     } else {
-        while (atomic_load(&_log_thread, mo_relaxed) == (Thread*)8) {
+        while (atomic_load(&_log_thread, mo_relaxed) == (std::thread*)8) {
             sleep::ms(1);
         }
     }
@@ -351,7 +351,7 @@ void Logger::thread_fun() {
 
         global().log_time->update();
         {
-            ::MutexGuard g(_llog.mtx);
+            std::lock_guard<std::mutex> g(_llog.mtx);
             memcpy(_llog.time_str, global().log_time->get(), LogTime::t_len);
             if (!_llog.buf.empty()) _llog.buf.swap(_llog.logs);
         }
@@ -365,7 +365,7 @@ void Logger::thread_fun() {
             auto& v = _tlog.v[i];
             v.log_time.update();
             {
-                ::MutexGuard g(v.mtx);
+                std::lock_guard<std::mutex> g(v.mtx);
                 memcpy(v.time_str, v.log_time.get(), LogTime::t_len);
                 for (auto it = v.mp.begin(); it != v.mp.end(); ++it) {
                     PerTopic* pt = &it->second;
@@ -454,7 +454,7 @@ void Logger::push(char* s, size_t n) {
             p[3] = '\n';
         }
         {
-            ::MutexGuard g(_llog.mtx);
+            std::lock_guard<std::mutex> g(_llog.mtx);
             memcpy(s + 1, _llog.time_str, LogTime::t_len); // log time
 
             auto& buf = _llog.buf;
@@ -486,7 +486,7 @@ void Logger::push(const char* topic, char* s, size_t n) {
 
         auto& v = _tlog.v[murmur_hash(topic, strlen(topic)) & (A - 1)];
         {
-            ::MutexGuard g(v.mtx);
+            std::lock_guard<std::mutex> g(v.mtx);
             memcpy(s, v.time_str, LogTime::t_len);
 
             auto& x = v.mp[topic];
