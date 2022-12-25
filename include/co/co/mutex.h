@@ -6,71 +6,53 @@
 namespace co {
 
 /**
- * co::Mutex is a mutex lock for coroutines
- *   - It is similar to Mutex for threads.
- *   - Users SHOULD use co::Mutex in coroutine environments only.
+ * mutex lock for coroutines
+ *   - It can be also used in non-coroutines since v3.0.1.
  */
-class __coapi Mutex {
+class __coapi mutex {
   public:
-    Mutex();
-    ~Mutex();
+    mutex();
+    ~mutex();
 
-    Mutex(Mutex&& m) : _p(m._p) { m._p = 0; }
+    mutex(mutex&& m) noexcept : _p(m._p) { m._p = 0; }
 
-    Mutex(const Mutex& m) : _p(m._p) {
+    // copy constructor, just increment the reference count
+    mutex(const mutex& m) : _p(m._p) {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Mutex&) = delete;
+    void operator=(const mutex&) = delete;
 
-    /**
-     * acquire the lock
-     *   - It MUST be called in a coroutine.
-     *   - It will block until the lock was acquired by the calling coroutine.
-     */
     void lock() const;
 
-    /**
-     * release the lock
-     *   - It SHOULD be called in the coroutine that holds the lock.
-     */
     void unlock() const;
 
-    /**
-     * try to acquire the lock
-     *   - It SHOULD be called in a coroutine.
-     *   - If no coroutine holds the lock, the calling coroutine will get the lock.
-     *
-     * @return  true if the lock was acquired by the calling coroutine, otherwise false
-     */
     bool try_lock() const;
 
   private:
     uint32* _p;
 };
 
-/**
- * guard to release the mutex lock
- *   - lock() is called in the constructor.
- *   - unlock() is called in the destructor.
- */
-class __coapi MutexGuard {
+class __coapi mutex_guard {
   public:
-    explicit MutexGuard(const co::Mutex& lock) : _lock(lock) {
+    explicit mutex_guard(const co::mutex& lock) : _lock(lock) {
         _lock.lock();
     }
 
-    explicit MutexGuard(const co::Mutex* lock) : _lock(*lock) {
+    explicit mutex_guard(const co::mutex* lock) : _lock(*lock) {
         _lock.lock();
     }
 
-    ~MutexGuard() {
+    ~mutex_guard() {
         _lock.unlock();
     }
 
   private:
-    const co::Mutex& _lock;
-    DISALLOW_COPY_AND_ASSIGN(MutexGuard);
+    const co::mutex& _lock;
+    DISALLOW_COPY_AND_ASSIGN(mutex_guard);
 };
+
+typedef mutex Mutex;
+typedef mutex_guard MutexGuard;
 
 } // co
