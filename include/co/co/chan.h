@@ -3,31 +3,33 @@
 #include "../def.h"
 #include "../god.h"
 #include "../atomic.h"
+#include <functional>
 
 namespace co {
 namespace xx {
 
-class __coapi Pipe {
+class __coapi pipe {
   public:
-    Pipe(uint32 buf_size, uint32 blk_size, uint32 ms);
-    ~Pipe();
+    typedef std::function<void(void*, void*, int)> F;
+    pipe(uint32 buf_size, uint32 blk_size, uint32 ms, F&& f);
+    ~pipe();
 
-    Pipe(Pipe&& p) : _p(p._p) {
+    pipe(pipe&& p) : _p(p._p) {
         p._p = 0;
     }
 
-    // copy constructor, allow co::Pipe to be captured by value in lambda.
-    Pipe(const Pipe& p) : _p(p._p) {
+    // copy constructor, allow co::pipe to be captured by value in lambda.
+    pipe(const pipe& p) : _p(p._p) {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Pipe&) = delete;
+    void operator=(const pipe&) = delete;
 
     // read a block
-    void read(void* p) const;
+    void read(void* p, int v) const;
 
     // write a block
-    void write(const void* p) const;
+    void write(void* p, int v) const;
   
   private:
     uint32* _p;
@@ -35,35 +37,56 @@ class __coapi Pipe {
 
 } // xx
 
-template <typename T, god::enable_if_t<god::is_trivially_copyable<T>(), int> = 0>
-class Chan {
+template <typename T>
+class chan {
   public:
     /**
      * @param cap  max capacity of the queue, 1 by default.
      * @param ms   default timeout in milliseconds, -1 by default.
      */
-    explicit Chan(uint32 cap=1, uint32 ms=(uint32)-1)
-        : _p(cap * sizeof(T), sizeof(T), ms) {
+    explicit chan(uint32 cap=1, uint32 ms=(uint32)-1)
+        : _p(cap * sizeof(T), sizeof(T), ms,
+          [](void* dst, void* src, int v) {
+              switch (v) {
+                case 0:
+                  new (dst) T(*static_cast<const T*>(src));
+                  break;
+                case 1:
+                  new (dst) T(std::move(*static_cast<T*>(src)));
+                  break;
+                case 2:
+                  *static_cast<T*>(dst) = std::move(*static_cast<T*>(src));
+                  static_cast<T*>(src)->~T();
+                  break;
+              }
+          }) {
     }
 
-    ~Chan() = default;
+    ~chan() = default;
 
-    Chan(Chan&& c) : _p(std::move(c._p)) {}
+    chan(chan&& c) : _p(std::move(c._p)) {}
 
-    Chan(const Chan& c) : _p(c._p) {}
+    chan(const chan& c) : _p(c._p) {}
 
-    void operator=(const Chan&) = delete;
+    void operator=(const chan&) = delete;
 
     void operator<<(const T& x) const {
-        _p.write(&x);
+        _p.write(&x, 0);
+    }
+
+    void operator<<(T&& x) const {
+        _p.write(&x, 1);
     }
 
     void operator>>(T& x) const {
-        _p.read(&x);
+        _p.read(&x, 2);
     }
 
   private:
-    xx::Pipe _p;
+    xx::pipe _p;
 };
+
+template <typename T>
+using Chan = chan<T>;
 
 } // co
