@@ -105,9 +105,11 @@ inline bool symlink(const std::string& dst, const std::string& lnk) {
 //   '+': read/write   created if not exists
 class __coapi file {
   public:
-    static const int seek_beg = 0;
-    static const int seek_cur = 1;
-    static const int seek_end = 2;
+    enum seekfrom_t {
+        seek_beg = 0,
+        seek_cur = 1,
+        seek_end = 2,
+    };
 
     file() : _p(0) {}
     ~file();
@@ -153,7 +155,7 @@ class __coapi file {
 
     void close();
 
-    void seek(int64 off, int whence=seek_beg);
+    void seek(int64 off, seekfrom_t whence=seek_beg);
 
     size_t read(void* buf, size_t n);
 
