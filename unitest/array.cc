@@ -56,15 +56,38 @@ DEF_test(array){
         EXPECT_EQ(u.capacity(), 0);
         EXPECT_EQ(w.size(), 8);
         EXPECT_EQ(w.capacity(), 8);
+
+        co::array<fastring> a(8, 0);
+        EXPECT_EQ(a.size(), 8);
+        EXPECT_EQ(a.capacity(), 8);
+        EXPECT_EQ(a[0].data(), (const char*)0);
+
+        co::array<int> x = { 1, 2, 3 };
+        EXPECT_EQ(x.size(), 3);
+        EXPECT_EQ(x[0], 1);
+        EXPECT_EQ(x[1], 2);
+        EXPECT_EQ(x[2], 3);
+
+        co::array<int> z(x.begin(), x.end());
+        EXPECT_EQ(z.size(), 3);
+        EXPECT_EQ(z[0], 1);
+        EXPECT_EQ(z[1], 2);
+        EXPECT_EQ(z[2], 3);
+
+        co::array<int> k(z.data(), 2);
+        EXPECT_EQ(k.size(), 2);
+        EXPECT_EQ(k[0], 1);
+        EXPECT_EQ(k[1], 2);
+
+        int xx[4] = { 1, 2, 3, 4 };
+        co::array<int> m(xx, 4);
+        EXPECT_EQ(m.size(), 4);
+        EXPECT_EQ(m[0], 1);
+        EXPECT_EQ(m[3], 4);
     }
 
     DEF_case(copy) {
         co::array<int> v = { 1, 2, 3 };
-        EXPECT_EQ(v.size(), 3);
-        EXPECT_EQ(v[0], 1);
-        EXPECT_EQ(v[1], 2);
-        EXPECT_EQ(v[2], 3);
-
         co::array<int> u(++v.begin(), v.end());
         EXPECT_EQ(u.size(), 2);
         EXPECT_EQ(u[0], 2);
@@ -87,14 +110,63 @@ DEF_test(array){
         EXPECT_EQ(u[2], 3);
     }
 
-    DEF_case(modify) {
-        int x[4] = { 1, 2, 3, 4 };
-        co::array<int> v(x, 4);
-        EXPECT_EQ(v.size(), 4);
+    DEF_case(append) {
+        co::array<int> v(4);
+        v.append(v);
+        EXPECT_EQ(v.size(), 0);
+
+        v.append(std::move(v));
+        EXPECT_EQ(v.size(), 0);
+
+        v.append(1);
+        EXPECT_EQ(v.size(), 1);
         EXPECT_EQ(v[0], 1);
-        EXPECT_EQ(v[1], 2);
-        EXPECT_EQ(v[2], 3);
-        EXPECT_EQ(v[3], 4);
+
+        v.append(3, 8);
+        EXPECT_EQ(v.size(), 4);
+        EXPECT_EQ(v[1], 8);
+        EXPECT_EQ(v[3], 8);
+
+        v.append(v);
+        EXPECT_EQ(v.size(), 8);
+        EXPECT_EQ(v[4], 1);
+        EXPECT_EQ(v[5], 8);
+        EXPECT_EQ(v[7], 8);
+
+        v.resize(4);
+        v.append(std::move(v));
+        EXPECT_EQ(v.size(), 8);
+        EXPECT_EQ(v[4], 1);
+        EXPECT_EQ(v[5], 8);
+        EXPECT_EQ(v[7], 8);
+
+        int x[4] = { 7, 7, 7, 7 };
+        v.resize(4);
+        v.append(x, 4);
+        EXPECT_EQ(v.size(), 8);
+        EXPECT_EQ(v[4], 7);
+        EXPECT_EQ(v[7], 7);
+
+        v.safe_append(v.data() + 4, 4);
+        EXPECT_EQ(v.size(), 12);
+        EXPECT_EQ(v[8], 7);
+        EXPECT_EQ(v[11], 7);
+
+        fastring s("hello");
+        const auto p = s.data();
+        co::array<fastring> u;
+        u.append(std::move(s));
+        EXPECT_EQ(u[0].data(), p);
+
+        co::array<fastring> w;
+        w.append(std::move(u));
+        EXPECT_EQ(w[0].data(), p);
+        EXPECT_EQ(u[0].capacity(), 0);
+    }
+
+    DEF_case(modify) {
+        co::array<int> v = { 1, 2, 3, 4 };
+        EXPECT_EQ(v.size(), 4);
 
         v.resize(2);
         EXPECT_EQ(v.size(), 2);
@@ -105,25 +177,31 @@ DEF_test(array){
         EXPECT_EQ(v.size(), 4);
         EXPECT_EQ(v[3], 8);
 
-        v.push_back(10, 6);
-        EXPECT_EQ(v.size(), 14);
-        EXPECT_EQ(v[4], 6);
-        EXPECT_EQ(v[13], 6);
-
         v.remove_back();
-        EXPECT_EQ(v.size(), 13);
+        EXPECT_EQ(v.size(), 3);
 
-        EXPECT_EQ(v.pop_back(), 6);
-        EXPECT_EQ(v.size(), 12);
+        EXPECT_EQ(v.pop_back(), 7);
+        EXPECT_EQ(v.size(), 2);
 
-        v.resize(4);
+        v.push_back(3);
+        v.push_back(4);
         v.remove(1);
         EXPECT_EQ(v.size(), 3);
         EXPECT_EQ(v[0], 1);
-        EXPECT_EQ(v[1], 8);
-        EXPECT_EQ(v[2], 7);
-
+        EXPECT_EQ(v[1], 4);
+        EXPECT_EQ(v[2], 3);
         EXPECT_EQ(*v.begin(), 1);
+
+        fastring s("hello");
+        const auto p = s.data();
+        co::array<fastring> a(8);
+        a.push_back(std::move(s));
+        EXPECT_EQ(a.size(), 1);
+        EXPECT_EQ(a[0].data(), p);
+
+        fastring t = a.pop_back();
+        EXPECT(a.empty());
+        EXPECT_EQ(t.data(), p);
     }
 }
 
