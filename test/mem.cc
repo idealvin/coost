@@ -193,7 +193,7 @@ void test_unordered_map() {
     COUT << s << '\n';
 }
 
-::Mutex gMtx;
+std::mutex gMtx;
 co::array<void*> gA(1024 * 1024);
 co::array<void*> gB(1024 * 1024);
 
@@ -202,7 +202,7 @@ void test_xalloc() {
         for (int k = 0; k < FLG_m; ++k) {
             void* p = co::alloc(32);
             {
-                ::MutexGuard g(gMtx);
+                std::lock_guard<std::mutex> g(gMtx);
                 gA.push_back(p);
             }
         }
@@ -214,7 +214,7 @@ void test_xfree() {
     size_t n = FLG_m * FLG_n;
     while (true) {
         {
-            ::MutexGuard g(gMtx);
+            std::lock_guard<std::mutex> g(gMtx);
             gB.swap(gA);
         }
         if (!gB.empty()) {
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
         test_unordered_map();
 
         for (int i = 0; i < FLG_t; ++i) {
-            Thread(test_fun, i).detach();
+            std::thread(test_fun, i).detach();
         }
     } else {
         go(test_xalloc);
