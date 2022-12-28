@@ -1,6 +1,5 @@
 #include "co/cout.h"
 #include "co/co.h"
-#include "co/thread.h"
 
 int main(int argc, char** argv) {
     co::WaitGroup wg;
