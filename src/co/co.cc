@@ -1,12 +1,14 @@
 #include "scheduler.h"
 #include "co/stl.h"
 
+#ifndef _WIN32
 #ifdef __linux__
 #include <unistd.h>       // for syscall()
 #include <sys/syscall.h>  // for SYS_xxx definitions
 #include <time.h>         // for clock_gettime
 #else
 #include <sys/time.h>     // for gettimeofday
+#endif
 #endif
 
 namespace co {
