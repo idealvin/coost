@@ -92,7 +92,7 @@ void TaskedImpl::loop() {
         }
 
         if (!tmp.empty()) {
-            _tasks.push_back(tmp.data(), tmp.size());
+            _tasks.append(tmp);
             tmp.clear();
         }
 
