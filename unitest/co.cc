@@ -1,6 +1,5 @@
 #include "co/unitest.h"
 #include "co/co.h"
-#include "co/thread.h"
 
 namespace test {
 
@@ -115,7 +114,7 @@ DEF_test(co) {
         }
 
         for (int i = 0; i < 4; ++i) {
-            Thread([wg, m, &v]() {
+            std::thread([wg, m, &v]() {
                 co::MutexGuard g(m);
                 ++v;
                 wg.done();

@@ -9,7 +9,7 @@ namespace co {
 
 /**
  * a general pool for coroutine programming
- *   - Pool is designed to be coroutine-safe, users do not need to lock it.
+ *   - It is designed to be coroutine-safe, users do not need to lock it.
  *   - It stores void* pointers internally and it does not care about the actual
  *     type of the pointer.
  *   - It is usually used as a connection pool in network programming.
@@ -17,11 +17,11 @@ namespace co {
  *   - NOTE: Each thread holds its own pool, users SHOULD call pop() and push() 
  *     in the same thread.
  */
-class __coapi Pool {
+class __coapi pool {
   public:
     // default constructor without ccb and dcb 
-    Pool();
-    ~Pool();
+    pool();
+    ~pool();
 
     /**
      * the constructor with parameters
@@ -34,15 +34,15 @@ class __coapi Pool {
      *             this argument is ignored if dcb is NULL.
      *             default: -1.
      */
-    Pool(std::function<void* ()>&& ccb, std::function<void(void*)>&& dcb, size_t cap=(size_t)-1);
+    pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap=(size_t)-1);
 
-    Pool(Pool&& p) : _p(p._p) { p._p = 0; }
+    pool(pool&& p) : _p(p._p) { p._p = 0; }
 
-    Pool(const Pool& p) : _p(p._p) {
+    pool(const pool& p) : _p(p._p) {
         atomic_inc(_p, mo_relaxed);
     }
 
-    void operator=(const Pool&) = delete;
+    void operator=(const pool&) = delete;
 
     /**
      * pop an element from the pool of the current thread 
@@ -80,77 +80,61 @@ class __coapi Pool {
 };
 
 /**
- * guard to push an element back to co::Pool
- *   - Pool::pop() is called in the constructor.
- *   - Pool::push() is called in the destructor.
+ * guard to push an element back to co::pool
+ *   - pool::pop() is called in the constructor.
+ *   - pool::push() is called in the destructor.
  *   - operator->() is overloaded, so it has a behavior similar to std::unique_ptr.
  *
  *   - usage:
  *     struct T { void hello(); };
- *     co::Pool pool(
+ *     co::pool pool(
  *         []() { return (void*) new T; },  // ccb
  *         [](void* p) { delete (T*)p; }    // dcb
  *     );
  *
- *     co::PoolGuard<T> g(pool);
+ *     co::pool_guard<T> g(pool);
  *     g->hello();
  */
 template<typename T, typename D=std::default_delete<T>>
-class PoolGuard {
+class pool_guard {
   public:
-    explicit PoolGuard(const Pool& pool) : _pool(pool) {
-        _p = (T*)_pool.pop();
+    explicit pool_guard(const pool& p) : _p(p) {
+        _e = (T*)_p.pop();
     }
 
-    explicit PoolGuard(const Pool* pool) : _pool(*pool) {
-        _p = (T*)_pool.pop();
+    explicit pool_guard(const pool* p) : pool_guard(*p) {}
+
+    ~pool_guard() { _p.push(_e); }
+
+    // overload operator-> for pool_guard
+    T* operator->() const { assert(_e); return _e; }
+    T& operator*()  const { assert(_e); return *_e; }
+
+    bool operator==(T* e) const noexcept { return _e == e; }
+    bool operator!=(T* e) const noexcept { return _e != e; }
+    bool operator!() const noexcept { return _e == NULL; }
+    explicit operator bool() const noexcept { return _e != NULL; }
+
+    // get the pointer owns by pool_guard
+    T* get() const noexcept { return _e; }
+
+    // reset the pointer owns by pool_guard
+    void reset(T* e = 0) {
+        if (_e != e) { if (_e) D()(_e); _e = e; }
     }
 
-    ~PoolGuard() {
-        _pool.push(_p);
-    }
-
-    /**
-     * overload operator-> for PoolGuard
-     *
-     * @return  a pointer to an object of class T.
-     */
-    T* operator->() const { assert(_p); return _p; }
-    T& operator*()  const { assert(_p); return *_p; }
-
-    bool operator==(T* p) const { return _p == p; }
-    bool operator!=(T* p) const { return _p != p; }
-    bool operator!() const { return _p == NULL; }
-    explicit operator bool() const { return _p != NULL; }
-
-    /**
-     * get the pointer owns by PoolGuard
-     *
-     * @return  a pointer to an object of class T
-     */
-    T* get() const { return _p; }
-
-    /**
-     * reset the pointer owns by PoolGuard
-     *
-     * @param p  a pointer to an object of class T, it MUST be created with operator new.
-     *           default: NULL.
-     */
-    void reset(T* p = 0) {
-        if (_p != p) { if (_p) D()(_p); _p = p; }
-    }
-
-    /**
-     * assign a new pointer to PoolGuard
-     *
-     * @param p  a pointer to an object of class T, it MUST be created with operator new.
-     */
-    void operator=(T* p) { this->reset(p); }
+    // assign a new pointer to pool_guard
+    void operator=(T* e) { this->reset(e); }
 
   private:
-    const Pool& _pool;
-    T* _p;
-    DISALLOW_COPY_AND_ASSIGN(PoolGuard);
+    const pool& _p;
+    T* _e;
+    DISALLOW_COPY_AND_ASSIGN(pool_guard);
 };
 
+using Pool = pool;
+
+template<typename T, typename D=std::default_delete<T>>
+using PoolGuard = pool_guard<T, D>;
+ 
 } // co

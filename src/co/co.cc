@@ -210,9 +210,10 @@ mutex::mutex() {
 }
 
 mutex::~mutex() {
-    if (atomic_dec(_p, mo_acq_rel) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((mutex_impl*)(_p + 2))->~mutex_impl();
         co::free(_p, sizeof(mutex_impl) + 8);
+        _p = 0;
     }
 }
 
@@ -353,9 +354,10 @@ event::event(bool manual_reset, bool signaled) {
 }
 
 event::~event() {
-    if (atomic_dec(_p, mo_acq_rel) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((event_impl*)(_p + 2))->~event_impl();
         co::free(_p, sizeof(event_impl) + 8);
+        _p = 0;
     }
 }
 
@@ -466,9 +468,10 @@ wait_group::wait_group(uint32 n) {
 }
 
 wait_group::~wait_group() {
-    if (atomic_dec(_p, mo_acq_rel) == 0) {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((event_impl*)(_p + 2))->~event_impl();
         co::free(_p, sizeof(event_impl) + 8);
+        _p = 0;
     }
 }
 
@@ -484,131 +487,6 @@ void wait_group::done() const {
 
 void wait_group::wait() const {
     ((event_impl*)(_p + 2))->wait((uint32)-1);
-}
-
-class PoolImpl {
-  public:
-    typedef co::array<void*> V;
-
-    PoolImpl()
-        : _pools(co::scheduler_num(), nullptr), _maxcap((size_t)-1) {
-    }
-
-    PoolImpl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _pools(co::scheduler_num(), nullptr), _maxcap(cap), 
-          _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
-    }
-
-    ~PoolImpl() { this->clear(); }
-
-    void* pop();
-
-    void push(void* p);
-
-    void clear();
-
-    size_t size() const;
-
-  private:
-    co::array<V*> _pools;
-    size_t _maxcap;
-    std::function<void*()> _ccb;
-    std::function<void(void*)> _dcb;
-};
-
-inline void* PoolImpl::pop() {
-    CHECK(gSched) << "must be called in coroutine..";
-    auto& v = _pools[gSched->id()];
-    if (!v) { v = co::make<V>(1024); assert(v); }
-    if (!v->empty()) {
-        return v->pop_back();
-    } else {
-        return _ccb ? _ccb() : 0;
-    }
-}
-
-inline void PoolImpl::push(void* p) {
-    if (!p) return; // ignore null pointer
-    CHECK(gSched) << "must be called in coroutine..";
-    auto& v = _pools[gSched->id()];
-    if (!v) { v = co::make<V>(1024); assert(v); }
-    if (v->size() < _maxcap || !_dcb) {
-        v->push_back(p);
-    } else {
-        _dcb(p);
-    }
-}
-
-// Create n coroutines to clear all the pools, n is number of schedulers.
-// clear() blocks untils all the coroutines are done.
-void PoolImpl::clear() {
-    if (co::is_active()) {
-        auto& scheds = co::schedulers();
-        wait_group wg;
-        wg.add((uint32)scheds.size());
-
-        for (auto& s : scheds) {
-            s->go([this, wg]() {
-                auto& v = this->_pools[gSched->id()];
-                if (v) {
-                    if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                    co::del(v); v = nullptr;
-                }
-                wg.done();
-            });
-        }
-
-        wg.wait();
-    } else {
-        for (auto& v : _pools) {
-            if (v) {
-                if (this->_dcb) for (auto& e : *v) this->_dcb(e);
-                co::del(v); v = nullptr;
-            }
-        }
-    }
-}
-
-inline size_t PoolImpl::size() const {
-    CHECK(gSched) << "must be called in coroutine..";
-    auto& v = _pools[gSched->id()];
-    return v ? v->size() : 0;
-}
-
-// memory: |4(refn)|4|PoolImpl|
-Pool::Pool() {
-    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
-    _p[0] = 1;
-    new (_p + 2) PoolImpl();
-}
-
-Pool::~Pool() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((PoolImpl*)(_p + 2))->~PoolImpl();
-        co::free(_p, sizeof(PoolImpl) + 8);
-    }
-}
-
-Pool::Pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = (uint32*) co::alloc(sizeof(PoolImpl) + 8);
-    _p[0] = 1;
-    new (_p + 2) PoolImpl(std::move(ccb), std::move(dcb), cap);
-}
-
-void* Pool::pop() const {
-    return ((PoolImpl*)(_p + 2))->pop();
-}
-
-void Pool::push(void* p) const {
-    ((PoolImpl*)(_p + 2))->push(p);
-}
-
-void Pool::clear() const {
-    ((PoolImpl*)(_p + 2))->clear();
-}
-
-size_t Pool::size() const {
-    return ((PoolImpl*)(_p + 2))->size();
 }
 
 namespace xx {
@@ -905,6 +783,7 @@ pipe::~pipe() {
     if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
         ((pipe_impl*)(_p + 2))->~pipe_impl();
         co::free(_p, sizeof(pipe_impl) + 8);
+        _p = 0;
     }
 }
 
@@ -916,6 +795,124 @@ void pipe::write(void* p, int v) const {
     ((pipe_impl*)(_p + 2))->write(p, v);
 }
 
+bool pipe::timeout() const {
+    return ((pipe_impl*)(_p + 2))->timeout();
+}
+
 } // xx
+
+class pool_impl {
+  public:
+    typedef co::array<void*> V;
+
+    pool_impl()
+        : _pools(co::scheduler_num(), 0), _maxcap((size_t)-1) {
+    }
+
+    pool_impl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
+        : _pools(co::scheduler_num(), 0), _maxcap(cap), 
+          _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
+    }
+
+    ~pool_impl() { this->clear(); }
+
+    void* pop();
+
+    void push(void* p);
+
+    void clear();
+
+    size_t size() const;
+
+  private:
+    co::array<V> _pools;
+    size_t _maxcap;
+    std::function<void*()> _ccb;
+    std::function<void(void*)> _dcb;
+};
+
+inline void* pool_impl::pop() {
+    auto s = gSched;
+    CHECK(s) << "must be called in coroutine..";
+    auto& v = _pools[s->id()];
+    return !v.empty() ? v.pop_back() : (_ccb ? _ccb() : nullptr);
+}
+
+inline void pool_impl::push(void* p) {
+    if (p) {
+        auto s = gSched;
+        CHECK(s) << "must be called in coroutine..";
+        auto& v = _pools[s->id()];
+        (v.size() < _maxcap || !_dcb) ? v.push_back(p) : _dcb(p);
+    }
+}
+
+// Create n coroutines to clear all the pools, n is number of schedulers.
+// clear() blocks untils all the coroutines are done.
+void pool_impl::clear() {
+    if (co::is_active()) {
+        auto& scheds = co::schedulers();
+        co::wait_group wg((uint32)scheds.size());
+
+        for (auto& s : scheds) {
+            s->go([this, wg]() {
+                auto& v = this->_pools[gSched->id()];
+                if (this->_dcb) for (auto& e : v) this->_dcb(e);
+                v.clear();
+                wg.done();
+            });
+        }
+
+        wg.wait();
+    } else {
+        for (auto& v : _pools) {
+            if (this->_dcb) for (auto& e : v) this->_dcb(e);
+            v.clear();
+        }
+    }
+}
+
+inline size_t pool_impl::size() const {
+    auto s = gSched;
+    CHECK(s) << "must be called in coroutine..";
+    return _pools[s->id()].size();
+}
+
+// memory: |4(refn)|4|pool_impl|
+pool::pool() {
+    _p = (uint32*) co::alloc(sizeof(pool_impl) + 8);
+    _p[0] = 1;
+    new (_p + 2) pool_impl();
+}
+
+pool::~pool() {
+    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
+        ((pool_impl*)(_p + 2))->~pool_impl();
+        co::free(_p, sizeof(pool_impl) + 8);
+        _p = 0;
+    }
+}
+
+pool::pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
+    _p = (uint32*) co::alloc(sizeof(pool_impl) + 8);
+    _p[0] = 1;
+    new (_p + 2) pool_impl(std::move(ccb), std::move(dcb), cap);
+}
+
+void* pool::pop() const {
+    return ((pool_impl*)(_p + 2))->pop();
+}
+
+void pool::push(void* p) const {
+    ((pool_impl*)(_p + 2))->push(p);
+}
+
+void pool::clear() const {
+    ((pool_impl*)(_p + 2))->clear();
+}
+
+size_t pool::size() const {
+    return ((pool_impl*)(_p + 2))->size();
+}
 
 } // co

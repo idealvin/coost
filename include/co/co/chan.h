@@ -30,6 +30,9 @@ class __coapi pipe {
 
     // write a block
     void write(void* p, int v) const;
+
+    // return true if the read or write operation timed out
+    bool timeout() const;
   
   private:
     uint32* _p;
@@ -55,7 +58,8 @@ class chan {
                   new (dst) T(std::move(*static_cast<T*>(src)));
                   break;
                 case 2:
-                  *static_cast<T*>(dst) = std::move(*static_cast<T*>(src));
+                  static_cast<T*>(dst)->~T();
+                  new (dst) T(std::move(*static_cast<T*>(src)));
                   static_cast<T*>(src)->~T();
                   break;
               }
@@ -71,15 +75,20 @@ class chan {
     void operator=(const chan&) = delete;
 
     void operator<<(const T& x) const {
-        _p.write(&x, 0);
+        _p.write((void*)&x, 0);
     }
 
     void operator<<(T&& x) const {
-        _p.write(&x, 1);
+        _p.write((void*)&x, 1);
     }
 
     void operator>>(T& x) const {
-        _p.read(&x, 2);
+        _p.read((void*)&x, 2);
+    }
+
+    // return true if the read or write operation timed out
+    bool timeout() const {
+        return _p.timeout();
     }
 
   private:
