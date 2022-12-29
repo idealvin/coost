@@ -183,7 +183,7 @@ void file::close() {
     }
 }
 
-void file::seek(int64 off, file::seekfrom_t whence) {
+void file::seek(int64 off, int whence) {
     static int seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
     fctx* p = (fctx*)_p;
     if (p && p->fd != nullfd) {
