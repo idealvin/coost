@@ -3,6 +3,6 @@
 
 int main(int argc, char** argv) {
     flag::init(argc, argv);
-    unitest::run_all_tests();
+    unitest::run_tests();
     return 0;
 }
