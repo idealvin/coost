@@ -11,6 +11,7 @@ inline co::array<Test>& tests() {
 
 bool add_test(const char* name, bool& e, void(*f)(Test&)) {
     tests().push_back(Test(name, e, f));
+    return true;
 }
 
 } // xx
@@ -64,7 +65,6 @@ int run_tests() {
         for (auto& t : tests) {
             if (!t.failed.empty()) {
                 cout << color::red << "In test " << t.name << ":\n" << color::deflt;
-
                 for (auto& f : t.failed) {
                     if (strcmp(last_case, f.c) != 0) {
                         last_case = f.c;
