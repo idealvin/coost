@@ -1,10 +1,9 @@
 # coost
 
 [English](readme.md) | 简体中文
-
-[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/coost/Linux/master.svg?logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
-[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/coost/Windows/master.svg?logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
-[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/coost/macOS/master.svg?logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Linux Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
+[![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![Mac Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
