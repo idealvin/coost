@@ -1,7 +1,7 @@
 #pragma once
 
 #include "def.h"
-#include "stl.h"
+#include "array.h"
 #include "time.h"
 
 namespace bm {
@@ -24,7 +24,7 @@ struct Group {
     int iters;
     int64 ns;
     Timer timer;
-    co::vector<Result> res;
+    co::array<Result> res;
 };
 
 __coapi bool add_group(const char* name, void (*f)(Group&));
