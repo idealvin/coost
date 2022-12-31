@@ -17,7 +17,7 @@ namespace xx {
 
 struct Failed {
     Failed(const char* c, const char* file, int line, fastring&& msg)
-        : file(file), line(line), c(c), msg(std::move(msg)) {
+        : c(c), file(file), line(line), msg(std::move(msg)) {
     }
     const char* c; // case name
     const char* file;
