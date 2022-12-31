@@ -173,7 +173,12 @@ bool file::open(const char* path, char mode) {
     }
 
     p->fd = xx::open(path, mode);
-    return p->fd != nullfd;
+    if (p->fd != nullfd) {
+        return true;
+    } else {
+        this->_open_errno = errno;
+        return false;
+    };
 }
 
 void file::close() {
