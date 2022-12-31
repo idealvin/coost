@@ -1,6 +1,6 @@
 file(GLOB_RECURSE ALL_TEST_FILES "*.cc")
 
-set(NON_STANDALONE_TESTS "http_serv.cc" "rpc.cc" "udp.cc" "ssl.cc")
+set(NON_STANDALONE_TESTS "http_serv.cc" "rpc.cc" "udp.cc" "ssl.cc" "stack.cc")
 
 foreach(TEST_FILE ${ALL_TEST_FILES})
     get_filename_component(TEST_FILE_NAME ${TEST_FILE} NAME)
