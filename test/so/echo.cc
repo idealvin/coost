@@ -2,7 +2,7 @@
 
 DEF_string(ip, "127.0.0.1", "ip");
 DEF_int32(port, 9988, "port");
-DEF_int32(c, -10000, "client num: c = 0, run server only; c > 0, run client only with |c| connections; c < 0, run both server and client, with |c| client connections.");
+DEF_int32(c, -256, "client num: c = 0, run server only; c > 0, run client only with |c| connections; c < 0, run both server and client, with |c| client connections.");
 DEF_int32(l, 4096, "message length");
 DEF_int32(t, 10, "test time in seconds");
 
@@ -89,6 +89,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < FLG_t; ++i) {
             sleep::sec(1);
             std::cerr << ".";
+            std::cerr.flush();
         }
         std::cerr << std::endl;
         atomic_store(&g_stop, true);
