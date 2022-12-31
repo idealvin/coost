@@ -135,6 +135,6 @@ int main(int argc, char** argv) {
     atomic_store(&g_stopped, true);
     delete gPool;
 
-    sleep::sec(5);
+    sleep::sec(1);
     return 0;
 }
