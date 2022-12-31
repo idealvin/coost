@@ -10,6 +10,11 @@ namespace co {
  * A fixed-size table.
  *   - It stores elements in a 2-dimensional array.
  *   - Memory of the elements are zero-cleared.
+ * 
+ *   - usage:
+ *     co::table<int> t(12, 5); // 128k(4k x 32) elements can be stored in the table
+ *     int v = t[88];           // v is 0 as the internal memory is zero-cleared
+ *     t[32] = 77;
  */
 template <typename T>
 class table {
@@ -21,8 +26,8 @@ class table {
      */
     table(int xbits, int ybits)
         : _xbits(xbits),
-          _xsize((size_t)(1ULL << xbits)),
-          _ysize((size_t)(1ULL << ybits)), _i(1) {
+          _xsize(static_cast<size_t>(1) << xbits),
+          _ysize(static_cast<size_t>(1) << ybits), _i(1) {
         _v = (T**) ::calloc(_ysize, sizeof(T*));
         _v[0] = (T*) ::calloc(_xsize, sizeof(T));
     }
