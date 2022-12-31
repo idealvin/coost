@@ -60,7 +60,6 @@ const char* strerror(int e) {
 
 #else
 #include <errno.h>
-#include <string.h>
 #include <mutex>
 
 namespace co {
