@@ -197,7 +197,7 @@ class array {
         }
     }
 
-    // append an array, elements in @x will be moved to this array
+    // append an array, elements in @x will be moved to the end of this array
     void append(array&& x) {
         if (&x != this) {
             this->reserve(_size + x.size());
@@ -221,6 +221,13 @@ class array {
             this->_copy_n(_p + _size, _p + x, n);
             _size += n;
         }
+    }
+
+    // insert a new element (construct with args x...) at the back
+    template <typename ... X>
+    void emplace(X&& ... x) {
+        this->reserve(_size + 1);
+        new (_p + _size++) T(std::forward<X>(x)...);
     }
 
     void push_back(const T& x) { this->append(x); }

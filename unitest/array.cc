@@ -161,6 +161,7 @@ DEF_test(array){
         co::array<fastring> w;
         w.append(std::move(u));
         EXPECT_EQ(w[0].data(), p);
+        EXPECT_EQ(u[0].size(), 0);
         EXPECT_EQ(u[0].capacity(), 0);
     }
 
@@ -202,6 +203,14 @@ DEF_test(array){
         fastring t = a.pop_back();
         EXPECT(a.empty());
         EXPECT_EQ(t.data(), p);
+
+        a.emplace(3, 'x');
+        EXPECT_EQ(a.size(), 1);
+        EXPECT_EQ(a[0], "xxx");
+
+        a.emplace("8888");
+        EXPECT_EQ(a.size(), 2);
+        EXPECT_EQ(a.back(), "8888");
     }
 }
 
