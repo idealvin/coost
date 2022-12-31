@@ -6,6 +6,8 @@ DEF_bool(t, false, "if true, run test in thread");
 DEF_bool(m, false, "if true, run test in main thread");
 DEF_bool(check, false, "if true, run CHECK test");
 
+co::WaitGroup wg;
+
 void a() {
     char* p = 0;
     if (FLG_check) {
@@ -13,6 +15,7 @@ void a() {
     } else {
         *p = 'c';
     }
+    wg.done();
 }
 
 void b() {
@@ -26,6 +29,7 @@ void c() {
 int main(int argc, char** argv) {
     flag::init(argc, argv);
 
+    wg.add();
     if (FLG_m) {
         c();
     } else if (FLG_t) {
@@ -34,7 +38,6 @@ int main(int argc, char** argv) {
         go(c);
     }
 
-    while (1) sleep::sec(1024);
-
+    wg.wait();
     return 0;
 }
