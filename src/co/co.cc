@@ -495,8 +495,8 @@ namespace xx {
 
 class pipe_impl {
   public:
-    pipe_impl(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::F&& f)
-        : _f(std::move(f)), _buf_size(buf_size), _blk_size(blk_size), 
+    pipe_impl(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::cpmv_t&& c, pipe::destruct_t&& d)
+        : _c(std::move(c)), _d(std::move(d)), _buf_size(buf_size), _blk_size(blk_size), 
           _rx(0), _wx(0), _ms(ms), _full(false), _has_cv(false), _timeout(false) {
         _buf = (char*) co::alloc(_buf_size);
     }
@@ -506,7 +506,7 @@ class pipe_impl {
         if (_has_cv) xx::cv_free(&_cv);
     }
 
-    void read(void* p, int v);
+    void read(void* p);
     void write(void* p, int v);
     bool timeout() const { return _timeout; }
 
@@ -543,14 +543,16 @@ class pipe_impl {
     }
 
   private:
-    void _read_block(void* p, int v) {
-        _f(p, _buf + _rx, v);
+    void _read_block(void* p) {
+        _d(p);
+        _c(p, _buf + _rx, 1);
+        _d(_buf + _rx);
         _rx += _blk_size;
         if (_rx == _buf_size) _rx = 0;
     }
 
     void _write_block(void* p, int v) {
-        _f(_buf + _wx, p, v);
+        _c(_buf + _wx, p, v);
         _wx += _blk_size;
         if (_wx == _buf_size) _wx = 0;
     }
@@ -558,7 +560,8 @@ class pipe_impl {
   private:
     xx::mutex _m;
     xx::cv_t _cv;
-    xx::pipe::F _f;
+    xx::pipe::cpmv_t _c;
+    xx::pipe::destruct_t _d;
     co::deque<waitx*> _wq;
     char* _buf;       // buffer
     uint32 _buf_size; // buffer size
@@ -571,20 +574,20 @@ class pipe_impl {
     bool _timeout;
 };
 
-void pipe_impl::read(void* p, int v) {
+void pipe_impl::read(void* p) {
     auto s = gSched;
     _m.lock();
 
     // buffer is neither empty nor full
     if (_rx != _wx) {
-        this->_read_block(p, v);
+        this->_read_block(p);
         _m.unlock();
         goto done;
     }
 
     // buffer is full
     if (_full) {
-        this->_read_block(p, v);
+        this->_read_block(p);
 
         while (!_wq.empty()) {
             waitx* w = _wq.front(); // wait for write
@@ -592,7 +595,8 @@ void pipe_impl::read(void* p, int v) {
 
             // TODO: is mo_relaxed safe here?
             if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
-                this->_write_block(w->buf, w->x.v);
+                this->_write_block(w->buf, w->x.v & 1);
+                if (w->x.v & 2) _d(w->buf);
 
                 if (w->co) {
                     _m.unlock();
@@ -605,6 +609,7 @@ void pipe_impl::read(void* p, int v) {
                 goto done;
 
             } else { /* timeout */
+                if (w->x.v & 2) _d(w->buf);
                 co::free(w, w->len);
             }
         }
@@ -618,6 +623,7 @@ void pipe_impl::read(void* p, int v) {
     if (s) {
         auto co = s->running();
         waitx* w = this->create_waitx(co, p);
+        w->x.v = (w->buf != p ? 2 : 0);
         _wq.push_back(w);
         _m.unlock();
 
@@ -629,7 +635,11 @@ void pipe_impl::read(void* p, int v) {
 
         co->waitx = 0;
         if (!s->timeout()) {
-            if (w->buf != p) _f(p, w->buf, v);
+            if (w->buf != p) {
+                _d(p);
+                _c(p, w->buf, 1); // mv
+                _d(w->buf);
+            }
             co::free(w, w->len);
             goto done;
         }
@@ -696,10 +706,12 @@ void pipe_impl::write(void* p, int v) {
             if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                 if (w->co) {
                     _m.unlock();
-                    _f(w->buf, p, v);
+                    if (!w->x.v) _d(w->buf);
+                    _c(w->buf, p, v);
                     ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
                 } else {
-                    _f(w->buf, p, v);
+                    _d(w->buf);
+                    _c(w->buf, p, v);
                     w->x.done = true;
                     _m.unlock();
                     xx::cv_notify_all(&_cv);
@@ -721,8 +733,12 @@ void pipe_impl::write(void* p, int v) {
     if (s) {
         auto co = s->running();
         waitx* w = this->create_waitx(co, p);
-        if (w->buf != p) _f(w->buf, p, v);
-        w->x.v = (uint8)v;
+        if (w->buf != p) {
+            _c(w->buf, p, v);
+            w->x.v = 1 | 2;
+        } else {
+            w->x.v = (uint8)v;
+        }
         _wq.push_back(w);
         _m.unlock();
 
@@ -775,10 +791,10 @@ void pipe_impl::write(void* p, int v) {
     if (_timeout) _timeout = false;
 }
 
-pipe::pipe(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::F&& f) {
+pipe::pipe(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::cpmv_t&& c, pipe::destruct_t&& d) {
     _p = (uint32*) co::alloc(sizeof(pipe_impl) + 8);
     _p[0] = 1;
-    new (_p + 2) pipe_impl(buf_size, blk_size, ms, std::move(f));
+    new (_p + 2) pipe_impl(buf_size, blk_size, ms, std::move(c), std::move(d));
 }
 
 pipe::~pipe() {
@@ -789,8 +805,8 @@ pipe::~pipe() {
     }
 }
 
-void pipe::read(void* p, int v) const {
-    ((pipe_impl*)(_p + 2))->read(p, v);
+void pipe::read(void* p) const {
+    ((pipe_impl*)(_p + 2))->read(p);
 }
 
 void pipe::write(void* p, int v) const {

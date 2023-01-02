@@ -3,18 +3,48 @@
 
 namespace test {
 
+int gc = 0;
+int gd = 0;
+
+struct TestChan {
+    explicit TestChan(int v = 0) : v(v) {
+        atomic_inc(&gc, mo_relaxed);
+    }
+
+    TestChan(const TestChan& c) : v(c.v) {
+        atomic_inc(&gc, mo_relaxed);
+    }
+
+    TestChan(TestChan&& c) : v(c.v) {
+        c.v = 0;
+        atomic_inc(&gc, mo_relaxed);
+    }
+
+    ~TestChan() {
+        if (v) v = 0;
+        atomic_inc(&gd, mo_relaxed);
+    }
+
+    int v;
+};
+
 DEF_test(co) {
     int v = 0;
 
     DEF_case(wait_group) {
-        co::WaitGroup wg;
+        co::wait_group wg;
         wg.add(8);
-        for (int i = 0; i < 8; ++i) {
+        for (int i = 0; i < 7; ++i) {
             go([wg, &v]() {
                 atomic_inc(&v);
                 wg.done();
             });
         }
+
+        std::thread([wg, &v]() {
+            atomic_inc(&v);
+            wg.done();
+        }).detach();
 
         wg.wait();
         EXPECT_EQ(v, 8);
@@ -23,9 +53,8 @@ DEF_test(co) {
 
     DEF_case(event) {
         {
-            co::Event ev;
-            co::WaitGroup wg;
-            wg.add(2);
+            co::event ev;
+            co::wait_group wg(2);
 
             go([wg, ev, &v]() {
                 ev.wait();
@@ -50,9 +79,9 @@ DEF_test(co) {
             EXPECT_EQ(ev.wait(1), false);
         }
         {
-            co::Event ev(true); // manual reset
-            co::WaitGroup wg;
-            wg.add(1);
+            co::event ev(true, true); // manual reset
+            co::wait_group wg(1);
+
             go([wg, ev, &v]() {
                 if (ev.wait(32)) {
                     ev.reset();
@@ -61,9 +90,10 @@ DEF_test(co) {
                 wg.done();
             });
 
-            ev.signal();
             wg.wait();
             EXPECT_EQ(v, 1);
+            v = 0;
+
             EXPECT_EQ(ev.wait(1), false);
             ev.signal();
             EXPECT_EQ(ev.wait(1), true);
@@ -74,29 +104,9 @@ DEF_test(co) {
         }
     }
 
-    DEF_case(channel) {
-        co::Chan<int> ch;
-        co::WaitGroup wg;
-        wg.add(2);
-
-        go([wg, ch]() {
-            ch << 23;
-            wg.done();
-        });
-
-        go([wg, ch, &v]() {
-            ch >> v;
-            wg.done();
-        });
-
-        wg.wait();
-        EXPECT_EQ(v, 23);
-        v = 0;
-    }
-
     DEF_case(mutex) {
-        co::Mutex m;
-        co::WaitGroup wg;
+        co::mutex m;
+        co::wait_group wg;
         wg.add(8);
 
         m.lock();
@@ -107,7 +117,7 @@ DEF_test(co) {
 
         for (int i = 0; i < 4; ++i) {
             go([wg, m, &v]() {
-                co::MutexGuard g(m);
+                co::mutex_guard g(m);
                 ++v;
                 wg.done();
             });
@@ -115,7 +125,7 @@ DEF_test(co) {
 
         for (int i = 0; i < 4; ++i) {
             std::thread([wg, m, &v]() {
-                co::MutexGuard g(m);
+                co::mutex_guard g(m);
                 ++v;
                 wg.done();
             }).detach();
@@ -126,22 +136,149 @@ DEF_test(co) {
         v = 0;
     }
 
+    DEF_case(chan) {
+        {
+            co::chan<int> ch;
+            co::wait_group wg(2);
+
+            go([wg, ch]() {
+                ch << 23;
+                wg.done();
+            });
+
+            go([wg, ch, &v]() {
+                ch >> v;
+                wg.done();
+            });
+
+            wg.wait();
+            EXPECT_EQ(v, 23);
+            v = 0;
+        }
+
+        {
+            fastring s("hello");
+            fastring t("again");
+            auto ps = s.data();
+            auto pt = t.data();
+
+            co::chan<fastring> ch(4, 8);
+            ch << s;
+            ch << std::move(t);
+            EXPECT(!ch.timeout());
+
+            EXPECT_EQ(s, "hello");
+            EXPECT_EQ(t.capacity(), 0);
+
+            fastring x;
+            ch >> x;
+            EXPECT_EQ(x, "hello");
+            EXPECT_NE(x.data(), ps);
+
+            ch >> x;
+            EXPECT_EQ(x, "again");
+            EXPECT_EQ(x.data(), pt);
+
+            ch << s << s << s << s;
+            EXPECT(!ch.timeout());
+
+            ch << s;
+            EXPECT(ch.timeout());
+        }
+
+        {
+            TestChan x(7);
+            co::chan<TestChan> ch(4, 32);
+            ch << x;
+            EXPECT_EQ(x.v, 7);
+
+            TestChan y;
+            ch >> y;
+            EXPECT_EQ(y.v, 7);
+
+            ch << std::move(x);
+            EXPECT_EQ(x.v, 0);
+
+            y.v = 0;
+            ch >> y;
+            EXPECT_EQ(y.v, 7);
+
+            // ch is full after this
+            ch << y << y << y << y;
+
+            co::wait_group wg(2);
+            auto s = co::next_scheduler();
+            s->go([ch, wg]() {
+                TestChan x(3);
+                ch << x;
+                wg.done();
+            });
+            s->go([ch, wg]() {
+                TestChan r;
+                ch >> r;
+                wg.done();
+            });
+            wg.wait();
+
+            ch >> y >> y >> y;
+            EXPECT_EQ(y.v, 7);
+
+            ch >> y;
+            EXPECT_EQ(y.v, 3);
+
+            y.v = 0;
+            ch >> y;
+            EXPECT(ch.timeout());
+            EXPECT_EQ(y.v, 0);
+
+            wg.add(2);
+            s->go([ch, wg, &y]() {
+                ch >> y;
+                wg.done();
+            });
+            s->go([ch, wg]() {
+                ch << TestChan(8);
+                wg.done();
+            });
+            wg.wait();
+            EXPECT_EQ(y.v, 8);
+
+            int kk = 0;
+            wg.add(2);
+            std::thread([ch, wg, &y, &kk]() {
+                atomic_store(&kk, 1);
+                ch >> y;
+                wg.done();
+            }).detach();
+
+            go([ch, wg, &kk]() {
+                while (atomic_load(&kk) != 1) co::sleep(1);
+                ch << TestChan(7);
+                wg.done();
+            });
+            wg.wait();
+            EXPECT_EQ(y.v, 7);
+        }
+
+        EXPECT_EQ(gc, gd);
+    }
+
     DEF_case(pool) {
-        co::Pool p(
+        co::pool p(
             []() { return (void*) new int(0); },
             [](void* p) { delete (int*)p; },
             8192
         );
 
         int n = co::scheduler_num();
-        co::vector<int> vi(n, 0);
+        co::array<int> vi(n, 0);
 
-        co::WaitGroup wg;
+        co::wait_group wg;
         wg.add(n);
 
         for (int i = 0; i < n; ++i) {
             go([wg, p, i]() {
-                co::PoolGuard<int> g(p);
+                co::pool_guard<int> g(p);
                 *g = i;
                 wg.done();
             });
