@@ -42,7 +42,7 @@ void gen_cpp(
     // class for service
     fs << "class " << serv << " : public rpc::Service {\n";
     fs << "  public:\n";
-    fs << fastring(' ', 4) << "typedef std::function<void(Json&, Json&)> Fun;\n\n";
+    fs << fastring(' ', 4) << "typedef std::function<void(co::Json&, co::Json&)> Fun;\n\n";
 
     do {
         fs << fastring(' ', 4) << serv << "() {\n";
@@ -66,9 +66,9 @@ void gen_cpp(
        << fastring(' ', 8) << "return _methods;\n"
        << fastring(' ', 4) << "}\n\n";
 
-    // virtual void xxx(Json& req, Json& res)
+    // virtual void xxx(co::Json& req, co::Json& res)
     for (size_t i = 0; i < methods.size(); ++i) {
-        fs << fastring(' ', 4) << "virtual void " << methods[i] << "(Json& req, Json& res) = 0;\n\n";
+        fs << fastring(' ', 4) << "virtual void " << methods[i] << "(co::Json& req, co::Json& res) = 0;\n\n";
     }
 
     fs << "  private:\n";

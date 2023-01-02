@@ -20,7 +20,7 @@ class HelloWorldImpl : public HelloWorld {
     HelloWorldImpl() = default;
     virtual ~HelloWorldImpl() = default;
 
-    virtual void hello(Json& req, Json& res) {
+    virtual void hello(co::Json& req, co::Json& res) {
         res = {
             { "result", {
                 { "hello", 23 }
@@ -28,7 +28,7 @@ class HelloWorldImpl : public HelloWorld {
         };
     }
 
-    virtual void world(Json& req, Json& res) {
+    virtual void world(co::Json& req, co::Json& res) {
         res = {
             { "error", "not supported"}
         };
@@ -40,7 +40,7 @@ class HelloAgainImpl : public HelloAgain {
     HelloAgainImpl() = default;
     virtual ~HelloAgainImpl() = default;
 
-    virtual void hello(Json& req, Json& res) {
+    virtual void hello(co::Json& req, co::Json& res) {
         res = {
             { "result", {
                 { "hello", "again" }
@@ -48,7 +48,7 @@ class HelloAgainImpl : public HelloAgain {
         };
     }
 
-    virtual void again(Json& req, Json& res) {
+    virtual void again(co::Json& req, co::Json& res) {
         res = {
             { "error", "not supported"}
         };
@@ -66,13 +66,13 @@ void test_rpc_client() {
     rpc::Client c(*proto);
 
     for (int i = 0; i < FLG_n; ++i) {
-        Json req, res;
+        co::Json req, res;
         req.add_member("api", "HelloWorld.hello");
         c.call(req, res);
     }
 
     for (int i = 0; i < FLG_n; ++i) {
-        Json req, res;
+        co::Json req, res;
         req.add_member("api", "HelloAgain.again");
     }
 

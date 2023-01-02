@@ -15,8 +15,8 @@ co::WaitGroup wg;
 void client_fun() {
     rpc::Client c(FLG_ip.c_str(), FLG_port, FLG_ssl);
 
-    Json req = json::parse(FLG_data);
-    Json res;
+    co::Json req = json::parse(FLG_data);
+    co::Json res;
     c.call(req, res);
 
     c.close();

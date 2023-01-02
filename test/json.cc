@@ -6,21 +6,21 @@
 
 DEF_uint32(n, 64, "string length for this test");
 
-Json f() {
-    Json v;
+co::Json f() {
+    co::Json v;
     v.add_member("name", "vin");
     v.add_member("age", 23);
 
-    Json a;
+    co::Json a;
     a.push_back(1);
     a.push_back(2);
     a.push_back(3);
     v.add_member("num", a);
 
-    Json o;
+    co::Json o;
     o.add_member("o1", 3.14);
     o.add_member("o2", fastring(FLG_n, 'o'));
-    Json o3;
+    co::Json o3;
     o3.push_back(1);
     o3.push_back(2);
     o3.push_back(3);
@@ -30,8 +30,8 @@ Json f() {
     return v;
 }
 
-Json g() {
-    Json v = {
+co::Json g() {
+    co::Json v = {
         { "name", "vin" },
         { "age", 23 },
         { "num", {1, 2, 3} },
@@ -44,15 +44,15 @@ Json g() {
     return v;
 }
 
-Json h() {
-    return Json()
+co::Json h() {
+    return co::Json()
         .add_member("name", "vin")
         .add_member("age", 23)
-        .add_member("num", Json().push_back(1).push_back(2).push_back(3))
-        .add_member("o", Json()
+        .add_member("num", co::Json().push_back(1).push_back(2).push_back(3))
+        .add_member("o", co::Json()
             .add_member("o1", 3.14)
             .add_member("o2", fastring(FLG_n, 'o'))
-            .add_member("o3", Json()
+            .add_member("o3", co::Json()
                 .push_back(1).push_back(2).push_back(3)
             )
         );
@@ -85,13 +85,13 @@ int main(int argc, char** argv) {
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
-        Json xx = json::parse(s.data(), s.size());
+        co::Json xx = json::parse(s.data(), s.size());
     }
     int64 end = now::us();
 
     COUT << "parse average time used: " << (end - beg) * 1.0 / n << "us";
 
-    Json xx = json::parse(s.data(), s.size());
+    co::Json xx = json::parse(s.data(), s.size());
     fastring xs;
     beg = now::us();
     for (int i = 0; i < n; ++i) {

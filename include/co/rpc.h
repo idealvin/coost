@@ -12,7 +12,7 @@ class Service {
     Service() = default;
     virtual ~Service() = default;
 
-    typedef std::function<void(Json&, Json&)> Fun;
+    typedef std::function<void(json::Json&, json::Json&)> Fun;
 
     virtual const char* name() const = 0;
     virtual const co::map<const char*, Fun>& methods() const = 0;
@@ -72,7 +72,7 @@ class __coapi Client {
     void operator=(const Client& c) = delete;
 
     // perform a rpc request
-    void call(const Json& req, Json& res);
+    void call(const json::Json& req, json::Json& res);
 
     // send a heartbeat
     void ping();

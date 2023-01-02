@@ -521,6 +521,8 @@ inline Json parse(const std::string& s) { return parse(s.data(), s.size()); }
 
 } // json
 
-typedef json::Json Json;
+namespace co {
+using Json = json::Json;
+} // co
 
 inline fastream& operator<<(fastream& fs, const json::Json& x) { return x.dbg(fs); }
