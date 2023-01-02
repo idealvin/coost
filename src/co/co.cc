@@ -493,11 +493,13 @@ void wait_group::wait() const {
 
 namespace xx {
 
+__thread bool g_timeout = false;
+
 class pipe_impl {
   public:
     pipe_impl(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::cpmv_t&& c, pipe::destruct_t&& d)
         : _c(std::move(c)), _d(std::move(d)), _buf_size(buf_size), _blk_size(blk_size), 
-          _rx(0), _wx(0), _ms(ms), _full(false), _has_cv(false), _timeout(false) {
+          _rx(0), _wx(0), _ms(ms), _full(false), _has_cv(false), _closed(0) {
         _buf = (char*) co::alloc(_buf_size);
     }
 
@@ -508,7 +510,12 @@ class pipe_impl {
 
     void read(void* p);
     void write(void* p, int v);
-    bool timeout() const { return _timeout; }
+    void close();
+    bool is_closed() const { return atomic_load(&_closed, mo_relaxed); }
+
+    bool done() const {
+        return !atomic_load(&_closed, mo_relaxed) && !g_timeout;
+    }
 
     struct waitx {
         co::Coroutine* co;
@@ -571,12 +578,13 @@ class pipe_impl {
     uint32 _ms;       // timeout in milliseconds
     bool _full;       // 0: not full, 1: full
     bool _has_cv;
-    bool _timeout;
+    uint8 _closed;
 };
 
 void pipe_impl::read(void* p) {
     auto s = gSched;
     _m.lock();
+    if (unlikely(atomic_load(&_closed, mo_relaxed))) return;
 
     // buffer is neither empty nor full
     if (_rx != _wx) {
@@ -678,15 +686,16 @@ void pipe_impl::read(void* p) {
     }
 
   timeout:
-    if (!_timeout) _timeout = true;
+    g_timeout = true;
     return;
   done:
-    if (_timeout) _timeout = false;
+    g_timeout = false;
 }
 
 void pipe_impl::write(void* p, int v) {
     auto s = gSched;
     _m.lock();
+    if (unlikely(atomic_load(&_closed, mo_relaxed))) return;
 
     // buffer is non-empty and non-full
     if (_rx != _wx) {
@@ -742,6 +751,9 @@ void pipe_impl::write(void* p, int v) {
         _wq.push_back(w);
         _m.unlock();
 
+        if (co->s != s) co->s = s;
+        co->waitx = (co::waitx_t*)w;
+
         if (_ms != (uint32)-1) s->add_timer(_ms);
         s->yield();
 
@@ -785,10 +797,71 @@ void pipe_impl::write(void* p, int v) {
     }
 
   timeout:
-    if (!_timeout) _timeout = true;
+    g_timeout = true;
     return;
   done:
-    if (_timeout) _timeout = false;
+    g_timeout = false;
+}
+
+void pipe_impl::close() {
+    const auto x = atomic_cas(&_closed, 0, 1, mo_relaxed, mo_relaxed);
+    if (x == 0) {
+        _m.lock();
+        if (_rx != _wx) {
+            for (; _rx != _wx; ) {
+                _d(_buf + _rx);
+                _rx += _blk_size;
+                if (_rx == _buf_size) _rx = 0;
+            }
+
+        } else if (_full) {
+            do {
+                _d(_buf + _rx);
+                _rx += _blk_size;
+                if (_rx == _buf_size) _rx = 0;
+            } while (_rx != _wx);
+
+            while (!_wq.empty()) {
+                waitx* w = _wq.front(); // wait for write
+                _wq.pop_front();
+                if (w->x.v & 2) _d(w->buf);
+
+                if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
+                    if (w->co) {
+                        ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
+                    } else {
+                        w->x.done = true;
+                        xx::cv_notify_all(&_cv);
+                    }
+                } else {
+                    co::free(w, w->len);
+                }
+            }
+
+        } else {
+            while (!_wq.empty()) {
+                waitx* w = _wq.front(); // wait for read
+                _wq.pop_front();
+
+                if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
+                    if (w->co) {
+                        ((co::SchedulerImpl*) w->co->s)->add_ready_task(w->co);
+                    } else {
+                        w->x.done = true;
+                        xx::cv_notify_all(&_cv);
+                    }
+                } else {
+                    co::free(w, w->len);
+                }
+            }
+        }
+
+        _m.unlock();
+        atomic_store(&_closed, 2, mo_relaxed);
+
+    } else if (x == 1) {
+        while (atomic_load(&_closed, mo_relaxed) != 2) co::sleep(1);
+    }
 }
 
 pipe::pipe(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::cpmv_t&& c, pipe::destruct_t&& d) {
@@ -813,8 +886,16 @@ void pipe::write(void* p, int v) const {
     ((pipe_impl*)(_p + 2))->write(p, v);
 }
 
-bool pipe::timeout() const {
-    return ((pipe_impl*)(_p + 2))->timeout();
+void pipe::close() const {
+    ((pipe_impl*)(_p + 2))->close();
+}
+
+bool pipe::is_closed() const {
+    return ((pipe_impl*)(_p + 2))->is_closed();
+}
+
+bool pipe::done() const {
+    return ((pipe_impl*)(_p + 2))->done();
 }
 
 } // xx

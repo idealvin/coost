@@ -19,21 +19,17 @@ class __coapi pipe {
         p._p = 0;
     }
 
-    // copy constructor, allow co::pipe to be captured by value in lambda.
     pipe(const pipe& p) : _p(p._p) {
         atomic_inc(_p, mo_relaxed);
     }
 
     void operator=(const pipe&) = delete;
 
-    // read a block
     void read(void* p) const;
-
-    // write a block
     void write(void* p, int v) const;
-
-    // return true if the read or write operation timed out
-    bool timeout() const;
+    void close() const;
+    bool is_closed() const;
+    bool done() const;
   
   private:
     uint32* _p;
@@ -73,25 +69,33 @@ class chan {
 
     void operator=(const chan&) = delete;
 
+    // read an element from the channel to @x
     chan& operator>>(T& x) const {
         _p.read((void*)&x);
         return (chan&)*this;
     }
 
+    // write an element to the channel (copy constructor will be used)
     chan& operator<<(const T& x) const {
         _p.write((void*)&x, 0);
         return (chan&)*this;
     }
 
+    // write an element to the channel (move constructor will be used)
     chan& operator<<(T&& x) const {
         _p.write((void*)&x, 1);
         return (chan&)*this;
     }
 
-    // return true if the read or write operation timed out
-    bool timeout() const {
-        return _p.timeout();
-    }
+    // close the channel
+    void close() const { _p.close(); }
+
+    // return true if the read or write operation was done successfully,
+    // otherwise return false (timeout or the channel was closed) 
+    bool done() const { return _p.done(); }
+
+    // return false if the channel was closed
+    explicit operator bool() const { return !_p.is_closed(); }
 
   private:
     xx::pipe _p;

@@ -2,7 +2,7 @@
 #include "co/cout.h"
 
 void f() {
-    co::Chan<int> ch;
+    co::chan<int> ch;
     go([ch]() { ch << 7; });
     int v = 0;
     ch >> v;
@@ -10,15 +10,15 @@ void f() {
 }
 
 void g() {
-    co::Chan<int> ch(32, 500);
+    co::chan<int> ch(32, 500);
     go([ch]() {
         ch << 7;
-        if (co::timeout()) LOG << "write to channel timeout..";
+        if (!ch.done()) LOG << "write to channel timeout..";
     });
 
     int v = 0;
     ch >> v;
-    if (!co::timeout()) LOG << "v: " << v;
+    if (ch.done()) LOG << "v: " << v;
 }
 
 DEF_main(argc, argv) {

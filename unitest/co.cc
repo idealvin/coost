@@ -165,7 +165,8 @@ DEF_test(co) {
             co::chan<fastring> ch(4, 8);
             ch << s;
             ch << std::move(t);
-            EXPECT(!ch.timeout());
+            EXPECT(ch);
+            EXPECT(ch.done());
 
             EXPECT_EQ(s, "hello");
             EXPECT_EQ(t.capacity(), 0);
@@ -180,10 +181,13 @@ DEF_test(co) {
             EXPECT_EQ(x.data(), pt);
 
             ch << s << s << s << s;
-            EXPECT(!ch.timeout());
+            EXPECT(ch.done());
 
             ch << s;
-            EXPECT(ch.timeout());
+            EXPECT(!ch.done());
+
+            ch.close();
+            EXPECT(!ch);
         }
 
         {
@@ -228,7 +232,7 @@ DEF_test(co) {
 
             y.v = 0;
             ch >> y;
-            EXPECT(ch.timeout());
+            EXPECT(!ch.done()); // timeout
             EXPECT_EQ(y.v, 0);
 
             wg.add(2);
@@ -258,6 +262,50 @@ DEF_test(co) {
             });
             wg.wait();
             EXPECT_EQ(y.v, 7);
+
+            y.v = 0;
+            atomic_store(&kk, 0, mo_relaxed);
+            wg.add(1);
+            s->go([ch, wg, &y, &kk]() {
+                atomic_inc(&kk, mo_relaxed);
+                ch >> y;
+                wg.done();
+            });
+
+            while (kk == 0) co::sleep(1);
+            co::sleep(8);
+            ch.close();
+            wg.wait();
+            EXPECT(!ch.done());
+            EXPECT(!ch);
+            EXPECT_EQ(y.v, 0);
+        }
+
+        {
+            TestChan x(7);
+            co::chan<TestChan> ch(4, 32);
+
+            int kk = 0;
+            co::wait_group wg(2);
+            ch << x << x << x << x;
+
+            go([ch, wg, &x, &kk]() {
+                atomic_inc(&kk, mo_relaxed);
+                ch << x;
+                wg.done();
+            });
+
+            go([ch, wg, &x, &kk]() {
+                atomic_inc(&kk, mo_relaxed);
+                ch << x;
+                wg.done();
+            });
+
+            while (kk != 2) co::sleep(1);
+            co::sleep(8);
+            ch.close();
+
+            EXPECT(!ch);
         }
 
         EXPECT_EQ(gc, gd);
