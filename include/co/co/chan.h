@@ -88,13 +88,13 @@ class chan {
     }
 
     // close the channel
+    // write was disabled then, but we can still read from the channel
     void close() const { _p.close(); }
 
-    // return true if the read or write operation was done successfully,
-    // otherwise return false (timeout or the channel was closed) 
+    // return true if the read or write operation was done successfully
     bool done() const { return _p.done(); }
 
-    // return false if the channel was closed
+    // check if the channel was closed (false for closed)
     explicit operator bool() const { return !_p.is_closed(); }
 
   private:

@@ -188,6 +188,14 @@ DEF_test(co) {
 
             ch.close();
             EXPECT(!ch);
+
+            int i = 0;
+            do {
+                ch >> x;
+                if (ch.done()) ++i;
+            } while (ch.done());
+            EXPECT_EQ(i, 4);
+            EXPECT_EQ(x, "hello");
         }
 
         {
@@ -263,6 +271,13 @@ DEF_test(co) {
             wg.wait();
             EXPECT_EQ(y.v, 7);
 
+            int i = 0;
+            do {
+                ch >> y;
+                if (ch.done()) ++i;
+            } while (ch.done());
+            EXPECT_EQ(i, 0);
+
             y.v = 0;
             atomic_store(&kk, 0, mo_relaxed);
             wg.add(1);
@@ -275,9 +290,8 @@ DEF_test(co) {
             while (kk == 0) co::sleep(1);
             co::sleep(8);
             ch.close();
-            wg.wait();
-            EXPECT(!ch.done());
             EXPECT(!ch);
+            wg.wait();
             EXPECT_EQ(y.v, 0);
         }
 
@@ -304,8 +318,14 @@ DEF_test(co) {
             while (kk != 2) co::sleep(1);
             co::sleep(8);
             ch.close();
-
             EXPECT(!ch);
+
+            int i = 0;
+            do {
+                ch >> x;
+                if (ch.done()) ++i;
+            } while (ch.done());
+            EXPECT_EQ(i, 6);
         }
 
         EXPECT_EQ(gc, gd);
