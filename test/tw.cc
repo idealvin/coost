@@ -317,7 +317,6 @@ const char* p;
     BM_group(reverse_search) {
         int64 v;
         size_t r;
-        const char* t;
 
         BM_add(RQS)(
             v = RQS(s, p);
