@@ -174,7 +174,7 @@ class __coapi Client final {
      * copy constructor 
      *   - Copy ip, port, use_ssl from another Client. 
      */
-    Client(const Client& c) : Client(c._ip, c._port, c._use_ssl) {}
+    Client(const Client& c);
 
     /**
      * the destructor
@@ -209,9 +209,16 @@ class __coapi Client final {
     int send(const void* buf, int n, int ms=-1);
 
     /**
+     * @brief bind ip and port to the client socket
+     * 
+     * @return true on success, false otherwise
+     */
+    bool bind(const char* ip, int port=0);
+
+    /**
      * check whether the connection has been established 
      */
-    bool connected() const { return _fd != -1; }
+    bool connected() const noexcept { return _connected; }
 
     /**
      * connect to the server 
@@ -236,17 +243,17 @@ class __coapi Client final {
     const char* strerror() const;
 
     // get the socket fd 
-    int socket() const { (void)_; return _fd; }
+    int socket() const noexcept { return _fd; }
 
   private:
     union {
-        char* _ip; // server ip
-        void** _s; // _s[-1] for (void*)ssl, _s[-2] for (void*)ssl_ctx
+        uint32* _u;
+        char* _p;  // _p+8: port, _p+16: ip
+        void** _s; // _s[-1]: ssl, _s[-2]: ssl_ctx
     };
-    uint16 _port;
-    uint8 _use_ssl;
-    uint8 _;
     int _fd;
+    bool _use_ssl;
+    bool _connected;
 };
 
 } // tcp
