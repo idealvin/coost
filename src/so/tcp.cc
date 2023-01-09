@@ -6,6 +6,7 @@
 #include "co/log.h"
 #include "co/str.h"
 #include "co/time.h"
+#include "co/defer.h"
 
 DEF_int32(ssl_handshake_timeout, 3000, ">>#2 ssl handshake timeout in ms");
 
@@ -424,7 +425,7 @@ Client::Client(const char* ip, int port, bool use_ssl)
 
 Client::Client(const Client& c)
     : _u(c._u), _fd(-1), _use_ssl(c._use_ssl), _connected(false) {
-    atomic_inc(_u, mo_relaxed);
+    if (_u) atomic_inc(_u, mo_relaxed);
 }
 
 Client::~Client() {
@@ -453,6 +454,11 @@ bool Client::bind(const char* ip, int port) {
     const char* const serv_ip = _p + 16;
     const char* const serv_port = _p + 8;
     struct addrinfo *srv = 0, *cli = 0;
+    defer(
+        if (srv) freeaddrinfo(srv);
+        if (cli) freeaddrinfo(cli);
+    );
+
     int r = getaddrinfo(serv_ip, serv_port, NULL, &srv);
     if (r != 0) goto err;
 
@@ -473,13 +479,9 @@ bool Client::bind(const char* ip, int port) {
         if (co::bind(_fd, cli->ai_addr, (int)cli->ai_addrlen) != 0) goto err;
     }
 
-    if (srv) freeaddrinfo(srv);
-    if (cli) freeaddrinfo(cli);
     return true;
 
   err:
-    if (srv) freeaddrinfo(srv);
-    if (cli) freeaddrinfo(cli);
     return false;
 }
 
@@ -489,6 +491,8 @@ bool Client::connect(int ms) {
     const char* const ip = _p + 16;
     const char* const port = _p + 8;
     struct addrinfo* info = 0;
+    defer(if (info) freeaddrinfo(info));
+
     int r = getaddrinfo(ip, port, NULL, &info);
     if (r != 0) goto end;
 
@@ -515,7 +519,6 @@ bool Client::connect(int ms) {
         if (ssl::connect(_s[-1], ms) != 1) goto connect_err;
     }
 
-    if (info) freeaddrinfo(info);
     _connected = true;
     return true;
 
@@ -533,7 +536,6 @@ bool Client::connect(int ms) {
     goto end;
   end:
     this->disconnect();
-    if (info) freeaddrinfo(info);
     return false;
 }
 
