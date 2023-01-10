@@ -152,7 +152,8 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     do {
         SOCKADDR_STORAGE a = { 0 };
         a.ss_family = ((const sockaddr*)addr)->sa_family;
-        if (co::bind(fd, &a, addrlen) != 0) {
+        // WSAEINVAL is returned if the socket s is already bound to an address.
+        if (co::bind(fd, &a, addrlen) != 0 && WSAGetLastError() != WSAEINVAL) {
             ELOG << "connectex bind local address failed, sock: " << fd;
             return -1;
         }
