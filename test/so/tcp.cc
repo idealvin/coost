@@ -1,7 +1,7 @@
 #include "co/all.h"
 
-DEF_string(ip, "127.0.0.1", "ip");
-DEF_int32(port, 9988, "port");
+DEF_string(ip, "127.0.0.1", "server ip");
+DEF_int32(port, 9988, "server port");
 DEF_int32(client_num, 1, "client num");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     );
 
     tcp::Server().on_connection(conn_cb).start(
-        FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str()
+        "0.0.0.0", FLG_port, FLG_key.c_str(), FLG_ca.c_str()
     );
 
     sleep::ms(32);
