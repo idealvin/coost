@@ -64,7 +64,7 @@ enum LogLevel {
 
 class __coapi LevelLogSaver {
   public:
-    LevelLogSaver(const char* prefix, int n, int level);
+    LevelLogSaver(const char* fname, unsigned fnlen, unsigned line, int level);
     ~LevelLogSaver();
 
     fastream& stream() const { return _s; }
@@ -76,7 +76,7 @@ class __coapi LevelLogSaver {
 
 class __coapi FatalLogSaver {
   public:
-    FatalLogSaver(const char* prefix, int n);
+    FatalLogSaver(const char* fname, unsigned fnlen, unsigned line);
     ~FatalLogSaver();
 
     fastream& stream() const { return _s; }
@@ -87,7 +87,7 @@ class __coapi FatalLogSaver {
 
 class __coapi TLogSaver {
   public:
-    TLogSaver(const char* prefix, int n, const char* topic);
+    TLogSaver(const char* fname, unsigned fnlen, unsigned line, const char* topic);
     ~TLogSaver();
 
     fastream& stream() const { return _s; }
@@ -114,13 +114,14 @@ constexpr int path_base_len(const char(&s)[N], int i = N - 1) {
 
 using namespace ___;
 
-#define _CO_FILELINE    __FILE__ ":" CO_STRINGIFY(__LINE__) "] "
-#define _CO_LOG_PREFIX  log::xx::path_base(_CO_FILELINE),log::xx::path_base_len(_CO_FILELINE)
+#define _CO_FNAME log::xx::path_base(__FILE__)
+#define _CO_FNLEN log::xx::path_base_len(__FILE__)
+#define _CO_FILELINE _CO_FNAME,_CO_FNLEN,__LINE__
 
 // TLOG are logs grouped by the topic.
 // TLOG("xxx") << "hello xxx" << 23;
 // It is better to use a literal string for the topic.
-#define TLOG(topic) log::xx::TLogSaver(_CO_LOG_PREFIX, topic).stream()
+#define TLOG(topic) log::xx::TLogSaver(_CO_FILELINE, topic).stream()
 #define TLOG_IF(topic, cond) if (cond) TLOG(topic)
 
 // DLOG  ->  debug log
@@ -132,8 +133,8 @@ using namespace ___;
 //
 // LOG << "hello world " << 23;
 // WLOG_IF(1 + 1 == 2) << "xx";
-#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(_CO_LOG_PREFIX, lv).stream()
-#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(_CO_LOG_PREFIX).stream()
+#define _CO_LOG_STREAM(lv)  log::xx::LevelLogSaver(_CO_FILELINE, lv).stream()
+#define _CO_FLOG_STREAM     log::xx::FatalLogSaver(_CO_FILELINE).stream()
 #define DLOG  if (FLG_min_log_level <= log::xx::debug)   _CO_LOG_STREAM(log::xx::debug)
 #define LOG   if (FLG_min_log_level <= log::xx::info)    _CO_LOG_STREAM(log::xx::info)
 #define WLOG  if (FLG_min_log_level <= log::xx::warning) _CO_LOG_STREAM(log::xx::warning)
