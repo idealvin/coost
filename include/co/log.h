@@ -156,8 +156,7 @@ using namespace ___;
 
 #define _CO_CHECK_OP(a, b, op) \
     for (auto _x_ = std::make_pair(a, b); !(_x_.first op _x_.second);) \
-        _CO_FLOG_STREAM << "check failed: " #a " " #op " " #b ", " \
-                        << _x_.first << " vs " << _x_.second << "! "
+        _CO_FLOG_STREAM << "check failed: " #a " " #op " " #b ", " << _x_.first << " vs " << _x_.second << "! "
 
 #define CHECK_EQ(a, b) _CO_CHECK_OP(a, b, ==)
 #define CHECK_NE(a, b) _CO_CHECK_OP(a, b, !=)
@@ -167,15 +166,15 @@ using namespace ___;
 #define CHECK_LT(a, b) _CO_CHECK_OP(a, b, <)
 
 // occasional log
-#define _co_log_counter_name CO_ANONYMOUS_VAR(_co_log_counter_)
+#define _CO_LOG_COUNTER CO_CONCAT(_co_log_counter_, __LINE__)
 
 #define _CO_LOG_EVERY_N(n, what) \
-    static unsigned int _co_log_counter_name = 0; \
-    if (atomic_fetch_inc(&_co_log_counter_name, mo_relaxed) % (n) == 0) what
+    static unsigned int _CO_LOG_COUNTER = 0; \
+    if (atomic_fetch_inc(&_CO_LOG_COUNTER, mo_relaxed) % (n) == 0) what
 
 #define _CO_LOG_FIRST_N(n, what) \
-    static int _co_log_counter_name = 0; \
-    if (_co_log_counter_name < (n) && atomic_fetch_inc(&_co_log_counter_name, mo_relaxed) < (n)) what
+    static int _CO_LOG_COUNTER = 0; \
+    if (_CO_LOG_COUNTER < (n) && atomic_fetch_inc(&_CO_LOG_COUNTER, mo_relaxed) < (n)) what
 
 #define DLOG_EVERY_N(n) _CO_LOG_EVERY_N(n, DLOG)
 #define  LOG_EVERY_N(n) _CO_LOG_EVERY_N(n, LOG)
