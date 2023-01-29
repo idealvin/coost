@@ -42,16 +42,14 @@ class __coapi fastring : public fast::stream {
     fastring(char c, size_t n) : fastring(n, c) {}
 
     template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastring(S&& s)
-        : fast::stream(sizeof(s), sizeof(s) - 1) {
-        memcpy(_p, s, sizeof(s));
+    fastring(S&& s) {
+        sizeof(s) > 1 ? _construct_from_c_str(s, sizeof(s)) : (void) new(this) fast::stream();
     }
 
     template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastring(S&& s)
-        : fast::stream(strlen(s) + 1) {
-        memcpy(_p, s, _cap);
-        _size = _cap - 1;
+    fastring(S&& s) {
+        const size_t n = strlen(s) + 1;
+        n > 1 ? _construct_from_c_str(s, n) : (void) new(this) fast::stream();
     }
 
     fastring(const std::string& s)
@@ -443,6 +441,13 @@ class __coapi fastring : public fast::stream {
     }
 
   private:
+    void _construct_from_c_str(const char* s, size_t n) {
+        _cap = n;
+        _size = n - 1;
+        _p = (char*) co::alloc(n); assert(_p);
+        memcpy(_p, s, n);
+    }
+
     fastring& _assign(const void* s, size_t n) {
         _size = n;
         if (n > 0) {

@@ -5,12 +5,27 @@ namespace test {
 
 DEF_test(fastring) {
     DEF_case(base) {
-        fastring s;
-        EXPECT(s.empty());
-        EXPECT_EQ(s.size(), 0);        
+        {
+            fastring s;
+            EXPECT(s.empty());
+            EXPECT_EQ(s.size(), 0);        
+            s = "xxx";
+            EXPECT_EQ(s, "xxx");
+        }
 
-        s = "xxx";
-        EXPECT_EQ(s, "xxx");
+        {
+            fastring s("");
+            EXPECT(s.data() == 0);
+            EXPECT_EQ(s.size(), 0);
+            EXPECT_EQ(s.capacity(), 0);
+        }
+
+        {
+            fastring s("888");
+            EXPECT_EQ(s, "888");
+            EXPECT_EQ(s.size(), 3);
+            EXPECT_EQ(s.capacity(), 4);
+        }
 
         fastring x(std::string("888"));
         EXPECT_EQ(x, "888");
@@ -21,6 +36,17 @@ DEF_test(fastring) {
         EXPECT_EQ(x.capacity(), 0);
         EXPECT_EQ(x.size(), 0);
         EXPECT_EQ(((size_t)x.data()), ((size_t)0));
+
+        {
+            fastring s(y.c_str());
+            EXPECT_EQ(s, "888");
+        }
+        {
+            y.clear();
+            fastring s(y.c_str());
+            EXPECT(s.data() == 0);
+            EXPECT_EQ(s.size(), 0);
+        }
     }
 
     DEF_case(append) {
