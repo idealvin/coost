@@ -30,10 +30,10 @@ inline void tls_set(tls_key_t k, void* v) { BOOL r = TlsSetValue(k, v); assert(r
 
 #else
 typedef pthread_key_t tls_key_t;
-inline void tls_init(tls_key_t* k) { int r = pthread_key_create(k, 0); assert(r == 0); }
-inline void tls_free(tls_key_t k) { int r = pthread_key_delete(k); assert(r == 0); }
+inline void tls_init(tls_key_t* k) { int r = pthread_key_create(k, 0); (void)r; assert(r == 0); }
+inline void tls_free(tls_key_t k) { int r = pthread_key_delete(k); (void)r; assert(r == 0); }
 inline void* tls_get(tls_key_t k) { return pthread_getspecific(k); }
-inline void tls_set(tls_key_t k, void* v) { int r = pthread_setspecific(k, v); assert(r == 0); }
+inline void tls_set(tls_key_t k, void* v) { int r = pthread_setspecific(k, v); (void)r; assert(r == 0); }
 #endif
 } // xx
 

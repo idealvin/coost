@@ -54,7 +54,7 @@ inline void cv_init(cv_t* c) {
     r = pthread_cond_init(c, &attr); assert(r == 0);
     pthread_condattr_destroy(&attr);
   #else
-    int r = pthread_cond_init(c, 0); assert(r == 0);
+    int r = pthread_cond_init(c, 0); (void)r; assert(r == 0);
   #endif
 }
 
@@ -107,11 +107,11 @@ uint32 thread_id() {
 
 class mutex {
   public:
-    mutex() { const int r = pthread_mutex_init(&_m, 0); assert(r == 0); }
-    ~mutex() { const int r = pthread_mutex_destroy(&_m); assert(r == 0); }
+    mutex() { const int r = pthread_mutex_init(&_m, 0); (void)r; assert(r == 0); }
+    ~mutex() { const int r = pthread_mutex_destroy(&_m); (void)r; assert(r == 0); }
 
-    void lock() { const int r = pthread_mutex_lock(&_m); assert(r == 0); }
-    void unlock() { const int r = pthread_mutex_unlock(&_m); assert(r == 0); }
+    void lock() { const int r = pthread_mutex_lock(&_m); (void)r; assert(r == 0); }
+    void unlock() { const int r = pthread_mutex_unlock(&_m); (void)r; assert(r == 0); }
     bool try_lock() { return pthread_mutex_trylock(&_m) == 0; }
     mutex_t* native_handle() { return &_m; }
 
