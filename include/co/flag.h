@@ -78,3 +78,7 @@ __coapi void add_flag(
 __coapi DEC_string(help);
 __coapi DEC_string(config);
 __coapi DEC_string(version);
+
+__coapi DEC_uint32(co_sched_num);
+__coapi DEC_uint32(co_stack_size);
+__coapi DEC_bool(co_debug_log);
