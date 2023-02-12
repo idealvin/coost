@@ -376,6 +376,8 @@ class SchedulerManager {
         return _scheds;
     }
 
+    void start(bool loop = false);
+
     void stop();
 
   private:

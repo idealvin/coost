@@ -2,6 +2,7 @@
 #include "co/os.h"
 
 DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers, default: os::cpunum()");
+DEF_bool(co_auto_sched, true, ">>#1 auto start coroutine schedulers, otherwise call co::loop_schedulers()");
 DEF_uint32(co_stack_size, 1024 * 1024, ">>#1 size of the stack shared by coroutines, default: 1M");
 DEF_bool(co_debug_log, false, ">>#1 enable debug log for coroutine library");
 
@@ -238,11 +239,12 @@ SchedulerManager::SchedulerManager() {
 
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
         SchedulerImpl* s = new SchedulerImpl(i, FLG_co_sched_num, FLG_co_stack_size);
-        s->start();
         _scheds.push_back(s);
     }
 
-    is_active() = true;
+    if (FLG_co_auto_sched) {
+        start(false);
+    }
 }
 
 SchedulerManager::~SchedulerManager() {
@@ -265,6 +267,19 @@ struct Cleanup {
 };
 
 static Cleanup _gc;
+
+void SchedulerManager::start(bool loop) {
+    is_active() = true;
+    for (size_t i = 1; i < _scheds.size(); ++i) {
+        ((SchedulerImpl*)_scheds[i])->start();
+    }
+
+    if (loop) {
+        ((SchedulerImpl*)_scheds[0])->loop();
+    } else {
+        ((SchedulerImpl*)_scheds[0])->start();
+    }
+}
 
 void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
@@ -359,6 +374,11 @@ bool on_stack(const void* p) {
 
 void stop_schedulers() {
     scheduler_manager()->stop();
+}
+
+void loop_schedulers() {
+    CHECK(!FLG_co_auto_sched) << "`co_auto_sched` flag already enabled";
+    scheduler_manager()->start(true);
 }
 
 } // co
