@@ -959,6 +959,7 @@ inline fastream &log_stream() {
   return kls ? *kls : *(kls = new fastream(256));
 }
 
+<<<<<<< HEAD
 LevelLogSaver::LevelLogSaver(const char *file, int len, unsigned int line,
                              int level)
     : _s(log_stream()) {
@@ -970,6 +971,14 @@ LevelLogSaver::LevelLogSaver(const char *file, int len, unsigned int line,
                        // microseconds
   (_s << ' ' << co::thread_id() << ' ').append('[').append(file, len)
       << ':' << line << ']' << ' ';
+=======
+LevelLogSaver::LevelLogSaver(const char* prefix, int n, int level)
+    : _s(log_stream()) {
+    _n = _s.size();
+    _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
+    _s[_n] = "DIWE"[level];
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
+>>>>>>> quincy/master
 }
 
 LevelLogSaver::~LevelLogSaver() {
@@ -978,12 +987,20 @@ LevelLogSaver::~LevelLogSaver() {
   _s.resize(_n);
 }
 
+<<<<<<< HEAD
 FatalLogSaver::FatalLogSaver(const char *file, int len, unsigned int line)
     : _s(log_stream()) {
   _s.resize(LogTime::t_len + 1);
   _s.front() = 'F';
   (_s << ' ' << co::thread_id() << ' ').append('[').append(file, len)
       << ':' << line << ']' << ' ';
+=======
+FatalLogSaver::FatalLogSaver(const char* prefix, int n)
+    : _s(log_stream()) {
+    _s.resize(LogTime::t_len + 1);
+    _s.front() = 'F';
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
+>>>>>>> quincy/master
 }
 
 FatalLogSaver::~FatalLogSaver() {
@@ -991,6 +1008,7 @@ FatalLogSaver::~FatalLogSaver() {
   global().logger->push_fatal_log((char *)_s.data(), _s.size());
 }
 
+<<<<<<< HEAD
 TLogSaver::TLogSaver(const char *file, int len, unsigned int line,const char *topic)
     : _s(log_stream()), _topic(topic) {
   _n = _s.size();
@@ -999,6 +1017,13 @@ TLogSaver::TLogSaver(const char *file, int len, unsigned int line,const char *to
   memcpy((char *)_s.data() + _n, time.c_str(), LogTime::t_len); // "2023-02-28 15:36:59.439451" log time accurate to
   (_s << ' ' << co::thread_id() << ' ').append('[').append(file, len)
       << ':' << line << ']' << ' ';
+=======
+TLogSaver::TLogSaver(const char* prefix, int n, const char* topic)
+    : _s(log_stream()), _topic(topic) {
+    _n = _s.size();
+    _s.resize(_n + (LogTime::t_len)); // make room for: "0523 17:00:00.123"
+    (_s << ' ' << co::thread_id() << ' ').append(prefix, n);
+>>>>>>> quincy/master
 }
 
 TLogSaver::~TLogSaver() {

@@ -59,11 +59,14 @@ __coapi fastring str();
 
 namespace now {
 
-// monotonic timestamp in milliseconds
-__coapi int64 ms();
+// monotonic timestamp in nanoseconds
+__coapi int64 ns();
 
 // monotonic timestamp in microseconds
 __coapi int64 us();
+
+// monotonic timestamp in milliseconds
+__coapi int64 ms();
 
 // "%Y-%m-%d %H:%M:%S" ==> 2018-08-08 08:08:08
 __coapi fastring str(const char *fm = "%Y-%m-%d %H:%M:%S");
@@ -72,13 +75,17 @@ __coapi fastring str(const char *fm = "%Y-%m-%d %H:%M:%S");
 
 namespace epoch {
 
-// milliseconds since epoch
-__coapi int64 ms();
-
 // microseconds since epoch
 __coapi int64 us();
 
+<<<<<<< HEAD
 } // namespace epoch
+=======
+// milliseconds since epoch
+__coapi int64 ms();
+
+} // epoch
+>>>>>>> quincy/master
 
 namespace ___ {
 namespace sleep {
@@ -93,6 +100,7 @@ __coapi void sec(uint32 n);
 using namespace ___;
 
 class __coapi Timer {
+<<<<<<< HEAD
 public:
   Timer() { _start = now::us(); }
 
@@ -101,6 +109,28 @@ public:
   int64 us() const { return now::us() - _start; }
 
   int64 ms() const { return this->us() / 1000; }
+=======
+  public:
+    Timer() {
+        _start = now::ns();
+    }
+
+    void restart() {
+        _start = now::ns();
+    }
+
+    int64 ns() const {
+        return now::ns() - _start;
+    }
+
+    int64 us() const {
+        return this->ns() / 1000;
+    }
+
+    int64 ms() const {
+        return this->ns() / 1000000;
+    }
+>>>>>>> quincy/master
 
 private:
   int64 _start;

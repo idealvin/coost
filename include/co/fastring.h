@@ -6,6 +6,7 @@
 
 #include "god.h"
 #include "fast.h"
+#include "stref.h"
 #include "hash/murmur_hash.h"
 #include <string>
 #include <ostream>
@@ -14,7 +15,7 @@ class __coapi fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
 
-    fastring() noexcept
+    constexpr fastring() noexcept
         : fast::stream() {
     }
 
@@ -22,18 +23,35 @@ class __coapi fastring : public fast::stream {
         : fast::stream(cap) {
     }
 
-    fastring (void* p, size_t size, size_t cap)
+    fastring(void* p, size_t size, size_t cap) noexcept
         : fast::stream(p, size, cap) {
     }
 
     ~fastring() = default;
 
     fastring(const void* s, size_t n)
-        : fast::stream(n ? memcpy(co::alloc(n + 1), s, n) : 0, n, n ? n + 1 : 0) {
+        : fast::stream(n, n) {
+        memcpy(_p, s, n);
     }
 
-    fastring(const char* s)
-        : fastring(s, (*s ? strlen(s) : 0)) {
+    fastring(size_t n, char c)
+        : fast::stream(n, n) {
+        memset(_p, c, n);
+    }
+
+    fastring(char c, size_t n) : fastring(n, c) {}
+
+    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
+    fastring(S&& s)
+        : fast::stream(sizeof(s), sizeof(s) - 1) {
+        memcpy(_p, s, sizeof(s));
+    }
+
+    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
+    fastring(S&& s)
+        : fast::stream(strlen(s) + 1) {
+        memcpy(_p, s, _cap);
+        _size = _cap - 1;
     }
 
     fastring(const std::string& s)
@@ -44,12 +62,6 @@ class __coapi fastring : public fast::stream {
         : fastring(s.data(), s.size()) {
     }
 
-    fastring(size_t n, char c)
-        : fast::stream(memset(co::alloc(n + 1), c, n), n, n + 1) {
-    }
-
-    fastring(char c, size_t n) : fastring(n, c) {}
-
     fastring(fastring&& s) noexcept
         : fast::stream(std::move(s)) {
     }
@@ -59,37 +71,60 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& operator=(const fastring& s) {
-        if (&s != this) {
-            _size = s.size();
-            if (_size > 0) {
-                this->reserve(_size + 1);
-                memcpy(_p, s.data(), _size);
-            }
-        }
+        if (&s != this) this->_assign(s.data(), s.size());
         return *this;
     }
 
     fastring& operator=(const std::string& s) {
-        _size = s.size();
-        if (_size > 0) {
-            this->reserve(_size + 1);
-            memcpy(_p, s.data(), _size);
-        }
+        return this->_assign(s.data(), s.size());
+    }
+
+    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
+    fastring& operator=(S&& s) {
+        return this->_assign(s, sizeof(s) - 1);
+    }
+
+    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
+    fastring& operator=(S&& s) {
+        return this->assign(s, strlen(s));
+    }
+
+    // s may points to part of the fastring itself
+    fastring& assign(const void* s, size_t n) {
+        if (!this->_is_inside((const char*)s)) return this->_assign(s, n);
+        assert((const char*)s + n <= _p + _size);
+        if (s != _p) memmove(_p, s, n);
+        _size = n;
         return *this;
     }
 
-    fastring& operator=(const char* s);
+    template<typename S>
+    fastring& assign(S&& s) {
+        return this->operator=(std::forward<S>(s));
+    }
 
-    fastring& append(const void* p, size_t n);
+    fastring& append(const void* s, size_t n) {
+        return (fastring&) fast::stream::safe_append(s, n);
+    }
  
     fastring& append(const char* s) {
         return this->append(s, strlen(s));
     }
 
-    fastring& append(const fastring& s);
+    fastring& append(const fastring& s) {
+        if (&s != this) return (fastring&) fast::stream::append(s.data(), s.size());
+        this->reserve(_size << 1);
+        memcpy(_p + _size, _p, _size); // append itself
+        _size <<= 1;
+        return *this;
+    }
 
     fastring& append(const std::string& s) {
         return (fastring&) fast::stream::append(s.data(), s.size());
+    }
+
+    fastring& append(const co::stref& s) {
+        return (fastring&) fast::stream::safe_append(s.data(), s.size());
     }
 
     fastring& append(size_t n, char c) {
@@ -100,8 +135,9 @@ class __coapi fastring : public fast::stream {
         return this->append(n, c);
     }
 
+    // append a single character
     fastring& append(char c) {
-        return (fastring&) fast::stream::append(c);
+        return (fastring&)fast::stream::append(c);
     }
 
     fastring& append(signed char c) {
@@ -112,28 +148,9 @@ class __coapi fastring : public fast::stream {
         return this->append((char)c);
     }
 
-    fastring& operator+=(const char* s) {
-        return this->append(s);
-    }
-
-    fastring& operator+=(const fastring& s) {
-        return this->append(s);
-    }
-
-    fastring& operator+=(const std::string& s) {
-        return this->append(s);
-    }
-
-    fastring& operator+=(char c) {
-        return this->append(c);
-    }
-
-    fastring& operator+=(signed char c) {
-        return this->append(c);
-    }
-
-    fastring& operator+=(unsigned char c) {
-        return this->append(c);
+    template<typename T>
+    fastring& operator+=(T&& t) {
+        return this->append(std::forward<T>(t));
     }
 
     fastring& cat() { return *this; }
@@ -147,9 +164,44 @@ class __coapi fastring : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
+    friend class fpstream;
+    class fpstream {
+      public:
+        fpstream(fastring* s, int mdp) noexcept : s(s), mdp(mdp) {}
+
+        fpstream& operator<<(double v) {
+            s->ensure(mdp + 8);
+            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
+            return *this;
+        }
+
+        fpstream& operator<<(float v) {
+            return this->operator<<((double)v);
+        }
+
+        fpstream& operator<<(maxdp_t x) noexcept {
+            mdp = x.n;
+            return *this;
+        }
+
+        template <typename T>
+        fpstream& operator<<(T&& t) {
+            s->operator<<(std::forward<T>(t));
+            return *this;
+        }
+
+        fastring* s;
+        int mdp;
+    };
+
+    // set max decimal places for float point number, mdp must > 0
+    fpstream maxdp(int mdp) noexcept {
+        return fpstream(this, mdp);
+    }
+
     // set max decimal places as mdp.n
-    fast::stream::fpstream operator<<(co::maxdp mdp) {
-        return fast::stream::operator<<(mdp);
+    fpstream operator<<(maxdp_t mdp) {
+        return fpstream(this, mdp.n);
     }
 
     fastring& operator<<(const signed char* s) {
@@ -160,71 +212,94 @@ class __coapi fastring : public fast::stream {
         return this->operator<<((const char*)s);
     }
 
-    template<typename T>
-    using _is_supported_type = god::enable_if_t<
-        god::is_basic<T>() || god::is_pointer<T>() ||
-        god::is_literal_string<T>() || god::is_c_str<T>() ||
-        god::is_same<god::remove_cv_t<T>, fastring, std::string>(), int
-    >;
+    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
+    fastring& operator<<(S&& s) {
+        return (fastring&) fast::stream::append(s, sizeof(s) - 1);
+    }
 
-    // Special optimization for string literal like "hello". The length of a string 
-    // literal can be get at compile-time, no need to call strlen().
-    template<typename T, _is_supported_type<god::remove_ref_t<T>> = 0>
+    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
+    fastring& operator<<(S&& s) {
+        return this->append(s, strlen(s));
+    }
+
+    fastring& operator<<(const fastring& s) {
+        return this->append(s);
+    }
+
+    fastring& operator<<(const std::string& s) {
+        return this->append(s);
+    }
+
+    fastring& operator<<(const co::stref& s) {
+        return this->append(s.data(), s.size());
+    }
+
+    template<typename T, god::enable_if_t<god::is_basic<god::remove_ref_t<T>>(), int> = 0>
     fastring& operator<<(T&& t) {
-        using X = god::remove_ref_t<decltype(t)>; // remove & or &&
-        using C = god::remove_cv_t<X>;            // remove const, volatile
+        return (fastring&) fast::stream::operator<<(std::forward<T>(t));
+    }
 
-        constexpr int N =
-            god::is_literal_string<X>() ? 1 :
-            god::is_c_str<X>() ? 2 :
-            god::is_same<C, fastring, std::string>() ? 3 :
-            0;
-
-        return this->_out(std::forward<T>(t), I<N>());
+    template<typename T, god::enable_if_t<
+        god::is_pointer<god::remove_ref_t<T>>() && !god::is_c_str<god::remove_ref_t<T>>(), int> = 0
+    >
+    fastring& operator<<(T&& p) {
+        return (fastring&) fast::stream::operator<<(std::forward<T>(p));
     }
 
     fastring substr(size_t pos) const {
-        if (this->size() <= pos) return fastring();
-        return fastring(_p + pos, _size - pos);
+        return pos < _size ? fastring(_p + pos, _size - pos) : fastring();
     }
 
     fastring substr(size_t pos, size_t len) const {
-        if (this->size() <= pos) return fastring();
-        const size_t n = _size - pos;
-        return fastring(_p + pos, len < n ? len : n);
+        if (pos < _size) {
+            const size_t n = _size - pos;
+            return fastring(_p + pos, len < n ? len : n);
+        }
+        return fastring();
     }
 
     // find, rfind, find_xxx_of are implemented based on strrchr, strstr, 
     // strcspn, strspn, etc. Do not apply them to binary strings.
     size_t find(char c) const {
-        if (this->empty()) return npos;
-        char* p = (char*) memchr(_p, c, _size);
-        return p ? p - _p : npos;
+        if (!this->empty()) {
+            char* const p = (char*) memchr(_p, c, _size);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t find(char c, size_t pos) const {
-        if (this->size() <= pos) return npos;
-        char* p = (char*) memchr(_p + pos, c, _size - pos);
-        return p ? p - _p : npos;
+        if (pos < _size) {
+            char* const p = (char*) memchr(_p + pos, c, _size - pos);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     // find character c in [pos, pos + len)
     size_t find(char c, size_t pos, size_t len) const {
-        if (this->size() <= pos) return npos;
-        char* p = (char*) memchr(_p + pos, c, len);
-        return p ? p - _p : npos;
+        if (pos < _size) {
+            const size_t n = _size - pos;
+            char* const p = (char*) memchr(_p + pos, c, len < n ? len : n);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t find(const char* s) const {
-        if (this->empty()) return npos;
-        const char* p = strstr(this->c_str(), s);
-        return p ? p - _p : npos;
+        if (!this->empty()) {
+            const char* p = strstr(this->c_str(), s);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t find(const char* s, size_t pos) const {
-        if (this->size() <= pos) return npos;
-        const char* p = strstr(this->c_str() + pos, s);
-        return p ? p - _p : npos;
+        if (pos < _size) {
+            const char* const p = strstr(this->c_str() + pos, s);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     size_t rfind(char c) const {
@@ -368,33 +443,16 @@ class __coapi fastring : public fast::stream {
     }
 
   private:
-    template<int N> struct I {};
-
-    // built-in types or pointer types
-    template<typename T>
-    fastring& _out(T&& t, I<0>) {
-        return (fastring&) fast::stream::operator<<(std::forward<T>(t));
+    fastring& _assign(const void* s, size_t n) {
+        _size = n;
+        if (n > 0) {
+            this->reserve(n);
+            memcpy(_p, s, n);
+        }
+        return *this;
     }
 
-    // string literal like "hello"
-    template<typename T>
-    fastring& _out(T&& t, I<1>) {
-        return (fastring&) fast::stream::append(t, sizeof(t) - 1);
-    }
-
-    // const char* or char*
-    template<typename T>
-    fastring& _out(T&& t, I<2>) {
-        return this->append(std::forward<T>(t));
-    }
-
-    // fastring, std::string
-    template<typename T>
-    fastring& _out(T&& t, I<3>) {
-        return this->append((god::const_ref_t<T>)t);
-    }
-
-    bool _Inside(const char* p) const {
+    bool _is_inside(const char* p) const {
         return _p <= p && p < _p + _size;
     }
 };

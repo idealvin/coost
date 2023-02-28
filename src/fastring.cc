@@ -1,49 +1,5 @@
 #include "co/fastring.h"
 
-fastring& fastring::operator=(const char* s) {
-    if (!*s) { this->clear(); return *this; }
-
-    if (!this->_Inside(s)) {
-        _size = strlen(s);
-        this->reserve(_size + 1);
-        memcpy(_p, s, _size + 1);
-    } else if (s != _p) {
-        _size -= (s - _p);
-        memmove(_p, s, _size + 1);
-    }
-
-    return *this;
-}
-
-fastring& fastring::append(const void* x, size_t n) {
-    const char* p = (const char*) x;
-
-    if (!this->_Inside(p)) {
-        return (fastring&) fast::stream::append(p, n);
-    } else {
-        assert(p + n <= _p + _size);
-        size_t pos = p - _p;
-        this->ensure(n);
-        memcpy(_p + _size, _p + pos, n);
-        _size += n;
-        return *this;
-    }
-}
-
-fastring& fastring::append(const fastring& s) {
-    if (&s != this) {
-        if (s.empty()) return *this;
-        return (fastring&) fast::stream::append(s.data(), s.size());
-    } else { /* append itself */
-        if (_p) {
-            this->reserve(_size << 1);
-            memcpy(_p + _size, _p, _size);
-            _size <<= 1;
-        }
-        return *this;
-    }
-}
-
 size_t fastring::rfind(const char* sub) const {
     size_t m = strlen(sub);
     if (m == 1) return this->rfind(*sub);

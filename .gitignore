@@ -2,7 +2,12 @@
 build
 lib
 config.h
+<<<<<<< HEAD
 .idea/
 .vscode/
 cmake-build-debug/
 unitest/cmake-build-debug/
+=======
+.idea
+cmake-build-debug
+>>>>>>> quincy/master

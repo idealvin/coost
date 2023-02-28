@@ -21,7 +21,6 @@ inline T atomic_load(const T* p, memory_order_t mo = mo_seq_cst) {
     return ((std::atomic<T>*)p)->load(mo);
 }
 
-
 // mo: mo_relaxed, mo_release, mo_seq_cst
 template<typename T, typename V, _if_match_atomic_t<T> = 0>
 inline void atomic_store(T* p, V v, memory_order_t mo = mo_seq_cst) {

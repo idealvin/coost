@@ -100,6 +100,7 @@ __coapi char* alloc_string(const void* p, size_t n);
 class __coapi Json {
   public:
     enum {
+        t_null = 0,
         t_bool = 1,
         t_int = 2,
         t_double = 4,
@@ -183,6 +184,7 @@ class __coapi Json {
     // make Json from initializer_list
     Json(std::initializer_list<Json> v);
 
+    int type() const { return _h ? _h->type : t_null; }
     bool is_null() const { return _h == 0; }
     bool is_bool() const { return _h && (_h->type & t_bool); }
     bool is_int() const { return _h && (_h->type & t_int); }
