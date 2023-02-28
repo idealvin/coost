@@ -2,3 +2,7 @@
 build
 lib
 config.h
+.idea/
+.vscode/
+cmake-build-debug/
+unitest/cmake-build-debug/
