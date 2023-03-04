@@ -60,13 +60,11 @@ typedef uint64_t uint64;
 #define _CO_STRINGIFY(x) #x
 #define CO_CONCAT(x, y) _CO_CONCAT(x, y)
 #define CO_STRINGIFY(x) _CO_STRINGIFY(x)
-#define CO_ANONYMOUS_VAR(x) CO_CONCAT(x, __LINE__)
 
 // generated from config.h.in
 #include "config.h"
 
-// __coapi: used to export symbols in shared library
-// Do not use (or reuse outside of coost) this definiton  yourself
+// __coapi: export symbols in shared library (libco.so or co.dll)
 #if COOST_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED
