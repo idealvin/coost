@@ -1,6 +1,7 @@
 #pragma once
 
 #include "def.h"
+#include "god.h"
 #include "atomic.h"
 #include <assert.h>
 #include <cstddef>
@@ -8,6 +9,7 @@
 #include <new>
 #include <utility>
 #include <type_traits>
+#include <functional>
 
 namespace co {
 
@@ -27,50 +29,42 @@ __coapi void free(void* p, size_t size);
 __coapi void* realloc(void* p, size_t old_size, size_t new_size);
 
 
-// alloc static memory, do not free or realloc it
-__coapi void* static_alloc(size_t size);
-
-// alloc static memory and construct an object on it, do not delete it
-//   new T(args)  -->  co::static_new<T>(args)
-template <typename T, typename... Args>
-inline T* static_new(Args&&... args) {
-    return new (co::static_alloc(sizeof(T))) T(std::forward<Args>(args)...);
-}
-
-
 // alloc memory and construct an object on it
-//   new T(args)  -->  co::make<T>(args)
-template <typename T, typename... Args>
+//   - T* p = co::make<T>(args)
+template<typename T, typename... Args>
 inline T* make(Args&&... args) {
     return new (co::alloc(sizeof(T))) T(std::forward<Args>(args)...);
 }
 
 // delete the object created by co::make()
-//   delete (T*)p  -->  co::del((T*)p)
-template <typename T>
-inline void del(T* p, size_t n) {
+//   - co::del((T*)p)
+template<typename T>
+inline void del(T* p, size_t n=sizeof(T)) {
     if (p) { p->~T(); co::free((void*)p, n); }
 }
 
-template <typename T>
-inline void del(T* p) {
-    co::del(p, sizeof(T));
+// used internally by coost, do not call it
+__coapi void* _salloc(size_t n, std::function<void(void*)>&& f = 0, int x = 0);
+
+// used internally by coost, do not call it
+template<typename T, typename... Args>
+inline T* _make_static(Args&&... args) {
+    static_assert(sizeof(T) <= 4096, "");
+    const bool x = god::is_trivially_destructible<T>();
+    const auto p = x ? _salloc(sizeof(T)) : _salloc(sizeof(T), [](void* p){ if (p) ((T*)p)->~T(); }, 1);
+    return p ? new(p) T(std::forward<Args>(args)...) : 0;
 }
 
+// create a static object, do not delete it
+//   - T* p = co::make_static<T>(args)
+template<typename T, typename... Args>
+inline T* make_static(Args&&... args) {
+    static_assert(sizeof(T) <= 4096, "");
+    const bool x = god::is_trivially_destructible<T>();
+    const auto p = x ? _salloc(sizeof(T)) : _salloc(sizeof(T), [](void* p){ if (p) ((T*)p)->~T(); });
+    return p ? new(p) T(std::forward<Args>(args)...) : 0;
+}
 
-struct system_allocator {
-    static void* alloc(size_t n) {
-        return ::malloc(n);
-    }
-
-    static void free(void* p, size_t) {
-        return ::free(p);
-    }
-
-    static void* realloc(void* p, size_t, size_t n) {
-        return ::realloc(p, n);
-    }
-};
 
 struct default_allocator {
     static void* alloc(size_t n) {
@@ -86,8 +80,22 @@ struct default_allocator {
     }
 };
 
+struct system_allocator {
+    static void* alloc(size_t n) {
+        return ::malloc(n);
+    }
+
+    static void free(void* p, size_t) {
+        return ::free(p);
+    }
+
+    static void* realloc(void* p, size_t, size_t n) {
+        return ::realloc(p, n);
+    }
+};
+
 // allocator for STL, alternative to std::allocator
-template <class T>
+template<class T>
 struct stl_allocator {
     using value_type = T;
     using size_type = std::size_t;
@@ -117,15 +125,15 @@ struct stl_allocator {
 
     void deallocate(T* p, size_type n) { co::free(p, n * sizeof(T)); }
 
-    template <class U, class ...Args>
+    template<class U, class ...Args>
     void construct(U* p, Args&& ...args) {
         ::new(p) U(std::forward<Args>(args)...);
     }
 
-    template <class U>
+    template<class U>
     void destroy(U* p) noexcept { p->~U(); }
 
-    template <class U> struct rebind { using other = stl_allocator<U>; };
+    template<class U> struct rebind { using other = stl_allocator<U>; };
     pointer address(reference x) const noexcept { return &x; }
     const_pointer address(const_reference x) const noexcept { return &x; }
 
