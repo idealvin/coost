@@ -553,7 +553,7 @@ void remove_quotes_and_comments(fastring& s) {
             goto no_quotes;
         }
 
-        s.cut(l, 'b');
+        s.strip(l, 'b');
         return;
     }
 

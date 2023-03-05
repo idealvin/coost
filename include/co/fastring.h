@@ -6,7 +6,6 @@
 
 #include "god.h"
 #include "fast.h"
-#include "stref.h"
 #include "hash/murmur_hash.h"
 #include <string>
 #include <ostream>
@@ -121,10 +120,6 @@ class __coapi fastring : public fast::stream {
         return (fastring&) fast::stream::append(s.data(), s.size());
     }
 
-    fastring& append(const co::stref& s) {
-        return (fastring&) fast::stream::safe_append(s.data(), s.size());
-    }
-
     fastring& append(size_t n, char c) {
         return (fastring&) fast::stream::append(n, c);
     }
@@ -226,10 +221,6 @@ class __coapi fastring : public fast::stream {
 
     fastring& operator<<(const std::string& s) {
         return this->append(s);
-    }
-
-    fastring& operator<<(const co::stref& s) {
-        return this->append(s.data(), s.size());
     }
 
     template<typename T, god::enable_if_t<god::is_basic<god::remove_ref_t<T>>(), int> = 0>
@@ -350,6 +341,13 @@ class __coapi fastring : public fast::stream {
     fastring& strip(char c, char d='b') {
         char s[2] = { c, '\0' };
         return this->strip((const char*)s, d);
+    }
+
+    // @d: 'l' or 'L' for left, 'r' or 'R' for right
+    fastring& strip(size_t n, char d='b');
+
+    fastring& strip(int n, char d='b') {
+        return this->strip((size_t)n, d);
     }
 
     bool starts_with(char c) const {

@@ -120,6 +120,34 @@ fastring& fastring::strip(const char* s, char d) {
     return *this;
 }
 
+fastring& fastring::strip(size_t n, char d) {
+    if (!this->empty()) {
+        switch (d) {
+          case 'r':
+          case 'R':
+            _size = n < _size ? _size - n : 0;
+            break;
+          case 'l':
+          case 'L':
+            if (n < _size) {
+                _size -= n;
+                memmove(_p, _p + n, _size);
+            } else {
+                _size = 0;
+            }
+            break;
+          default:
+            if (n * 2 < _size) {
+                _size -= n * 2;
+                memmove(_p, _p + n, _size);
+            } else {
+                _size = 0;
+            }
+        }
+    }
+    return *this;
+}
+
 static bool _Match(const char* e, const char* p) {
     if (*p == '*' && !p[1]) return true;
 
