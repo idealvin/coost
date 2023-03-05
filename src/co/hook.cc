@@ -3,12 +3,8 @@
 
 #ifdef _CO_DISABLE_HOOK
 namespace co {
-
 void init_hook() {}
-void cleanup_hook() {}
-void disable_hook_sleep() {}
-void enable_hook_sleep() {}
-
+void hook_sleep(bool) {}
 } // co
 
 #else
@@ -104,23 +100,23 @@ class Hook {
 } // co
 
 inline co::Hook& gHook() {
-    static auto hook = co::static_new<co::Hook>();
-    return *hook;
+    static auto h = co::_make_static<co::Hook>();
+    return *h;
 }
 
 inline struct hostent* gHostEnt() {
-    static auto ents = co::static_new<co::vector<struct hostent>>(co::scheduler_num());
-    return &(*ents)[co::gSched->id()];
+    static auto& e = *co::_make_static<co::vector<struct hostent>>(co::scheduler_num());
+    return &e[co::gSched->id()];
 }
 
-inline co::Mutex& gDnsMutex_t() {
-    static auto mtxs = co::static_new<co::vector<co::Mutex>>(co::scheduler_num());
-    return (*mtxs)[co::gSched->id()];
+inline co::mutex& gDnsMutex_t() {
+    static auto& m = *co::_make_static<co::vector<co::mutex>>(co::scheduler_num());
+    return m[co::gSched->id()];
 }
 
-inline co::Mutex& gDnsMutex_g() {
-    static auto mtx = co::static_new<co::Mutex>();
-    return *mtx;
+inline co::mutex& gDnsMutex_g() {
+    static auto m = co::_make_static<co::mutex>();
+    return *m;
 }
 
 
@@ -295,11 +291,10 @@ int _hook(fcntl)(int fd, int cmd, ... /* arg */) {
     return r;
 }
 
-/**
- * A dirty hack to get the variadic arguments of ioctl.
- *   - It works when the storage of the variadic arguments is <= 8*sizeof(intptr_t),
- *     which should be enough for most cases.
- */
+// A dirty hack to get the variadic arguments of ioctl.
+//   - As we do not know how many args does ioctl have, we use 8 pointers, 
+//     which should be enough, to cover all the variadic args.
+// TODO: better solution?
 #define VARG_8_GET(args) \
     intptr_t a1,a2,a3,a4,a5,a6,a7,a8; { \
         a1=va_arg(args,intptr_t); a2=va_arg(args,intptr_t); \
@@ -513,8 +508,7 @@ ssize_t _hook(read)(int fd, void* buf, size_t count) {
     ssize_t r;
     auto ctx = gHook().get_hook_ctx(fd);
     if (!co::gSched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
-        r = __sys_api(read)(fd, buf, count);
-        goto end;
+        return __sys_api(read)(fd, buf, count);
     }
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
@@ -534,8 +528,7 @@ ssize_t _hook(readv)(int fd, const struct iovec* iov, int iovcnt) {
     ssize_t r;
     auto ctx = gHook().get_hook_ctx(fd);
     if (!co::gSched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
-        r = __sys_api(readv)(fd, iov, iovcnt);
-        goto end;
+        return __sys_api(readv)(fd, iov, iovcnt);
     }
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
@@ -618,8 +611,7 @@ ssize_t _hook(write)(int fd, const void* buf, size_t count) {
     ssize_t r;
     auto ctx = gHook().get_hook_ctx(fd);
     if (!co::gSched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
-        r = __sys_api(write)(fd, buf, count);
-        goto end;
+        return __sys_api(write)(fd, buf, count);
     }
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
@@ -639,8 +631,7 @@ ssize_t _hook(writev)(int fd, const struct iovec* iov, int iovcnt) {
     ssize_t r;
     auto ctx = gHook().get_hook_ctx(fd);
     if (!co::gSched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
-        r = __sys_api(writev)(fd, iov, iovcnt);
-        goto end;
+        return __sys_api(writev)(fd, iov, iovcnt);
     }
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
@@ -793,8 +784,7 @@ int _hook(select)(int nfds, fd_set* rs, fd_set* ws, fd_set* es, struct timeval* 
     }
 
     if (!co::gSched || nfds < 0 || ms == 0 || sec < 0 || us < 0) {
-        r = __sys_api(select)(nfds, rs, ws, es, tv);
-        goto end;
+        return __sys_api(select)(nfds, rs, ws, es, tv);
     }
 
     if ((nfds == 0 || (!rs && !ws && !es)) && ms > 0) {
@@ -1101,8 +1091,8 @@ struct hostent* _hook(gethostbyaddr)(const void* addr, socklen_t len, int type) 
 
 namespace co {
 
-// DO NOT call _init_hooks() from outside on Linux.
-static bool _init_hooks() {
+// DO NOT call _init_hook() from outside on Linux.
+static bool _init_hook() {
   #ifdef __APPLE__
     int r, fds[2];
     if (!__sys_api(socket) && !__sys_api(close)) {
@@ -1197,42 +1187,40 @@ static bool _init_hooks() {
     return true;
 }
 
-static bool _dummy = _init_hooks();
+static bool _dummy = _init_hook();
 
 void init_hook() {
+    static bool x = []() {
+      #ifdef __APPLE__
+        _init_hook();
+      #else
+        // ensure the following APIs are hooked
+        if (!__sys_api(close)) { auto r = ::close(-1); (void)r; }
+        if (!__sys_api(read))  { auto r = ::read(-1, 0, 0); (void)r; }
+        if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
+        if (!__sys_api(pipe))  { auto r = ::pipe((int*)0); (void)r; }
+        if (!__sys_api(fcntl)) { auto r = ::fcntl(-1, 0); (void)r;}
+        if (!__sys_api(select)) { auto r = ::select(-1, 0, 0, 0, 0); (void)r; }
+        assert(__sys_api(close) != 0);
+        assert(__sys_api(read) != 0);
+        assert(__sys_api(write) != 0);
+        assert(__sys_api(pipe) != 0);
+        assert(__sys_api(fcntl) != 0);
+        assert(__sys_api(select) != 0);
+      #endif
+
+      #ifdef __linux__
+        if (__sys_api(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
+        assert(__sys_api(epoll_wait) != 0);
+      #endif
+        return true;
+    }();
+    (void)x;
     (void)_dummy;
-  #ifdef __APPLE__
-    _init_hooks();
-  #else
-    // ensure the following APIs are hooked
-    if (!__sys_api(close)) { (void) ::close(-1); }
-    if (!__sys_api(read))  { auto r = ::read(-1, 0, 0);  (void)r; }
-    if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
-    if (!__sys_api(pipe))  { auto r = ::pipe((int*)0);   (void)r; }
-    if (!__sys_api(fcntl)) { (void) ::fcntl(-1, 0); }
-    CHECK(__sys_api(close) != 0);
-    CHECK(__sys_api(read) != 0);
-    CHECK(__sys_api(write) != 0);
-    CHECK(__sys_api(pipe) != 0);
-    CHECK(__sys_api(fcntl) != 0);
-  #endif
-
-  #ifdef __linux__
-    if (__sys_api(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
-    CHECK(__sys_api(epoll_wait) != 0);
-  #endif
 }
 
-void cleanup_hook() {
-    atomic_store(&gHook().hook_sleep, false, mo_release);
-}
-
-void disable_hook_sleep() {
-    atomic_store(&gHook().hook_sleep, false, mo_release);
-}
-
-void enable_hook_sleep() {
-    atomic_store(&gHook().hook_sleep, true, mo_release);
+void hook_sleep(bool x) {
+    atomic_store(&gHook().hook_sleep, x, mo_release);
 }
 
 } // co

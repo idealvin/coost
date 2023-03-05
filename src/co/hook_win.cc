@@ -3,12 +3,8 @@
 
 #ifdef _CO_DISABLE_HOOK
 namespace co {
-
 void init_hook() {}
-void cleanup_hook() {}
-void disable_hook_sleep() {}
-void enable_hook_sleep() {}
-
+void hook_sleep(bool) {}
 } // co
 
 #else
@@ -103,15 +99,15 @@ class Hook {
         return s != INVALID_SOCKET ? &tb[(size_t)s] : NULL;
     }
 
-    bool hook_sleep;
     co::table<HookCtx> tb;
+    bool hook_sleep;
 };
 
 } // co
 
 inline co::Hook& gHook() {
-    static auto hook = co::static_new<co::Hook>();
-    return *hook;
+    static auto h = co::_make_static<co::Hook>();
+    return *h;
 }
 
 extern "C" {
@@ -1360,41 +1356,46 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 #define detach_hook(x)  detour_detach(&(PVOID&)__sys_api(x), (PVOID)hook_##x, #x)
 
 void init_hook() {
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    attach_hook(Sleep);
-    attach_hook(socket);
-    attach_hook(WSASocketA);
-    attach_hook(WSASocketW);
-    attach_hook(closesocket);
-    attach_hook(shutdown);
-    attach_hook(setsockopt);
-    attach_hook(ioctlsocket);
-    attach_hook(WSAIoctl);
-    attach_hook(WSAAsyncSelect);
-    attach_hook(WSAEventSelect);
-    attach_hook(accept);
-    attach_hook(WSAAccept);
-    attach_hook(connect);
-    attach_hook(WSAConnect);
-    attach_hook(recv);
-    attach_hook(WSARecv);
-    attach_hook(recvfrom);
-    attach_hook(WSARecvFrom);
-    attach_hook(send);
-    attach_hook(WSASend);
-    attach_hook(sendto);
-    attach_hook(WSASendTo);
-    attach_hook(WSARecvMsg);
-    attach_hook(WSASendMsg);
-    attach_hook(select);
-    attach_hook(WSAPoll);
-    attach_hook(WSAWaitForMultipleEvents);
-    attach_hook(GetQueuedCompletionStatus);
-    attach_hook(GetQueuedCompletionStatusEx);
-    DetourTransactionCommit();
+    static bool x = []() {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        attach_hook(Sleep);
+        attach_hook(socket);
+        attach_hook(WSASocketA);
+        attach_hook(WSASocketW);
+        attach_hook(closesocket);
+        attach_hook(shutdown);
+        attach_hook(setsockopt);
+        attach_hook(ioctlsocket);
+        attach_hook(WSAIoctl);
+        attach_hook(WSAAsyncSelect);
+        attach_hook(WSAEventSelect);
+        attach_hook(accept);
+        attach_hook(WSAAccept);
+        attach_hook(connect);
+        attach_hook(WSAConnect);
+        attach_hook(recv);
+        attach_hook(WSARecv);
+        attach_hook(recvfrom);
+        attach_hook(WSARecvFrom);
+        attach_hook(send);
+        attach_hook(WSASend);
+        attach_hook(sendto);
+        attach_hook(WSASendTo);
+        attach_hook(WSARecvMsg);
+        attach_hook(WSASendMsg);
+        attach_hook(select);
+        attach_hook(WSAPoll);
+        attach_hook(WSAWaitForMultipleEvents);
+        attach_hook(GetQueuedCompletionStatus);
+        attach_hook(GetQueuedCompletionStatusEx);
+        DetourTransactionCommit();
+        return true;
+    }();
+    (void)x;
 }
 
+#if 0
 void cleanup_hook() {
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
@@ -1430,13 +1431,10 @@ void cleanup_hook() {
     detach_hook(GetQueuedCompletionStatusEx);
     DetourTransactionCommit();
 }
+#endif
 
-void disable_hook_sleep() {
-    atomic_store(&gHook().hook_sleep, mo_release);
-}
-
-void enable_hook_sleep() {
-    atomic_swap(&gHook().hook_sleep, mo_release);
+void hook_sleep(bool x) {
+    atomic_store(&gHook().hook_sleep, x, mo_release);
 }
 
 } // co
