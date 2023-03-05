@@ -35,7 +35,7 @@ DEF_test(flag) {
             "-ut_double", "3.14",
             "-ut_string", "again",
         };
-        flag::init(argc, argv);
+        flag::parse(argc, (char**)argv);
 
         EXPECT_EQ(FLG_ut_bool, true);
         EXPECT_EQ(FLG_ut_int32, -4096);
@@ -58,7 +58,7 @@ DEF_test(flag) {
             "-ut_double=0.23",
             "-ut_string=hello",
         };
-        flag::init(argc, argv);
+        flag::parse(argc, (char**)argv);
 
         EXPECT_EQ(FLG_ut_bool, false);
         EXPECT_EQ(FLG_ut_int32, 4096);
@@ -81,7 +81,7 @@ DEF_test(flag) {
             "ut_double=3.14",
             "ut_string=what",
         };
-        flag::init(argc, argv);
+        flag::parse(argc, (char**)argv);
 
         EXPECT_EQ(FLG_ut_bool, true);
         EXPECT_EQ(FLG_ut_int32, -4096);
@@ -104,7 +104,7 @@ DEF_test(flag) {
               << "ut_string = hello world" << '\n';
             s.close();
 
-            flag::init("ut_xxx.conf");
+            flag::parse("ut_xxx.conf");
 
             EXPECT_EQ(FLG_ut_bool, false);
             EXPECT_EQ(FLG_ut_int32, 888);

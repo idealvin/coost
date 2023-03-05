@@ -123,7 +123,7 @@ class SockCtx {
 #endif
 
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static auto& k_sock_ctx_tb = *co::static_new<co::table<SockCtx>>(15, 16);
+    static auto& k_sock_ctx_tb = *co::_make_static<co::table<SockCtx>>(15, 16);
     return k_sock_ctx_tb[sock];
 }
 

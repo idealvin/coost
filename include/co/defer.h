@@ -6,14 +6,14 @@
 namespace co {
 namespace xx {
 
-template <typename F>
+template<typename F>
 struct Defer {
     Defer(F&& f) noexcept : _f(std::forward<F>(f)) {}
     ~Defer() { _f(); }
     typename std::remove_reference<F>::type _f;
 };
 
-template <typename F>
+template<typename F>
 inline Defer<F> make_defer(F&& f) noexcept {
     return Defer<F>(std::forward<F>(f));
 }

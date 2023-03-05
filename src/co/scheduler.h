@@ -37,9 +37,6 @@ namespace co {
 void init_sock();
 void cleanup_sock();
 
-void init_hook();
-void cleanup_hook();
-
 struct Coroutine;
 typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
 

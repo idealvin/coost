@@ -98,13 +98,7 @@ DEF_test(mem) {
     }
 
     DEF_case(static) {
-        void* p = co::static_alloc(24);
-        EXPECT_NE(p, (void*)0);
-
-        *(uint32*)p = 7;
-        EXPECT_EQ(*(uint32*)p, 7);
-
-        int* x = co::static_new<int>(7);
+        int* x = co::make_static<int>(7);
         EXPECT_NE(x, (void*)0);
         EXPECT_EQ(*x, 7);
     }

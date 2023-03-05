@@ -16,7 +16,9 @@ DEF_double(dbl, 3.14, "double");
 DEF_string(s, "hello world", "string");
 
 int main(int argc, char** argv) {
-    auto args = flag::init(argc, argv);
+    FLG_version = "v3.1.4";
+    flag::alias("version", "v");
+    auto args = flag::parse(argc, argv);
 
     COUT << "boo: " << FLG_boo;
     COUT << "x: " << FLG_x;
@@ -34,7 +36,8 @@ int main(int argc, char** argv) {
 
     if (argc == 1) {
         COUT << "\nYou may try running " << argv[0] << " as below:";
-        COUT << argv[0] << "  -xz i32=4k i64=8M u32=1g -s=xxx";
+        COUT << argv[0] << "  -xz -i32 4k i64=8M u32=1g -s=xxx";
+        COUT << argv[0] << "  -v";
     }
 
     return 0;

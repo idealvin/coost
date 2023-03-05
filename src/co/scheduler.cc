@@ -31,7 +31,7 @@ SchedulerImpl::~SchedulerImpl() {
 void SchedulerImpl::stop() {
     if (atomic_swap(&_stop, true, mo_acq_rel) == false) {
         _epoll->signal();
-        _ev.wait(32); // wait at most 32ms
+        _ev.wait(128); // wait at most 128ms
     }
 }
 
@@ -237,7 +237,7 @@ SchedulerManager::SchedulerManager() {
     _s = _r == 0 ? (FLG_co_sched_num - 1) : -1;
 
     for (uint32 i = 0; i < FLG_co_sched_num; ++i) {
-        SchedulerImpl* s = new SchedulerImpl(i, FLG_co_sched_num, FLG_co_stack_size);
+        auto s = co::make<SchedulerImpl>(i, FLG_co_sched_num, FLG_co_stack_size);
         s->start();
         _scheds.push_back(s);
     }
@@ -246,25 +246,15 @@ SchedulerManager::SchedulerManager() {
 }
 
 SchedulerManager::~SchedulerManager() {
-    for (size_t i = 0; i < _scheds.size(); ++i) delete (SchedulerImpl*)_scheds[i];
+    for (size_t i = 0; i < _scheds.size(); ++i) {
+        co::del((SchedulerImpl*)_scheds[i]);
+    }
 }
 
 inline SchedulerManager* scheduler_manager() {
-    static auto ksm = co::static_new<SchedulerManager>();
+    static auto ksm = co::_make_static<SchedulerManager>();
     return ksm;
 }
-
-struct Cleanup {
-    ~Cleanup() {
-        if (is_active()) {
-            scheduler_manager()->stop();
-            co::cleanup_hook();
-            co::cleanup_sock();
-        }
-    }
-};
-
-static Cleanup _gc;
 
 void SchedulerManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {

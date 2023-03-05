@@ -83,7 +83,7 @@ class Alloc {
 
 inline Alloc& jalloc() {
     static __thread Alloc* a = 0;
-    return a ? *a : *(a = co::static_new<Alloc>()); 
+    return a ? *a : *(a = co::_make_static<Alloc>()); 
 }
 
 void* alloc() {
