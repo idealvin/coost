@@ -49,23 +49,23 @@ inline int i64toa(int64 v, char* buf) {
 }
 
 // signed integer to ascii string
-template<typename V, god::enable_if_t<sizeof(V) <= sizeof(uint32), int> = 0>
+template<typename V, god::enable_if_t<sizeof(V) <= sizeof(int32), int> = 0>
 inline int itoa(V v, char* buf) {
     return i32toa((int32)v, buf);
 }
 
-template<typename V, god::enable_if_t<(sizeof(V) > sizeof(uint32)), int> = 0>
+template<typename V, god::enable_if_t<(sizeof(V) == sizeof(int64)), int> = 0>
 inline int itoa(V v, char* buf) {
     return i64toa((int64)v, buf);
 }
 
 // unsigned integer to ascii string
-template<typename V, god::enable_if_t<sizeof(V) <= sizeof(uint32), int> = 0>
+template<typename V, god::enable_if_t<sizeof(V) <= sizeof(int32), int> = 0>
 inline int utoa(V v, char* buf) {
     return u32toa((uint32)v, buf);
 }
 
-template<typename V, god::enable_if_t<(sizeof(V) > sizeof(uint32)), int> = 0>
+template<typename V, god::enable_if_t<(sizeof(V) == sizeof(int64)), int> = 0>
 inline int utoa(V v, char* buf) {
     return u64toa((uint64)v, buf);
 }
@@ -73,7 +73,7 @@ inline int utoa(V v, char* buf) {
 #if __arch64
 // pointer to hex string
 inline int ptoh(const void* p, char* buf) {
-    return u64toh((uint64)p, buf);
+    return u64toh((uint64)(size_t)p, buf);
 }
 
 #else
@@ -129,7 +129,7 @@ class __coapi stream {
     size_t capacity() const noexcept { return _cap; }
     void clear() noexcept { _size = 0; }
 
-    // like clear(), but will fill the internal memory with zeros
+    // like clear(), but will fill zero-clear the memory
     void safe_clear() {
         memset(_p, 0, _size);
         _size = 0;
@@ -141,35 +141,14 @@ class __coapi stream {
         return _p;
     }
 
-    char& back() {
-        assert(_size > 0);
-        return _p[_size - 1];
-    }
+    char& back() { return _p[_size - 1]; }
+    const char& back() const { return ((stream*)this)->back(); }
 
-    const char& back() const {
-        assert(_size > 0);
-        return _p[_size - 1];
-    }
+    char& front() { return _p[0]; }
+    const char& front() const { return ((stream*)this)->front(); }
 
-    char& front() {
-        assert(_size > 0);
-        return _p[0];
-    }
-
-    const char& front() const {
-        assert(_size > 0);
-        return _p[0];
-    }
-
-    char& operator[](size_t i) {
-        assert(i < _size);
-        return _p[i];
-    }
-
-    const char& operator[](size_t i) const {
-        assert(i < _size);
-        return _p[i];
-    }
+    char& operator[](size_t i) { return _p[i]; }
+    const char& operator[](size_t i) const { return ((stream*)this)->operator[](i); }
     
     void resize(size_t n) {
         this->reserve(n);
