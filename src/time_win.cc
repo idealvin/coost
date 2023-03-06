@@ -92,7 +92,7 @@ int64 us() {
 
 } // epoch
 
-namespace ___ {
+namespace _xx {
 namespace sleep {
 
 void ms(uint32 n) {
@@ -104,6 +104,6 @@ void sec(uint32 n) {
 }
 
 } // sleep
-} // ___
+} // _xx
 
 #endif

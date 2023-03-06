@@ -29,7 +29,7 @@ __coapi int64 ms();
 
 } // epoch
 
-namespace ___ {
+namespace _xx {
 namespace sleep {
 
 __coapi void ms(uint32 n);
@@ -37,9 +37,9 @@ __coapi void ms(uint32 n);
 __coapi void sec(uint32 n);
 
 } // sleep
-} // ___
+} // _xx
 
-using namespace ___;
+using namespace _xx;
 
 class __coapi Timer {
   public:
