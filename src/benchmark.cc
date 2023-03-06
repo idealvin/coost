@@ -15,8 +15,8 @@ int calc_iters(int64 ns) {
 }
 
 inline co::array<Group>& groups() {
-    static co::array<Group> g;
-    return g;
+    static auto g = co::_make_static<co::array<Group>>();
+    return *g;
 }
 
 bool add_group(const char* name, void (*f)(Group&)) {

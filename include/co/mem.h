@@ -44,25 +44,36 @@ inline void del(T* p, size_t n=sizeof(T)) {
 }
 
 // used internally by coost, do not call it
-__coapi void* _salloc(size_t n, std::function<void(void*)>&& f = 0, int x = 0);
+__coapi void* _salloc(size_t n);
+
+// used internally by coost, do not call it
+__coapi void _at_exit(std::function<void()>&& f, int x);
 
 // used internally by coost, do not call it
 template<typename T, typename... Args>
 inline T* _make_static(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const bool x = god::is_trivially_destructible<T>();
-    const auto p = x ? _salloc(sizeof(T)) : _salloc(sizeof(T), [](void* p){ if (p) ((T*)p)->~T(); }, 1);
-    return p ? new(p) T(std::forward<Args>(args)...) : 0;
+    const auto p = _salloc(sizeof(T));
+    if (p) {
+        new(p) T(std::forward<Args>(args)...);
+        const bool x = god::is_trivially_destructible<T>();
+        !x ? _at_exit([p](){ ((T*)p)->~T(); }, 1) : (void)0;
+    }
+    return (T*)p;
 }
 
-// create a static object, do not delete it
+// create a static object, which will be destructed automatically at exit
 //   - T* p = co::make_static<T>(args)
 template<typename T, typename... Args>
 inline T* make_static(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const bool x = god::is_trivially_destructible<T>();
-    const auto p = x ? _salloc(sizeof(T)) : _salloc(sizeof(T), [](void* p){ if (p) ((T*)p)->~T(); });
-    return p ? new(p) T(std::forward<Args>(args)...) : 0;
+    const auto p = _salloc(sizeof(T));
+    if (p) {
+        new(p) T(std::forward<Args>(args)...);
+        const bool x = god::is_trivially_destructible<T>();
+        !x ? _at_exit([p](){ ((T*)p)->~T(); }, 0) : (void)0;
+    }
+    return (T*)p;
 }
 
 
