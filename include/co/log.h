@@ -8,7 +8,7 @@
 __coapi DEC_bool(cout);
 __coapi DEC_int32(min_log_level);
 
-namespace ___ {
+namespace _xx {
 namespace log {
 
 /**
@@ -110,9 +110,9 @@ constexpr int path_base_len(const char(&s)[N], int i = N - 1) {
 
 } // namespace xx
 } // namespace log
-} // namespace ___
+} // namespace _xx
 
-using namespace ___;
+using namespace _xx;
 
 #define _CO_FNAME log::xx::path_base(__FILE__)
 #define _CO_FNLEN log::xx::path_base_len(__FILE__)

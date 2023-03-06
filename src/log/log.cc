@@ -42,7 +42,7 @@ DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz"
 static bool _init_done = false;
 static bool& _unnamed = *[]() { _init_done = true; return &_init_done; }();
 
-namespace ___ {
+namespace _xx {
 namespace log {
 namespace xx {
 
@@ -175,7 +175,6 @@ class LogFile {
   public:
     LogFile()
         : _file(256), _path(256), _path_base(256), _day(0), _checked(false) {
-        //_file.open("", 'a');
     }
 
     fs::file& open(const char* topic, int level);
@@ -1093,10 +1092,10 @@ void set_write_cb(const std::function<void(const char*, const void*, size_t)>& c
 }
 
 } // log
-} // ___
+} // _xx
 
 #ifdef _WIN32
 LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p) {
-    return ___::log::xx::on_exception(p);
+    return _xx::log::xx::on_exception(p);
 }
 #endif
