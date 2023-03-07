@@ -282,6 +282,19 @@ inline constexpr bool is_trivially_destructible() {
 template<bool C, typename T=void>
 using enable_if_t = typename std::enable_if<C, T>::type;
 
+template<bool C, typename T=void>
+using if_t = typename std::enable_if<C, T>::type;
+
+template<typename A, typename B>
+inline constexpr bool is_base_of() {
+    return std::is_base_of<A, B>::value;
+}
+
+template<typename T>
+inline constexpr bool has_virtual_destructor() {
+    return std::has_virtual_destructor<T>::value;
+}
+
 } // god
 
 // detect whether a class has a specified method

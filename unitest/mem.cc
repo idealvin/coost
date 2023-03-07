@@ -97,12 +97,6 @@ DEF_test(mem) {
       #endif
     }
 
-    DEF_case(static) {
-        int* x = co::make_static<int>(7);
-        EXPECT_NE(x, (void*)0);
-        EXPECT_EQ(*x, 7);
-    }
-
     DEF_case(small) {
         void* p = co::alloc(2048);
         EXPECT_NE(p, (void*)0);
@@ -172,71 +166,110 @@ DEF_test(mem) {
         co::free(p, 256 * 1024);
     }
 
-    DEF_case(unique_ptr) {
-        co::unique_ptr<int> p;
+    DEF_case(static) {
+        int* x = co::make_static<int>(7);
+        EXPECT_NE(x, (void*)0);
+        EXPECT_EQ(*x, 7);
+    }
+
+    static int gc = 0;
+    static int gd = 0;
+
+    struct A {
+        A() {}
+        virtual ~A() {}
+    };
+
+    struct B : A {
+        B() { ++gc; }
+        virtual ~B() { ++gd; }
+    };
+
+    DEF_case(unique) {
+        co::unique<int> p;
         EXPECT(p == NULL);
         EXPECT(!p);
 
-        p.reset(co::make<int>(7));
+        p = co::make_unique<int>(7);
         EXPECT_EQ(*p, 7);
         *p = 3;
         EXPECT_EQ(*p, 3);
 
-        co::unique_ptr<int> q(co::make<int>(7));
+        auto q = co::make_unique<int>(7);
         EXPECT_EQ(*q, 7);
 
         q = std::move(p);
         EXPECT_EQ(*q, 3);
         EXPECT(p == NULL);
 
-        int* x = q.release();
-        EXPECT_EQ(*x, 3);
+        p = q;
+        EXPECT_EQ(*p, 3);
         EXPECT(q == NULL);
 
-        p.reset(x);
-        EXPECT_EQ(*p, 3);
-        EXPECT_EQ(p.get(), x);
+        p.swap(q);
+        EXPECT_EQ(*q, 3);
+        EXPECT(p == NULL);
+
+        q.reset();
+        EXPECT(q == NULL);
+
+        co::unique<A> a = co::make_unique<B>();
+        EXPECT_EQ(gc, 1);
+        a.reset();
+        EXPECT_EQ(gd, 1);
     }
 
-    DEF_case(shared_ptr) {
-        co::shared_ptr<int> p;
+    DEF_case(shared) {
+        co::shared<int> p;
         EXPECT(p == NULL);
         EXPECT(!p);
-        EXPECT_EQ(p.use_count(), 0);
+        EXPECT_EQ(p.ref_count(), 0);
 
-        co::shared_ptr<int> q(p);
-        EXPECT_EQ(p.use_count(), 0);
-        EXPECT_EQ(q.use_count(), 0);
+        co::shared<int> q(p);
+        EXPECT_EQ(p.ref_count(), 0);
+        EXPECT_EQ(q.ref_count(), 0);
 
-        int* x = co::make<int>(7);
-        p.reset(x);
+        p = co::make_shared<int>(7);
         EXPECT_EQ(*p, 7);
         *p = 3;
         EXPECT_EQ(*p, 3);
-        EXPECT_EQ(p.use_count(), 1);
-        EXPECT_EQ(q.use_count(), 0);
-        EXPECT_EQ(p.get(), x);
-        EXPECT(p == x);
+        EXPECT_EQ(p.ref_count(), 1);
+        EXPECT_EQ(q.ref_count(), 0);
 
         q = p;
-        EXPECT_EQ(p.use_count(), 2);
-        EXPECT_EQ(q.use_count(), 2);
+        EXPECT_EQ(p.ref_count(), 2);
+        EXPECT_EQ(q.ref_count(), 2);
         EXPECT_EQ(*q, 3);
 
         p.reset();
         EXPECT(p == NULL);
-        EXPECT_EQ(q.use_count(), 1);
+        EXPECT_EQ(q.ref_count(), 1);
         EXPECT_EQ(*q, 3);
 
         p.swap(q);
         EXPECT(q == NULL);
-        EXPECT_EQ(p.use_count(), 1);
+        EXPECT_EQ(p.ref_count(), 1);
         EXPECT_EQ(*p, 3);
 
         q = std::move(p);
         EXPECT(p == NULL);
-        EXPECT_EQ(q.use_count(), 1);
+        EXPECT_EQ(q.ref_count(), 1);
         EXPECT_EQ(*q, 3);
+
+        co::shared<A> a = co::make_shared<B>();
+        EXPECT_EQ(gc, 2);
+
+        auto b = a;
+        EXPECT_EQ(gc, 2);
+        EXPECT_EQ(a.ref_count(), 2);
+
+        b.reset();
+        EXPECT_EQ(gd, 1);
+        EXPECT_EQ(a.ref_count(), 1);
+
+        a.reset();
+        EXPECT_EQ(a.ref_count(), 0);
+        EXPECT_EQ(gd, 2);
     }
 }
 
