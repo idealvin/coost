@@ -1017,7 +1017,7 @@ int ExceptHandler::handle_exception(void* e) {
 }
 
 #else
-int ExceptHandler::handle_exception(void*) {}
+int ExceptHandler::handle_exception(void*) { return 0; }
 #endif // _WIN32
 
 Mod::Mod() {

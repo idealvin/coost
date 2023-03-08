@@ -528,7 +528,6 @@ co::array<fastring> Mod::parse_commandline(int argc, char** argv) {
 void remove_quotes_and_comments(fastring& s) {
     if (s.empty()) return;
 
-    fastring r();
     size_t p, q, l;
     char c = s[0];
 
