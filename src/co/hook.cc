@@ -711,7 +711,7 @@ ssize_t _hook(sendmsg)(int fd, const struct msghdr* msg, int flags) {
 int _hook(poll)(struct pollfd* fds, nfds_t nfds, int ms) {
     _hook_api(poll);
 
-    int r, fd = nfds > 0 ? fds[0].fd : -1;
+    int r = 0, fd = nfds > 0 ? fds[0].fd : -1;
     uint32 t = ms < 0 ? -1 : ms, x = 1;
     if (!co::gSched || ms == 0) {
         r = __sys_api(poll)(fds, nfds, ms);
