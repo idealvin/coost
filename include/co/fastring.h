@@ -22,10 +22,6 @@ class __coapi fastring : public fast::stream {
         : fast::stream(cap) {
     }
 
-    fastring(void* p, size_t size, size_t cap) noexcept
-        : fast::stream(p, size, cap) {
-    }
-
     ~fastring() = default;
 
     fastring(const void* s, size_t n)
@@ -40,15 +36,8 @@ class __coapi fastring : public fast::stream {
 
     fastring(char c, size_t n) : fastring(n, c) {}
 
-    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastring(S&& s) {
-        sizeof(s) > 1 ? _construct_from_c_str(s, sizeof(s)) : (void) new(this) fast::stream();
-    }
-
-    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastring(S&& s) {
-        const size_t n = strlen(s) + 1;
-        n > 1 ? _construct_from_c_str(s, n) : (void) new(this) fast::stream();
+    fastring(const char* s)
+        : fastring(s, strlen(s)) {
     }
 
     fastring(const std::string& s)
@@ -76,17 +65,11 @@ class __coapi fastring : public fast::stream {
         return this->_assign(s.data(), s.size());
     }
 
-    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastring& operator=(S&& s) {
-        return this->_assign(s, sizeof(s) - 1);
-    }
-
-    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastring& operator=(S&& s) {
+    fastring& operator=(const char* s) {
         return this->assign(s, strlen(s));
     }
 
-    // s may points to part of the fastring itself
+    // It is ok if s overlaps with the internal buffer of fastring
     fastring& assign(const void* s, size_t n) {
         if (!this->_is_inside((const char*)s)) return this->_assign(s, n);
         assert((const char*)s + n <= _p + _size);
@@ -128,7 +111,6 @@ class __coapi fastring : public fast::stream {
         return this->append(n, c);
     }
 
-    // append a single character
     fastring& append(char c) {
         return (fastring&)fast::stream::append(c);
     }
@@ -157,44 +139,78 @@ class __coapi fastring : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
-    friend class fpstream;
-    class fpstream {
-      public:
-        fpstream(fastring* s, int mdp) noexcept : s(s), mdp(mdp) {}
-
-        fpstream& operator<<(double v) {
-            s->ensure(mdp + 8);
-            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
-            return *this;
-        }
-
-        fpstream& operator<<(float v) {
-            return this->operator<<((double)v);
-        }
-
-        fpstream& operator<<(maxdp_t x) noexcept {
-            mdp = x.n;
-            return *this;
-        }
-
-        template <typename T>
-        fpstream& operator<<(T&& t) {
-            s->operator<<(std::forward<T>(t));
-            return *this;
-        }
-
-        fastring* s;
-        int mdp;
-    };
-
-    // set max decimal places for float point number, mdp must > 0
-    fpstream maxdp(int mdp) noexcept {
-        return fpstream(this, mdp);
+    fastring& operator<<(bool v) {
+        return (fastring&) fast::stream::operator<<(v);
     }
 
-    // set max decimal places as mdp.n
-    fpstream operator<<(maxdp_t mdp) {
-        return fpstream(this, mdp.n);
+    fastring& operator<<(char v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(signed char v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(unsigned char v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(short v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(unsigned short v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(int v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(unsigned int v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(long v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(unsigned long v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(long long v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(unsigned long long v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(double v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(float v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    // float point number with max decimal places set
+    //   - fastring() << dp::_2(3.1415);  // -> 3.14
+    fastring& operator<<(const dp::__fpt& v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(const void* v) {
+        return (fastring&) fast::stream::operator<<(v);
+    }
+
+    fastring& operator<<(std::nullptr_t) {
+        return (fastring&) fast::stream::operator<<(nullptr);
+    }
+
+    fastring& operator<<(const char* s) {
+        return this->append(s, strlen(s));
     }
 
     fastring& operator<<(const signed char* s) {
@@ -205,34 +221,12 @@ class __coapi fastring : public fast::stream {
         return this->operator<<((const char*)s);
     }
 
-    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastring& operator<<(S&& s) {
-        return (fastring&) fast::stream::append(s, sizeof(s) - 1);
-    }
-
-    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastring& operator<<(S&& s) {
-        return this->append(s, strlen(s));
-    }
-
     fastring& operator<<(const fastring& s) {
         return this->append(s);
     }
 
     fastring& operator<<(const std::string& s) {
         return this->append(s);
-    }
-
-    template<typename T, god::enable_if_t<god::is_basic<god::remove_ref_t<T>>(), int> = 0>
-    fastring& operator<<(T&& t) {
-        return (fastring&) fast::stream::operator<<(std::forward<T>(t));
-    }
-
-    template<typename T, god::enable_if_t<
-        god::is_pointer<god::remove_ref_t<T>>() && !god::is_c_str<god::remove_ref_t<T>>(), int> = 0
-    >
-    fastring& operator<<(T&& p) {
-        return (fastring&) fast::stream::operator<<(std::forward<T>(p));
     }
 
     fastring substr(size_t pos) const {
@@ -275,14 +269,16 @@ class __coapi fastring : public fast::stream {
         return npos;
     }
 
+    // implemented with strstr at present, do not apply it to binary strings
     size_t find(const char* s) const {
         if (!this->empty()) {
-            const char* p = strstr(this->c_str(), s);
+            const char* const p = strstr(this->c_str(), s);
             return p ? p - _p : npos;
         }
         return npos;
     }
 
+    // implemented with strstr at present, do not apply it to binary strings
     size_t find(const char* s, size_t pos) const {
         if (pos < _size) {
             const char* const p = strstr(this->c_str() + pos, s);
@@ -439,13 +435,6 @@ class __coapi fastring : public fast::stream {
     }
 
   private:
-    void _construct_from_c_str(const char* s, size_t n) {
-        _cap = n;
-        _size = n - 1;
-        _p = (char*) co::alloc(n); assert(_p);
-        memcpy(_p, s, n);
-    }
-
     fastring& _assign(const void* s, size_t n) {
         _size = n;
         if (n > 0) {
@@ -660,3 +649,23 @@ struct hash<fastring> {
     }
 };
 } // std
+
+class anystr {
+  public:
+    constexpr anystr() noexcept : _s(""), _n(0) {}
+    constexpr anystr(const char* s, size_t n) noexcept : _s(s), _n(n) {}
+
+    // modern compilers may do strlen for string literals at compile time,
+    // see https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
+    anystr(const char* s) noexcept : _s(s), _n(strlen(s)) {}
+
+    anystr(const std::string& s) noexcept : _s(s.data()), _n(s.size()) {}
+    anystr(const fastring& s) noexcept : _s(s.data()), _n(s.size()) {}
+
+    constexpr const char* data() const noexcept { return _s; }
+    constexpr size_t size() const noexcept { return _n; }
+
+  private:
+    const char* const _s;
+    const size_t _n;
+};

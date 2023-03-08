@@ -33,7 +33,7 @@ struct _Less {
 template <>
 struct _Less<const char*> {
     bool operator()(const char* x, const char* y) const {
-        return strcmp(x, y) < 0;
+        return x != y && strcmp(x, y) < 0;
     }
 };
 

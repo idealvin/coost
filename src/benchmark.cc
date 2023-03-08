@@ -35,15 +35,15 @@ struct Num {
         if (v < 0.01) {
             s = "< 0.01";
         } else if (v < 1000.0) {
-            s.maxdp(2) << v;
+            s << dp::_2(v);
         } else if (v < 1000000.0) {
-            s.maxdp(2) << (v / 1000) << 'K';
+            s << dp::_2(v / 1000) << 'K';
         } else if (v < 1000000000.0) {
-            s.maxdp(2) << (v / 1000000) << 'M';
+            s << dp::_2(v / 1000000) << 'M';
         } else {
             const double x = v / 1000000000;
             if (x <= 1000.0) {
-                s.maxdp(2) << x << 'G';
+                s << dp::_2(x) << 'G';
             } else {
                 s << "> 1000G";
             }

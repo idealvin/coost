@@ -2,7 +2,6 @@
 
 #include "god.h"
 #include "fast.h"
-#include "stref.h"
 #include "fastring.h"
 
 class __coapi fastream : public fast::stream {
@@ -13,10 +12,6 @@ class __coapi fastream : public fast::stream {
     
     explicit fastream(size_t cap)
         : fast::stream(cap) {
-    }
-
-    fastream(void* p, size_t size, size_t cap) noexcept
-        : fast::stream(p, size, cap) {
     }
 
     ~fastream() = default;
@@ -32,18 +27,17 @@ class __coapi fastream : public fast::stream {
         return (fastream&) fast::stream::operator=(std::move(fs));
     }
 
-    // copy data in fastream as a fastring
     fastring str() const {
         return fastring(_p, _size);
     }
 
-    // It is not safe if p points to part of the fastream itself, this is by design.
-    // Use safe_append() in that case.
+    // It is not safe if p overlaps with the internal buffer of fastream, use 
+    // safe_append() in that case.
     fastream& append(const void* p, size_t n) {
         return (fastream&) fast::stream::append(p, n);
     }
 
-    // p may points to part of the fastream itself.
+    // It is ok if p overlaps with the internal buffer of fastream
     fastream& safe_append(const void* p, size_t n) {
         return (fastream&) fast::stream::safe_append(p, n);
     }
@@ -81,13 +75,8 @@ class __coapi fastream : public fast::stream {
         return *this;
     }
 
-    fastream& append(const co::stref& s) {
-        return this->append(s.data(), s.size());
-    }
-
-    // append a single character
     fastream& append(char c) {
-        return (fastream&)fast::stream::append(c);
+        return (fastream&) fast::stream::append(c);
     }
 
     fastream& append(signed char c) {
@@ -122,62 +111,86 @@ class __coapi fastream : public fast::stream {
         return this->cat(std::forward<V>(v)...);
     }
 
-    friend class fpstream;
-    class fpstream {
-      public:
-        fpstream(fastream* s, int mdp) noexcept : s(s), mdp(mdp) {}
-
-        fpstream& operator<<(double v) {
-            s->ensure(mdp + 8);
-            s->_size += fast::dtoa(v, s->_p + s->_size, mdp);
-            return *this;
-        }
-
-        fpstream& operator<<(float v) {
-            return this->operator<<((double)v);
-        }
-
-        fpstream& operator<<(maxdp_t x) noexcept {
-            mdp = x.n;
-            return *this;
-        }
-
-        template <typename T>
-        fpstream& operator<<(T&& t) {
-            s->operator<<(std::forward<T>(t));
-            return *this;
-        }
-
-        fastream* s;
-        int mdp;
-    };
-
-    // set max decimal places for float point number, mdp must > 0
-    fpstream maxdp(int mdp) noexcept {
-        return fpstream(this, mdp);
+    fastream& operator<<(bool v) {
+        return (fastream&) fast::stream::operator<<(v);
     }
 
-    // set max decimal places as mdp.n
-    fpstream operator<<(maxdp_t mdp) {
-        return fpstream(this, mdp.n);
+    fastream& operator<<(char v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(signed char v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned char v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(short v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned short v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(int v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned int v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(long long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned long long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(double v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(float v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    // float point number with max decimal places set
+    //   - fastream() << dp::_2(3.1415);  // -> 3.14
+    fastream& operator<<(const dp::__fpt& v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(const void* v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(std::nullptr_t) {
+        return (fastream&) fast::stream::operator<<(nullptr);
+    }
+
+    fastream& operator<<(const char* s) {
+        return this->append(s, strlen(s));
     }
 
     fastream& operator<<(const signed char* s) {
-        return this->append(s, strlen((const char*)s));
+        return this->operator<<((const char*)s);
     }
 
     fastream& operator<<(const unsigned char* s) {
-        return this->append(s, strlen((const char*)s));
-    }
-
-    template<typename S, god::enable_if_t<god::is_literal_string<god::remove_ref_t<S>>(), int> = 0>
-    fastream& operator<<(S&& s) {
-        return this->append(s, sizeof(s) - 1);
-    }
-
-    template<typename S, god::enable_if_t<god::is_c_str<god::remove_ref_t<S>>(), int> = 0>
-    fastream& operator<<(S&& s) {
-        return this->append(s, strlen(s));
+        return this->operator<<((const char*)s);
     }
 
     fastream& operator<<(const fastring& s) {
@@ -190,21 +203,5 @@ class __coapi fastream : public fast::stream {
 
     fastream& operator<<(const fastream& s) {
         return this->append(s);
-    }
-
-    fastream& operator<<(const co::stref& s) {
-        return this->append(s.data(), s.size());
-    }
-
-    template<typename T, god::enable_if_t<god::is_basic<god::remove_ref_t<T>>(), int> = 0>
-    fastream& operator<<(T&& t) {
-        return (fastream&) fast::stream::operator<<(std::forward<T>(t));
-    }
-
-    template<typename T, god::enable_if_t<
-        god::is_pointer<god::remove_ref_t<T>>() && !god::is_c_str<god::remove_ref_t<T>>(), int> = 0
-    >
-    fastream& operator<<(T&& p) {
-        return (fastream&) fast::stream::operator<<(std::forward<T>(p));
     }
 };

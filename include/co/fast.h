@@ -7,17 +7,35 @@
 
 #include <assert.h>
 #include <string.h>
-#include <new>
 
-namespace co {
-// max decimal places
-struct maxdp {
-    explicit constexpr maxdp(int n) noexcept : n(n) {}
-    int n;
+// decimal places
+namespace dp {
+
+struct __fpt {
+    constexpr __fpt(double v, int d) : v(v), d(d) {}
+    double v;
+    int d;
 };
-} // co
 
-typedef co::maxdp maxdp_t;
+constexpr __fpt _1(double v) { return __fpt(v, 1); }
+constexpr __fpt _2(double v) { return __fpt(v, 2); }
+constexpr __fpt _3(double v) { return __fpt(v, 3); }
+constexpr __fpt _4(double v) { return __fpt(v, 4); }
+constexpr __fpt _5(double v) { return __fpt(v, 5); }
+constexpr __fpt _6(double v) { return __fpt(v, 6); }
+constexpr __fpt _7(double v) { return __fpt(v, 7); }
+constexpr __fpt _8(double v) { return __fpt(v, 8); }
+constexpr __fpt _9(double v) { return __fpt(v, 9); }
+constexpr __fpt _10(double v) { return __fpt(v, 10); }
+constexpr __fpt _11(double v) { return __fpt(v, 11); }
+constexpr __fpt _12(double v) { return __fpt(v, 12); }
+constexpr __fpt _13(double v) { return __fpt(v, 13); }
+constexpr __fpt _14(double v) { return __fpt(v, 14); }
+constexpr __fpt _15(double v) { return __fpt(v, 15); }
+constexpr __fpt _16(double v) { return __fpt(v, 16); }
+constexpr __fpt _n(double v, int n) { return __fpt(v, n); }
+
+} // dp
 
 namespace fast {
 
@@ -49,23 +67,23 @@ inline int i64toa(int64 v, char* buf) {
 }
 
 // signed integer to ascii string
-template<typename V, god::enable_if_t<sizeof(V) <= sizeof(int32), int> = 0>
+template<typename V, god::if_t<sizeof(V) <= sizeof(int32), int> = 0>
 inline int itoa(V v, char* buf) {
     return i32toa((int32)v, buf);
 }
 
-template<typename V, god::enable_if_t<(sizeof(V) == sizeof(int64)), int> = 0>
+template<typename V, god::if_t<(sizeof(V) == sizeof(int64)), int> = 0>
 inline int itoa(V v, char* buf) {
     return i64toa((int64)v, buf);
 }
 
 // unsigned integer to ascii string
-template<typename V, god::enable_if_t<sizeof(V) <= sizeof(int32), int> = 0>
+template<typename V, god::if_t<sizeof(V) <= sizeof(int32), int> = 0>
 inline int utoa(V v, char* buf) {
     return u32toa((uint32)v, buf);
 }
 
-template<typename V, god::enable_if_t<(sizeof(V) == sizeof(int64)), int> = 0>
+template<typename V, god::if_t<(sizeof(V) == sizeof(int64)), int> = 0>
 inline int utoa(V v, char* buf) {
     return u64toa((uint64)v, buf);
 }
@@ -90,21 +108,15 @@ class __coapi stream {
     
     explicit stream(size_t cap)
         : _cap(cap), _size(0) {
-        _p = (char*) co::alloc(cap); assert(_p);
+        _p = cap > 0 ? (char*)co::alloc(cap) : 0;
     }
 
     stream(size_t cap, size_t size)
         : _cap(cap), _size(size) {
-        _p = (char*) co::alloc(cap); assert(_p);
+        _p = cap > 0 ? (char*)co::alloc(cap) : 0;
     }
 
-    stream(void* p, size_t size, size_t cap) noexcept
-        : _cap(cap), _size(size), _p((char*)p) {
-    }
-
-    ~stream() {
-        if (_p) co::free(_p, _cap);
-    }
+    ~stream() { this->reset(); }
 
     stream(const stream&) = delete;
     void operator=(const stream&) = delete;
@@ -129,7 +141,7 @@ class __coapi stream {
     size_t capacity() const noexcept { return _cap; }
     void clear() noexcept { _size = 0; }
 
-    // like clear(), but will fill zero-clear the memory
+    // like clear(), but will zero-clear the memory
     void safe_clear() {
         memset(_p, 0, _size);
         _size = 0;
@@ -155,6 +167,7 @@ class __coapi stream {
         _size = n;
     }
 
+    // like resize(), but will fill the expanded memory with zeros
     void safe_resize(size_t n) {
         if (_size < n) {
             this->reserve(n);
@@ -171,15 +184,18 @@ class __coapi stream {
     }
 
     void reset() {
-        if (_p) { co::free(_p, _cap); _p = 0; }
-        _cap = _size = 0;
+        if (_p) {
+            co::free(_p, _cap);
+            _p = 0;
+            _cap = _size = 0;
+        }
     }
 
     void ensure(size_t n) {
         if (_cap < _size + n) {
-            const size_t old_cap = _cap;
+            const size_t cap = _cap;
             _cap += ((_cap >> 1) + n);
-            _p = (char*) co::realloc(_p, old_cap, _cap); assert(_p);
+            _p = (char*) co::realloc(_p, cap, _cap); assert(_p);
         }
     }
 
@@ -189,9 +205,7 @@ class __coapi stream {
         std::swap(fs._p, _p);
     }
 
-    void swap(stream&& fs) noexcept {
-        fs.swap(*this);
-    }
+    void swap(stream&& fs) noexcept { fs.swap(*this); }
 
   protected:
     stream& append(size_t n, char c) {
@@ -292,15 +306,19 @@ class __coapi stream {
         return *this;
     }
 
-    stream& operator<<(float v) {
+    stream& operator<<(double v) {
         this->ensure(24);
         _size += fast::dtoa(v, _p + _size, 6);
         return *this;
     }
 
-    stream& operator<<(double v) {
-        this->ensure(24);
-        _size += fast::dtoa(v, _p + _size, 6);
+    stream& operator<<(float v) {
+        return this->operator<<((double)v);
+    }
+
+    stream& operator<<(const dp::__fpt& v) {
+        this->ensure(v.d + 8);
+        _size += fast::dtoa(v.v, _p + _size, v.d);
         return *this;
     }
 

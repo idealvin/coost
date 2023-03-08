@@ -1,7 +1,6 @@
 #pragma once
 
 #include "fastream.h"
-#include "stref.h"
 #include <iostream>
 
 using std::cout;
@@ -62,27 +61,27 @@ struct Text {
     color::Color c;
 };
 
-inline Text red(const co::stref& s) {
+inline Text red(const anystr& s) {
     return Text(s.data(), s.size(), color::red);
 }
 
-inline Text green(const co::stref& s) {
+inline Text green(const anystr& s) {
     return Text(s.data(), s.size(), color::green);
 }
 
-inline Text blue(const co::stref& s) {
+inline Text blue(const anystr& s) {
     return Text(s.data(), s.size(), color::blue);
 }
 
-inline Text yellow(const co::stref& s) {
+inline Text yellow(const anystr& s) {
     return Text(s.data(), s.size(), color::yellow);
 }
 
-inline Text magenta(const co::stref& s) {
+inline Text magenta(const anystr& s) {
     return Text(s.data(), s.size(), color::magenta);
 }
 
-inline Text cyan(const co::stref& s) {
+inline Text cyan(const anystr& s) {
     return Text(s.data(), s.size(), color::cyan);
 }
 
@@ -100,7 +99,7 @@ struct Bold {
     color::Color _c;
 };
 
-inline Bold bold(const co::stref& s) noexcept {
+inline Bold bold(const anystr& s) noexcept {
     return Bold(s.data(), s.size());
 }
 

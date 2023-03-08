@@ -24,7 +24,6 @@ DEF_test(fastring) {
             fastring s("888");
             EXPECT_EQ(s, "888");
             EXPECT_EQ(s.size(), 3);
-            EXPECT_EQ(s.capacity(), 4);
         }
 
         fastring x(std::string("888"));
@@ -358,6 +357,25 @@ DEF_test(fastring) {
 
         s = "xxx";
         EXPECT_EQ(s.strip("xy", 'l'), "");
+
+        fastring x("123456789");
+        x.strip(1);
+        EXPECT_EQ(x, "2345678");
+        x.strip(2, 'l');
+        EXPECT_EQ(x, "45678");
+        x.strip(2, 'r');
+        EXPECT_EQ(x, "456");
+
+        x.strip(5, 'r');
+        EXPECT(x.empty());
+
+        x = "123456";
+        x.strip(7, 'l');
+        EXPECT(x.empty());
+
+        x = "123456";
+        x.strip(4);
+        EXPECT(x.empty());
     }
 
     DEF_case(starts_ends) {

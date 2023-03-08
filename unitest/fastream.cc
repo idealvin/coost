@@ -122,11 +122,11 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.str(), "3.14159");
 
         fs.clear();
-        fs << co::maxdp(3) << d;
+        fs << dp::_3(d);
         EXPECT_EQ(fs.str(), "3.141");
 
         fs.clear();
-        fs.maxdp(2) << d;
+        fs << dp::_2(d);
         EXPECT_EQ(fs.str(), "3.14");
     }
 
