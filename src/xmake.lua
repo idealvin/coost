@@ -1,6 +1,6 @@
-option("cxxabi")
-    add_cxxincludes("cxxabi.h")
-option_end()
+--option("cxxabi")
+--    add_cxxincludes("cxxabi.h")
+--option_end()
 
 target("libco")
     set_kind("$(kind)")
@@ -60,9 +60,9 @@ target("libco")
             add_defines("HAS_BACKTRACE_H")
             add_packages("libbacktrace", { public = true })
         end
-        if has_config("cxxabi") then
-            add_defines("HAS_CXXABI_H")
-        end
+        --if has_config("cxxabi") then
+        --    add_defines("HAS_CXXABI_H")
+        --end
         if not is_plat("android") then
             add_syslinks("pthread", { public = true })
             add_syslinks("dl")
