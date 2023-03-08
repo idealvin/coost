@@ -449,7 +449,7 @@ bool Logger::start() {
         do {
             // ensure max_log_buffer_size >= 1M, max_log_size >= 256
             auto& bs = FLG_max_log_buffer_size;
-            auto& ls = FLG_max_log_size;
+            auto& ls = *(uint32*)&FLG_max_log_size;
             if (bs < (1 << 20)) bs = 1 << 20;
             if (ls < 256) ls = 256;
             if (ls > (bs >> 2)) ls = bs >> 2;
@@ -1096,6 +1096,6 @@ void set_write_cb(const std::function<void(const char*, const void*, size_t)>& c
 
 #ifdef _WIN32
 LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p) {
-    return _xx::log::xx::on_exception(p);
+    return _xx::log::xx::on_except(p);
 }
 #endif
