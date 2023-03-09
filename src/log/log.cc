@@ -324,7 +324,7 @@ fs::file& LogFile::open(const char* topic, int level) {
 
     if (!_file) {
         s.clear();
-        s << "cann't open the file: " << _path << '\n';
+        s << "cann't open the file: " << _path << ", " << strerror(_file.open_errno()) << "\n";
         log2stderr(s.data(), s.size());
     }
     return _file;

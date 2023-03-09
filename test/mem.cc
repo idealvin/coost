@@ -6,6 +6,8 @@ DEF_int32(m, 200, "m");
 DEF_int32(t, 1, "thread num");
 DEF_bool(xfree, false, "test xfree");
 
+co::WaitGroup wg;
+
 void test_fun(int id) {
     int N = FLG_n;
     co::array<void*> v(N);
@@ -67,6 +69,7 @@ void test_fun(int id) {
 
     COUT << "thread " << id << ":\n" << s;
     v.reset();
+    wg.done();
 }
 
 void test_string() {
@@ -228,6 +231,8 @@ void test_xfree() {
             co::sleep(1);
         }
     }
+
+    wg.done();
 }
 
 int main(int argc, char** argv) {
@@ -240,14 +245,16 @@ int main(int argc, char** argv) {
         test_unordered_map();
 
         for (int i = 0; i < FLG_t; ++i) {
+            wg.add();
             std::thread(test_fun, i).detach();
         }
     } else {
+        wg.add();
         go(test_xalloc);
         go(test_xfree);
     }
 
-    while (true) sleep::sec(8);
+    wg.wait();
 
     return 0;
 }

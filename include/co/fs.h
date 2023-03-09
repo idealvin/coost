@@ -177,8 +177,12 @@ class __coapi file {
         return this->write(&c, 1);
     }
 
+    // if open() fails, the posix errno is stored and can be used later.
+    int open_errno() const { return _open_errno; }
+
   private:
     void* _p;
+    int _open_errno = 0;
 };
 
 // open mode:
