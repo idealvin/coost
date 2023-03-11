@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
 
     auto f = [wg]() {
         for (int i = 0; i < 3; ++i) {
-            COUT << co::thread_id() << " " << i;
+            co::print(co::thread_id(), ' ', i);
             co::sleep(10);
         }
         wg.done();
@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
     auto g = [wg]() {
         for (int i = 0; i < 3; ++i) {
-            CLOG << co::thread_id() << " " << i;
+            co::print(__FILE__, ':', __LINE__, co::thread_id(), ' ', i);
             co::sleep(10);
         }
         wg.done();

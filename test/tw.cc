@@ -343,20 +343,20 @@ int main(int argc, char** argv) {
     s = ss.c_str();
     p = FLG_s.c_str();
 
-    CLOG << QS(s, "llo");
-    CLOG << QS(s, "world");
-    CLOG << QS(s, "xxxxx");
-    CLOG << RQS(s, "llo");
-    CLOG << RQS(s, "world");
-    CLOG << RQS(s, "xxxxx");
+    co::print(QS(s, "llo"));
+    co::print(QS(s, "world"));
+    co::print(QS(s, "xxxxx"));
+    co::print(RQS(s, "llo"));
+    co::print(RQS(s, "world"));
+    co::print(RQS(s, "xxxxx"));
 
-    CLOG << tw(s, "llo");
-    CLOG << tw(s, "world");
-    CLOG << tw(s, "xxxxx");
-    CLOG << rtw(s, "llo");
-    CLOG << rtw(s, "world");
-    CLOG << rtw(s, "xxxxx");
-    CLOG << ss.rfind("xxxxx");
+    co::print(tw(s, "llo"));
+    co::print(tw(s, "world"));
+    co::print(tw(s, "xxxxx"));
+    co::print(rtw(s, "llo"));
+    co::print(rtw(s, "world"));
+    co::print(rtw(s, "xxxxx"));
+    co::print(ss.rfind("xxxxx"));
 
     bm::run_benchmarks();
 

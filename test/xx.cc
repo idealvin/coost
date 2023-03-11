@@ -1,19 +1,13 @@
 #include "co/all.h"
-#include "co/cout.h"
 
-int main(int argc, char** argv) {
-    flag::init(argc, argv);
-
-    fastream fs;
-    fs.append("hello");
-    fs << dp::_1(3.14) << "hello ";
-
+void cout_test() {
     cout << text::red("hello\n");
     cout << text::green("hello\n");
     cout << text::blue("hello\n");
     cout << text::yellow("hello\n");
     cout << text::magenta("hello\n");
     cout << text::cyan("hello\n");
+    cout << "hello\n";
     cout << text::bold("hello\n");
     cout << text::bold("hello\n").red();
     cout << text::bold("hello\n").green();
@@ -21,7 +15,13 @@ int main(int argc, char** argv) {
     cout << text::bold("hello\n").yellow();
     cout << text::bold("hello\n").magenta();
     cout << text::bold("hello\n").cyan();
-    cout << text::red(fastring(8, 'c')) << '\n';
+    co::print("hello", text::red(" coost "), 23);
+    co::print("hello", text::bold(" coost ").green(), 23);
+    co::print("hello", text::blue(" coost "), 23);
+}
 
+int main(int argc, char** argv) {
+    flag::init(argc, argv);
+    cout_test();
     return 0;
 }

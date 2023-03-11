@@ -187,7 +187,7 @@ __coapi int scheduler_id();
 /**
  * get id of the current coroutine 
  *   - It is EXPECTED to be called in a coroutine. 
- *   - Each cocoutine has a unique id. 
+ *   - Each coroutine has a unique id. 
  * 
  * @return  a non-negative id of the current coroutine, or -1 if the current thread 
  *          is not a scheduler thread.

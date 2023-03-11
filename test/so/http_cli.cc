@@ -39,7 +39,7 @@ void fa() {
 
 void fb() {
     http::Client c(FLG_s.c_str());
-    COUT << FLG_m << " " << FLG_url;
+    co::print(FLG_m, " ", FLG_url);
     if (FLG_m == "GET") {
         c.get(FLG_url.c_str());
     } else if (FLG_m == "POST") {

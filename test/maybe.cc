@@ -28,39 +28,39 @@ int main(int argc, char** argv) {
     {
         auto a = fvoid(0);
         auto b = fvoid(1);
-        COUT << "fvoid";
-        COUT << "a.has_error: " << a.has_error();
-        COUT << "b.has_error: " << b.has_error();
+        co::print("fvoid");
+        co::print("a.has_error: ", a.has_error());
+        co::print("b.has_error: ", b.has_error());
     }
 
     {
         auto a = fint(0);
         auto b = fint(1);
-        COUT << "fint";
-        COUT << "a.has_error: " << a.has_error() << " value: " << a.value();
-        COUT << "b.has_error: " << b.has_error() << " value: " << b.value();
+        co::print("fint");
+        co::print("a.has_error: ", a.has_error(), " value: ", a.value());
+        co::print("b.has_error: ", b.has_error(), " value: ", b.value());
     }
 
     {
         auto a = fintref(0);
         auto b = fintref(1);
-        COUT << "fintref";
-        COUT << "a.has_error: " << a.has_error();
-        COUT << "b.has_error: " << b.has_error();
-        COUT << "gV: " << gV;
+        co::print("fintref");
+        co::print("a.has_error: ", a.has_error());
+        co::print("b.has_error: ", b.has_error());
+        co::print("gV: ", gV);
         b.value() = 3;
-        COUT << "gV: " << gV;
+        co::print("gV: ", gV);
     }
 
     {
         auto a = ffastring(0);
         auto b = ffastring(1);
-        COUT << "ffastring";
-        COUT << "a.has_error: " << a.has_error();
-        COUT << "b.has_error: " << b.has_error();
-        COUT << "b.value: " << b.value();
+        co::print("ffastring");
+        co::print("a.has_error: ", a.has_error());
+        co::print("b.has_error: ", b.has_error());
+        co::print("b.value: ", b.value());
         b.value() = "hello";
-        COUT << "b.value: " << b.value();
+        co::print("b.value: ", b.value());
     }
 
     return 0;

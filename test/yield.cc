@@ -6,11 +6,11 @@ void* gco = 0;
 co::WaitGroup wg;
 
 void f() {
-    COUT << "coroutine starts: " << co::coroutine_id();
-    COUT << "yield coroutine..";
+    co::print("coroutine starts: ", co::coroutine_id());
+    co::print("yield coroutine..");
     gco = co::coroutine();
     co::yield();
-    COUT << "coroutine ends: " << co::coroutine_id();
+    co::print("coroutine ends: ", co::coroutine_id());
     wg.done();
 }
 
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     go(f);
     sleep::ms(10);
     if (gco) {
-        COUT << "resume co: " << gco;
+        co::print("resume co: ", gco);
         co::resume(gco);
     }
 

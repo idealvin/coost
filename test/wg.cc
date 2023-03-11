@@ -7,7 +7,7 @@ DEF_main(argc, argv) {
 
     for (int i = 0; i < 8; ++i) {
         go([wg]() {
-            COUT << "co: " << co::coroutine_id();
+            co::print("co: ", co::coroutine_id());
             wg.done();
         });
     }

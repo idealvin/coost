@@ -1,4 +1,5 @@
 #include "co/all.h"
+#include "co/mem.h"
 
 DEF_bool(s, false, "use system allocator");
 DEF_int32(n, 50000, "n");
@@ -65,7 +66,7 @@ void test_fun(int id) {
         s << "::free avg: " << avg << " ns\n";
     }
 
-    COUT << "thread " << id << ":\n" << s;
+    co::print("thread ", id, ":\n", s);
     v.reset();
 }
 
@@ -97,7 +98,7 @@ void test_string() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::string " << " avg: " << avg << " ns";
-    COUT << s;
+    co::print(s);
 }
 
 void test_vector() {
@@ -134,7 +135,7 @@ void test_vector() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::vector " << " avg: " << avg << " ns";
-    COUT << s;
+    co::print(s);
 }
 
 void test_map() {
@@ -162,7 +163,7 @@ void test_map() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::map " << " avg: " << avg << " ns";
-    COUT << s;
+    co::print(s);
 }
 
 void test_unordered_map() {
@@ -190,12 +191,12 @@ void test_unordered_map() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::unordered_map " << " avg: " << avg << " ns";
-    COUT << s << '\n';
+    co::print(s << '\n');
 }
 
-std::mutex gMtx;
-co::array<void*> gA(1024 * 1024);
-co::array<void*> gB(1024 * 1024);
+auto& gMtx = *co::make_static<std::mutex>();
+auto& gA = *co::make_static<co::array<void*>>(1024 * 1024);
+auto& gB = *co::make_static<co::array<void*>>(1024 * 1024);
 
 void test_xalloc() {
     for (int i = 0; i < FLG_n; ++i) {

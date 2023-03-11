@@ -65,23 +65,23 @@ int main(int argc, char** argv) {
     auto v = g();
     auto w = h();
     fastring s = u.str();
-    COUT << s;
-    COUT << v.str();
-    COUT << w.str();
+    co::print(s);
+    co::print(v.str());
+    co::print(w.str());
 
     u = json::parse(s.data(), s.size());
     if (!u.is_object()) {
-        COUT << "parse error..";
+        co::print("parse error..");
         return -1;
     }
 
-    COUT << u.str();
-    COUT << u.pretty();
-    COUT << "u[\"num\"][0] = " << u.get("num", 0);
-    COUT << "u[\"o\"][\"o3\"][1] = " << u.get("o", "o3", 1);
+    co::print(u.str());
+    co::print(u.pretty());
+    co::print("u[\"num\"][0] = ", u.get("num", 0));
+    co::print("u[\"o\"][\"o3\"][1] = ", u.get("o", "o3", 1));
 
     int n = 10000;
-    COUT << "s.size(): " << s.size();
+    co::print("s.size(): ", s.size());
 
     int64 beg = now::us();
     for (int i = 0; i < n; ++i) {
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     }
     int64 end = now::us();
 
-    COUT << "parse average time used: " << (end - beg) * 1.0 / n << "us";
+    co::print("parse average time used: ", (end - beg) * 1.0 / n, "us");
 
     co::Json xx = json::parse(s.data(), s.size());
     fastring xs;
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     }
     end = now::us();
 
-    COUT << "stringify average time used: " << (end - beg) * 1.0 / n << "us";
+    co::print("stringify average time used: ", (end - beg) * 1.0 / n, "us");
 
     beg = now::us();
     for (int i = 0; i < n; ++i) {
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
     }
     end = now::us();
 
-    COUT << "pretty average time used: " << (end - beg) * 1.0 / n << "us";
+    co::print("pretty average time used: ", (end - beg) * 1.0 / n, "us");
 
     return 0;
 }
