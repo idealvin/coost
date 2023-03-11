@@ -135,7 +135,7 @@ class __coapi fastring : public fast::stream {
     //     s.cat(' ', 123);  // s -> "hello 123"
     template<typename X, typename ...V>
     fastring& cat(X&& x, V&& ... v) {
-        this->operator<<(std::forward<X>(x));
+        (*this) << std::forward<X>(x);
         return this->cat(std::forward<V>(v)...);
     }
 
