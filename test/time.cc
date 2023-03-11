@@ -1,7 +1,7 @@
-#include "test.h"
 #include "co/time.h"
 #include "co/str.h"
 #include "co/fastream.h"
+#include "co/benchmark.h"
 #include <time.h>
 #ifndef _WIN32
 #include <sys/time.h>
@@ -12,26 +12,47 @@
 //   gettimeofday > now::ms(), now::us() > clock_gettime > time(0) > now::str()
 // linux:
 //   time(0) > gettimeofday, now::ms(), now::us(), clock_gettime > now::str()
-int main(int argc, char** argv) {
-    def_test(10000);
 
+BM_group(time) {
+    int64 v;
     fastring s;
-    def_case(now::str("%Y"));
-    def_case(now::str());
+    BM_add(now::str())(
+        s = now::str("%Y");
+    )
+    BM_use(s);
 
-    int64 v; (void)v;
-    def_case(v = now::ms());
-    def_case(v = now::us());
-    
-    // on linux: time(0) is fast, on mac: time(0) is slow
-    def_case(v = time(0));
+   // on linux: time(0) is fast, on mac: time(0) is slow
+    BM_add(time(0))(
+        v = ::time(0);
+    )
+    BM_use(v);
 
-  #ifndef _WIN32
+    BM_add(now::us())(
+        v = now::us();
+    )
+    BM_use(v);
+
+    BM_add(now::ms())(
+        v = now::ms();
+    )
+    BM_use(v);
+
+#ifndef _WIN32
     struct timeval tv;
-    struct timespec ts;
-    def_case(gettimeofday(&tv, 0));
-    def_case(clock_gettime(CLOCK_MONOTONIC, &ts));
-  #endif
+    BM_add(gettimeofday)(
+        gettimeofday(&tv, 0);
+    )
+    BM_use(tv);
 
+    struct timespec ts;
+    BM_add(clock_gettime)(
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+    )
+    BM_use(ts);
+#endif
+}
+
+int main(int argc, char** argv) {
+    bm::run_benchmarks();
     return 0;
 }
