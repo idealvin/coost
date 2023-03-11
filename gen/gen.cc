@@ -13,7 +13,7 @@ void gen_cpp(
 ) {
     fs::fstream fs(gen_file.c_str(), 'w');
     if (!fs) {
-        COUT << "cannot open file: " << gen_file;
+        co::print("cannot open file: ", gen_file);
         exit(0);
     }
 
@@ -82,7 +82,7 @@ void gen_cpp(
     }
 
     fs.flush();
-    COUT << "generate " << gen_file << " success";
+    co::print("generate ", gen_file, " success");
 }
 
 // todo: support golang
@@ -95,7 +95,7 @@ void gen_go(
 void parse(const char* path) {
     fs::file f;
     if (!f.open(path, 'r')) {
-        COUT << "failed to open file: " << path;
+        co::print("failed to open file: ", path);
         exit(-1);
     }
 
@@ -105,7 +105,7 @@ void parse(const char* path) {
     const char* e = strrchr(path, '.');
 
     if (e == 0 || e <= b) {
-        COUT << "invalid proto file name: " << path;
+        co::print("invalid proto file name: ", path);
         exit(-1);
     }
 
@@ -127,7 +127,7 @@ void parse(const char* path) {
 
         if (x.starts_with("package ")) {
             if (!pkg.empty()) {
-                COUT << "find multiple package name in file: " << path;
+                co::print("find multiple package name in file: ", path);
                 exit(-1);
             }
 
@@ -140,7 +140,7 @@ void parse(const char* path) {
 
         if (x.starts_with("service ")) {
             if (!serv.empty()) {
-                COUT << "find multiple service in file: " << path;
+                co::print("find multiple service in file: ", path);
                 exit(-1);
             }
 
@@ -157,7 +157,7 @@ void parse(const char* path) {
                     auto m = str::strip(l[k], " \t\r\n,;{}");
                     if (!m.empty()) methods.push_back(m);
                     if (methods.empty()) {
-                        COUT << "no method found in service: " << serv;
+                        co::print("no method found in service: ", serv);
                         exit(-1);
                     }
 
@@ -171,7 +171,7 @@ void parse(const char* path) {
                 }
             }
 
-            COUT << "ending '}' not found for service: " << serv;
+            co::print("ending '}' not found for service: ", serv);
             exit(-1);
         }
     }
@@ -180,7 +180,7 @@ void parse(const char* path) {
 int main(int argc, char** argv) {
     auto v = flag::init(argc, argv);
     if (v.empty()) {
-        COUT << "usage: gen xx.proto";
+        co::print("usage: gen xx.proto");
         return 0;
     }
 
