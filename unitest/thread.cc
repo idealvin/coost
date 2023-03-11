@@ -3,12 +3,6 @@
 
 namespace test {
 
-#ifdef _WIN32
-#define MUTEX_REENTRANT true
-#else
-#define MUTEX_REENTRANT false
-#endif
-
 void thread_run(int* x, co::sync_event* ev) {
     *x += 1;
     if (ev != NULL) ev->signal();
@@ -42,11 +36,11 @@ DEF_test(thread) {
         std::mutex mtx;
         {
             std::lock_guard<std::mutex> g(mtx);
-            EXPECT_EQ(mtx.try_lock(), MUTEX_REENTRANT);
+            EXPECT_EQ(mtx.try_lock(), false);
         }
 
         EXPECT_EQ(mtx.try_lock(), true);
-        EXPECT_EQ(mtx.try_lock(), MUTEX_REENTRANT);
+        EXPECT_EQ(mtx.try_lock(), false);
         mtx.unlock();
     }
 
