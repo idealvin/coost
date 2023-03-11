@@ -84,7 +84,8 @@ inline T* make_static(Args&&... args) {
 template<typename T>
 class unique {
   public:
-    unique() noexcept : _p(0) {}
+    constexpr unique() noexcept : _p(0) {}
+    constexpr unique(std::nullptr_t) noexcept : _p(0) {}
     unique(unique& x) noexcept : _p(x._p) { x._p = 0; }
     unique(unique&& x) noexcept : _p(x._p) { x._p = 0; }
     ~unique() { this->reset(); }
@@ -106,7 +107,7 @@ class unique {
 
     template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
     unique& operator=(unique<X>&& x) {
-        if (&x != this) { this->reset(); _p = x.get(); *(void**)&x = 0; }
+        if ((void*)&x != (void*)this) { this->reset(); _p = x.get(); *(void**)&x = 0; }
         return *this;
     }
 
@@ -170,7 +171,8 @@ inline unique<T> make_unique(Args&&... args) {
 template<typename T>
 class shared {
   public:
-    shared() noexcept : _p(0) {}
+    constexpr shared() noexcept : _p(0) {}
+    constexpr shared(std::nullptr_t) noexcept : _p(0) {}
 
     shared(const shared& x) noexcept {
         _p = x._p;
@@ -215,13 +217,13 @@ class shared {
 
     template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
     shared& operator=(const shared<X>& x) {
-        if (&x != this) shared<T>(x).swap(*this);
+        if ((void*)&x != (void*)this) shared<T>(x).swap(*this);
         return *this;
     }
 
     template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
     shared& operator=(shared<X>&& x) {
-        if (&x != this) shared<T>(std::move(x)).swap(*this);
+        if ((void*)&x != (void*)this) shared<T>(std::move(x)).swap(*this);
         return *this;
     }
 
