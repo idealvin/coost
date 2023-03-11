@@ -178,7 +178,7 @@ void parse(const char* path) {
 }
 
 int main(int argc, char** argv) {
-    auto v = flag::init(argc, argv);
+    auto v = flag::parse(argc, argv);
     if (v.empty()) {
         co::print("usage: gen xx.proto");
         return 0;

@@ -109,7 +109,7 @@ void client_fun() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     tcp::Server serv;

@@ -8,7 +8,6 @@ English | [简体中文](readme_cn.md)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-
 **[A tiny boost library in C++11.](https://github.com/idealvin/coost)**
 
 
@@ -25,9 +24,9 @@ The original name of coost is **co** or cocoyaxi. It is like [boost](https://www
 - Command line and config file parser (flag)
 - **High performance log library (log)**
 - Unit testing framework
+- Bechmark testing framework
 - **go-style coroutine**
 - Coroutine-based network library
-- Efficient JSON library
 - **JSON RPC framework**
 
 </td><td width=34% valign=top>
@@ -43,9 +42,9 @@ The original name of coost is **co** or cocoyaxi. It is like [boost](https://www
 </td><td valign=top>
 
 - **God-oriented programming**
-- LruMap
-- hash library
-- path library
+- Efficient JSON library
+- Hash library
+- Path library
 - File utilities (fs)
 - System operations (os)
 - **Fast memory allocator**
@@ -86,7 +85,6 @@ Coost needs your help. If you are using it or like it, you may consider becoming
 
 void f() {
     god::bless_no_bugs();
-    god::align_up<8>(31); // -> 32
     god::is_same<T, int, bool>(); // T is int or bool?
 }
 ```
@@ -111,12 +109,12 @@ DEF_uint32(u, 0, "xxx");
 DEF_string(s, "", "xx");
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    COUT << "x: " << FLG_x;
-    COUT << "y: " << FLG_y;
-    COUT << "debug: " << FLG_debug;
-    COUT << "u: " << FLG_u;
-    COUT << FLG_s << "|" << FLG_s.size();
+    flag::parse(argc, argv);
+    cout << "x: " << FLG_x << '\n';
+    cout << "y: " << FLG_y << '\n';
+    cout << "debug: " << FLG_debug << '\n';
+    cout << "u: " << FLG_u << '\n';
+    cout << FLG_s << "|" << FLG_s.size() << '\n';
     return 0;
 }
 ```
@@ -147,7 +145,7 @@ log supports two types of logs: one is level log, which is divided into 5 levels
 #include "co/log.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     TLOG("xx") << "s" << 23; // topic log
     DLOG << "hello " << 23;  // debug
@@ -198,8 +196,6 @@ The above is the time of [printing 1 million logs with 1, 2, 4, and 8 threads](h
 #include "co/unitest.h"
 #include "co/os.h"
 
-namespace test {
-    
 DEF_test(os) {
     DEF_case(homedir) {
         EXPECT_NE(os::homedir(), "");
@@ -209,21 +205,15 @@ DEF_test(os) {
         EXPECT_GT(os::cpunum(), 0);
     }
 }
-    
-} // namespace test
-```
-
-The above is a simple example. The `DEF_test` macro defines a test unit, which is actually a function (a method in a class). The `DEF_case` macro defines test cases, and each test case is actually a code block. The main function is simple as below:
-
-```cpp
-#include "co/unitest.h"
-
+ 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    unitest::run_all_tests();
+    flag::parse(argc, argv);
+    unitest::run_tests();
     return 0;
 }
 ```
+
+The above is a simple example. The `DEF_test` macro defines a test unit, which is actually a function (a method in a class). The `DEF_case` macro defines test cases, and each test case is actually a code block.
 
 The directory [unitest](https://github.com/idealvin/coost/tree/master/unitest) contains the unit test code in coost. Users can run unitest with the following commands:
 
@@ -240,7 +230,7 @@ In coost v3.0, **[Json](https://github.com/idealvin/coost/blob/master/include/co
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
-Json x = {
+co::Json x = {
     { "a", 23 },
     { "b", false },
     { "s", "123" },
@@ -251,7 +241,7 @@ Json x = {
 };
 
 // equal to x
-Json y = Json()
+co::Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
     .add_member("s", "123")
@@ -293,7 +283,7 @@ coost has implemented a [go-style](https://github.com/golang/go) coroutine, whic
 #include "co/co.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     co::WaitGroup wg;
     wg.add(2);
@@ -346,7 +336,7 @@ coost provides a coroutine-based network programming framework, which can be rou
 #include "co/time.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     rpc::Server()
         .add_service(new xx::HelloWorldImpl)
@@ -373,7 +363,7 @@ curl http://127.0.0.1:7788/xx --request POST --data '{"api":"ping"}'
 DEF_string(d, ".", "root dir"); // docroot for the web server
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     so::easy(FLG_d.c_str()); // mum never have to worry again
     return 0;
 }

@@ -72,7 +72,7 @@ void udp_client_fun() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     go(udp_server_fun);

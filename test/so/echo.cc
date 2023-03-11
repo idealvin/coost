@@ -62,7 +62,7 @@ void client_fun(int i) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     if (FLG_c <= 0) {
         tcp::Server().on_connection(conn_cb).start(

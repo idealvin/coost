@@ -93,7 +93,7 @@ inline void go(F&& f, T* t, P&& p) {
 #define DEF_main(argc, argv) \
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
-    flag::init(argc, argv); \
+    flag::parse(argc, argv); \
     int r; \
     co::WaitGroup wg(1); \
     go([&](){ \

@@ -24,9 +24,9 @@ coost 原名为 co，后改为 cocoyaxi，前者过短，后者过长，取中�
 - 命令行与配置文件解析(flag)
 - **高性能日志库(log)**
 - 单元测试框架(unitest)
+- benchmark测试框架
 - **go-style 协程**
 - 基于协程的网络编程框架
-- 高效 JSON 库
 - **基于 JSON 的 RPC 框架**
 
 </td><td width=34% valign=top>
@@ -42,7 +42,7 @@ coost 原名为 co，后改为 cocoyaxi，前者过短，后者过长，取中�
 </td><td valign=top>
 
 - **面向玄学编程**
-- LruMap
+- 高效 JSON 库
 - hash 库
 - path 库
 - 文件系统操作(fs)
@@ -83,7 +83,6 @@ coost 的发展离不开大家的帮助，如果您在使用或者喜欢 coost�
 
 void f() {
     god::bless_no_bugs();
-    god::align_up<8>(31); // -> 32
     god::is_same<T, int, bool>(); // T is int or bool?
 }
 ```
@@ -109,12 +108,12 @@ DEF_uint32(u, 0, "xxx");
 DEF_string(s, "", "xx");
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    COUT << "x: " << FLG_x;
-    COUT << "y: " << FLG_y;
-    COUT << "debug: " << FLG_debug;
-    COUT << "u: " << FLG_u;
-    COUT << FLG_s << "|" << FLG_s.size();
+    flag::parse(argc, argv);
+    cout << "x: " << FLG_x << '\n';
+    cout << "y: " << FLG_y << '\n';
+    cout << "debug: " << FLG_debug << '\n';
+    cout << "u: " << FLG_u << '\n';
+    cout << FLG_s << "|" << FLG_s.size() << '\n';
     return 0;
 }
 ```
@@ -145,7 +144,7 @@ log 支持两种类型的日志：一种是 level log，分为 debug, info, warn
 #include "co/log.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     TLOG("xx") << "s" << 23; // topic log
     DLOG << "hello " << 23;  // debug
@@ -196,8 +195,6 @@ log 速度非常快，下面是一些测试结果：
 #include "co/unitest.h"
 #include "co/os.h"
 
-namespace test {
-    
 DEF_test(os) {
     DEF_case(homedir) {
         EXPECT_NE(os::homedir(), "");
@@ -207,21 +204,15 @@ DEF_test(os) {
         EXPECT_GT(os::cpunum(), 0);
     }
 }
-    
-} // namespace test
-```
-
-上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。main 函数一般只需要下面几行：
-
-```cpp
-#include "co/unitest.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    unitest::run_all_tests();
+    flag::parse(argc, argv);
+    unitest::run_tests();
     return 0;
 }
 ```
+
+上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。
 
 [unitest](https://github.com/idealvin/coost/tree/master/unitest) 目录下面是 coost 中的单元测试代码，编译后可执行下述命令运行：
 
@@ -238,7 +229,7 @@ coost v3.0 中，**[Json](https://github.com/idealvin/coost/blob/master/include/
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
-Json x = {
+co::Json x = {
     { "a", 23 },
     { "b", false },
     { "s", "123" },
@@ -249,7 +240,7 @@ Json x = {
 };
 
 // equal to x
-Json y = Json()
+co::Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
     .add_member("s", "123")
@@ -293,7 +284,7 @@ coost 实现了类似 golang 中 goroutine 的协程机制，它有如下特性�
 #include "co/co.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     co::WaitGroup wg;
     wg.add(2);
@@ -346,7 +337,7 @@ coost 提供了一套基于协程的网络编程框架，大致可以分为三�
 #include "co/time.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     rpc::Server()
         .add_service(new xx::HelloWorldImpl)
@@ -373,7 +364,7 @@ curl http://127.0.0.1:7788/xx --request POST --data '{"api":"ping"}'
 DEF_string(d, ".", "root dir"); // docroot for the web server
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     so::easy(FLG_d.c_str()); // mum never have to worry again
     return 0;
 }

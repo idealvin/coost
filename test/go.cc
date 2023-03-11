@@ -49,7 +49,7 @@ class T {
 };
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     std::string s("s222");

@@ -57,7 +57,7 @@ BM_group(double_to_string) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     bm::run_benchmarks();
     return 0;
 }

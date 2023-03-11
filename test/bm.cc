@@ -42,7 +42,7 @@ BM_group(malloc_free) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     bm::run_benchmarks();
     return 0;
 }

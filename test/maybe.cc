@@ -23,7 +23,7 @@ co::maybe<fastring> ffastring(int v) {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     {
         auto a = fvoid(0);

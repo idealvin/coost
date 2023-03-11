@@ -18,7 +18,7 @@ int nested_log() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     if (FLG_perf) {
         // test performance by writting 100W logs

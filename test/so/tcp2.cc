@@ -107,7 +107,7 @@ void client_with_pool() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     gPool = new co::Pool(
         []() {
             bool use_ssl = !FLG_key.empty() && !FLG_ca.empty();

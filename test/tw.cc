@@ -337,7 +337,7 @@ const char* p;
 
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     ss = "hello world" + std::string(FLG_n, 'x');
     s = ss.c_str();
