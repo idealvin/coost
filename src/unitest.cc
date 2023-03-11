@@ -5,8 +5,8 @@ namespace unitest {
 namespace xx {
 
 inline co::array<Test>& tests() {
-    static co::array<Test> t(32);
-    return t;
+    static auto t = co::_make_static<co::array<Test>>(32);
+    return *t;
 }
 
 bool add_test(const char* name, bool& e, void(*f)(Test&)) {
