@@ -128,6 +128,10 @@ DEF_test(fastream) {
         fs.clear();
         fs << dp::_2(d);
         EXPECT_EQ(fs.str(), "3.14");
+
+        fs.clear();
+        fs << dp::_n(d, 4);
+        EXPECT_EQ(fs.str(), "3.1415");
     }
 
     DEF_case(string) {
