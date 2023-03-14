@@ -336,7 +336,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             if (buf.size() == total_len) {
                 buf.clear();
             } else {
-                buf.lshift(total_len);
+                buf.trim(total_len, 'l');
             }
 
             preq->clear();

@@ -288,52 +288,52 @@ std::string ss;
 const char* s;
 const char* p;
 
-    BM_group(string_search) {
-        int64 v;
-        size_t r;
-        const char* t;
+BM_group(string_search) {
+    int64 v;
+    size_t r;
+    const char* t;
 
-        BM_add(QS)(
-            v = QS(s, p);
-        )
-        BM_use(v);
+    BM_add(QS)(
+        v = QS(s, p);
+    )
+    BM_use(v);
 
-        BM_add(tw)(
-            v = tw(s, p);
-        )
-        BM_use(v);
+    BM_add(tw)(
+        v = tw(s, p);
+    )
+    BM_use(v);
 
-        BM_add(std::string::find)(
-            r = ss.find(p);
-        )
-        BM_use(r);
+    BM_add(std::string::find)(
+        r = ss.find(p);
+    )
+    BM_use(r);
 
-        BM_add(strstr)(
-            t = strstr(s, p);
-        )
-        BM_use(t);
-    }
+    BM_add(strstr)(
+        t = strstr(s, p);
+    )
+    BM_use(t);
+}
 
-    BM_group(reverse_search) {
-        int64 v;
-        size_t r;
+BM_group(reverse_search) {
+    int64 v;
+    size_t r;
 
-        BM_add(RQS)(
-            v = RQS(s, p);
-        )
-        BM_use(v);
-       
+    BM_add(RQS)(
+        v = RQS(s, p);
+    )
+    BM_use(v);
+    
 
-        BM_add(rtw)(
-            v = rtw(s, p);
-        )
-        BM_use(v);
+    BM_add(rtw)(
+        v = rtw(s, p);
+    )
+    BM_use(v);
 
-        BM_add(std::string::rfind)(
-            r = ss.rfind(p);
-        )
-        BM_use(r);
-    }
+    BM_add(std::string::rfind)(
+        r = ss.rfind(p);
+    )
+    BM_use(r);
+}
 
 
 int main(int argc, char** argv) {

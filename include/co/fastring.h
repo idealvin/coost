@@ -4,7 +4,6 @@
 #pragma warning (disable:4706)
 #endif
 
-#include "god.h"
 #include "fast.h"
 #include "hash/murmur_hash.h"
 #include <string>
@@ -83,14 +82,17 @@ class __coapi fastring : public fast::stream {
         return this->operator=(std::forward<S>(s));
     }
 
+    // It is ok if s overlaps with the internal buffer of fastring
     fastring& append(const void* s, size_t n) {
         return (fastring&) fast::stream::safe_append(s, n);
     }
  
+    // It is ok if s overlaps with the internal buffer of fastring
     fastring& append(const char* s) {
         return this->append(s, strlen(s));
     }
 
+    // It is ok if s is the fastring itself
     fastring& append(const fastring& s) {
         if (&s != this) return (fastring&) fast::stream::append(s.data(), s.size());
         this->reserve(_size << 1);
@@ -229,121 +231,20 @@ class __coapi fastring : public fast::stream {
         return this->append(s);
     }
 
-    fastring substr(size_t pos) const {
-        return pos < _size ? fastring(_p + pos, _size - pos) : fastring();
+    bool contains(char c) const {
+        return this->find(c) != npos;
     }
 
-    fastring substr(size_t pos, size_t len) const {
-        if (pos < _size) {
-            const size_t n = _size - pos;
-            return fastring(_p + pos, len < n ? len : n);
-        }
-        return fastring();
+    bool contains(const char* s) const {
+        return this->find(s) != npos;
     }
 
-    // find, rfind, find_xxx_of are implemented based on strrchr, strstr, 
-    // strcspn, strspn, etc. Do not apply them to binary strings.
-    size_t find(char c) const {
-        if (!this->empty()) {
-            char* const p = (char*) memchr(_p, c, _size);
-            return p ? p - _p : npos;
-        }
-        return npos;
+    bool contains(const fastring& s) const {
+        return this->contains(s.c_str());
     }
 
-    size_t find(char c, size_t pos) const {
-        if (pos < _size) {
-            char* const p = (char*) memchr(_p + pos, c, _size - pos);
-            return p ? p - _p : npos;
-        }
-        return npos;
-    }
-
-    // find character c in [pos, pos + len)
-    size_t find(char c, size_t pos, size_t len) const {
-        if (pos < _size) {
-            const size_t n = _size - pos;
-            char* const p = (char*) memchr(_p + pos, c, len < n ? len : n);
-            return p ? p - _p : npos;
-        }
-        return npos;
-    }
-
-    // implemented with strstr at present, do not apply it to binary strings
-    size_t find(const char* s) const {
-        if (!this->empty()) {
-            const char* const p = strstr(this->c_str(), s);
-            return p ? p - _p : npos;
-        }
-        return npos;
-    }
-
-    // implemented with strstr at present, do not apply it to binary strings
-    size_t find(const char* s, size_t pos) const {
-        if (pos < _size) {
-            const char* const p = strstr(this->c_str() + pos, s);
-            return p ? p - _p : npos;
-        }
-        return npos;
-    }
-
-    size_t rfind(char c) const {
-        if (this->empty()) return npos;
-        const char* p = strrchr(this->c_str(), c);
-        return p ? p - _p : npos;
-    }
-
-    size_t rfind(const char* s) const;
-
-    size_t find_first_of(const char* s) const {
-        if (this->empty()) return npos;
-        size_t r = strcspn(this->c_str(), s);
-        return _p[r] ? r : npos;
-    }
-
-    size_t find_first_of(const char* s, size_t pos) const {
-        if (this->size() <= pos) return npos;
-        size_t r = strcspn(this->c_str() + pos, s) + pos;
-        return _p[r] ? r : npos;
-    }
-
-    size_t find_first_not_of(const char* s) const {
-        if (this->empty()) return npos;
-        size_t r = strspn(this->c_str(), s);
-        return _p[r] ? r : npos;
-    }
-
-    size_t find_first_not_of(const char* s, size_t pos) const {
-        if (this->size() <= pos) return npos;
-        size_t r = strspn(this->c_str() + pos, s) + pos;
-        return _p[r] ? r : npos;
-    }
-
-    size_t find_first_not_of(char c, size_t pos=0) const {
-        char s[2] = { c, '\0' };
-        return this->find_first_not_of((const char*)s, pos);
-    }
-
-    size_t find_last_of(const char* s, size_t pos=npos) const;
-    size_t find_last_not_of(const char* s, size_t pos=npos) const;
-    size_t find_last_not_of(char c, size_t pos=npos) const;
-
-    // @maxreplace: 0 for unlimited
-    fastring& replace(const char* sub, const char* to, size_t maxreplace=0);
-
-    // @d: 'l' or 'L' for left, 'r' or 'R' for right
-    fastring& strip(const char* s=" \t\r\n", char d='b');
-    
-    fastring& strip(char c, char d='b') {
-        char s[2] = { c, '\0' };
-        return this->strip((const char*)s, d);
-    }
-
-    // @d: 'l' or 'L' for left, 'r' or 'R' for right
-    fastring& strip(size_t n, char d='b');
-
-    fastring& strip(int n, char d='b') {
-        return this->strip((size_t)n, d);
+    bool contains(const std::string& s) const {
+        return this->contains(s.c_str());
     }
 
     bool starts_with(char c) const {
@@ -351,8 +252,7 @@ class __coapi fastring : public fast::stream {
     }
 
     bool starts_with(const char* s, size_t n) const {
-        if (n == 0) return true;
-        return n <= this->size() && memcmp(_p, s, n) == 0;
+        return n == 0 || (n <= _size && memcmp(_p, s, n) == 0);
     }
 
     bool starts_with(const char* s) const {
@@ -372,8 +272,7 @@ class __coapi fastring : public fast::stream {
     }
 
     bool ends_with(const char* s, size_t n) const {
-        if (n == 0) return true;
-        return n <= this->size() && memcmp(_p + _size - n, s, n) == 0;
+        return n == 0 || (n <= _size && memcmp(_p + _size - n, s, n) == 0);
     }
 
     bool ends_with(const char* s) const {
@@ -388,35 +287,76 @@ class __coapi fastring : public fast::stream {
         return this->ends_with(s.data(), s.size());
     }
 
-    fastring& remove_tail(const char* s, size_t n) {
+    fastring& remove_prefix(const char* s, size_t n) {
+        if (this->starts_with(s, n)) this->trim(n, 'l');
+        return *this;
+    }
+
+    fastring& remove_prefix(const char* s) {
+        return this->remove_prefix(s, strlen(s));
+    }
+
+    fastring& remove_prefix(const fastring& s) {
+        return this->remove_prefix(s.data(), s.size());
+    }
+
+    fastring& remove_prefix(const std::string& s) {
+        return this->remove_prefix(s.data(), s.size());
+    }
+
+    fastring& remove_suffix(const char* s, size_t n) {
         if (this->ends_with(s, n)) this->resize(this->size() - n); 
         return *this;
     }
 
-    fastring& remove_tail(const char* s) {
-        return this->remove_tail(s, strlen(s));
+    fastring& remove_suffix(const char* s) {
+        return this->remove_suffix(s, strlen(s));
     }
 
-    fastring& remove_tail(const fastring& s) {
-        return this->remove_tail(s.data(), s.size());
+    fastring& remove_suffix(const fastring& s) {
+        return this->remove_suffix(s.data(), s.size());
     }
 
-    fastring& remove_tail(const std::string& s) {
-        return this->remove_tail(s.data(), s.size());
+    fastring& remove_suffix(const std::string& s) {
+        return this->remove_suffix(s.data(), s.size());
     }
 
-    // * matches everything
-    // ? matches any single character
-    bool match(const char* pattern) const;
+    // remove character @c on the left or right side, or both sides
+    // @d: 'l' or 'L' for left, 'r' or 'R' for right, otherwise for both sides
+    fastring& trim(char c, char d='b');
 
-    fastring& toupper();
+    fastring& trim(unsigned char c, char d='b') {
+        return this->trim((char)c, d);
+    }
+
+    fastring& trim(signed char c, char d='b') {
+        return this->trim((char)c, d);
+    }
+
+    // remove characters in @s on the left or right side, or both sides
+    // @d: 'l' or 'L' for left, 'r' or 'R' for right, otherwise for both sides
+    fastring& trim(const char* s=" \t\r\n", char d='b');
+    
+    // remove the first n characters or the last n characters, or both
+    // @d: 'l' or 'L' for left, 'r' or 'R' for right, otherwise for both sides
+    fastring& trim(size_t n, char d='b');
+
+    fastring& trim(int n, char d='b') {
+        return this->trim((size_t)n, d);
+    }
+
+    // the same as trim
+    template<typename ...X>
+    fastring& strip(X&& ...x) {
+        return this->trim(std::forward<X>(x)...);
+    }
+
+    // replace @sub in the string with @to, do not apply it to binary strings
+    // @maxreplace: 0 for unlimited
+    fastring& replace(const char* sub, const char* to, size_t maxreplace=0);
+
     fastring& tolower();
-
-    fastring upper() const {
-        fastring s(*this);
-        s.toupper();
-        return s;
-    }
+    fastring& toupper();
 
     fastring lower() const {
         fastring s(*this);
@@ -424,11 +364,131 @@ class __coapi fastring : public fast::stream {
         return s;
     }
 
-    fastring& lshift(size_t n) {
-        if (this->size() <= n) { this->clear(); return *this; }
-        memmove(_p, _p + n, _size -= n);
-        return *this;
+    fastring upper() const {
+        fastring s(*this);
+        s.toupper();
+        return s;
     }
+
+    fastring substr(size_t pos) const {
+        return pos < _size ? fastring(_p + pos, _size - pos) : fastring();
+    }
+
+    fastring substr(size_t pos, size_t len) const {
+        if (pos < _size) {
+            const size_t n = _size - pos;
+            return fastring(_p + pos, len < n ? len : n);
+        }
+        return fastring();
+    }
+
+    // find character @c
+    size_t find(char c) const {
+        if (!this->empty()) {
+            char* const p = (char*) memchr(_p, c, _size);
+            return p ? p - _p : npos;
+        }
+        return npos;
+    }
+
+    // find character @c from @pos
+    size_t find(char c, size_t pos) const {
+        if (pos < _size) {
+            char* const p = (char*) memchr(_p + pos, c, _size - pos);
+            return p ? p - _p : npos;
+        }
+        return npos;
+    }
+
+    // find character @c in [pos, pos + len)
+    size_t find(char c, size_t pos, size_t len) const {
+        if (pos < _size) {
+            const size_t n = _size - pos;
+            char* const p = (char*) memchr(_p + pos, c, len < n ? len : n);
+            return p ? p - _p : npos;
+        }
+        return npos;
+    }
+
+    // find sub string with strstr, do not apply it to binary strings
+    size_t find(const char* s) const {
+        if (!this->empty()) {
+            const char* const p = strstr(this->c_str(), s);
+            return p ? p - _p : npos;
+        }
+        return npos;
+    }
+
+    // find sub string from @pos, do not apply it to binary strings
+    size_t find(const char* s, size_t pos) const {
+        if (pos < _size) {
+            const char* const p = strstr(this->c_str() + pos, s);
+            return p ? p - _p : npos;
+        }
+        return npos;
+    }
+
+    // reverse find character @c, do not apply it to binary strings
+    size_t rfind(char c) const {
+        if (this->empty()) return npos;
+        const char* p = strrchr(this->c_str(), c);
+        return p ? p - _p : npos;
+    }
+
+    // reverse find sub string, do not apply it to binary strings
+    size_t rfind(const char* s) const;
+
+    // find first char in @s, do not apply it to binary strings
+    size_t find_first_of(const char* s) const {
+        if (!this->empty()) {
+            const size_t r = strcspn(this->c_str(), s);
+            return _p[r] ? r : npos;
+        }
+        return npos;
+    }
+
+    // find first char in @s from @pos, do not apply it to binary strings
+    size_t find_first_of(const char* s, size_t pos) const {
+        if (pos < _size) {
+            const size_t r = strcspn(this->c_str() + pos, s) + pos;
+            return _p[r] ? r : npos;
+        }
+        return npos;
+    }
+
+    // find first char not in @s, do not apply it to binary strings
+    size_t find_first_not_of(const char* s) const {
+        if (!this->empty()) {
+            const size_t r = strspn(this->c_str(), s);
+            return _p[r] ? r : npos;
+        }
+        return npos;
+    }
+
+    // find first char not in @s from @pos, do not apply it to binary strings
+    size_t find_first_not_of(const char* s, size_t pos) const {
+        if (pos < _size) {
+            const size_t r = strspn(this->c_str() + pos, s) + pos;
+            return _p[r] ? r : npos;
+        }
+        return npos;
+    }
+
+    // find first char not equal to @c
+    size_t find_first_not_of(char c, size_t pos=0) const;
+
+    // find last char in @s
+    size_t find_last_of(const char* s, size_t pos=npos) const;
+
+    // find last char not in @s
+    size_t find_last_not_of(const char* s, size_t pos=npos) const;
+
+    // find last char not equal to @c
+    size_t find_last_not_of(char c, size_t pos=npos) const;
+
+    // * matches everything
+    // ? matches any single character
+    bool match(const char* pattern) const;
 
     void shrink() {
         if (_size + 1 < _cap) this->swap(fastring(*this));

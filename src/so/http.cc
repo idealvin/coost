@@ -799,7 +799,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         s.resize(s.size() + r);
                     }
 
-                    if (x == 0) { s.lshift(2); continue; }
+                    if (x == 0) { s.trim(2, 'l'); continue; }
 
                     // chunked data:  1a[;xxx]\r\ndata\r\n
                     if ((o = s.find(';', 0, x)) == s.npos) o = x;
@@ -822,14 +822,14 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                             s.clear();
                         } else {
                             buf.append(s.data() + x + 2, n);
-                            s.lshift(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n);
+                            s.trim(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n, 'l');
                         }
 
                         if (buf.size() - hlen > FLG_http_max_body_size) goto body_too_long_err;
 
                     } else { /* n == 0, end of chunked data */
                         preq->body_size = (uint32)(buf.size() - hlen);
-                        s.lshift(x);
+                        s.trim(x, 'l');
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
                             r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
@@ -886,7 +886,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
         if (buf.size() == total_len) {
             buf.clear();
         } else {
-            buf.lshift(total_len);
+            buf.trim(total_len, 'l');
         }
 
         preq->clear();

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "god.h"
 #include "fast.h"
 #include "fastring.h"
 
@@ -67,6 +66,7 @@ class __coapi fastream : public fast::stream {
         return this->append(s.data(), s.size());
     }
 
+    // It is ok if s is the fastream itself
     fastream& append(const fastream& s) {
         if (&s != this) return this->append(s.data(), s.size());
         this->reserve(_size << 1);
