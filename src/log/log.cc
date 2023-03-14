@@ -208,9 +208,9 @@ bool LogFile::check_config(const char* topic, int level) {
         s.append(*m.exename);
     } else {
         s.append(f);
-        s.remove_tail(".log");
+        s.remove_suffix(".log");
     }
-    s.remove_tail(".exe");
+    s.remove_suffix(".exe");
 
     // prefix of log file path
     _path_base << d;
