@@ -2,11 +2,6 @@
 #include <math.h>
 #include <algorithm>
 
-#if defined(_MSC_VER) && _MSC_VER <= 1700 // vs 2012
-#define strtoll _strtoi64
-#define strtoull _strtoui64
-#endif
-
 namespace str {
 
 co::vector<fastring> split(const char* s, char c, uint32 maxsplit) {
@@ -98,123 +93,6 @@ fastring replace(const fastring& s, const char* sub, const char* to, uint32 maxr
 
     if (from < s.data() + s.size()) x.append(from);
     return x;
-}
-
-fastring strip(const char* s, const char* c, char d) {
-    if (unlikely(!*s)) return fastring();
-
-    char bs[256] = { 0 };
-    while (*c) bs[(const uint8)(*c++)] = 1;
-
-    if (d == 'l' || d == 'L') {
-        while (bs[(uint8)(*s)]) ++s;
-        return fastring(s);
-
-    } else if (d == 'r' || d == 'R') {
-        const char* e = s + strlen(s) - 1;
-        while (e >= s && bs[(uint8)(*e)]) --e;
-        return fastring(s, e + 1 - s);
-
-    } else {
-        while (bs[(uint8)(*s)]) ++s;
-        const char* e = s + strlen(s) - 1;
-        while (e >= s && bs[(uint8)(*e)]) --e;
-        return fastring(s, e + 1 - s);
-    }
-}
-
-fastring strip(const char* s, char c, char d) {
-    if (unlikely(!*s)) return fastring();
-
-    if (d == 'l' || d == 'L') {
-        while (*s == c) ++s;
-        return fastring(s);
-
-    } else if (d == 'r' || d == 'R') {
-        const char* e = s + strlen(s) - 1;
-        while (e >= s && *e == c) --e;
-        return fastring(s, e + 1 - s);
-
-    } else {
-        while (*s == c) ++s;
-        const char* e = s + strlen(s) - 1;
-        while (e >= s && *e == c) --e;
-        return fastring(s, e + 1 - s);
-    }
-}
-
-fastring strip(const fastring& s, const char* c, char d) {
-    if (unlikely(s.empty())) return fastring();
-
-    char bs[256] = { 0 };
-    while (*c) bs[(const uint8)(*c++)] = 1;
-
-    if (d == 'l' || d == 'L') {
-        size_t b = 0;
-        while (b < s.size() && bs[(uint8)(s[b])]) ++b;
-        return b == 0 ? s : s.substr(b);
-
-    } else if (d == 'r' || d == 'R') {
-        size_t e = s.size();
-        while (e > 0 && bs[(uint8)(s[e - 1])]) --e;
-        return e == s.size() ? s : s.substr(0, e);
-
-    } else {
-        size_t b = 0, e = s.size();
-        while (b < s.size() && bs[(uint8)(s[b])]) ++b;
-        if (b == s.size()) return fastring();
-        while (e > 0 && bs[(uint8)(s[e - 1])]) --e;
-        return (e - b == s.size()) ? s : s.substr(b, e - b);
-    }
-}
-
-fastring strip(const fastring& s, char c, char d) {
-    if (unlikely(s.empty())) return fastring();
-
-    if (d == 'l' || d == 'L') {
-        size_t b = 0;
-        while (b < s.size() && s[b] == c) ++b;
-        return b == 0 ? s : s.substr(b);
-
-    } else if (d == 'r' || d == 'R') {
-        size_t e = s.size();
-        while (e > 0 && s[e - 1] == c) --e;
-        return e == s.size() ? s : s.substr(0, e);
-
-    } else {
-        size_t b = 0, e = s.size();
-        while (b < s.size() && s[b] == c) ++b;
-        if (b == s.size()) return fastring();
-        while (e > 0 && s[e - 1] == c) --e;
-        return (e - b == s.size()) ? s : s.substr(b, e - b);
-    }
-}
-
-fastring strip(const fastring& s, const fastring& c, char d) {
-    if (unlikely(s.empty())) return fastring();
-
-    char bs[256] = { 0 };
-    for (size_t i = 0; i < c.size(); ++i) {
-        bs[(const uint8)(c[i])] = 1;
-    }
-
-    if (d == 'l' || d == 'L') {
-        size_t b = 0;
-        while (b < s.size() && bs[(uint8)(s[b])]) ++b;
-        return b == 0 ? s : s.substr(b);
-
-    } else if (d == 'r' || d == 'R') {
-        size_t e = s.size();
-        while (e > 0 && bs[(uint8)(s[e - 1])]) --e;
-        return e == s.size() ? s : s.substr(0, e);
-
-    } else {
-        size_t b = 0, e = s.size();
-        while (b < s.size() && bs[(uint8)(s[b])]) ++b;
-        if (b == s.size()) return fastring();
-        while (e > 0 && bs[(uint8)(s[e - 1])]) --e;
-        return (e - b == s.size()) ? s : s.substr(b, e - b);
-    }
 }
 
 // co::error() is equal to errno on linux/mac, that's not the fact on windows.

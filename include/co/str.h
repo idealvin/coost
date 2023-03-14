@@ -39,21 +39,36 @@ __coapi fastring replace(const char* s, const char* sub, const char* to, uint32 
 __coapi fastring replace(const fastring& s, const char* sub, const char* to, uint32 n=0);
 
 /**
- * strip a string 
- *   strip(" xx\r\n");           ->  "xx"     strip " \t\r\n" by default. 
- *   strip("abxxa", "ab");       ->  "xx"     strip both sides. 
- *   strip("abxxa", "ab", 'l');  ->  "xxa"    strip left only. 
- *   strip("abxxa", "ab", 'r');  ->  "abxx"   strip right only. 
+ * trim a string 
+ *   trim(" xx\r\n");           ->  "xx"     trim " \t\r\n" by default. 
+ *   trim("abxxa", "ab");       ->  "xx"     trim both sides. 
+ *   trim("abxxa", "ab", 'l');  ->  "xxa"    trim left only. 
+ *   trim("abxxa", "ab", 'r');  ->  "abxx"   trim right only. 
  * 
  * @param s  the string, either a null-terminated string or a reference of fastring.
- * @param c  characters to be stripped, either a single character or a null-terminated string.
+ * @param c  characters to be trimed, either a single character or a null-terminated string.
  * @param d  direction, 'l' for left, 'r' for right, 'b' for both sides.
  */
-__coapi fastring strip(const char* s, const char* c=" \t\r\n", char d='b');
-__coapi fastring strip(const char* s, char c, char d = 'b');
-__coapi fastring strip(const fastring& s, const char* c=" \t\r\n", char d='b');
-__coapi fastring strip(const fastring& s, char c, char d='b');
-__coapi fastring strip(const fastring& s, const fastring& c, char d='b');
+inline fastring trim(const char* s, const char* c=" \t\r\n", char d='b') {
+    fastring x(s); x.trim(c, d); return x;
+}
+
+inline fastring trim(const char* s, char c, char d = 'b') {
+    fastring x(s); x.trim(c, d); return x;
+}
+
+inline fastring trim(const fastring& s, const char* c=" \t\r\n", char d='b') {
+    fastring x(s); x.trim(c, d); return x;
+}
+
+inline fastring trim(const fastring& s, char c, char d='b') {
+    fastring x(s); x.trim(c, d); return x;
+}
+
+template<typename ...X>
+inline fastring strip(X&& ...x) {
+    return trim(std::forward<X>(x)...);
+}
 
 /**
  * convert string to built-in types 

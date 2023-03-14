@@ -201,7 +201,7 @@ void Mod::add_flag(
     if (alias[0]) {
         auto v = str::split(alias, ',');
         for (auto& x : v) {
-            x.strip();
+            x.trim();
             const size_t n = x.size() + 1;
             char* s = (char*) co::_salloc(n);
             memcpy(s, x.c_str(), n);
@@ -544,15 +544,15 @@ void remove_quotes_and_comments(fastring& s) {
 
         p = s.find_first_not_of(" \t", p + l);
         if (p == s.npos) {
-            s.strip(" \t", 'r');
+            s.trim(" \t", 'r');
         } else if (s[p] == '#' || s.substr(p, 2) == "//") {
             s.resize(p);
-            s.strip(" \t", 'r');
+            s.trim(" \t", 'r');
         } else {
             goto no_quotes;
         }
 
-        s.strip(l, 'b');
+        s.trim(l, 'b');
         return;
     }
 
@@ -561,7 +561,7 @@ void remove_quotes_and_comments(fastring& s) {
     q = s.find("//");
     if (p != s.npos || q != s.npos) {
         s.resize(p < q ? p : q);
-        s.strip(" \t", 'r');
+        s.trim(" \t", 'r');
     }
 }
 
@@ -570,12 +570,12 @@ fastring getline(co::vector<fastring>& lines, size_t& n) {
     while (n < lines.size()) {
         fastring s(lines[n++]);
         s.replace("　", " ");  // replace Chinese spaces
-        s.strip();
+        s.trim();
         if (s.empty() || s.back() != '\\') {
             line += s;
             return line;
         }
-        line += str::strip(s, " \t\r\n\\", 'r');
+        line += str::trim(s, " \t\r\n\\", 'r');
     }
     return line;
 }
@@ -605,8 +605,8 @@ void Mod::parse_config(const fastring& config) {
             ::exit(0);
         }
 
-        fastring flg = str::strip(s.substr(0, p), " \t", 'r');
-        fastring val = str::strip(s.substr(p + 1), " \t", 'l');
+        fastring flg = str::trim(s.substr(0, p), " \t", 'r');
+        fastring val = str::trim(s.substr(p + 1), " \t", 'l');
         remove_quotes_and_comments(val);
 
         fastring e = this->set_flag_value(flg.c_str(), val);

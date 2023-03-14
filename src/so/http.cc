@@ -146,7 +146,7 @@ void Client::reset(const char* serv_url) {
             s.reserve(n + 8);
             s.append("http://").append(serv_url, n); // use http by default
         }
-        s.strip('/', 'r'); // remove '/' at the right side
+        s.trim('/', 'r'); // remove '/' at the right side
 
         init_easy_opts(_ctx->easy, _ctx);
     }
@@ -278,7 +278,7 @@ const char* Client::header(const char* key) {
         p = strchr(b, ':');
         if (p) {
             s.clear();
-            s.append(b, p - b).strip(' ').toupper();
+            s.append(b, p - b).trim(' ').toupper();
             if (s == u) {
                 if (_ctx->arr[i + 1] == 0) {
                     b = p;

@@ -59,32 +59,27 @@ DEF_test(str) {
         EXPECT_EQ(str::replace(s, "o", "x"), "hellx wxrld");
     }
 
-    DEF_case(strip) {
-        EXPECT_EQ(str::strip(" \txx\t  \n"), "xx");
-        EXPECT_EQ(str::strip("$@xx@", "$@"), "xx");
-        EXPECT_EQ(str::strip("$@xx@", "$@", 'l'), "xx@");
-        EXPECT_EQ(str::strip("$@xx@", "$@", 'r'), "$@xx");
-        EXPECT_EQ(str::strip("xx", ""), "xx");
-        EXPECT_EQ(str::strip("", "xx"), "");
-        EXPECT_EQ(str::strip("$@xx@", '$'), "@xx@");
-        EXPECT_EQ(str::strip("$@xx@", '$', 'r'), "$@xx@");
-        EXPECT_EQ(str::strip("$@xx@", '$', 'l'), "@xx@");
-        EXPECT_EQ(str::strip("$@xx@", '@'), "$@xx");
-        EXPECT_EQ(str::strip("", '\0'), "");
+    DEF_case(trim) {
+        EXPECT_EQ(str::trim(" \txx\t  \n"), "xx");
+        EXPECT_EQ(str::trim("$@xx@", "$@"), "xx");
+        EXPECT_EQ(str::trim("$@xx@", "$@", 'l'), "xx@");
+        EXPECT_EQ(str::trim("$@xx@", "$@", 'r'), "$@xx");
+        EXPECT_EQ(str::trim("xx", ""), "xx");
+        EXPECT_EQ(str::trim("", "xx"), "");
+        EXPECT_EQ(str::trim("$@xx@", '$'), "@xx@");
+        EXPECT_EQ(str::trim("$@xx@", '$', 'r'), "$@xx@");
+        EXPECT_EQ(str::trim("$@xx@", '$', 'l'), "@xx@");
+        EXPECT_EQ(str::trim("$@xx@", '@'), "$@xx");
+        EXPECT_EQ(str::trim("", '\0'), "");
 
-        EXPECT_EQ(str::strip(fastring("$@xx@"), "$@"), "xx");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), "$@", 'l'), "xx@");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), "$@", 'r'), "$@xx");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), '$'), "@xx@");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), '$', 'r'), "$@xx@");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), '$', 'l'), "@xx@");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), '@'), "$@xx");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), fastring("$@")), "xx");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), fastring("$@"), 'l'), "xx@");
-        EXPECT_EQ(str::strip(fastring("$@xx@"), fastring("$@"), 'r'), "$@xx");
-        EXPECT_EQ(str::strip(fastring("\0xx\0", 4), '\0'), "xx");
-        EXPECT_EQ(str::strip(fastring("\0xx\0", 4), fastring("x\0", 2)), "");
-        EXPECT_EQ(str::strip(fastring("\0xox\0", 5), fastring("x\0", 2), 'l'), fastring("ox\0", 3));
+        EXPECT_EQ(str::trim(fastring("$@xx@"), "$@"), "xx");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), "$@", 'l'), "xx@");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), "$@", 'r'), "$@xx");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), '$'), "@xx@");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), '$', 'r'), "$@xx@");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), '$', 'l'), "@xx@");
+        EXPECT_EQ(str::trim(fastring("$@xx@"), '@'), "$@xx");
+        EXPECT_EQ(str::trim(fastring("\0xx\0", 4), '\0'), "xx");
     }
 
     DEF_case(to) {

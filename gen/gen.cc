@@ -121,7 +121,7 @@ void parse(const char* path) {
     auto l = str::split(s.c_str(), c);
 
     for (size_t i = 0; i < l.size(); ++i) {
-        auto x = str::strip(l[i]);
+        auto x = str::trim(l[i]);
         if (x.empty()) continue;
         if (x.starts_with("//")) continue;
 
@@ -134,7 +134,7 @@ void parse(const char* path) {
             const char* p = strstr(x.c_str(), "//");
             if (p) x.resize(p - x.data());
             pkg = x.c_str() + 8;
-            pkg = str::strip(pkg);
+            pkg = str::trim(pkg);
             continue;
         }
 
@@ -147,14 +147,14 @@ void parse(const char* path) {
             const char* p = strstr(x.c_str(), "//");
             if (p) x.resize(p - x.data());
             serv = x.c_str() + 8;
-            serv = str::strip(serv, " \t\r\n{");
+            serv = str::trim(serv, " \t\r\n{");
 
             for (size_t k = i + 1; k < l.size(); ++k) {
                 const char* p = strstr(l[k].c_str(), "//");
                 if (p) l[k].resize(p - l[k].data());
 
                 if (l[k].find('}') != l[k].npos) {
-                    auto m = str::strip(l[k], " \t\r\n,;{}");
+                    auto m = str::trim(l[k], " \t\r\n,;{}");
                     if (!m.empty()) methods.push_back(m);
                     if (methods.empty()) {
                         co::print("no method found in service: ", serv);
@@ -166,7 +166,7 @@ void parse(const char* path) {
                     if (FLG_go) gen_go(gen_file, pkg, serv, methods);
                     return;
                 } else {
-                    auto m = str::strip(l[k], " \t\r\n,;{");
+                    auto m = str::trim(l[k], " \t\r\n,;{");
                     if (!m.empty()) methods.push_back(m);
                 }
             }
