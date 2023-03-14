@@ -56,10 +56,10 @@ typedef uint64_t uint64;
 #endif
 #endif
 
-#define _CO_CONCAT(x, y) x##y
-#define _CO_STRINGIFY(x) #x
-#define CO_CONCAT(x, y) _CO_CONCAT(x, y)
-#define CO_STRINGIFY(x) _CO_STRINGIFY(x)
+#define _pp_strify(x)    #x
+#define _pp_concat(x, y) x##y
+#define pp_strify(x)     _pp_strify(x)
+#define pp_concat(x, y)  _pp_concat(x, y)
 
 // generated from config.h.in
 #include "config.h"
