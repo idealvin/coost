@@ -8,7 +8,7 @@
 
 namespace co {
 
-template <typename T, typename Alloc=co::default_allocator>
+template<typename T, typename Alloc=co::default_allocator>
 class array {
   public:
     constexpr array() noexcept
@@ -20,15 +20,12 @@ class array {
         : _cap(cap), _size(0), _p((T*) Alloc::alloc(sizeof(T) * cap)) {
     }
 
-    // create an array of n elements with the same value: @x
+    // create an array of n elements with value: @x
     // condition: X is not int or T is int.
-    template <
-        typename X,
-        god::if_t<
-            !god::is_same<god::rm_cvref_t<X>, int>() ||
-            god::is_same<god::rm_cv_t<T>, int>(), int
-        > = 0
-    >
+    template<typename X, god::if_t<
+        !god::is_same<god::rm_cvref_t<X>, int>() ||
+        god::is_same<god::rm_cv_t<T>, int>(), int
+    > = 0>
     array(size_t n, X&& x)
         : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T(x);
@@ -36,13 +33,10 @@ class array {
 
     // create an array of n elements with default value
     // condition: X is int and T is not int.
-    template <
-        typename X,
-        god::if_t<
-            god::is_same<god::rm_cvref_t<X>, int>() && 
-            !god::is_same<god::rm_cv_t<T>, int>(), int
-        > = 0
-    >
+    template<typename X, god::if_t<
+        god::is_same<god::rm_cvref_t<X>, int>() &&
+        !god::is_same<god::rm_cv_t<T>, int>(), int
+    > = 0>
     array(size_t n, X&&)
         : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T();
@@ -66,7 +60,7 @@ class array {
         for (const auto& e : x) new (_p + _size++) T(e);
     }
 
-    template <typename It, god::if_t<god::is_class<It>(), int> = 0>
+    template<typename It, god::if_t<god::is_class<It>(), int> = 0>
     array(It beg, It end) : array(8) {
         this->append(beg, end);
     }
@@ -124,14 +118,10 @@ class array {
         }
     }
 
-    /**
-     * size -> n
-     *   - Reduced elements will be destroyed if n is less than the current size.
-     *   - NOTE: No element will be created if n is greater than the current size.
-     */
     void resize(size_t n) {
         this->reserve(n);
         this->_destruct_range(_p, n, _size);
+        for (size_t i = _size; i < n; ++i) new (_p + i) T();
         _size = n;
     }
 
@@ -174,7 +164,7 @@ class array {
         _size += n;
     }
 
-    template <typename It, god::if_t<god::is_class<It>(), int> = 0>
+    template<typename It, god::if_t<god::is_class<It>(), int> = 0>
     void append(It beg, It end) {
         for (auto it = beg; it != end; ++it) this->append(*it);
     }
@@ -224,7 +214,7 @@ class array {
     }
 
     // insert a new element (construct with args x...) at the back
-    template <typename ... X>
+    template<typename ... X>
     void emplace(X&& ... x) {
         this->reserve(_size + 1);
         new (_p + _size++) T(std::forward<X>(x)...);

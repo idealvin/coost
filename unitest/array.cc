@@ -17,13 +17,11 @@ DEF_test(array){
         EXPECT_EQ(v.capacity(), 32);
     }
 
-    DEF_case(construct_with_cap) {
-        co::array<int> v(8);
-        EXPECT_EQ(v.size(), 0);
-        EXPECT_EQ(v.capacity(), 8);
-    }
-
     DEF_case(construct) {
+        co::array<int> _(8);
+        EXPECT_EQ(_.size(), 0);
+        EXPECT_EQ(_.capacity(), 8);
+
         co::array<int> v(8, 7);
         EXPECT_EQ(v.size(), 8);
         EXPECT_EQ(v.capacity(), 8);
@@ -211,6 +209,45 @@ DEF_test(array){
         a.emplace("8888");
         EXPECT_EQ(a.size(), 2);
         EXPECT_EQ(a.back(), "8888");
+    }
+
+    static int gc = 0;
+    static int gd = 0;
+
+    struct A {
+        A() { ++gc; }
+        A(const A&) { ++gc; }
+        A(A&&) { ++gc; }
+        ~A() { ++gd; }
+    };
+
+    DEF_case(resize) {
+        co::array<int> _(8, 3);
+        _.resize(16);
+        EXPECT_EQ(_[7], 3);
+        EXPECT_EQ(_[8], 0);
+        EXPECT_EQ(_[15], 0);
+
+        co::array<A> a(8, 0);
+        EXPECT_EQ(gc, 8);
+
+        a.resize(16);
+        EXPECT_EQ(gc, 16);
+
+        a.resize(8);
+        EXPECT_EQ(gd, 8);
+
+        co::array<A> b(a);
+        EXPECT_EQ(gc, 24);
+
+        co::array<A> c(std::move(b));
+        EXPECT_EQ(gc, 24);
+
+        a.reset();
+        b.reset();
+        c.reset();
+        EXPECT_EQ(gd, 24);
+        EXPECT_EQ(gc, gd);
     }
 }
 
