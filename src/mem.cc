@@ -87,7 +87,7 @@ inline void _vm_commit(void* p, size_t n) {
 }
 
 inline void _vm_decommit(void* p, size_t n) {
-    ::mmap(
+    (void) ::mmap(
         p, n, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0
     );
