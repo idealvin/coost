@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef _MSC_VER
-#pragma warning (disable:4706)
+#pragma warning (disable:4706) // if ((a = x))
 #endif
 
 #include "fast.h"
@@ -56,8 +56,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& operator=(const fastring& s) {
-        if (&s != this) this->_assign(s.data(), s.size());
-        return *this;
+        return &s != this ? this->_assign(s.data(), s.size()) : *this;
     }
 
     fastring& operator=(const std::string& s) {
@@ -70,7 +69,7 @@ class __coapi fastring : public fast::stream {
 
     // It is ok if s overlaps with the internal buffer of fastring
     fastring& assign(const void* s, size_t n) {
-        if (!this->_is_inside((const char*)s)) return this->_assign(s, n);
+        if (!this->_inside((const char*)s)) return this->_assign(s, n);
         assert((const char*)s + n <= _p + _size);
         if (s != _p) memmove(_p, s, n);
         _size = n;
@@ -288,8 +287,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& remove_prefix(const char* s, size_t n) {
-        if (this->starts_with(s, n)) this->trim(n, 'l');
-        return *this;
+        return this->starts_with(s, n) ? this->trim(n, 'l') : *this;
     }
 
     fastring& remove_prefix(const char* s) {
@@ -430,9 +428,11 @@ class __coapi fastring : public fast::stream {
 
     // reverse find character @c, do not apply it to binary strings
     size_t rfind(char c) const {
-        if (this->empty()) return npos;
-        const char* p = strrchr(this->c_str(), c);
-        return p ? p - _p : npos;
+        if (!this->empty()) {
+            const char* const p = strrchr(this->c_str(), c);
+            return p ? p - _p : npos;
+        }
+        return npos;
     }
 
     // reverse find sub string, do not apply it to binary strings
@@ -504,59 +504,69 @@ class __coapi fastring : public fast::stream {
         return *this;
     }
 
-    bool _is_inside(const char* p) const {
+    bool _inside(const char* p) const {
         return _p <= p && p < _p + _size;
     }
 };
 
 inline fastring operator+(const fastring& a, char b) {
-    return fastring(a.size() + 2).append(a).append(b);
+    fastring s(a.size() + 2);
+    s.append(a).append(b);
+    return s;
 }
 
 inline fastring operator+(char a, const fastring& b) {
-    return fastring(b.size() + 2).append(a).append(b);
+    fastring s(b.size() + 2);
+    s.append(a).append(b);
+    return s;
 }
 
 inline fastring operator+(const fastring& a, const fastring& b) {
-    return fastring(a.size() + b.size() + 1).append(a).append(b);
+    fastring s(a.size() + b.size() + 1);
+    s.append(a).append(b);
+    return s;
 }
 
 inline fastring operator+(const fastring& a, const std::string& b) {
-    return fastring(a.size() + b.size() + 1).append(a).append(b);
+    fastring s(a.size() + b.size() + 1);
+    s.append(a).append(b);
+    return s;
 }
 
 inline fastring operator+(const std::string& a, const fastring& b) {
-    return fastring(a.size() + b.size() + 1).append(a).append(b);
+    fastring s(a.size() + b.size() + 1);
+    s.append(a).append(b);
+    return s;
 }
 
 inline fastring operator+(const fastring& a, const char* b) {
-    size_t n = strlen(b);
-    return fastring(a.size() + n + 1).append(a).append(b, n);
+    const size_t n = strlen(b);
+    fastring s(a.size() + n + 1);
+    s.append(a).append(b, n);
+    return s;
 }
 
 inline fastring operator+(const char* a, const fastring& b) {
-    size_t n = strlen(a);
-    return fastring(b.size() + n + 1).append(a, n).append(b);
+    const size_t n = strlen(a);
+    fastring s(b.size() + n + 1);
+    s.append(a, n).append(b);
+    return s;
 }
 
 inline bool operator==(const fastring& a, const fastring& b) {
-    if (a.size() != b.size()) return false;
-    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
+    return a.size() == b.size() && (a.empty() || memcmp(a.data(), b.data(), a.size()) == 0);
 }
 
 inline bool operator==(const fastring& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
+    return a.size() == b.size() && (a.empty() || memcmp(a.data(), b.data(), a.size()) == 0);
 }
 
 inline bool operator==(const std::string& a, const fastring& b) {
-    if (a.size() != b.size()) return false;
-    return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) == 0;
+    return b == a;
 }
 
 inline bool operator==(const fastring& a, const char* b) {
-    if (a.size() != strlen(b)) return false;
-    return a.size() == 0 || memcmp(a.data(), b, a.size()) == 0;
+    return a.size() == strlen(b) && (a.empty() || memcmp(a.data(), b, a.size()) == 0);
 }
 
 inline bool operator==(const char* a, const fastring& b) {
@@ -584,69 +594,53 @@ inline bool operator!=(const char* a, const fastring& b) {
 }
 
 inline bool operator<(const fastring& a, const fastring& b) {
-    if (a.size() < b.size()) {
-        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
-    } else {
-        return memcmp(a.data(), b.data(), b.size()) < 0;
-    }
+    return a.size() < b.size()
+        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
+        : (memcmp(a.data(), b.data(), b.size()) < 0);
 }
 
 inline bool operator<(const fastring& a, const std::string& b) {
-    if (a.size() < b.size()) {
-        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
-    } else {
-        return memcmp(a.data(), b.data(), b.size()) < 0;
-    }
+    return a.size() < b.size()
+        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
+        : (memcmp(a.data(), b.data(), b.size()) < 0);
 }
 
 inline bool operator<(const std::string& a, const fastring& b) {
-    if (a.size() < b.size()) {
-        return a.size() == 0 || memcmp(a.data(), b.data(), a.size()) <= 0;
-    } else {
-        return memcmp(a.data(), b.data(), b.size()) < 0;
-    }
+    return a.size() < b.size()
+        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
+        : (memcmp(a.data(), b.data(), b.size()) < 0);
 }
 
 inline bool operator<(const fastring& a, const char* b) {
-    size_t n = strlen(b);
-    if (a.size() < n) {
-        return a.size() == 0 || memcmp(a.data(), b, a.size()) <= 0;
-    } else {
-        return memcmp(a.data(), b, n) < 0;
-    }
+    const size_t n = strlen(b);
+    return a.size() < n
+        ? (a.empty() || memcmp(a.data(), b, a.size()) <= 0)
+        : (memcmp(a.data(), b, n) < 0);
 }
 
 inline bool operator>(const fastring& a, const fastring& b) {
-    if (a.size() > b.size()) {
-        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
-    } else {
-        return memcmp(a.data(), b.data(), a.size()) > 0;
-    }
+    return a.size() > b.size()
+        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
+        : (memcmp(a.data(), b.data(), a.size()) > 0);
 }
 
 inline bool operator>(const fastring& a, const std::string& b) {
-    if (a.size() > b.size()) {
-        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
-    } else {
-        return memcmp(a.data(), b.data(), a.size()) > 0;
-    }
+    return a.size() > b.size()
+        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
+        : (memcmp(a.data(), b.data(), a.size()) > 0);
 }
 
 inline bool operator>(const std::string& a, const fastring& b) {
-    if (a.size() > b.size()) {
-        return b.size() == 0 || memcmp(a.data(), b.data(), b.size()) >= 0;
-    } else {
-        return memcmp(a.data(), b.data(), a.size()) > 0;
-    }
+    return a.size() > b.size()
+        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
+        : (memcmp(a.data(), b.data(), a.size()) > 0);
 }
 
 inline bool operator>(const fastring& a, const char* b) {
-    size_t n = strlen(b);
-    if (a.size() > n) {
-        return n == 0 || memcmp(a.data(), b, n) >= 0;
-    } else {
-        return memcmp(a.data(), b, a.size()) > 0;
-    }
+    const size_t n = strlen(b);
+    return a.size() > n
+        ? (n == 0 || memcmp(a.data(), b, n) >= 0)
+        : (memcmp(a.data(), b, a.size()) > 0);
 }
 
 inline bool operator<(const char* a, const fastring& b) {
