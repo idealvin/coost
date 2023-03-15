@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <utility>
 #include <type_traits>
 
 namespace god {
@@ -197,7 +198,6 @@ constexpr bool is_same() {
     return xx::is_same<T, U, X...>::value;
 };
 
-// check if T is reference type
 template<typename T>
 constexpr bool is_ref() {
     return std::is_reference<T>::value;
