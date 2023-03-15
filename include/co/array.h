@@ -24,9 +24,9 @@ class array {
     // condition: X is not int or T is int.
     template <
         typename X,
-        god::enable_if_t<
-            !god::is_same<god::remove_cvref_t<X>, int>() ||
-            god::is_same<god::remove_cv_t<T>, int>(), int
+        god::if_t<
+            !god::is_same<god::rm_cvref_t<X>, int>() ||
+            god::is_same<god::rm_cv_t<T>, int>(), int
         > = 0
     >
     array(size_t n, X&& x)
@@ -38,9 +38,9 @@ class array {
     // condition: X is int and T is not int.
     template <
         typename X,
-        god::enable_if_t<
-            god::is_same<god::remove_cvref_t<X>, int>() && 
-            !god::is_same<god::remove_cv_t<T>, int>(), int
+        god::if_t<
+            god::is_same<god::rm_cvref_t<X>, int>() && 
+            !god::is_same<god::rm_cv_t<T>, int>(), int
         > = 0
     >
     array(size_t n, X&&)
@@ -66,7 +66,7 @@ class array {
         for (const auto& e : x) new (_p + _size++) T(e);
     }
 
-    template <typename It, god::enable_if_t<god::is_class<It>(), int> = 0>
+    template <typename It, god::if_t<god::is_class<It>(), int> = 0>
     array(It beg, It end) : array(8) {
         this->append(beg, end);
     }
@@ -174,7 +174,7 @@ class array {
         _size += n;
     }
 
-    template <typename It, god::enable_if_t<god::is_class<It>(), int> = 0>
+    template <typename It, god::if_t<god::is_class<It>(), int> = 0>
     void append(It beg, It end) {
         for (auto it = beg; it != end; ++it) this->append(*it);
     }
@@ -287,36 +287,36 @@ class array {
     iterator end() const noexcept { return iterator(_p + _size); }
 
   private:
-    template<typename X, god::enable_if_t<god::is_trivially_copyable<X>(), int> = 0>
+    template<typename X, god::if_t<god::is_trivially_copyable<X>(), int> = 0>
     void _copy_n(X* dst, const X* src, size_t n) {
         memcpy(dst, src, sizeof(X) * n);
     }
 
-    template<typename X, god::enable_if_t<!god::is_trivially_copyable<X>(), int> = 0>
+    template<typename X, god::if_t<!god::is_trivially_copyable<X>(), int> = 0>
     void _copy_n(X* dst, const X* src, size_t n) {
         for (size_t i = 0; i < n; ++i) new (dst + i) X(src[i]);
     }
 
-    template<typename X, god::enable_if_t<god::is_trivially_copyable<X>(), int> = 0>
+    template<typename X, god::if_t<god::is_trivially_copyable<X>(), int> = 0>
     void _move_n(X* dst, X* src, size_t n) {
         memcpy(dst, src, sizeof(X) * n);
     }
 
-    template<typename X, god::enable_if_t<!god::is_trivially_copyable<X>(), int> = 0>
+    template<typename X, god::if_t<!god::is_trivially_copyable<X>(), int> = 0>
     void _move_n(X* dst, X* src, size_t n) {
         for (size_t i = 0; i < n; ++i) new (dst + i) X(std::move(src[i]));
     }
 
-    template<typename X, god::enable_if_t<god::is_trivially_destructible<X>(), int> = 0>
+    template<typename X, god::if_t<god::is_trivially_destructible<X>(), int> = 0>
     void _destruct(X&) {}
 
-    template<typename X, god::enable_if_t<!god::is_trivially_destructible<X>(), int> = 0>
+    template<typename X, god::if_t<!god::is_trivially_destructible<X>(), int> = 0>
     void _destruct(X& p) { p.~X(); }
 
-    template<typename X, god::enable_if_t<god::is_trivially_destructible<X>(), int> = 0>
+    template<typename X, god::if_t<god::is_trivially_destructible<X>(), int> = 0>
     void _destruct_range(X*, size_t, size_t) {}
 
-    template<typename X, god::enable_if_t<!god::is_trivially_destructible<X>(), int> = 0>
+    template<typename X, god::if_t<!god::is_trivially_destructible<X>(), int> = 0>
     void _destruct_range(X* p, size_t beg, size_t end) {
         for (; beg < end; ++beg) _p[beg].~X();
     }

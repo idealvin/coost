@@ -46,7 +46,7 @@ fastring nanoid(const char* s, size_t len, int n) {
     const uint32 L = static_cast<uint32>(len);
     const uint32 mask = _get_mask(L);
     const uint32 step = (uint32)::ceil(1.6 * (mask * n) / L);
-    fastring bytes(god::align_up(step, 4));
+    fastring bytes(god::align_up<4>(step));
     fastring res(n);
     int pos = 0;
 
@@ -71,7 +71,7 @@ fastring nanoid(int n) {
     const uint32 p = mask * n;
     const uint32 r = p / 40;
     const uint32 step = r + !!(p - r * 40); // ceil(1.6 * mask * n / 64)
-    fastring bytes(god::align_up(step, 4));
+    fastring bytes(god::align_up<4>(step));
     fastring res(n);
     int pos = 0;
 

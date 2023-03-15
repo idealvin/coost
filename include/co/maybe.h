@@ -30,7 +30,7 @@ class maybe;
 
 // T is void
 template <typename T>
-class maybe<T, god::enable_if_t<god::is_same<T, void>()>> final {
+class maybe<T, god::if_t<god::is_same<T, void>()>> final {
   public:
     using E = xx::E;
 
@@ -74,7 +74,7 @@ class maybe<T, god::enable_if_t<god::is_same<T, void>()>> final {
 
 // T is scalar type
 template <typename T>
-class maybe<T, god::enable_if_t<god::is_scalar<T>()>> final {
+class maybe<T, god::if_t<god::is_scalar<T>()>> final {
   public:
     using E = xx::E;
 
@@ -127,7 +127,7 @@ class maybe<T, god::enable_if_t<god::is_scalar<T>()>> final {
 
 // T is reference
 template <typename T>
-class maybe<T, god::enable_if_t<god::is_ref<T>()>> final {
+class maybe<T, god::if_t<god::is_ref<T>()>> final {
   public:
     using E = xx::E;
 
@@ -171,14 +171,14 @@ class maybe<T, god::enable_if_t<god::is_ref<T>()>> final {
   private:
     union {
         E _e;
-        god::remove_ref_t<T>* _t;
+        god::rm_ref_t<T>* _t;
     };
     bool _has_error;
 };
 
 // T is class
 template <typename T>
-class maybe<T, god::enable_if_t<god::is_class<T>()>> final {
+class maybe<T, god::if_t<god::is_class<T>()>> final {
   public:
     using E = xx::E;
 

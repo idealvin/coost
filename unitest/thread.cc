@@ -3,11 +3,6 @@
 
 namespace test {
 
-void thread_run(int* x, co::sync_event* ev) {
-    *x += 1;
-    if (ev != NULL) ev->signal();
-}
-
 DEF_test(thread) {
     DEF_case(sync_event) {
         co::sync_event ev;
@@ -22,26 +17,6 @@ DEF_test(thread) {
         EXPECT_EQ(em.wait(0), true);
         em.reset();
         EXPECT_EQ(em.wait(1), false);
-    }
-
-    DEF_case(thread) {
-        int v = 0;
-        co::sync_event ev;
-        std::thread(std::bind(thread_run, &v, &ev)).detach();
-        ev.wait();
-        EXPECT_EQ(v, 1);
-    }
-
-    DEF_case(mutex) {
-        std::mutex mtx;
-        {
-            std::lock_guard<std::mutex> g(mtx);
-            EXPECT_EQ(mtx.try_lock(), false);
-        }
-
-        EXPECT_EQ(mtx.try_lock(), true);
-        EXPECT_EQ(mtx.try_lock(), false);
-        mtx.unlock();
     }
 
     DEF_case(gettid) {

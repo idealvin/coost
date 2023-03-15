@@ -721,7 +721,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
     void* p = 0;
     SmallAlloc* sa;
     if (n <= 2048) {
-        const uint32 u = n > 16 ? god::b16((uint32)n) : 1;
+        const uint32 u = n > 16 ? god::nb<16>((uint32)n) : 1;
         if (_sa && (p = _sa->alloc(u))) goto end;
 
         if (_sa && _sa->next) {
@@ -762,7 +762,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
         }
 
     } else if (n <= g_max_alloc_size) {
-        const uint32 u = god::b4k((uint32)n);
+        const uint32 u = god::nb<4096>((uint32)n);
         if (_la && (p = _la->alloc(u))) goto end;
 
         if (_la && _la->next) {
@@ -838,7 +838,7 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 
         const auto sa = (SmallAlloc*) god::align_down<1u << g_sb_bits>(p);
         if (sa == _sa && n <= 2048) {
-            const uint32 l = god::b16((uint32)n);
+            const uint32 l = god::nb<16>((uint32)n);
             auto x = sa->realloc(p, k >> 4, l);
             if (x) return x;
         }
@@ -849,7 +849,7 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 
         const auto la = (LargeAlloc*) god::align_down<1u << g_lb_bits>(p);
         if (la == _la && n <= g_max_alloc_size) {
-            const uint32 l = god::b4k((uint32)n);
+            const uint32 l = god::nb<4096>((uint32)n);
             auto x = la->realloc(p, k >> 12, l);
             if (x) return x;
         }
