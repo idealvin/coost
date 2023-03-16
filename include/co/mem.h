@@ -44,20 +44,20 @@ inline void del(T* p, size_t n=sizeof(T)) {
 }
 
 // used internally by coost, do not call it
-__coapi void* _salloc(size_t n);
+__coapi void* _salloc(size_t n, int x);
 
 // used internally by coost, do not call it
-__coapi void _at_exit(std::function<void()>&& f, int x);
+__coapi void _dealloc(std::function<void()>&& f, int x);
 
 // used internally by coost, do not call it
 template<typename T, typename... Args>
 inline T* _make_static(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const auto p = _salloc(sizeof(T));
+    const auto p = _salloc(sizeof(T), 1);
     if (p) {
         new(p) T(std::forward<Args>(args)...);
         const bool x = god::is_trivially_destructible<T>();
-        !x ? _at_exit([p](){ ((T*)p)->~T(); }, 1) : (void)0;
+        !x ? _dealloc([p](){ ((T*)p)->~T(); }, 1) : (void)0;
     }
     return (T*)p;
 }
@@ -67,11 +67,11 @@ inline T* _make_static(Args&&... args) {
 template<typename T, typename... Args>
 inline T* make_static(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const auto p = _salloc(sizeof(T));
+    const auto p = _salloc(sizeof(T), 0);
     if (p) {
         new(p) T(std::forward<Args>(args)...);
         const bool x = god::is_trivially_destructible<T>();
-        !x ? _at_exit([p](){ ((T*)p)->~T(); }, 0) : (void)0;
+        !x ? _dealloc([p](){ ((T*)p)->~T(); }, 0) : (void)0;
     }
     return (T*)p;
 }
@@ -99,19 +99,31 @@ class unique {
         return this->operator=(std::move(x));
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     unique(unique<X>& x) noexcept : _p(x.get()) { *(void**)&x = 0; }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     unique(unique<X>&& x) noexcept : _p(x.get()) { *(void**)&x = 0; }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     unique& operator=(unique<X>&& x) {
-        if ((void*)&x != (void*)this) { this->reset(); _p = x.get(); *(void**)&x = 0; }
+        if ((void*)&x != (void*)this) {
+            this->reset();
+            _p = x.get();
+            *(void**)&x = 0;
+        }
         return *this;
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     unique& operator=(unique<X>& x) {
         return this->operator=(std::move(x));
     }
@@ -203,25 +215,33 @@ class shared {
         return *this;
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     shared(const shared<X>& x) noexcept {
         _p = x.get();
         if (_p) atomic_inc(_s - 2, mo_relaxed);
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     shared(shared<X>&& x) noexcept {
         _p = x.get();
         *(void**)&x = 0;
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     shared& operator=(const shared<X>& x) {
         if ((void*)&x != (void*)this) shared<T>(x).swap(*this);
         return *this;
     }
 
-    template<typename X, god::if_t<god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int> = 0>
+    template<typename X, god::if_t<
+        god::is_base_of<T, X>() && god::has_virtual_destructor<T>(), int
+    > = 0>
     shared& operator=(shared<X>&& x) {
         if ((void*)&x != (void*)this) shared<T>(std::move(x)).swap(*this);
         return *this;

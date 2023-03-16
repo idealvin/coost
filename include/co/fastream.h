@@ -169,7 +169,7 @@ class __coapi fastream : public fast::stream {
 
     // float point number with max decimal places set
     //   - fastream() << dp::_2(3.1415);  // -> 3.14
-    fastream& operator<<(const dp::__fpt& v) {
+    fastream& operator<<(const dp::_fpt& v) {
         return (fastream&) fast::stream::operator<<(v);
     }
 

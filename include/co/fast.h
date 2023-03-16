@@ -11,29 +11,29 @@
 // decimal places
 namespace dp {
 
-struct __fpt {
-    constexpr __fpt(double v, int d) : v(v), d(d) {}
+struct _fpt {
+    constexpr _fpt(double v, int d) : v(v), d(d) {}
     double v;
     int d;
 };
 
-constexpr __fpt _1(double v) { return __fpt(v, 1); }
-constexpr __fpt _2(double v) { return __fpt(v, 2); }
-constexpr __fpt _3(double v) { return __fpt(v, 3); }
-constexpr __fpt _4(double v) { return __fpt(v, 4); }
-constexpr __fpt _5(double v) { return __fpt(v, 5); }
-constexpr __fpt _6(double v) { return __fpt(v, 6); }
-constexpr __fpt _7(double v) { return __fpt(v, 7); }
-constexpr __fpt _8(double v) { return __fpt(v, 8); }
-constexpr __fpt _9(double v) { return __fpt(v, 9); }
-constexpr __fpt _10(double v) { return __fpt(v, 10); }
-constexpr __fpt _11(double v) { return __fpt(v, 11); }
-constexpr __fpt _12(double v) { return __fpt(v, 12); }
-constexpr __fpt _13(double v) { return __fpt(v, 13); }
-constexpr __fpt _14(double v) { return __fpt(v, 14); }
-constexpr __fpt _15(double v) { return __fpt(v, 15); }
-constexpr __fpt _16(double v) { return __fpt(v, 16); }
-constexpr __fpt _n(double v, int n) { return __fpt(v, n); }
+constexpr _fpt _1(double v) { return _fpt(v, 1); }
+constexpr _fpt _2(double v) { return _fpt(v, 2); }
+constexpr _fpt _3(double v) { return _fpt(v, 3); }
+constexpr _fpt _4(double v) { return _fpt(v, 4); }
+constexpr _fpt _5(double v) { return _fpt(v, 5); }
+constexpr _fpt _6(double v) { return _fpt(v, 6); }
+constexpr _fpt _7(double v) { return _fpt(v, 7); }
+constexpr _fpt _8(double v) { return _fpt(v, 8); }
+constexpr _fpt _9(double v) { return _fpt(v, 9); }
+constexpr _fpt _10(double v) { return _fpt(v, 10); }
+constexpr _fpt _11(double v) { return _fpt(v, 11); }
+constexpr _fpt _12(double v) { return _fpt(v, 12); }
+constexpr _fpt _13(double v) { return _fpt(v, 13); }
+constexpr _fpt _14(double v) { return _fpt(v, 14); }
+constexpr _fpt _15(double v) { return _fpt(v, 15); }
+constexpr _fpt _16(double v) { return _fpt(v, 16); }
+constexpr _fpt _n(double v, int n) { return _fpt(v, n); }
 
 } // dp
 
@@ -316,7 +316,7 @@ class __coapi stream {
         return this->operator<<((double)v);
     }
 
-    stream& operator<<(const dp::__fpt& v) {
+    stream& operator<<(const dp::_fpt& v) {
         this->ensure(v.d + 8);
         _size += fast::dtoa(v.v, _p + _size, v.d);
         return *this;

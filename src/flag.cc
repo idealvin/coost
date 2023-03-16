@@ -203,7 +203,7 @@ void Mod::add_flag(
         for (auto& x : v) {
             x.trim();
             const size_t n = x.size() + 1;
-            char* s = (char*) co::_salloc(n);
+            char* s = (char*) co::_salloc(n, 1);
             memcpy(s, x.c_str(), n);
             auto r = flags.emplace(s, f);
             if (!r.second) {

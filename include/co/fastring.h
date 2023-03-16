@@ -198,7 +198,7 @@ class __coapi fastring : public fast::stream {
 
     // float point number with max decimal places set
     //   - fastring() << dp::_2(3.1415);  // -> 3.14
-    fastring& operator<<(const dp::__fpt& v) {
+    fastring& operator<<(const dp::_fpt& v) {
         return (fastring&) fast::stream::operator<<(v);
     }
 

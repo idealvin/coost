@@ -191,39 +191,34 @@ class StaticAlloc {
     static const uint32 N = sizeof(F);
 
     StaticAlloc(uint32 m=32*1024, uint32 d=8*1024)
-        : _m(m), _d(d), _f(8192) {
+        : _m(m), _d(d) {
     }
-    ~StaticAlloc() {
-        this->call_destructors(_d);
-        this->call_destructors(_f);
-    }
+    ~StaticAlloc();
 
     void* alloc(size_t n) {
         return _m.alloc((uint32)n, n <= 32 ? sizeof(size_t) : 64);
     }
 
-    void add_destructor(F&& f, int x=0) {
-        MemBlocks& b = x ? _f : _d;
-        char* p = (char*) b.alloc(N);
-        new(p) F(std::forward<F>(f)); // save the function
-    }
-
-    void call_destructors(MemBlocks& d) {
-        const uint32 M = d.blk_size() / N;
-        for (uint32 i = d.size(); i > 0; --i) {
-            const uint32 m = i != d.size() ? M : d.pos() / N;
-            for (uint32 x = m; x > 0; --x) {
-                char* p = d[i - 1] + (x - 1) * N;
-                (*god::cast<F*>(p))();
-            }
-        }
+    void dealloc(F&& f) {
+        char* p = (char*) _d.alloc(N);
+        new(p) F(std::forward<F>(f));
     }
 
   private:
     MemBlocks _m;
     MemBlocks _d;
-    MemBlocks _f;
 };
+
+StaticAlloc::~StaticAlloc() {
+    const uint32 M = _d.blk_size() / N;
+    for (uint32 i = _d.size(); i > 0; --i) {
+        const uint32 m = i != _d.size() ? M : _d.pos() / N;
+        for (uint32 x = m; x > 0; --x) {
+            F* f = god::cast<F*>(_d[i - 1] + (x - 1) * N);
+            (*f)();
+        }
+    }
+}
 
 class Root {
   public:
@@ -236,7 +231,7 @@ class Root {
         {
             std::lock_guard<std::mutex> g(_mtx);
             p = _a.alloc(sizeof(T));
-            if (p) _a.add_destructor([p](){ ((T*)p)->~T(); });
+            if (p) _a.dealloc([p](){ ((T*)p)->~T(); });
         }
         return p ? new(p) T(std::forward<Args>(args)...) : 0;
     }
@@ -611,7 +606,8 @@ GlobalAlloc::~GlobalAlloc() {
 
 class ThreadAlloc {
   public:
-    ThreadAlloc(GlobalAlloc* ga) : _lb(0), _la(0), _sa(0), _ga(ga) {
+    ThreadAlloc(GlobalAlloc* ga)
+        : _lb(0), _la(0), _sa(0), _ga(ga), _sai(), _sau() {
         static uint32 g_alloc_id = (uint32)-1;
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
@@ -621,7 +617,7 @@ class ThreadAlloc {
     void* alloc(size_t n);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
-    StaticAlloc& static_alloc() { return _ka; }
+    StaticAlloc& static_alloc(int i) { return i ? _sai : _sau; }
 
   private:
     union { LargeBlock* _lb; co::clist _llb; };
@@ -629,7 +625,8 @@ class ThreadAlloc {
     union { SmallAlloc* _sa; co::clist _lsa; };
     uint32 _id;
     GlobalAlloc* _ga;
-    StaticAlloc _ka;
+    StaticAlloc _sai;
+    StaticAlloc _sau;
 };
 
 
@@ -862,13 +859,13 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 
 } // xx
 
-void* _salloc(size_t n) {
+void* _salloc(size_t n, int x) {
     assert(n <= 4096);
-    return xx::talloc()->static_alloc().alloc(n);
+    return xx::talloc()->static_alloc(x).alloc(n);
 }
 
-void _at_exit(std::function<void()>&& f, int x) {
-    xx::talloc()->static_alloc().add_destructor(std::forward<xx::F>(f), x);
+void _dealloc(std::function<void()>&& f, int x) {
+    xx::talloc()->static_alloc(x).dealloc(std::forward<xx::F>(f));
 }
 
 #ifndef CO_USE_SYS_MALLOC

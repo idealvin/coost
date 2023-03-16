@@ -150,7 +150,6 @@ inline T fetch_xor(T* p, V v) {
     return x;
 }
 
-// enable_if_t
 template<bool C, typename T=void>
 using if_t = typename std::enable_if<C, T>::type;
 
@@ -248,9 +247,11 @@ constexpr bool has_virtual_destructor() {
 
 } // god
 
-#if 0
 // detect whether a class has a specified method
-// https://stackoverflow.com/a/257382/4984605
+//   - https://stackoverflow.com/a/257382/4984605
+//   - e.g. 
+//     DEF_has_method(c_str);
+//     god::has_method_c_str<fastring>(); // -> true
 #define DEF_has_method(f) \
 namespace god { \
 template<typename _T_> \
@@ -264,4 +265,3 @@ struct _has_method_##f { \
 template<typename _T_> \
 constexpr bool has_method_##f() noexcept { return _has_method_##f<_T_>::value; } \
 }
-#endif
