@@ -20,8 +20,11 @@ class array {
         : _cap(cap), _size(0), _p((T*) Alloc::alloc(sizeof(T) * cap)) {
     }
 
-    // create an array of n elements with value: @x
-    // condition: X is not int or T is int.
+    // create an array of n elements with value @x
+    //   - cond: X is not int or T is int.
+    //   - e.g. 
+    //     co::array<int> a(4, 3);     -> [3,3,3,3]
+    //     co::array<char> x(2, 'x');  -> ['x','x']
     template<typename X, god::if_t<
         !god::is_same<god::rm_cvref_t<X>, int>() ||
         god::is_same<god::rm_cv_t<T>, int>(), int
@@ -32,7 +35,9 @@ class array {
     }
 
     // create an array of n elements with default value
-    // condition: X is int and T is not int.
+    //   - cond: X is int and T is not int.
+    //   - e.g. 
+    //     co::array<fastring> a(4, 0);
     template<typename X, god::if_t<
         god::is_same<god::rm_cvref_t<X>, int>() &&
         !god::is_same<god::rm_cv_t<T>, int>(), int
@@ -71,9 +76,7 @@ class array {
         _size += n;
     }
 
-    ~array() {
-        this->reset();
-    }
+    ~array() { this->reset(); }
 
     size_t capacity() const noexcept { return _cap; }
     size_t size() const noexcept { return _size; }
@@ -129,7 +132,8 @@ class array {
     void reset() {
         if (_p) {
             this->_destruct_range(_p, 0, _size);
-            Alloc::free(_p, sizeof(T) * _cap); _p = 0;
+            Alloc::free(_p, sizeof(T) * _cap);
+            _p = 0;
             _cap = _size = 0;
         }
     }
@@ -169,7 +173,8 @@ class array {
         for (auto it = beg; it != end; ++it) this->append(*it);
     }
 
-    // append n elements from an array
+    // append n elements, it is not safe if p overlaps with the internal buffer 
+    // of the array, use safe_append() in that case.
     void append(const T* p, size_t n) {
         this->reserve(_size + n);
         this->_copy_n(_p + _size, p, n);
@@ -200,7 +205,7 @@ class array {
         }
     }
 
-    // like append(), but it is safe when p points to part of the array itself.
+    // it is ok if p overlaps with the internal buffer of the array
     void safe_append(const T* p, size_t n) {
         if (p < _p || p >= _p + _size) {
             this->append(p, n);
@@ -214,6 +219,8 @@ class array {
     }
 
     // insert a new element (construct with args x...) at the back
+    //   - e.g. 
+    //     co::array<fastring> x; x.emplace(4, 'x'); // x.back() -> "xxxx"
     template<typename ... X>
     void emplace(X&& ... x) {
         this->reserve(_size + 1);

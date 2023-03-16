@@ -60,6 +60,12 @@ DEF_test(array){
         EXPECT_EQ(a.capacity(), 8);
         EXPECT_EQ(a[0].data(), (const char*)0);
 
+        co::array<fastring> b(8, (size_t)16);
+        EXPECT_EQ(b.size(), 8);
+        EXPECT_EQ(b.capacity(), 8);
+        EXPECT_EQ(b[0].capacity(), 16);
+        EXPECT_EQ(b[7].capacity(), 16);
+
         co::array<int> x = { 1, 2, 3 };
         EXPECT_EQ(x.size(), 3);
         EXPECT_EQ(x[0], 1);
@@ -243,10 +249,17 @@ DEF_test(array){
         co::array<A> c(std::move(b));
         EXPECT_EQ(gc, 24);
 
+        c.remove_back();
+        EXPECT_EQ(gd, 9);
+
+        c.remove(3);
+        EXPECT_EQ(gc, 25);
+        EXPECT_EQ(gd, 11);
+
         a.reset();
         b.reset();
         c.reset();
-        EXPECT_EQ(gd, 24);
+        EXPECT_EQ(gd, 25);
         EXPECT_EQ(gc, gd);
     }
 }
