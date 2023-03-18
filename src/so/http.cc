@@ -8,7 +8,6 @@
 #include "co/time.h"
 #include "co/fs.h"
 #include "co/path.h"
-#include "co/lru_map.h"
 
 #ifdef HAS_LIBCURL
 #include <curl/curl.h>
@@ -938,7 +937,7 @@ void easy(const char* root_dir, const char* ip, int port) {
 
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
-    typedef LruMap<fastring, std::pair<fastring, int64>> Map;
+    typedef co::lru_map<fastring, std::pair<fastring, int64>> Map;
     co::vector<Map> contents(co::scheduler_num());
     fastring root(path::clean(root_dir));
 
