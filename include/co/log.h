@@ -120,7 +120,7 @@ using namespace _xx;
 
 // TLOG are logs grouped by the topic.
 // TLOG("xxx") << "hello xxx" << 23;
-// It is better to use a literal string for the topic.
+// It is better to use literal string as the topic.
 #define TLOG(topic) log::xx::TLogSaver(_CO_FILELINE, topic).stream()
 #define TLOG_IF(topic, cond) if (cond) TLOG(topic)
 

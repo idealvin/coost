@@ -10,16 +10,16 @@ namespace path {
 // Return the shortest path name equivalent to path.
 __coapi fastring clean(const fastring& s);
 
-namespace _xx {
+namespace xx {
 inline fastring join(const fastring& s) {
     return s;
 }
 
-template <typename ...S>
+template<typename ...S>
 inline fastring join(const fastring& x, const S&... s) {
     return !x.empty() ? (x  + "/" + join(s...)) : join(s...);
 }
-} // namespace _xx
+} // namespace xx
 
 inline fastring join(const fastring& s, const fastring& t) {
     fastring v(!s.empty() ? s + "/" + t : t);
@@ -28,9 +28,9 @@ inline fastring join(const fastring& s, const fastring& t) {
 
 // Join any number of path elements into a single path.
 // The result is cleaned. In particular, all empty strings are ignored.
-template <typename ...S>
+template<typename ...S>
 inline fastring join(const S&... s) {
-    fastring v = _xx::join(s...);
+    fastring v = xx::join(s...);
     return !v.empty() ? clean(v) : v;
 }
 
