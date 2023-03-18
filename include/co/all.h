@@ -24,7 +24,7 @@
 #include "hash.h"
 #include "path.h"
 #include "lru_map.h"
-#include "random.h"
+#include "rand.h"
 #include "time.h"
 #include "tasked.h"
 #include "unitest.h"

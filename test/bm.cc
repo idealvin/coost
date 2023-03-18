@@ -13,6 +13,20 @@ BM_group(atomic) {
     );
 }
 
+BM_group(rand) {
+    int x;
+
+    BM_add(::rand)(
+        x = ::rand();
+    );
+    BM_use(x);
+
+    BM_add(co::rand)(
+        x = co::rand();
+    )
+    BM_use(x);
+}
+
 BM_group(malloc) {
     void* p;
 
