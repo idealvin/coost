@@ -39,7 +39,7 @@ struct Test {
 __coapi bool add_test(const char* name, bool& e, void(*f)(Test&));
 
 } // xx
-} // namespace unitest
+} // unitest
 
 // define a test unit
 #define DEF_test(_name_) \

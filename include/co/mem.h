@@ -380,12 +380,12 @@ struct stl_allocator {
 };
 
 template<class T1, class T2>
-inline constexpr bool operator==(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
+constexpr bool operator==(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
     return true;
 }
 
 template<class T1, class T2>
-inline constexpr bool operator!=(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
+constexpr bool operator!=(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
     return false;
 }
 

@@ -16,7 +16,7 @@ namespace co {
  *     int v = t[88];           // v is 0 as the internal memory is zero-cleared
  *     t[32] = 77;
  */
-template <typename T>
+template<typename T>
 class table {
   public:
     /**
