@@ -44,13 +44,12 @@ class Rand {
 };
 
 inline Rand& _rand() {
-    static thread_local Rand r;//std::mt19937 r(std::random_device{}());
+    static thread_local Rand r;
     return r;
 }
 
-// return from 0 to 2^31-3
-int rand() {
-    return _rand().next() - 1;
+uint32 rand() {
+    return _rand().next();
 }
 
 inline void _gen_random_bytes(uint8* p, uint32 n) {
