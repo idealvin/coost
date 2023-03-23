@@ -22,82 +22,59 @@
 #include "epoll/kqueue.h"
 #endif
 
-#include <assert.h>
-#include <memory>
-#include <map>
-
 DEC_uint32(co_sched_num);
 DEC_uint32(co_stack_size);
-DEC_bool(co_debug_log);
+DEC_bool(co_sched_log);
 
-#define CO_DBG_LOG DLOG_IF(FLG_co_debug_log)
+#define SCHEDLOG DLOG_IF(FLG_co_sched_log)
 
 namespace co {
+namespace xx {
 
-void init_sock();
-void cleanup_sock();
-
+class Sched;
 struct Coroutine;
 typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
 
-/**
- * coroutine state 
- *   - The state is used to implement co::Event.
- *
- *                    co::Event::wait()
- *          st_init ---------------------> st_wait
- *             ^                              |
- *             |                              |
- *    resume() |                              |
- *             |            timeout           |
- *             ^<---------------------------- v
- *             |                              |
- *             |                              |
- *             |                              |
- *             ^       co::Event::signal()    |
- *         st_ready <------------------------ v
- */
-enum co_state_t : uint8 {
-    st_wait = 0,     // wait for an event, DO NOT modify the value
-    st_ready = 1,    // ready to resume
-    st_timeout = 2,  // timeout
+enum state_t : uint8 {
+    st_wait = 0,    // wait for an event, do not modify
+    st_ready = 1,   // ready to resume
+    st_timeout = 2, // timeout
 };
 
-struct waitx_t;
+// waiting context
+struct waitx_t {
+    Coroutine* co;
+    union { uint8 state; void* dummy; };
+};
+
+// @n: bytes to allocate, sizeof(waitx_t) by default
+inline waitx_t* make_waitx(void* co, size_t n=sizeof(waitx_t)) {
+    waitx_t* w = (waitx_t*) co::alloc(n); assert(w);
+    w->co = (Coroutine*)co;
+    w->state = st_wait;
+    return w;
+}
 
 struct Coroutine {
     Coroutine() { memset(this, 0, sizeof(*this)); }
     ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
 
-    uint32 id;         // coroutine id
-    uint32 sid;        // stack id
-    waitx_t* waitx;    // wait info
-    tb_context_t ctx;  // context, a pointer points to the stack bottom
+    uint32 id;        // coroutine id
+    uint32 sid;       // stack id
+    waitx_t* waitx;   // waiting context
+    tb_context_t ctx; // coroutine context, points to the stack bottom
 
     // for saving stack data of this coroutine
     union { fastream stack; char _dummy1[sizeof(fastream)]; };
     union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
 
     // Once the coroutine starts, we no longer need the cb, and it can
-    // be used to store the Scheduler pointer.
+    // be used to store the scheduler pointer.
     union {
-        Closure* cb;   // coroutine function
-        Scheduler* s;  // scheduler this coroutine runs in
+        Closure* cb; // coroutine function
+        Sched* s;    // scheduler this coroutine runs in
     };
 };
-
-// header of wait info
-struct waitx_t {
-    Coroutine* co;
-    union { uint8 state; void* dummy; };
-};
-
-inline waitx_t* make_waitx(void* co) {
-    waitx_t* w = (waitx_t*) co::alloc(sizeof(waitx_t)); assert(w);
-    w->co = (Coroutine*)co;
-    w->state = st_wait;
-    return w;
-}
 
 // pool of Coroutine, using index as the coroutine id.
 class Copool {
@@ -179,7 +156,7 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
 class TimerManager {
   public:
     TimerManager() : _timer(), _it(_timer.end()) {}
-    ~TimerManager() {}
+    ~TimerManager() = default;
 
     timer_id_t add_timer(uint32 ms, Coroutine* co) {
         return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, co));
@@ -209,14 +186,12 @@ struct Stack {
     Coroutine* co; // coroutine owns this stack
 };
 
-/**
- * coroutine scheduler 
- *   - A scheduler will loop in a single thread.
- */
-class SchedulerImpl : public co::Scheduler {
+// coroutine scheduler 
+//   - Each scheduler will loop in a single thread.
+class Sched {
   public:
-    SchedulerImpl(uint32 id, uint32 sched_num, uint32 stack_size);
-    ~SchedulerImpl();
+    Sched(uint32 id, uint32 sched_num, uint32 stack_size);
+    ~Sched();
 
     // id of this scheduler
     uint32 id() const { return _id; }
@@ -244,7 +219,7 @@ class SchedulerImpl : public co::Scheduler {
         tb_context_jump(_main_co->ctx, _running);
     }
 
-    // add a new task will run in a coroutine later (thread-safe)
+    // add a new task to run as a coroutine later (thread-safe)
     void add_new_task(Closure* cb) {
         _task_mgr.add_new_task(cb);
         _epoll->signal();
@@ -268,7 +243,7 @@ class SchedulerImpl : public co::Scheduler {
     void add_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         _running->it = _timer_mgr.add_timer(ms, _running);
-        CO_DBG_LOG << "co(" << _running << ") add timer " << _running->it << " (" << ms << " ms)" ;
+        SCHEDLOG << "co(" << _running << ") add timer " << _running->it << " (" << ms << " ms)" ;
     }
 
     // check whether the current coroutine has timed out
@@ -276,7 +251,7 @@ class SchedulerImpl : public co::Scheduler {
 
     // add an IO event on a socket to epoll for the current coroutine.
     bool add_io_event(sock_t fd, io_event_t ev) {
-        CO_DBG_LOG << "co(" << _running << ") add io event fd: " << fd << " ev: " << (int)ev;
+        SCHEDLOG << "co(" << _running << ") add io event fd: " << fd << " ev: " << (int)ev;
       #if defined(_WIN32)
         (void) ev; // we do not care what the event is on windows
         return _epoll->add_event(fd);
@@ -291,18 +266,31 @@ class SchedulerImpl : public co::Scheduler {
 
     // delete an IO event on a socket from the epoll for the current coroutine.
     void del_io_event(sock_t fd, io_event_t ev) {
-        CO_DBG_LOG << "co(" << _running << ") del io event, fd: " << fd << " ev: " << (int)ev;
+        SCHEDLOG << "co(" << _running << ") del io event, fd: " << fd << " ev: " << (int)ev;
         ev == ev_read ? _epoll->del_ev_read(fd) : _epoll->del_ev_write(fd);
     }
 
     // delete all IO events on a socket from the epoll.
     void del_io_event(sock_t fd) {
-        CO_DBG_LOG << "co(" << _running << ") del io event, fd: " << fd;
+        SCHEDLOG << "co(" << _running << ") del io event, fd: " << fd;
         _epoll->del_event(fd);
     }
 
+    int64 cputime() {
+        return atomic_load(&_cputime, mo_relaxed);
+    }
+
+    // start the scheduler thread
+    void start() { std::thread(&Sched::loop, this).detach(); }
+
+    // stop the scheduler thread
+    void stop();
+
+    // the thread function
+    void loop();
+
   private:
-    friend class SchedulerManager;
+    friend class SchedManager;
 
     // Entry function for coroutines
     static void main_func(tb_context_from_t from);
@@ -312,15 +300,6 @@ class SchedulerImpl : public co::Scheduler {
         _stack[_running->sid].co = 0;
         _co_pool.push(_running);
     }
-
-    // start the scheduler thread
-    void start() { std::thread(&SchedulerImpl::loop, this).detach(); }
-
-    // stop the scheduler thread
-    void stop();
-
-    // the thread function
-    void loop();
 
     // save stack for the coroutine
     void save_stack(Coroutine* co) {
@@ -352,34 +331,28 @@ class SchedulerImpl : public co::Scheduler {
     TaskManager _task_mgr;
     TimerManager _timer_mgr;
 
+    int64 _cputime;
     co::sync_event _ev;
     bool _stop;
     bool _timeout;
 };
 
-class SchedulerManager {
+class SchedManager {
   public:
-    SchedulerManager();
-    ~SchedulerManager();
+    SchedManager();
+    ~SchedManager();
 
-    Scheduler* next_scheduler() {
-        if (_s != (uint32)-1) return _scheds[atomic_inc(&_n, mo_relaxed) & _s];
-        uint32 n = atomic_inc(&_n, mo_relaxed);
-        if (n <= ~_r) return _scheds[n % _scheds.size()]; // n <= (2^32 - 1 - r)
-        return _scheds[now::us() % _scheds.size()];
-    }
+    Sched* next_sched() const { return _next(_scheds); }
 
-    const co::vector<Scheduler*>& schedulers() const {
+    const co::vector<Sched*>& scheds() const {
         return _scheds;
     }
 
     void stop();
 
   private:
-    co::vector<Scheduler*> _scheds;
-    uint32 _n;  // index, initialized as -1
-    uint32 _r;  // 2^32 % sched_num
-    uint32 _s;  // _r = 0, _s = sched_num-1;  _r != 0, _s = -1;
+    std::function<Sched*(const co::vector<Sched*>&)> _next;
+    co::vector<Sched*> _scheds;
 };
 
 inline bool& is_active() {
@@ -387,6 +360,7 @@ inline bool& is_active() {
     return ka;
 }
 
-extern __thread SchedulerImpl* gSched;
+extern __thread Sched* gSched;
 
+} // xx
 } // co

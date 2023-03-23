@@ -24,7 +24,7 @@ void f1() {
 
 void f() {
     co::sleep(32);
-    LOG << "s: " << co::scheduler_id() << " c: " << co::coroutine_id();
+    LOG << "s: " << co::sched_id() << " c: " << co::coroutine_id();
 }
 
 int main(int argc, char** argv) {
@@ -32,9 +32,9 @@ int main(int argc, char** argv) {
     FLG_cout = true;
 
     // print scheduler pointers
-    auto& s = co::schedulers();
+    auto& s = co::scheds();
     for (size_t i = 0; i < s.size(); ++i) {
-        LOG << "i: " << (void*)s[i] << ", " << (void*)co::next_scheduler();
+        LOG << "i: " << (void*)s[i] << ", " << (void*)co::next_sched();
     }
 
     for (int i = 0; i < 8; ++i) go(f1);

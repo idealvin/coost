@@ -238,7 +238,7 @@ void* Client::easy_handle() const {
 }
 
 void Client::perform() {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     _ctx->clear();
     if (_ctx->header_updated) {
         curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
@@ -938,7 +938,7 @@ void easy(const char* root_dir, const char* ip, int port) {
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
     typedef co::lru_map<fastring, std::pair<fastring, int64>> Map;
-    co::vector<Map> contents(co::scheduler_num());
+    co::vector<Map> contents(co::sched_num());
     fastring root(path::clean(root_dir));
 
     serv.on_req(
@@ -957,7 +957,7 @@ void easy(const char* root_dir, const char* ip, int port, const char* key, const
             fastring path = path::join(root, url);
             if (fs::isdir(path)) path = path::join(path, "index.html");
 
-            auto& map = contents[co::scheduler_id()];
+            auto& map = contents[co::sched_id()];
             auto it = map.find(path);
             if (it != map.end()) {
                 if (now::ms() < it->second.second + 300 * 1000) {

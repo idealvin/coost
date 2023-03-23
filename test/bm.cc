@@ -15,6 +15,8 @@ BM_group(atomic) {
 
 BM_group(rand) {
     int x;
+    x = ::rand();
+    x = co::rand();
 
     BM_add(::rand)(
         x = ::rand();
@@ -23,7 +25,13 @@ BM_group(rand) {
 
     BM_add(co::rand)(
         x = co::rand();
-    )
+    );
+    BM_use(x);
+
+    uint32 seed = co::rand();
+    BM_add(co::rand(seed))(
+        x = co::rand(seed);
+    );
     BM_use(x);
 }
 

@@ -219,7 +219,7 @@ DEF_test(co) {
             ch << y << y << y << y;
 
             co::wait_group wg(2);
-            auto s = co::next_scheduler();
+            auto s = co::next_sched();
             s->go([ch, wg]() {
                 TestChan x(3);
                 ch << x;
@@ -338,14 +338,15 @@ DEF_test(co) {
             8192
         );
 
-        int n = co::scheduler_num();
+        int n = co::sched_num();
+        auto& scheds = co::scheds();
         co::array<int> vi(n, 0);
 
         co::wait_group wg;
         wg.add(n);
 
         for (int i = 0; i < n; ++i) {
-            go([wg, p, i]() {
+            scheds[i]->go([wg, p, i]() {
                 co::pool_guard<int> g(p);
                 *g = i;
                 wg.done();
@@ -356,7 +357,7 @@ DEF_test(co) {
 
         wg.add(n);
         for (int i = 0; i < n; ++i) {
-            go([wg, p, i, &vi]() {
+            scheds[i]->go([wg, p, i, &vi]() {
                 int* x = (int*) p.pop();
                 vi[i] = *x;
                 p.push(x);

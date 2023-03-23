@@ -77,7 +77,7 @@ int check_private_key(const C* c) {
 }
 
 int shutdown(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -112,7 +112,7 @@ int shutdown(S* s, int ms) {
 }
 
 int accept(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -141,7 +141,7 @@ int accept(S* s, int ms) {
 }
 
 int connect(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -170,7 +170,7 @@ int connect(S* s, int ms) {
 }
 
 int recv(S* s, void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -199,7 +199,7 @@ int recv(S* s, void* buf, int n, int ms) {
 }
 
 int recvn(S* s, void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -236,7 +236,7 @@ int recvn(S* s, void* buf, int n, int ms) {
 }
 
 int send(S* s, const void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
