@@ -22,25 +22,45 @@ DEF_test(lru_map) {
     m.insert(1, 1);
     m.insert(2, 2);
     m.insert(3, 3);
-    m.insert(4, 4);
+    m.insert(4, 4); // 4,3,2,1
 
     EXPECT_EQ(m.size(), 4);
-    EXPECT_EQ(m.find(1)->second, 1);
+    EXPECT_EQ(m.find(1)->second, 1); // 1,4,3,2
 
-    m.insert(5, 5);
+    m.insert(5, 5); // 5,1,4,3
     EXPECT_EQ(m.size(), 4);
     EXPECT(m.find(2) == m.end());
 
-    m.erase(5);
+    m.erase(5); // 1,4,3
     EXPECT_EQ(m.size(), 3);
 
     auto it = m.find(1);
-    m.erase(it);
+    m.erase(it); // 4,3
     EXPECT_EQ(m.size(), 2);
     EXPECT(m.find(1) == m.end());
 
-    m.clear();
-    EXPECT(m.empty());
+    auto a = m;
+    EXPECT_EQ(m.size(), 2);
+    EXPECT_EQ(a.size(), 2);
+
+    auto b = std::move(a);
+    EXPECT_EQ(a.size(), 0);
+    EXPECT_EQ(b.size(), 2);
+
+    co::lru_map<int, int> c;
+    c = b;
+    EXPECT_EQ(b.size(), 2);
+    EXPECT_EQ(c.size(), 2);
+
+    EXPECT_EQ(c.find(4)->second, 4);
+    EXPECT_EQ(c.begin()->second, 4);
+
+    c.clear();
+    EXPECT_EQ(c.size(), 0);
+
+    c = std::move(b);
+    EXPECT_EQ(b.size(), 0);
+    EXPECT_EQ(c.size(), 2);
 }
 
 DEF_test(array){

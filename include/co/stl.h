@@ -66,7 +66,6 @@ struct _Hash {
     }
 };
 
-// take const char* as a string
 template<>
 struct _Hash<const char*> {
     size_t operator()(const char* x) const noexcept {
@@ -82,7 +81,6 @@ struct _Eq {
     }
 };
 
-// compare c-style string with strcmp
 template<>
 struct _Eq<const char*> {
     bool operator()(const char* x, const char* y) const {
@@ -112,12 +110,26 @@ class lru_map {
     typedef typename co::hash_map<K, V>::value_type value_type;
 
     lru_map() : _capacity(1024) {}
+    ~lru_map() = default;
+    lru_map(const lru_map& x) = default;
+    lru_map& operator=(const lru_map&) = default;
 
     explicit lru_map(size_t capacity) {
         _capacity = capacity > 0 ? capacity : 1024;
     }
 
-    ~lru_map() = default;
+    lru_map(lru_map&& x) {
+        _kv.swap(x._kv);
+        _ki.swap(x._ki);
+        _kl.swap(x._kl);
+        _capacity = x._capacity;
+    }
+
+    lru_map& operator=(lru_map&& x) {
+        this->clear();
+        this->swap(x);
+        return *this;
+    }
 
     size_t size()    const { return _kv.size(); }
     bool empty()     const { return this->size() == 0; }
@@ -183,7 +195,7 @@ class lru_map {
   private:
     co::hash_map<K, V> _kv;
     co::hash_map<K, typename co::list<K>::iterator> _ki;
-    co::list<K> _kl; // key list
+    co::list<K> _kl;  // key list
     size_t _capacity; // max capacity
 };
 
