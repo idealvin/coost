@@ -124,7 +124,7 @@ class array {
     void resize(size_t n) {
         this->reserve(n);
         this->_destruct_range(_p, n, _size);
-        for (size_t i = _size; i < n; ++i) new (_p + i) T();
+        this->_construct_range(_p, _size, n);
         _size = n;
     }
 
@@ -304,6 +304,16 @@ class array {
         for (size_t i = 0; i < n; ++i) new (dst + i) X(std::move(src[i]));
     }
 
+    template<typename X, god::if_t<!god::is_class<X>(), int> = 0>
+    void _construct_range(X* p, size_t beg, size_t end) {
+        if (beg < end) memset(p + beg, 0, (end - beg) * sizeof(T));
+    }
+
+    template<typename X, god::if_t<god::is_class<X>(), int> = 0>
+    void _construct_range(X* p, size_t beg, size_t end) {
+        for (; beg < end; ++beg) new (p + beg) T();
+    }
+
     template<typename X, god::if_t<god::is_trivially_destructible<X>(), int> = 0>
     void _destruct(X&) {}
 
@@ -315,7 +325,7 @@ class array {
 
     template<typename X, god::if_t<!god::is_trivially_destructible<X>(), int> = 0>
     void _destruct_range(X* p, size_t beg, size_t end) {
-        for (; beg < end; ++beg) _p[beg].~X();
+        for (; beg < end; ++beg) p[beg].~X();
     }
   
   private:
