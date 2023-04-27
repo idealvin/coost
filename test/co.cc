@@ -1,19 +1,23 @@
 #include "co/co.h"
 #include "co/log.h"
 #include "co/time.h"
+#include "co/cout.h"
 
-co::Event ev;
-co::Mutex mtx;
-co::Pool pool;
+DEF_bool(m, false, "main thread as scheduler");
+
+co::event ev;
+co::mutex mtx;
+co::pool pool;
 
 int v = 0;
 int n = 0;
 
 void f1() {
     ev.wait();
-    LOG << "f1()";
+    co::print("f1()");
+
     {
-        co::MutexGuard g(mtx);
+        co::mutex_guard g(mtx);
         ++v;
     }
 
@@ -24,41 +28,38 @@ void f1() {
 
 void f() {
     co::sleep(32);
-    LOG << "s: " << co::sched_id() << " c: " << co::coroutine_id();
+    co::print("s: ", co::sched_id(), " c: ", co::coroutine_id());
 }
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-    FLG_cout = true;
 
-    // print scheduler pointers
-    auto& s = co::scheds();
-    for (size_t i = 0; i < s.size(); ++i) {
-        LOG << "i: " << (void*)s[i] << ", " << (void*)co::next_sched();
-    }
+    co::MainSched* ms = 0;
+    if (FLG_m) ms = co::main_sched();
 
     for (int i = 0; i < 8; ++i) go(f1);
-    go([&]() {
+    go([]() {
         bool r = ev.wait(50);
-        LOG << "f2() r: " << r;
+        co::print("f2() r: ", r);
     });
 
     sleep::ms(100);
-    go([&]() {
-        LOG << "f3()";
+    go([]() {
+        co::print("f3()");
         ev.signal();
     });
     
-    LOG << "co::Event wait in non-coroutine beg: " << now::ms();
+    co::print("co::event wait in non-coroutine beg: ", now::ms());
     ev.wait(200);
-    LOG << "co::Event wait in non-coroutine end: " << now::ms();
+    co::print("co::event wait in non-coroutine end: ", now::ms());
     sleep::ms(200);
 
-    LOG << "v: " << v;
-    LOG << "n: " << n;
+    co::print("v: ", v);
+    co::print("n: ", n);
 
     for (int i = 0; i < 32; ++i) go(f);
 
+    if (FLG_m) ms->loop();
     sleep::ms(100);
     return 0;
 }

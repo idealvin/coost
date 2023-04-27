@@ -1,5 +1,6 @@
 #include "co/unitest.h"
 #include "co/co.h"
+#include "co/cout.h"
 
 namespace test {
 
@@ -51,59 +52,6 @@ DEF_test(co) {
         v = 0;
     }
 
-    DEF_case(event) {
-        {
-            co::event ev;
-            co::wait_group wg(2);
-
-            go([wg, ev, &v]() {
-                ev.wait();
-                if (v == 1) v = 2;
-                wg.done();
-            });
-
-            go([wg, ev, &v]() {
-                if (v == 0) {
-                    v = 1;
-                    ev.signal();
-                }
-                wg.done();
-            });
-
-            wg.wait();
-            EXPECT_EQ(v, 2);
-            v = 0;
-
-            ev.signal();
-            EXPECT_EQ(ev.wait(1), true);
-            EXPECT_EQ(ev.wait(1), false);
-        }
-        {
-            co::event ev(true, true); // manual reset
-            co::wait_group wg(1);
-
-            go([wg, ev, &v]() {
-                if (ev.wait(32)) {
-                    ev.reset();
-                    v = 1;
-                }
-                wg.done();
-            });
-
-            wg.wait();
-            EXPECT_EQ(v, 1);
-            v = 0;
-
-            EXPECT_EQ(ev.wait(1), false);
-            ev.signal();
-            EXPECT_EQ(ev.wait(1), true);
-            EXPECT_EQ(ev.wait(1), true);
-
-            ev.reset();
-            EXPECT_EQ(ev.wait(1), false);
-        }
-    }
-
     DEF_case(mutex) {
         co::mutex m;
         co::wait_group wg;
@@ -134,6 +82,112 @@ DEF_test(co) {
         wg.wait();
         EXPECT_EQ(v, 8);
         v = 0;
+    }
+
+    DEF_case(event) {
+        {
+            co::event ev;
+            co::wait_group wg(2);
+            v = 777;
+
+            go([wg, ev, &v]() {
+                v = 0;
+                ev.wait();
+                if (v == 1) v = 2;
+                wg.done();
+            });
+
+            go([wg, ev, &v]() {
+                while (v != 0) co::sleep(1);
+                v = 1;
+                ev.signal();
+                wg.done();
+            });
+
+            wg.wait();
+            EXPECT_EQ(v, 2);
+
+            EXPECT_EQ(ev.wait(0), false);
+            EXPECT_EQ(ev.wait(0), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(0), true);
+            EXPECT_EQ(ev.wait(0), false);
+            EXPECT_EQ(ev.wait(0), false);
+
+            v = 0;
+            wg.add(8);
+            for (int i = 0; i < 7; ++i) {
+                go([wg, ev, &v]() {
+                    atomic_inc(&v);
+                    ev.wait();
+                    atomic_dec(&v);
+                    wg.done();
+                });
+            }
+            std::thread([wg, ev, &v]() {
+                atomic_inc(&v);
+                ev.wait();
+                atomic_dec(&v);
+                wg.done();
+            }).detach();
+
+            while (v != 8) co::sleep(1);
+            co::sleep(1);
+            ev.signal();
+            wg.wait();
+            EXPECT_EQ(v, 0);
+            EXPECT_EQ(ev.wait(0), false);
+
+            wg.add(2);
+            go([wg, ev, &v]() {
+                atomic_inc(&v);
+                while (v < 2) co::sleep(1);
+                ev.wait(1);
+                atomic_inc(&v);
+                wg.done();
+            });
+            std::thread([wg, ev, &v]() {
+                atomic_inc(&v);
+                while (v < 2) co::sleep(1);
+                ev.wait(1);
+                atomic_inc(&v);
+                wg.done();
+            }).detach();
+
+            while (v < 2) co::sleep(1);
+            co::sleep(2);
+            ev.signal();
+            wg.wait();
+            EXPECT_EQ(v, 4);
+            EXPECT_EQ(ev.wait(0), true);
+            EXPECT_EQ(ev.wait(0), false);
+        }
+        {
+            co::event ev(true, true); // manual reset
+            co::wait_group wg(1);
+
+            go([wg, ev, &v]() {
+                if (ev.wait(32)) {
+                    ev.reset();
+                    v = 1;
+                }
+                wg.done();
+            });
+
+            wg.wait();
+            EXPECT_EQ(v, 1);
+            v = 0;
+
+            EXPECT_EQ(ev.wait(0), false);
+            EXPECT_EQ(ev.wait(0), false);
+            ev.signal();
+            EXPECT_EQ(ev.wait(0), true);
+            EXPECT_EQ(ev.wait(0), true);
+
+            ev.reset();
+            EXPECT_EQ(ev.wait(0), false);
+            EXPECT_EQ(ev.wait(0), false);
+        }
     }
 
     DEF_case(chan) {
@@ -200,7 +254,7 @@ DEF_test(co) {
 
         {
             TestChan x(7);
-            co::chan<TestChan> ch(4, 32);
+            co::chan<TestChan> ch(4, 8);
             ch << x;
             EXPECT_EQ(x.v, 7);
 
@@ -245,7 +299,9 @@ DEF_test(co) {
 
             wg.add(2);
             s->go([ch, wg, &y]() {
-                ch >> y;
+                do {
+                    ch >> y;
+                } while (!ch.done());
                 wg.done();
             });
             s->go([ch, wg]() {
@@ -255,16 +311,15 @@ DEF_test(co) {
             wg.wait();
             EXPECT_EQ(y.v, 8);
 
-            int kk = 0;
             wg.add(2);
-            std::thread([ch, wg, &y, &kk]() {
-                atomic_store(&kk, 1);
-                ch >> y;
+            std::thread([ch, wg, &y]() {
+                do {
+                    ch >> y;
+                } while (!ch.done());
                 wg.done();
             }).detach();
 
-            go([ch, wg, &kk]() {
-                while (atomic_load(&kk) != 1) co::sleep(1);
+            go([ch, wg]() {
                 ch << TestChan(7);
                 wg.done();
             });
@@ -279,45 +334,54 @@ DEF_test(co) {
             EXPECT_EQ(i, 0);
 
             y.v = 0;
-            atomic_store(&kk, 0, mo_relaxed);
-            wg.add(1);
-            s->go([ch, wg, &y, &kk]() {
-                atomic_inc(&kk, mo_relaxed);
-                ch >> y;
+            wg.add(3);
+            s->go([ch, wg, &y]() {
+                do {
+                    ch >> y;
+                } while (ch);
+                wg.done();
+            });
+            s->go([ch, wg]() {
+                TestChan y;
+                do {
+                    ch >> y;
+                } while (ch);
+                wg.done();
+            });
+            s->go([ch, wg]() {
+                ch.close();
                 wg.done();
             });
 
-            while (kk == 0) co::sleep(1);
-            co::sleep(8);
-            ch.close();
-            EXPECT(!ch);
             wg.wait();
+            EXPECT(!ch);
             EXPECT_EQ(y.v, 0);
         }
 
         {
             TestChan x(7);
-            co::chan<TestChan> ch(4, 32);
+            co::chan<TestChan> ch(4);
 
-            int kk = 0;
-            co::wait_group wg(2);
+            co::wait_group wg1(1);
+            co::wait_group wg2(2);
             ch << x << x << x << x;
 
-            go([ch, wg, &x, &kk]() {
-                atomic_inc(&kk, mo_relaxed);
+            auto s = co::next_sched();
+            s->go([ch, wg2, &x]() {
                 ch << x;
-                wg.done();
+                wg2.done();
+            });
+            s->go([ch, wg2]() {
+                TestChan x(7);
+                ch << x;
+                wg2.done();
+            });
+            s->go([ch, wg1]() {
+                ch.close();
+                wg1.done();
             });
 
-            go([ch, wg, &x, &kk]() {
-                atomic_inc(&kk, mo_relaxed);
-                ch << x;
-                wg.done();
-            });
-
-            while (kk != 2) co::sleep(1);
-            co::sleep(8);
-            ch.close();
+            wg1.wait();
             EXPECT(!ch);
 
             int i = 0;
@@ -325,9 +389,13 @@ DEF_test(co) {
                 ch >> x;
                 if (ch.done()) ++i;
             } while (ch.done());
+
+            wg2.wait();
             EXPECT_EQ(i, 6);
         }
 
+        EXPECT_NE(gc, 0);
+        EXPECT_NE(gd, 0);
         EXPECT_EQ(gc, gd);
     }
 
