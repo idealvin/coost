@@ -46,6 +46,12 @@ BM_group(malloc) {
     BM_add(co::alloc)(
         p = co::alloc(32);
     );
+    BM_use(p);
+
+    BM_add(co::alloc_with_align)(
+        p = co::alloc(32, 64);
+    );
+    BM_use(p);
 }
 
 BM_group(malloc_free) {

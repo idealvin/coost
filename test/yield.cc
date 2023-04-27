@@ -7,8 +7,8 @@ co::WaitGroup wg;
 
 void f() {
     co::print("coroutine starts: ", co::coroutine_id());
-    co::print("yield coroutine..");
     gco = co::coroutine();
+    co::print("yield coroutine: ", gco);
     co::yield();
     co::print("coroutine ends: ", co::coroutine_id());
     wg.done();
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     go(f);
     sleep::ms(10);
     if (gco) {
-        co::print("resume co: ", gco);
+        co::print("resume coroutine: ", gco);
         co::resume(gco);
     }
 

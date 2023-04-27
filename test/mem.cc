@@ -11,7 +11,7 @@ void test_fun(int id) {
     int N = FLG_n;
     co::array<void*> v(N);
     fastream s(1024);
-    Timer t;
+    co::Timer t;
     int64 us;
     double avg;
     double vavg;
@@ -73,7 +73,7 @@ void test_fun(int id) {
 void test_string() {
     int N = FLG_n;
     fastream s(1024);
-    Timer t;
+    co::Timer t;
     int64 us;
     double avg = 0;
 
@@ -104,7 +104,7 @@ void test_string() {
 void test_vector() {
     int N = 10000;
     fastream s(1024);
-    Timer t;
+    co::Timer t;
     int64 us;
     double avg = 0;
 
@@ -141,7 +141,7 @@ void test_vector() {
 void test_map() {
     int N = FLG_n;
     fastream s(1024);
-    Timer t;
+    co::Timer t;
     int64 us;
     double avg = 0;
 
@@ -169,7 +169,7 @@ void test_map() {
 void test_unordered_map() {
     int N = FLG_n;
     fastream s(1024);
-    Timer t;
+    co::Timer t;
     int64 us;
     double avg = 0;
 
