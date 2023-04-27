@@ -166,7 +166,7 @@ using namespace _xx;
 #define CHECK_LT(a, b) _CO_CHECK_OP(a, b, <)
 
 // occasional log
-#define _CO_LOG_COUNTER pp_concat(_co_log_counter_, __LINE__)
+#define _CO_LOG_COUNTER PP_CONCAT(_co_log_counter_, __LINE__)
 
 #define _CO_LOG_EVERY_N(n, what) \
     static unsigned int _CO_LOG_COUNTER = 0; \
