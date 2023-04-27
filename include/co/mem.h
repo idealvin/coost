@@ -16,6 +16,9 @@ namespace co {
 // alloc @size bytes
 __coapi void* alloc(size_t size);
 
+// alloc @size bytes, @align byte aligned (align <= 1024)
+__coapi void* alloc(size_t size, size_t align);
+
 // alloc @size bytes, and zero-clear the memory
 __coapi void* zalloc(size_t size);
 
