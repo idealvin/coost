@@ -3,6 +3,7 @@
 
 #include "co/co.h"
 #include "co/log.h"
+#include "co/error.h"
 #include "../hook.h"
 #include "../sock_ctx.h"
 
@@ -47,13 +48,19 @@ class Iocp {
         ULONG n = 0;
         const BOOL r = __sys_api(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
         if (r == TRUE) return (int)n;
-        return ::GetLastError() == WAIT_TIMEOUT ? 0 : -1;
+        const uint32 e = ::GetLastError();
+        if (e == WAIT_TIMEOUT) return 0;
+        co::error() = e;
+        return -1;
     }
 
     void signal() {
-        if (atomic_bool_cas(&_signaled, 0, 1, mo_acquire, mo_acquire)) {
+        if (!_signaled && atomic_bool_cas(&_signaled, 0, 1, mo_relaxed, mo_relaxed)) {
             const BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
-            ELOG_IF(!r) << "PostQueuedCompletionStatus error: " << co::strerror();
+            if (!r) {
+                const uint32 e = ::GetLastError();
+                ELOG << "PostQueuedCompletionStatus error: " << co::strerror(e);
+            }
         }
     }
 

@@ -112,7 +112,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     if (connfd == (sock_t)-1) return connfd;
 
     const int N = sizeof(sockaddr_in6);
-    IoEvent ev(fd, (N + 16) * 2);
+    io_event ev(fd, (N + 16) * 2);
     sockaddr *serv = 0, *peer = 0;
     int serv_len = N, peer_len = N, r, e;
 
@@ -163,7 +163,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         }
     } while (0);
 
-    IoEvent ev(fd);
+    io_event ev(fd);
     int seconds, len = sizeof(int), r;
 
     r = connect_ex(fd, (const sockaddr*)addr, addrlen, 0, 0, 0, &ev->ol);
@@ -201,7 +201,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     CHECK(sched) << "must be called in coroutine..";
 
     int r, e;
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
     do {
         r = __sys_api(recv)(fd, (char*)buf, n, 0);
         if (r != -1) return r;
@@ -222,7 +222,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
 
     char* p = (char*)buf;
     int remain = n, r, e;
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
 
     do {
         r = __sys_api(recv)(fd, p, remain, 0);
@@ -251,7 +251,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     int r, e;
     char* s = 0;
     const int N = (addr && addrlen) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
-    IoEvent ev(fd, ev_read, buf, n, N);
+    io_event ev(fd, ev_read, buf, n, N);
 
     if (N > 0) {
         s = ev->s;
@@ -287,7 +287,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 
     const char* p = (const char*)buf;
     int remain = n, r, e;
-    IoEvent ev(fd, ev_write);
+    io_event ev(fd, ev_write);
 
     do {
         r = __sys_api(send)(fd, p, remain, 0);
@@ -313,7 +313,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
     CHECK(sched) << "must be called in coroutine..";
 
     int r, e;
-    IoEvent ev(fd, ev_write, buf, n);
+    io_event ev(fd, ev_write, buf, n);
 
     do {
         r = __sys_api(WSASendTo)(fd, &ev->buf, 1, &ev->n, 0, (const sockaddr*)addr, addrlen, &ev->ol, 0);

@@ -91,7 +91,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     const auto sched = xx::gSched;
     CHECK(sched) << "must be called in coroutine..";
 
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
     do {
       #ifdef SOCK_NONBLOCK
         sock_t connfd = __sys_api(accept4)(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -122,7 +122,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
         if (r == 0) return 0;
 
         if (errno == EINPROGRESS) {
-            IoEvent ev(fd, ev_write);
+            io_event ev(fd, ev_write);
             if (!ev.wait(ms)) return -1;
 
             int err, len = sizeof(err);
@@ -142,7 +142,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
     const auto sched = xx::gSched;
     CHECK(sched) << "must be called in coroutine..";
 
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
     do {
         int r = (int) __sys_api(recv)(fd, buf, n, 0);
         if (r != -1) return r;
@@ -158,7 +158,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
 int recvn(sock_t fd, void* buf, int n, int ms) {
     char* p = (char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
     do {
         int r = (int) __sys_api(recv)(fd, p, remain, 0);
         if (r == remain) return n;
@@ -181,7 +181,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
     const auto sched = xx::gSched;
     CHECK(sched) << "must be called in coroutine..";
 
-    IoEvent ev(fd, ev_read);
+    io_event ev(fd, ev_read);
     do {
         int r = (int) __sys_api(recvfrom)(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
         if (r != -1) return r;
@@ -200,7 +200,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
 
     const char* p = (const char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_write);
+    io_event ev(fd, ev_write);
 
     do {
         int r = (int) __sys_api(send)(fd, p, remain, 0);
@@ -225,7 +225,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
 
     const char* p = (const char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_write);
+    io_event ev(fd, ev_write);
 
     do {
         int r = (int) __sys_api(sendto)(fd, p, remain, 0, (const sockaddr*)addr, (socklen_t)addrlen);

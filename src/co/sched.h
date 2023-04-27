@@ -5,6 +5,7 @@
 #endif
 
 #include "co/co.h"
+#include "co/god.h"
 #include "co/mem.h"
 #include "co/flag.h"
 #include "co/log.h"
@@ -23,6 +24,7 @@
 #endif
 
 DEC_uint32(co_sched_num);
+DEC_uint32(co_stack_num);
 DEC_uint32(co_stack_size);
 DEC_bool(co_sched_log);
 
@@ -42,83 +44,187 @@ enum state_t : uint8 {
 };
 
 // waiting context
-struct waitx_t {
+struct waitx_t : co::clink {
     Coroutine* co;
     union { uint8 state; void* dummy; };
 };
 
-// @n: bytes to allocate, sizeof(waitx_t) by default
 inline waitx_t* make_waitx(void* co, size_t n=sizeof(waitx_t)) {
     waitx_t* w = (waitx_t*) co::alloc(n); assert(w);
+    w->next = w->prev = 0;
     w->co = (Coroutine*)co;
     w->state = st_wait;
     return w;
 }
 
-struct Coroutine {
-    Coroutine() { memset(this, 0, sizeof(*this)); }
-    ~Coroutine() { it.~timer_id_t(); stack.~fastream(); }
-
-    uint32 id;        // coroutine id
-    uint32 sid;       // stack id
-    waitx_t* waitx;   // waiting context
-    tb_context_t ctx; // coroutine context, points to the stack bottom
-
-    // for saving stack data of this coroutine
-    union { fastream stack; char _dummy1[sizeof(fastream)]; };
-    union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
-
-    // Once the coroutine starts, we no longer need the cb, and it can
-    // be used to store the scheduler pointer.
-    union {
-        Closure* cb; // coroutine function
-        Sched* s;    // scheduler this coroutine runs in
-    };
+struct Stack {
+    char* p;       // stack pointer 
+    char* top;     // stack top
+    Coroutine* co; // coroutine owns this stack
 };
 
-// pool of Coroutine, using index as the coroutine id.
-class Copool {
-  public:
-    // _tb(14, 14) can hold 2^28=256M coroutines.
-    Copool()
-        : _tb(14, 14), _ids(1u << 14), _id(0) {
+struct Buffer {
+    struct H {
+        uint32 cap;
+        uint32 size;
+        char p[];
+    };
+
+    constexpr Buffer() noexcept : _h(0) {}
+    ~Buffer() { this->reset(); }
+
+    const char* data() const noexcept { return _h ? _h->p : 0; }
+    uint32 size() const noexcept { return _h ? _h->size : 0; }
+    uint32 capacity() const noexcept { return _h ? _h->cap : 0; }
+    void clear() noexcept { if (_h) _h->size = 0; }
+
+    void reset() {
+        if (_h) {
+            co::free(_h, _h->cap + 8);
+            _h = 0;
+        }
     }
 
-    ~Copool() {
-        for (int i = 0; i < _id; ++i) _tb[i].~Coroutine();
+    void append(const void* p, size_t size) {
+        const uint32 n = (uint32)size;
+        if (!_h) {
+            _h = (H*) co::alloc(size + 8); assert(_h);
+            _h->cap = n;
+            _h->size = 0;
+            goto lable;
+        }
+
+        if (_h->cap < _h->size + n) {
+            const uint32 o = _h->cap;
+            _h->cap += (o >> 1) + n;
+            _h = (H*) co::realloc(_h, o + 8, _h->cap + 8); assert(_h);
+            goto lable;
+        }
+
+      lable:
+        memcpy(_h->p + _h->size, p, n);
+        _h->size += n;
+    }
+
+    H* _h;
+};
+
+struct Coroutine {
+    Coroutine() { memset(this, 0, sizeof(*this)); }
+    ~Coroutine() { it.~timer_id_t(); buf.~Buffer(); }
+
+    uint32 id;        // coroutine id
+    tb_context_t ctx; // coroutine context, points to the stack bottom
+    Closure* cb;      // coroutine function
+    Sched* sched;     // scheduler this coroutine runs in
+    Stack* stack;     // stack this coroutine runs on
+    union {
+        Buffer buf;   // for saving stack data of this coroutine
+        void* pbuf;
+    };
+    waitx_t* waitx;   // waiting context
+    union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
+};
+
+class alignas(64) CoroutinePool {
+  public:
+    static const int N = 13;
+    static const int S = 1 << N;
+
+    CoroutinePool()
+        : _c(0), _o(0), _v(1024), _use_count(1024) {
+        _v.resize(1024);
+        _use_count.resize(1024);
     }
 
     Coroutine* pop() {
-        if (!_ids.empty()) {
-            auto& co = _tb[_ids.pop_back()];
-            co.ctx = 0;
-            co.stack.clear();
-            return &co;
+        int id = 0;
+        if (!_v0.empty()) { id = _v0.pop_back(); goto reuse; }
+        if (!_vc.empty()) { id = _vc.pop_back(); goto reuse; }
+        if (_o < S) goto newco;
+        if (!_blks.empty()) {
+            _c = *_blks.begin();
+            _o = 0;
+            _blks.erase(_blks.begin());
         } else {
-            auto& co = _tb[_id];
-            co.id = _id++;
-            co.sid = (co.id & 7);
+            ++_c;
+            _o = 0;
+        }
+
+      newco:
+        {
+            if (_c < _v.size()) {
+                if (!_v[_c]) _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+            } else {
+                _v.resize(god::align_up<1024>(_c + 1));
+                _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+            }
+
+            auto& co = _v[_c][_o];
+            co.id = (_c << N) + _o++;
+            _use_count[_c]++;
+            return &co;
+        }
+
+      reuse:
+        {
+            const int q = id >> N;
+            const int r = id & (S - 1);
+            auto& co = _v[q][r];
+            co.ctx = 0;
+            co.buf.clear();
+            _use_count[q]++;
             return &co;
         }
     }
 
     void push(Coroutine* co) {
-        _ids.push_back(co->id);
-        if (_ids.size() >= 1024) co->stack.reset();
+        const int id = co->id;
+        const int q = id >> N;
+        if (q == 0) {
+            if (_v0.capacity() == 0) _v0.reserve(S);
+            _v0.push_back(id);
+        }
+        if (q > 0 && q == _c) {
+            if (_vc.capacity() == 0) _vc.reserve(S);
+            _vc.push_back(id);
+        }
+
+        if (--_use_count[q] == 0) {
+            ::free(_v[q]);
+            _v[q] = 0;
+            if (q != _c) {
+                _blks.insert(q);
+            } else {
+                _vc.clear();
+                _o = 0;
+                if (!_blks.empty() && *_blks.begin() < _c) {
+                    _blks.insert(_c);
+                    _c = *_blks.begin();
+                    _blks.erase(_blks.begin());
+                }
+            }
+        }
     }
 
-    Coroutine* operator[](size_t i) {
-        return &_tb[i];
+    Coroutine& operator[](int i) const {
+        const int q = i >> N;
+        const int r = i & (S - 1);
+        return _v[q][r];
     }
 
   private:
-    co::table<Coroutine> _tb;
-    co::array<int> _ids; // id of available coroutines in the table
-    int _id;
+    int _c; // current block
+    int _o; // offset in the current block [0, S)
+    co::array<Coroutine*> _v;
+    co::array<int> _use_count;
+    co::array<int> _v0; // id of coroutine in _v[0]
+    co::array<int> _vc; // id of coroutine in _v[_c]
+    co::set<int> _blks; // blocks available
 };
 
-// Tasks may be added from any thread. We need a Mutex here.
-class TaskManager {
+// Task may be added from any thread. We need a mutex here.
+class alignas(64) TaskManager {
   public:
     TaskManager() = default;
     ~TaskManager() = default;
@@ -153,13 +259,13 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
 }
 
 // Timer must be added in the scheduler thread. We need no lock here.
-class TimerManager {
+class alignas(64) TimerManager {
   public:
     TimerManager() : _timer(), _it(_timer.end()) {}
     ~TimerManager() = default;
 
     timer_id_t add_timer(uint32 ms, Coroutine* co) {
-        return _it = _timer.insert(_it, std::make_pair(now::ms() + ms, co));
+        return _it = _timer.emplace_hint(_it, now::ms() + ms, co);
     }
 
     void del_timer(const timer_id_t& it) {
@@ -167,12 +273,9 @@ class TimerManager {
         _timer.erase(it);
     }
 
-    timer_id_t end() {
-        return _timer.end();
-    }
+    timer_id_t end() { return _timer.end(); }
 
-    // return time(ms) to wait for the next timeout.
-    // all timedout coroutines will be pushed into @res.
+    // get timedout coroutines, return time(ms) to wait for the next timeout
     uint32 check_timeout(co::array<Coroutine*>& res);
 
   private:
@@ -180,17 +283,10 @@ class TimerManager {
     co::multimap<int64, Coroutine*>::iterator _it; // make insert faster with this hint
 };
 
-struct Stack {
-    char* p;       // stack pointer 
-    char* top;     // stack top
-    Coroutine* co; // coroutine owns this stack
-};
-
-// coroutine scheduler 
-//   - Each scheduler will loop in a single thread.
+// coroutine scheduler, loop in a single thread
 class Sched {
   public:
-    Sched(uint32 id, uint32 sched_num, uint32 stack_size);
+    Sched(uint32 id, uint32 sched_num, uint32 stack_num, uint32 stack_size);
     ~Sched();
 
     // id of this scheduler
@@ -204,9 +300,9 @@ class Sched {
         return _sched_num * (_running->id - 1) + _id;
     }
 
-    // check whether a pointer is on the stack of the coroutine
+    // check if the memory @p points to is on the stack of the coroutine
     bool on_stack(const void* p) const {
-        Stack* const s =  &_stack[_running->sid];
+        Stack* const s =  _running->stack;
         return (s->p <= (char*)p) && ((char*)p < s->top);
     }
 
@@ -215,7 +311,6 @@ class Sched {
 
     // suspend the current coroutine
     void yield() {
-        if (_running->s != this) _running->s = this;
         tb_context_jump(_main_co->ctx, _running);
     }
 
@@ -238,8 +333,7 @@ class Sched {
         this->yield();
     }
 
-    // Add a timer for the current coroutine. Users should call yield() to suspend 
-    // the coroutine. When the timer expires, the scheduler will resume it again.
+    // add a timer for the current coroutine
     void add_timer(uint32 ms) {
         if (_wait_ms > ms) _wait_ms = ms;
         _running->it = _timer_mgr.add_timer(ms, _running);
@@ -250,7 +344,7 @@ class Sched {
     bool timeout() const { return _timeout; }
 
     // add an IO event on a socket to epoll for the current coroutine.
-    bool add_io_event(sock_t fd, io_event_t ev) {
+    bool add_io_event(sock_t fd, _ev_t ev) {
         SCHEDLOG << "co(" << _running << ") add io event fd: " << fd << " ev: " << (int)ev;
       #if defined(_WIN32)
         (void) ev; // we do not care what the event is on windows
@@ -265,7 +359,7 @@ class Sched {
     }
 
     // delete an IO event on a socket from the epoll for the current coroutine.
-    void del_io_event(sock_t fd, io_event_t ev) {
+    void del_io_event(sock_t fd, _ev_t ev) {
         SCHEDLOG << "co(" << _running << ") del io event, fd: " << fd << " ev: " << (int)ev;
         ev == ev_read ? _epoll->del_ev_read(fd) : _epoll->del_ev_write(fd);
     }
@@ -292,20 +386,14 @@ class Sched {
   private:
     friend class SchedManager;
 
-    // Entry function for coroutines
+    // entry function for coroutine
     static void main_func(tb_context_from_t from);
-
-    // push a coroutine back to the pool, so it can be reused later.
-    void recycle() {
-        _stack[_running->sid].co = 0;
-        _co_pool.push(_running);
-    }
 
     // save stack for the coroutine
     void save_stack(Coroutine* co) {
         if (co) {
-            co->stack.clear();
-            co->stack.append(co->ctx, _stack[co->sid].top - (char*)co->ctx);
+            co->buf.clear();
+            co->buf.append(co->ctx, co->stack->top - (char*)co->ctx);
         }
     }
 
@@ -313,28 +401,32 @@ class Sched {
     Coroutine* new_coroutine(Closure* cb) {
         Coroutine* co = _co_pool.pop();
         co->cb = cb;
-        co->it = _timer_mgr.end();
+        co->sched = this;
+        co->stack = &_stack[co->id & (_stack_num - 1)];
+        new (&co->it) timer_id_t(_timer_mgr.end());
         return co;
     }
 
   private:
-    Epoll* _epoll;
-    uint32 _wait_ms;     // time in milliseconds the epoll to wait for
+    union {
+        int64 _cputime;
+        char _dummy[64];
+    };
+    CoroutinePool _co_pool;
+    TimerManager _timer_mgr;
+    TaskManager _task_mgr;
+    co::sync_event _ev;
     uint32 _id;          // scheduler id
-    uint32 _sched_num;   // scheduler num
-    uint32 _stack_size;  // size of stack
-    Stack* _stack;       // pointer to stack list
+    uint32 _sched_num;   // number of schedulers 
+    uint32 _stack_num;   // number of stacks per scheduler
+    uint32 _stack_size;  // size of the stack
+    Stack* _stack;       // stack array
     Coroutine* _main_co; // save the main context
     Coroutine* _running; // the current running coroutine
-
-    Copool _co_pool;
-    TaskManager _task_mgr;
-    TimerManager _timer_mgr;
-
-    int64 _cputime;
-    co::sync_event _ev;
-    bool _stop;
+    Epoll* _epoll;
+    uint32 _wait_ms;     // time the epoll to wait for
     bool _timeout;
+    bool _stop;
 };
 
 class SchedManager {

@@ -485,7 +485,7 @@ int _hook(accept)(int fd, struct sockaddr* addr, socklen_t* addrlen) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do {
             r = __sys_api(accept)(fd, addr, addrlen);
             if (r != -1) goto end;
@@ -516,7 +516,7 @@ ssize_t _hook(read)(int fd, void* buf, size_t count) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do_hook(__sys_api(read)(fd, buf, count), ev, ctx->recv_timeout());
     }
 
@@ -537,7 +537,7 @@ ssize_t _hook(readv)(int fd, const struct iovec* iov, int iovcnt) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do_hook(__sys_api(readv)(fd, iov, iovcnt), ev, ctx->recv_timeout());
     }
 
@@ -559,7 +559,7 @@ ssize_t _hook(recv)(int fd, void* buf, size_t len, int flags) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do_hook(__sys_api(recv)(fd, buf, len, flags), ev, ctx->recv_timeout());
     }
 
@@ -581,7 +581,7 @@ ssize_t _hook(recvfrom)(int fd, void* buf, size_t len, int flags, struct sockadd
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do_hook(__sys_api(recvfrom)(fd, buf, len, flags, addr, addrlen), ev, ctx->recv_timeout());
     }
 
@@ -603,7 +603,7 @@ ssize_t _hook(recvmsg)(int fd, struct msghdr* msg, int flags) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do_hook(__sys_api(recvmsg)(fd, msg, flags), ev, ctx->recv_timeout());
     }
 
@@ -624,7 +624,7 @@ ssize_t _hook(write)(int fd, const void* buf, size_t count) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_write);
+        co::io_event ev(fd, co::ev_write);
         do_hook(__sys_api(write)(fd, buf, count), ev, ctx->send_timeout());
     }
 
@@ -645,7 +645,7 @@ ssize_t _hook(writev)(int fd, const struct iovec* iov, int iovcnt) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_write);
+        co::io_event ev(fd, co::ev_write);
         do_hook(__sys_api(writev)(fd, iov, iovcnt), ev, ctx->send_timeout());
     }
 
@@ -667,7 +667,7 @@ ssize_t _hook(send)(int fd, const void* buf, size_t len, int flags) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_write);
+        co::io_event ev(fd, co::ev_write);
         do_hook(__sys_api(send)(fd, buf, len, flags), ev, ctx->send_timeout());
     }
 
@@ -689,7 +689,7 @@ ssize_t _hook(sendto)(int fd, const void* buf, size_t len, int flags, const stru
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_write);
+        co::io_event ev(fd, co::ev_write);
         do_hook(__sys_api(sendto)(fd, buf, len, flags, addr, addrlen), ev, ctx->send_timeout());
     }
 
@@ -711,7 +711,7 @@ ssize_t _hook(sendmsg)(int fd, const struct msghdr* msg, int flags) {
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_write);
+        co::io_event ev(fd, co::ev_write);
         do_hook(__sys_api(sendmsg)(fd, msg, flags), ev, ctx->send_timeout());
     }
 
@@ -919,7 +919,7 @@ int _hook(epoll_wait)(int epfd, struct epoll_event* events, int n, int ms) {
     }
 
     {
-        co::IoEvent ev(epfd, co::ev_read);
+        co::io_event ev(epfd, co::ev_read);
         if (!ev.wait(ms)) { r = 0; goto end; } // timeout
         r = __sys_api(epoll_wait)(epfd, events, n, 0);
     }
@@ -943,7 +943,7 @@ int _hook(accept4)(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags)
 
     if (!ctx->has_nb_mark()) { set_non_blocking(fd, 1); ctx->set_nb_mark(); }
     {
-        co::IoEvent ev(fd, co::ev_read);
+        co::io_event ev(fd, co::ev_read);
         do {
             r = __sys_api(accept4)(fd, addr, addrlen, flags);
             if (r != -1) goto end;
@@ -1070,7 +1070,7 @@ int _hook(kevent)(int kq, const struct kevent* c, int nc, struct kevent* e, int 
         }
 
         {
-            co::IoEvent ev(kq, co::ev_read);
+            co::io_event ev(kq, co::ev_read);
             if (!ev.wait(ms)) { r = 0; goto end; }
             r = __sys_api(kevent)(kq, c, nc, e, ne, 0);
         }

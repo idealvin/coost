@@ -46,7 +46,7 @@ class __coapi pool {
 
     /**
      * pop an element from the pool of the current thread 
-     *   - It MUST be called in a coroutine.
+     *   - It MUST be called in coroutine.
      *   - If the pool is empty and ccb is set, ccb() will be called to create a new element.
      *
      * @return  a pointer to an element, or NULL if pool is empty and ccb is not set.
@@ -55,16 +55,16 @@ class __coapi pool {
 
     /**
      * push an element to the pool of the current thread 
-     *   - It MUST be called in a coroutine.
+     *   - It MUST be called in coroutine.
      *   - Users SHOULD call push() and pop() in the same thread.
      *
-     * @param e  a pointer to an element, NULL pointers will be ignored.
+     * @param e  a pointer to an element, nothing will be done if e is NULL.
      */
     void push(void* e) const;
 
     /**
      * return pool size of the current thread 
-     *   - It MUST be called in a coroutine.
+     *   - It MUST be called in coroutine.
      */
     size_t size() const;
 
@@ -95,7 +95,7 @@ class __coapi pool {
  *     co::pool_guard<T> g(pool);
  *     g->hello();
  */
-template<typename T, typename D=std::default_delete<T>>
+template<typename T>
 class pool_guard {
   public:
     explicit pool_guard(const pool& p) : _p(p) {
@@ -118,14 +118,6 @@ class pool_guard {
     // get the pointer owns by pool_guard
     T* get() const noexcept { return _e; }
 
-    // reset the pointer owns by pool_guard
-    void reset(T* e = 0) {
-        if (_e != e) { if (_e) D()(_e); _e = e; }
-    }
-
-    // assign a new pointer to pool_guard
-    void operator=(T* e) { this->reset(e); }
-
   private:
     const pool& _p;
     T* _e;
@@ -134,7 +126,7 @@ class pool_guard {
 
 using Pool = pool;
 
-template<typename T, typename D=std::default_delete<T>>
-using PoolGuard = pool_guard<T, D>;
+template<typename T>
+using PoolGuard = pool_guard<T>;
  
 } // co

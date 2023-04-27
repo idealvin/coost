@@ -619,7 +619,7 @@ int WINAPI hook_recv(
     }
 
     if (ctx->is_overlapped()) {
-        co::IoEvent ev(a0, co::ev_read, a1, a2);
+        co::io_event ev(a0, co::ev_read, a1, a2);
         ev->flags = a3;
         set_skip_iocp(a0, ctx);
 
@@ -665,7 +665,7 @@ int WINAPI hook_WSARecv(
 
     if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 0);
-        co::IoEvent ev(a0);
+        co::io_event ev(a0);
         if (a4) ev->flags = *a4;
         set_skip_iocp(a0, ctx);
 
@@ -716,7 +716,7 @@ int WINAPI hook_recvfrom(
     if (ctx->is_overlapped()) {
         char* s = 0;
         const int N = (a4 && a5) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
-        co::IoEvent ev(a0, co::ev_read, a1, a2, N);
+        co::io_event ev(a0, co::ev_read, a1, a2, N);
         ev->flags = a3;
         set_skip_iocp(a0, ctx);
 
@@ -779,7 +779,7 @@ int WINAPI hook_WSARecvFrom(
         LPWSABUF x = check_wsabufs(a1, a2, 0);
         const int N = (a5 && a6) ? sizeof(SOCKADDR_STORAGE) + 8 : 0;
         char* s = 0;
-        co::IoEvent ev(a0, N);
+        co::io_event ev(a0, N);
         if (a4) ev->flags = *a4;
         set_skip_iocp(a0, ctx);
 
@@ -838,7 +838,7 @@ int WINAPI hook_send(
     }
 
     if (ctx->is_overlapped()) {
-        co::IoEvent ev(a0, co::ev_write, a1, a2);
+        co::io_event ev(a0, co::ev_write, a1, a2);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSASend)(a0, &ev->buf, 1, &ev->n, a3, &ev->ol, 0);
@@ -883,7 +883,7 @@ int WINAPI hook_WSASend(
 
     if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 1);
-        co::IoEvent ev(a0);
+        co::io_event ev(a0);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSASend)(a0, x, a2, &ev->n, a4, &ev->ol, a6);
@@ -924,7 +924,7 @@ int WINAPI hook_sendto(
     }
 
     if (ctx->is_overlapped()) {
-        co::IoEvent ev(a0, co::ev_write, a1, a2);
+        co::io_event ev(a0, co::ev_write, a1, a2);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSASendTo)(a0, &ev->buf, 1, &ev->n, a3, a4, a5, &ev->ol, 0);
@@ -971,7 +971,7 @@ int WINAPI hook_WSASendTo(
 
     if (ctx->is_overlapped()) {
         LPWSABUF x = check_wsabufs(a1, a2, 1);
-        co::IoEvent ev(a0);
+        co::io_event ev(a0);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSASendTo)(a0, x, a2, &ev->n, a4, a5, a6, &ev->ol, a8);
@@ -1061,7 +1061,7 @@ int WINAPI hook_WSARecvMsg(
 
     if (ctx->is_overlapped()) {
         auto x = check_wsamsg(a1, 'r', 0);
-        co::IoEvent ev(a0);
+        co::io_event ev(a0);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSARecvMsg)(a0, x, &ev->n, &ev->ol, a4);
@@ -1112,7 +1112,7 @@ int WINAPI hook_WSASendMsg(
 
     if (ctx->is_overlapped()) {
         auto x = check_wsamsg(a1, 's', 1);
-        co::IoEvent ev(a0);
+        co::io_event ev(a0);
         set_skip_iocp(a0, ctx);
 
         r = __sys_api(WSASendMsg)(a0, x, a2, &ev->n, &ev->ol, a5);

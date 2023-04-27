@@ -5,10 +5,7 @@
 
 namespace co {
 
-/**
- * mutex lock for coroutines
- *   - It can be also used in non-coroutines since v3.0.1.
- */
+// Mutex lock for coroutines, can be also used in non-coroutines since v3.0.1.
 class __coapi mutex {
   public:
     mutex();

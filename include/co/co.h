@@ -154,8 +154,8 @@ __coapi Sched* next_sched();
 
 // mark the main thread as a scheduler
 //   - It is useful when users want to run the main thread as a scheduler.
-//   - It must be called once at most in the main function before any coroutine
-//     starts. The returned result must be used to loop in main thread later.
+//   - Call this function in the main function before any coroutine starts, 
+//     and then call MainSched::loop() with the returned result.
 //   - e.g. 
 //     auto s = co::main_sched();
 //     go(xx);    /* start coroutines here */
@@ -185,11 +185,11 @@ __coapi void add_timer(uint32 ms);
 //   - @fd: the socket.
 //   - @ev: either ev_read or ev_write.
 //   - @return: true on success, false on error.
-__coapi bool add_io_event(sock_t fd, io_event_t ev);
+__coapi bool add_io_event(sock_t fd, _ev_t ev);
 
 // remove an IO event from epoll
 //   - It MUST be called in coroutine.
-__coapi void del_io_event(sock_t fd, io_event_t ev);
+__coapi void del_io_event(sock_t fd, _ev_t ev);
 
 // remove all IO events on the socket 
 //   - It MUST be called in coroutine.
