@@ -1,12 +1,19 @@
 #pragma once
 
 #include <stddef.h>
+#include <new>
 #include <utility>
 #include <type_traits>
 
 namespace god {
 
 inline void bless_no_bugs() {}
+
+#if __cpp_lib_hardware_interference_size >= 201703L
+constexpr size_t cache_line_size = std::hardware_destructive_interference_size;
+#else
+constexpr size_t cache_line_size = 64;
+#endif
 
 // universal type conversion
 //   - int x = god::cast<int>(1.23);
