@@ -5,7 +5,7 @@
 
 namespace co {
 
-// generate a random number (thread-safe)
+// generate a random number (0 < result < 2^31-1, thread-safe)
 __coapi uint32 rand();
 
 // generate a random number with specific seed
