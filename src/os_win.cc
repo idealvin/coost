@@ -46,7 +46,6 @@ fastring cwd() {
         GetCurrentDirectoryA(r, (char*)s.data());
         s.resize(r - 1);
     }
-
     if (!(s.size() > 1 && s[0] == '\\' && s[1] == '\\')) backslash_to_slash(s);
     return s;
 }
@@ -102,6 +101,15 @@ int cpunum() {
         return (int) info.dwNumberOfProcessors;
     }();
     return ncpu;
+}
+
+size_t pagesize() {
+    static size_t ps = []() {
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        return (size_t) info.dwPageSize;
+    }();
+    return ps;
 }
 
 void daemon() {}

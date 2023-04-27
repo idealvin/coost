@@ -41,6 +41,9 @@ __coapi int pid();
 // get number of processors
 __coapi int cpunum();
 
+// get size of a page in bytes
+__coapi size_t pagesize();
+
 // run as a daemon
 __coapi void daemon();
 

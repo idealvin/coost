@@ -59,6 +59,11 @@ int cpunum() {
     return ncpu;
 }
 
+size_t pagesize() {
+    static size_t ps = sysconf(_SC_PAGESIZE);
+    return ps;
+}
+
 #ifdef __linux__
 fastring exepath() {
     char buf[4096] = { 0 };
