@@ -2,15 +2,15 @@
 
 #include "co/time.h"
 #include <time.h>
-#include <winsock2.h>  // for struct timeval
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
 
+namespace co {
 namespace now {
-namespace _Mono {
+namespace xx {
 
 inline int64 _query_counts() {
     LARGE_INTEGER x;
@@ -45,18 +45,18 @@ inline int64 ms() {
     return (int64)(static_cast<double>(count) * 1000 / freq);
 }
 
-} // _Mono
+} // xx
 
 int64 ns() {
-    return _Mono::ns();
+    return xx::ns();
 }
 
 int64 us() {
-    return _Mono::us();
+    return xx::us();
 }
 
 int64 ms() {
-    return _Mono::ms();
+    return xx::ms();
 }
 
 fastring str(const char* fm) {
@@ -91,6 +91,7 @@ int64 us() {
 }
 
 } // epoch
+} // co
 
 namespace _xx {
 namespace sleep {

@@ -77,7 +77,7 @@ void TaskedImpl::run_at(F&& f, int hour, int minute, int second, bool daily) {
 void TaskedImpl::loop() {
     int64 ms = 0;
     int sec = 0;
-    Timer timer;
+    co::Timer timer;
     co::array<Task> tmp(32);
 
     while (!_stop) {

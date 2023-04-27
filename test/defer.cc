@@ -7,7 +7,7 @@ void f(int sn, int x, int y) {
 }
 
 void f() {
-    Timer t;
+    co::Timer t;
     defer(
         co::print("time elapse: ", t.us(), "us")
     );

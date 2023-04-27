@@ -23,7 +23,7 @@ struct Group {
     void (*f)(Group&);
     int iters;
     int64 ns;
-    Timer timer;
+    co::Timer timer;
     co::array<Result> res;
 };
 

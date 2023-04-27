@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         // test performance by writting 100W logs
         co::print("print 100W logs, every log is about 50 bytes");
 
-        Timer t;
+        co::Timer t;
         for (int k = 0; k < 1000000; k++) {
             LOG << "hello world " << 3;
         }

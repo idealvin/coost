@@ -4,8 +4,9 @@
 #include <time.h>
 #include <sys/time.h>
 
+namespace co {
 namespace now {
-namespace _Mono {
+namespace xx {
 
 #ifdef CLOCK_MONOTONIC
 
@@ -40,18 +41,18 @@ inline int64 ms() { return epoch::ms(); }
 
 #endif
 
-} // _Mono
+} // xx
 
 int64 ns() {
-    return _Mono::ns();
+    return xx::ns();
 }
 
 int64 us() {
-    return _Mono::us();
+    return xx::us();
 }
 
 int64 ms() {
-    return _Mono::ms();
+    return xx::ms();
 }
 
 fastring str(const char* fm) {
@@ -81,6 +82,7 @@ int64 ms() {
 }
 
 } // epoch
+} // co
 
 namespace _xx {
 namespace sleep {

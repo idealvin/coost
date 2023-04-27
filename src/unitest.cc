@@ -21,7 +21,7 @@ int run_tests() {
     // ft: number of failed tests
     // fc: number of failed cases
     int n = 0, ft = 0, fc = 0;
-    Timer timer;
+    co::Timer timer;
     auto& tests = xx::tests();
 
     co::array<xx::Test*> enabled;
