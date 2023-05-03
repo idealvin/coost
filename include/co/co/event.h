@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../def.h"
-#include "../atomic.h"
 
 namespace co {
 
@@ -17,9 +16,7 @@ class __coapi event {
     }
 
     // copy constructor, just increment the reference count
-    event(const event& e) : _p(e._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    event(const event& e);
 
     void operator=(const event&) = delete;
 
@@ -40,7 +37,7 @@ class __coapi event {
     void reset() const;
 
   private:
-    uint32* _p;
+    void* _p;
 };
 
 typedef event Event;

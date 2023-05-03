@@ -270,7 +270,7 @@ void mutex_impl::unlock() {
 class event_impl {
   public:
     event_impl(bool m, bool s)
-        : _wt(0), _sn(0), _signaled(s), _manual_reset(m), _has_cv(false) {
+        : _wt(0), _sn(0), _refn(1), _signaled(s), _manual_reset(m), _has_cv(false) {
     }
     ~event_impl() { if (_has_cv) xx::cv_free(&_cv); }
 
@@ -278,12 +278,16 @@ class event_impl {
     void signal();
     void reset();
 
+    void ref() { atomic_inc(&_refn, mo_relaxed); }
+    uint32 unref() { return atomic_dec(&_refn, mo_acq_rel); }
+
   private:
     xx::mutex _m;
     xx::cv_t _cv;
     co::clist _wc;
     uint32 _wt;
     uint32 _sn;
+    uint32 _refn;
     bool _signaled;
     const bool _manual_reset;
     bool _has_cv;
@@ -935,31 +939,35 @@ bool mutex::try_lock() const {
     return god::cast<xx::mutex_impl*>(_p)->try_lock();
 }
 
-// memory: |4(refn)|4|event_impl|
 event::event(bool manual_reset, bool signaled) {
-    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, co::cache_line_size);
-    _p[0] = 1;
-    new (_p + 2) xx::event_impl(manual_reset, signaled);
+    _p = co::alloc(sizeof(xx::event_impl), co::cache_line_size);
+    new (_p) xx::event_impl(manual_reset, signaled);
 }
 
+event::event(const event& e) : _p(e._p) {
+    if (_p) god::cast<xx::event_impl*>(_p)->ref();
+}
+
+
 event::~event() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((xx::event_impl*)(_p + 2))->~event_impl();
-        co::free(_p, sizeof(xx::event_impl) + 8);
+    const auto p = (xx::event_impl*)_p;
+    if (p && p->unref() == 0) {
+        p->~event_impl();
+        co::free(_p, sizeof(xx::event_impl));
         _p = 0;
     }
 }
 
 bool event::wait(uint32 ms) const {
-    return ((xx::event_impl*)(_p + 2))->wait(ms);
+    return god::cast<xx::event_impl*>(_p)->wait(ms);
 }
 
 void event::signal() const {
-    ((xx::event_impl*)(_p + 2))->signal();
+    god::cast<xx::event_impl*>(_p)->signal();
 }
 
 void event::reset() const {
-    ((xx::event_impl*)(_p + 2))->reset();
+    god::cast<xx::event_impl*>(_p)->reset();
 }
 
 sync_event::sync_event(bool manual_reset, bool signaled) {
