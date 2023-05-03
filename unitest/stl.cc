@@ -309,17 +309,26 @@ DEF_test(array){
         co::array<A> c(std::move(b));
         EXPECT_EQ(gc, 24);
 
-        c.remove_back();
+        c.remove_back(); // gd + 1
         EXPECT_EQ(gd, 9);
 
-        c.remove(3);
+        c.remove(3); // gd + 2
         EXPECT_EQ(gc, 25);
         EXPECT_EQ(gd, 11);
+
+        c.pop_back(); // gc + 1, gd + 2
+        EXPECT_EQ(gc, 26);
+        EXPECT_EQ(gd, 13);
+        {
+            A x = c.pop_back(); // gc + 1, gd + 2
+        }
+        EXPECT_EQ(gc, 27);
+        EXPECT_EQ(gd, 15);
 
         a.reset();
         b.reset();
         c.reset();
-        EXPECT_EQ(gd, 25);
+        EXPECT_EQ(gd, 27);
         EXPECT_EQ(gc, gd);
     }
 }

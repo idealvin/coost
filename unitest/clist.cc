@@ -17,7 +17,7 @@ DEF_test(clist) {
         EXPECT(l.empty());
     }
 
-    DEF_case(push) {
+    DEF_case(push_pop) {
         l.push_front(&a);
         EXPECT_EQ(l.front(), &a);
         EXPECT_EQ(l.back(), &a);
@@ -45,6 +45,21 @@ DEF_test(clist) {
         EXPECT_EQ(c.prev, &d);
         EXPECT_EQ(b.prev, &c);
         EXPECT_EQ(a.prev, &b);
+
+        co::clink* x;
+        x = l.pop_back();
+        EXPECT_EQ(x, &a);
+        EXPECT_EQ(l.back(), &b);
+
+        x = l.pop_front();
+        EXPECT_EQ(x, &d);
+        EXPECT_EQ(l.front(), &c);
+
+        l.pop_back();
+        l.pop_front();
+        EXPECT(l.empty());
+        EXPECT_EQ(l.pop_back(), l.null);
+        EXPECT_EQ(l.pop_front(), l.null);
 
         l.clear();
         l.push_back(&a);
