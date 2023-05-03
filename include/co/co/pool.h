@@ -1,8 +1,6 @@
 #pragma once
 
 #include "../def.h"
-#include "../atomic.h"
-#include <memory>
 #include <functional>
 
 namespace co {
@@ -38,9 +36,7 @@ class __coapi pool {
 
     pool(pool&& p) : _p(p._p) { p._p = 0; }
 
-    pool(const pool& p) : _p(p._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    pool(const pool& p);
 
     void operator=(const pool&) = delete;
 
@@ -76,20 +72,20 @@ class __coapi pool {
     void clear() const;
 
   private:
-    uint32* _p;
+    void* _p;
 };
 
 /**
  * guard to push an element back to co::pool
  *   - pool::pop() is called in the constructor.
  *   - pool::push() is called in the destructor.
- *   - operator->() is overloaded, so it has a behavior similar to std::unique_ptr.
  *
  *   - usage:
  *     struct T { void hello(); };
  *     co::pool pool(
- *         []() { return (void*) new T; },  // ccb
- *         [](void* p) { delete (T*)p; }    // dcb
+ *         []() { return (void*) new T; }, // ccb
+ *         [](void* p) { delete (T*)p; },  // dcb
+ *         8192                            // max capacity
  *     );
  *
  *     co::pool_guard<T> g(pool);
@@ -106,7 +102,6 @@ class pool_guard {
 
     ~pool_guard() { _p.push(_e); }
 
-    // overload operator-> for pool_guard
     T* operator->() const { assert(_e); return _e; }
     T& operator*()  const { assert(_e); return *_e; }
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../def.h"
-#include "../atomic.h"
 
 namespace co {
 
@@ -20,9 +19,7 @@ class __coapi wait_group {
     }
 
     // copy constructor, just increment the reference count
-    wait_group(const wait_group& wg) : _p(wg._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    wait_group(const wait_group& wg);
 
     void operator=(const wait_group&) = delete;
 
@@ -36,7 +33,7 @@ class __coapi wait_group {
     void wait() const;
 
   private:
-    uint32* _p;
+    void* _p;
 };
 
 typedef wait_group WaitGroup;

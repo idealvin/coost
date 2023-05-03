@@ -145,7 +145,6 @@ DEF_test(co) {
     DEF_case(mutex) {
         co::mutex m;
         co::wait_group wg;
-        wg.add(8);
 
         m.lock();
         EXPECT_EQ(m.try_lock(), false);
@@ -153,6 +152,7 @@ DEF_test(co) {
         EXPECT_EQ(m.try_lock(), true);
         m.unlock();
 
+        wg.add(16);
         for (int i = 0; i < 12; ++i) {
             go([wg, m, &v]() {
                 co::mutex_guard g(m);

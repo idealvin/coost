@@ -1,8 +1,6 @@
 #pragma once
 
 #include "../def.h"
-#include "../god.h"
-#include "../atomic.h"
 #include <functional>
 
 namespace co {
@@ -12,6 +10,7 @@ class __coapi pipe {
   public:
     typedef std::function<void(void*, void*, int)> C;
     typedef std::function<void(void*)> D;
+
     pipe(uint32 buf_size, uint32 blk_size, uint32 ms, C&& c, D&& d);
     ~pipe();
 
@@ -19,9 +18,7 @@ class __coapi pipe {
         p._p = 0;
     }
 
-    pipe(const pipe& p) : _p(p._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    pipe(const pipe& p);
 
     void operator=(const pipe&) = delete;
 
@@ -32,7 +29,7 @@ class __coapi pipe {
     bool done() const;
   
   private:
-    uint32* _p;
+    void* _p;
 };
 
 } // xx

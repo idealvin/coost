@@ -269,8 +269,8 @@ void mutex_impl::unlock() {
 
 class event_impl {
   public:
-    event_impl(bool m, bool s)
-        : _wt(0), _sn(0), _refn(1), _signaled(s), _manual_reset(m), _has_cv(false) {
+    event_impl(bool m, bool s, uint32 wg=0)
+        : _wt(0), _sn(0), _refn(1), _wg(wg), _signaled(s), _manual_reset(m), _has_cv(false) {
     }
     ~event_impl() { if (_has_cv) xx::cv_free(&_cv); }
 
@@ -280,6 +280,7 @@ class event_impl {
 
     void ref() { atomic_inc(&_refn, mo_relaxed); }
     uint32 unref() { return atomic_dec(&_refn, mo_acq_rel); }
+    uint32* wg() noexcept { return &_wg; }
 
   private:
     xx::mutex _m;
@@ -288,6 +289,7 @@ class event_impl {
     uint32 _wt;
     uint32 _sn;
     uint32 _refn;
+    uint32 _wg; // for wait group
     bool _signaled;
     const bool _manual_reset;
     bool _has_cv;
@@ -466,7 +468,7 @@ class pipe_impl {
   public:
     pipe_impl(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::C&& c, pipe::D&& d)
         : _buf_size(buf_size), _blk_size(blk_size), _ms(ms), _has_cv(false),
-          _c(std::move(c)), _d(std::move(d)), _rx(0), _wx(0), _full(0), _closed(0) {
+          _c(std::move(c)), _d(std::move(d)), _rx(0), _wx(0), _refn(1), _full(0), _closed(0) {
         _buf = (char*) co::alloc(_buf_size);
     }
 
@@ -480,6 +482,9 @@ class pipe_impl {
     bool done() const { return g_done; }
     void close();
     bool is_closed() const { return atomic_load(&_closed, mo_relaxed); }
+
+    void ref() { atomic_inc(&_refn, mo_relaxed); }
+    uint32 unref() { return atomic_dec(&_refn, mo_acq_rel); }
 
     struct waitx : co::clink {
         Coroutine* co;
@@ -531,6 +536,7 @@ class pipe_impl {
     co::clist _wq;
     uint32 _rx; // read pos
     uint32 _wx; // write pos
+    uint32 _refn;
     uint8 _full;
     uint8 _closed;
 };
@@ -783,37 +789,41 @@ void pipe_impl::close() {
 }
 
 pipe::pipe(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::C&& c, pipe::D&& d) {
-    _p = (uint32*) co::alloc(sizeof(pipe_impl) + 8);
-    _p[0] = 1;
-    new (_p + 2) pipe_impl(buf_size, blk_size, ms, std::move(c), std::move(d));
+    _p = co::alloc(sizeof(pipe_impl), co::cache_line_size);
+    new (_p) pipe_impl(buf_size, blk_size, ms, std::move(c), std::move(d));
+}
+
+pipe::pipe(const pipe& p) : _p(p._p) {
+    if (_p) god::cast<pipe_impl*>(_p)->ref();
 }
 
 pipe::~pipe() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((pipe_impl*)(_p + 2))->~pipe_impl();
-        co::free(_p, sizeof(pipe_impl) + 8);
+    const auto p = (pipe_impl*)_p;
+    if (p && p->unref() == 0) {
+        p->~pipe_impl();
+        co::free(_p, sizeof(pipe_impl));
         _p = 0;
     }
 }
 
 void pipe::read(void* p) const {
-    ((pipe_impl*)(_p + 2))->read(p);
+    god::cast<pipe_impl*>(_p)->read(p);
 }
 
 void pipe::write(void* p, int v) const {
-    ((pipe_impl*)(_p + 2))->write(p, v);
+    god::cast<pipe_impl*>(_p)->write(p, v);
 }
 
 bool pipe::done() const {
-    return ((pipe_impl*)(_p + 2))->done();
+    return god::cast<pipe_impl*>(_p)->done();
 }
 
 void pipe::close() const {
-    ((pipe_impl*)(_p + 2))->close();
+    god::cast<pipe_impl*>(_p)->close();
 }
 
 bool pipe::is_closed() const {
-    return ((pipe_impl*)(_p + 2))->is_closed();
+    return god::cast<pipe_impl*>(_p)->is_closed();
 }
 
 class pool_impl {
@@ -821,12 +831,12 @@ class pool_impl {
     typedef co::array<void*> V;
 
     pool_impl()
-        : _maxcap((size_t)-1) {
+        : _maxcap((size_t)-1), _refn(1) {
         this->_make_pools();
     }
 
     pool_impl(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap)
-        : _maxcap(cap), _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
+        : _maxcap(cap), _refn(1), _ccb(std::move(ccb)), _dcb(std::move(dcb)) {
         this->_make_pools();
     }
 
@@ -836,11 +846,8 @@ class pool_impl {
     }
 
     void* pop();
-
     void push(void* p);
-
     void clear();
-
     size_t size() const;
 
     void _make_pools() {
@@ -853,10 +860,14 @@ class pool_impl {
         co::free(_pools, sizeof(V) * _size);
     }
 
+    void ref() { atomic_inc(&_refn, mo_relaxed); }
+    uint32 unref() { return atomic_dec(&_refn, mo_acq_rel); }
+
   private:
     V* _pools;
     size_t _size;
     size_t _maxcap;
+    uint32 _refn;
     std::function<void*()> _ccb;
     std::function<void(void*)> _dcb;
 };
@@ -948,7 +959,6 @@ event::event(const event& e) : _p(e._p) {
     if (_p) god::cast<xx::event_impl*>(_p)->ref();
 }
 
-
 event::~event() {
     const auto p = (xx::event_impl*)_p;
     if (p && p->unref() == 0) {
@@ -969,6 +979,7 @@ void event::signal() const {
 void event::reset() const {
     god::cast<xx::event_impl*>(_p)->reset();
 }
+
 
 sync_event::sync_event(bool manual_reset, bool signaled) {
     _p = co::alloc(sizeof(xx::sync_event_impl), co::cache_line_size);
@@ -999,72 +1010,78 @@ bool sync_event::wait(uint32 ms) {
     return ((xx::sync_event_impl*)_p)->wait(ms);
 }
 
-// memory: |4(refn)|4(counter)|event_impl|
+
 wait_group::wait_group(uint32 n) {
-    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, co::cache_line_size);
-    _p[0] = 1; // refn
-    _p[1] = n; // counter
-    new (_p + 2) xx::event_impl(false, false);
+    _p = co::alloc(sizeof(xx::event_impl), co::cache_line_size);
+    new (_p) xx::event_impl(false, false, n);
+}
+
+wait_group::wait_group(const wait_group& wg) : _p(wg._p) {
+    if (_p) god::cast<xx::event_impl*>(_p)->ref();
 }
 
 wait_group::~wait_group() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((xx::event_impl*)(_p + 2))->~event_impl();
-        co::free(_p, sizeof(xx::event_impl) + 8);
+    const auto p = (xx::event_impl*)_p;
+    if (p && p->unref() == 0) {
+        p->~event_impl();
+        co::free(_p, sizeof(xx::event_impl));
         _p = 0;
     }
 }
 
 void wait_group::add(uint32 n) const {
-    atomic_add(_p + 1, n, mo_relaxed);
+    atomic_add(god::cast<xx::event_impl*>(_p)->wg(), n, mo_relaxed);
 }
 
 void wait_group::done() const {
-    const uint32 x = atomic_dec(_p + 1, mo_acq_rel);
+    const auto e = god::cast<xx::event_impl*>(_p);
+    const uint32 x = atomic_dec(e->wg(), mo_acq_rel);
     CHECK(x != (uint32)-1);
-    if (x == 0) ((xx::event_impl*)(_p + 2))->signal();
+    if (x == 0) e->signal();
 }
 
 void wait_group::wait() const {
-    ((xx::event_impl*)(_p + 2))->wait((uint32)-1);
+    god::cast<xx::event_impl*>(_p)->wait((uint32)-1);
 }
 
 
-// memory: |4(refn)|4|pool_impl|
 pool::pool() {
-    _p = (uint32*) co::alloc(sizeof(xx::pool_impl) + 8);
-    _p[0] = 1;
-    new (_p + 2) xx::pool_impl();
+    _p = co::alloc(sizeof(xx::pool_impl), co::cache_line_size);
+    new (_p) xx::pool_impl();
+}
+
+pool::pool(const pool& p) : _p(p._p) {
+    if (_p) god::cast<xx::pool_impl*>(_p)->ref();
 }
 
 pool::~pool() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((xx::pool_impl*)(_p + 2))->~pool_impl();
-        co::free(_p, sizeof(xx::pool_impl) + 8);
+    const auto p = (xx::pool_impl*)_p;
+    if (p && p->unref() == 0) {
+        p->~pool_impl();
+        co::free(_p, sizeof(xx::pool_impl));
         _p = 0;
     }
 }
 
 pool::pool(std::function<void*()>&& ccb, std::function<void(void*)>&& dcb, size_t cap) {
-    _p = (uint32*) co::alloc(sizeof(xx::pool_impl) + 8);
-    _p[0] = 1;
-    new (_p + 2) xx::pool_impl(std::move(ccb), std::move(dcb), cap);
+    _p = co::alloc(sizeof(xx::pool_impl));
+    new (_p) xx::pool_impl(std::move(ccb), std::move(dcb), cap);
 }
 
 void* pool::pop() const {
-    return ((xx::pool_impl*)(_p + 2))->pop();
+    return god::cast<xx::pool_impl*>(_p)->pop();
 }
 
 void pool::push(void* p) const {
-    ((xx::pool_impl*)(_p + 2))->push(p);
+    god::cast<xx::pool_impl*>(_p)->push(p);
 }
 
 void pool::clear() const {
-    ((xx::pool_impl*)(_p + 2))->clear();
+    god::cast<xx::pool_impl*>(_p)->clear();
 }
 
 size_t pool::size() const {
-    return ((xx::pool_impl*)(_p + 2))->size();
+    return god::cast<xx::pool_impl*>(_p)->size();
 }
 
 } // co
