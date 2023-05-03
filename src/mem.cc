@@ -193,8 +193,8 @@ class StaticAlloc {
     ~StaticAlloc();
 
     void* alloc(size_t n) {
-        const size_t H = god::cache_line_size >> 1;
-        return _m.alloc((uint32)n, n <= H ? sizeof(void*) : god::cache_line_size);
+        const size_t H = co::cache_line_size >> 1;
+        return _m.alloc((uint32)n, n <= H ? sizeof(void*) : co::cache_line_size);
     }
 
     void dealloc(F&& f) {
@@ -473,14 +473,14 @@ void* LargeAlloc::try_hard_alloc(uint32 n) {
 class SmallAlloc : public co::clink {
   public:
     static const uint32 BS_BITS = 1u << (g_sb_bits - 4); // 2048
-    static const uint32 SA_SIZE = god::cache_line_size < 64 ? 64 : god::cache_line_size;
+    static const uint32 SA_SIZE = co::cache_line_size < 64 ? 64 : co::cache_line_size;
     static const uint32 MAX_BIT = BS_BITS - ((SA_SIZE + (BS_BITS >> 2)) >> 4);
 
     explicit SmallAlloc(LargeBlock* parent, ThreadAlloc* ta)
         : _bit(0), _parent(parent), _ta(ta) {
         static_assert(sizeof(*this) <= SA_SIZE, "");
         static_assert((SA_SIZE & (SA_SIZE - 1)) == 0, "");
-        static_assert(god::cache_line_size <= (BS_BITS >> 3), "");
+        static_assert(co::cache_line_size <= (BS_BITS >> 3), "");
         _p = (char*)this + (SA_SIZE + (BS_BITS >> 2));
         _pbs = (char*)this + SA_SIZE;
         _xpbs = (char*)this + (SA_SIZE + (BS_BITS >> 3));
@@ -498,7 +498,7 @@ class SmallAlloc : public co::clink {
 
     void* alloc(uint32 n, uint32 a) {
         void* p = NULL;
-        const uint32 bit = (a <= (god::cache_line_size >> 4) || a <= (SA_SIZE >> 4))
+        const uint32 bit = (a <= (co::cache_line_size >> 4) || a <= (SA_SIZE >> 4))
             ? god::align_up(_bit, a)
             : god::align_up(_bit, a) + (god::cast<uint32>(god::align_up(_p, a << 4) - _p) >> 4);
 

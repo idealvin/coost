@@ -133,18 +133,85 @@ class mutex_guard {
 
 class mutex_impl {
   public:
-    mutex_impl() : _lock(0), _has_cv(false) {}
+    struct queue {
+        static const int N = 12;
+        struct _memb : co::clink {
+            size_t size;
+            uint8 rx;
+            uint8 wx;
+            void* q[];
+        };
+
+        _memb* _make_memb() {
+            _memb* m = (_memb*) co::alloc(sizeof(_memb) + N * sizeof(void*), co::cache_line_size);
+            m->size = 0;
+            m->rx = 0;
+            m->wx = 0;
+            return m;
+        }
+
+        queue() noexcept : _m(0) {}
+
+        ~queue() {
+            for (auto h = _q.front(); h;) {
+                const auto m = (_memb*)h;
+                h = h->next;
+                co::free(m, sizeof(_memb) + N * sizeof(void*));
+            }
+        }
+
+        size_t size() const noexcept { return _m ? _m->size : 0; }
+        bool empty() const noexcept { return this->size() == 0; }
+
+        void push_back(void* x) {
+            _memb* m = (_memb*) _q.back();
+            if (!m || m->wx == N) {
+                m = this->_make_memb();
+                _q.push_back(m);
+            }
+            m->q[m->wx++] = x;
+            ++_m->size;
+        }
+
+        void* pop_front() {
+            void* x = 0;
+            if (_m && _m->rx < _m->wx) {
+                x = _m->q[_m->rx++];
+                --_m->size;
+                if (_m->rx == _m->wx) {
+                    _m->rx = _m->wx = 0;
+                    if (_q.back() != _m) {
+                        _memb* const m = (_memb*) _q.pop_front();
+                        _m->size = m->size;
+                        co::free(m, sizeof(_memb) + N * sizeof(void*));
+                    }
+                }
+            }
+            return x;
+        }
+
+        union {
+            _memb* _m;
+            co::clist _q;
+        };
+    };
+
+    mutex_impl() : _refn(1), _lock(0), _has_cv(false) {}
     ~mutex_impl() { if (_has_cv) xx::cv_free(&_cv); }
 
     void lock();
     void unlock();
     bool try_lock();
 
+    void ref() { atomic_inc(&_refn, mo_relaxed); }
+    uint32 unref() { return atomic_dec(&_refn, mo_acq_rel); }
+
   private:
     xx::mutex _m;
     xx::cv_t _cv;
-    co::deque<Coroutine*> _waitq;
-    int32 _lock;
+    queue _wq;
+    uint32 _refn;
+    uint8 _lock;
     bool _has_cv;
 };
 
@@ -161,8 +228,8 @@ void mutex_impl::lock() {
             _lock = 1;
             _m.unlock();
         } else {
-            Coroutine* co = sched->running();
-            _waitq.push_back(co);
+            Coroutine* const co = sched->running();
+            _wq.push_back(co);
             _m.unlock();
             sched->yield();
         }
@@ -172,7 +239,7 @@ void mutex_impl::lock() {
         if (!_lock) {
             _lock = 1;
         } else {
-            _waitq.push_back(nullptr);
+            _wq.push_back(nullptr);
             if (!_has_cv) { xx::cv_init(&_cv); _has_cv = true; }
             for (;;) {
                 xx::cv_wait(&_cv, _m.native_handle());
@@ -184,12 +251,11 @@ void mutex_impl::lock() {
 
 void mutex_impl::unlock() {
     _m.lock();
-    if (_waitq.empty()) {
+    if (_wq.empty()) {
         _lock = 0;
         _m.unlock();
     } else {
-        Coroutine* co = _waitq.front();
-        _waitq.pop_front();
+        Coroutine* const co = (Coroutine*) _wq.pop_front();
         if (co) {
             _m.unlock();
             co->sched->add_ready_task(co);
@@ -839,36 +905,39 @@ inline size_t pool_impl::size() const {
 
 } // xx
 
-// memory: |4(refn)|4|mutex_impl|
 mutex::mutex() {
-    _p = (uint32*) co::alloc(sizeof(xx::mutex_impl) + 8, god::cache_line_size);
-    _p[0] = 1; // refn
-    new (_p + 2) xx::mutex_impl();
+    _p = co::alloc(sizeof(xx::mutex_impl), co::cache_line_size);
+    new (_p) xx::mutex_impl();
+}
+
+mutex::mutex(const mutex& m) : _p(m._p) {
+    if (_p) god::cast<xx::mutex_impl*>(_p)->ref();
 }
 
 mutex::~mutex() {
-    if (_p && atomic_dec(_p, mo_acq_rel) == 0) {
-        ((xx::mutex_impl*)(_p + 2))->~mutex_impl();
-        co::free(_p, sizeof(xx::mutex_impl) + 8);
+    const auto p = (xx::mutex_impl*)_p;
+    if (p && p->unref() == 0) {
+        p->~mutex_impl();
+        co::free(_p, sizeof(xx::mutex_impl));
         _p = 0;
     }
 }
 
 void mutex::lock() const {
-    ((xx::mutex_impl*)(_p + 2))->lock();
+    god::cast<xx::mutex_impl*>(_p)->lock();
 }
 
 void mutex::unlock() const {
-    ((xx::mutex_impl*)(_p + 2))->unlock();
+    god::cast<xx::mutex_impl*>(_p)->unlock();
 }
 
 bool mutex::try_lock() const {
-    return ((xx::mutex_impl*)(_p + 2))->try_lock();
+    return god::cast<xx::mutex_impl*>(_p)->try_lock();
 }
 
 // memory: |4(refn)|4|event_impl|
 event::event(bool manual_reset, bool signaled) {
-    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, god::cache_line_size);
+    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, co::cache_line_size);
     _p[0] = 1;
     new (_p + 2) xx::event_impl(manual_reset, signaled);
 }
@@ -894,7 +963,7 @@ void event::reset() const {
 }
 
 sync_event::sync_event(bool manual_reset, bool signaled) {
-    _p = co::alloc(sizeof(xx::sync_event_impl), god::cache_line_size);
+    _p = co::alloc(sizeof(xx::sync_event_impl), co::cache_line_size);
     new (_p) xx::sync_event_impl(manual_reset, signaled);
 }
 
@@ -924,7 +993,7 @@ bool sync_event::wait(uint32 ms) {
 
 // memory: |4(refn)|4(counter)|event_impl|
 wait_group::wait_group(uint32 n) {
-    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, god::cache_line_size);
+    _p = (uint32*) co::alloc(sizeof(xx::event_impl) + 8, co::cache_line_size);
     _p[0] = 1; // refn
     _p[1] = n; // counter
     new (_p + 2) xx::event_impl(false, false);

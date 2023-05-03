@@ -29,6 +29,70 @@ struct TestChan {
     int v;
 };
 
+struct queue {
+    static const int N = 12;
+    struct _memb : co::clink {
+        size_t size;
+        uint8 rx;
+        uint8 wx;
+        void* q[];
+    };
+
+    _memb* _make_memb() {
+        _memb* m = (_memb*) co::alloc(sizeof(_memb) + N * sizeof(void*));
+        m->size = 0;
+        m->rx = 0;
+        m->wx = 0;
+        return m;
+    }
+
+    queue() noexcept : _m(0) {}
+
+    ~queue() {
+        for (auto h = _q.front(); h;) {
+            const auto m = (_memb*)h;
+            h = h->next;
+            co::free(m, sizeof(_memb) + N * sizeof(void*));
+            co::print("free memb: ", m);
+        }
+    }
+
+    size_t size() const { return _m ? _m->size : 0; }
+    bool empty() const { return this->size() == 0; }
+
+    void push_back(void* x) {
+        _memb* m = (_memb*) _q.back();
+        if (!m || m->wx == N) {
+            m = this->_make_memb();
+            _q.push_back(m);
+        }
+        m->q[m->wx++] = x;
+        ++_m->size;
+    }
+
+    void* pop_front() {
+        void* x = 0;
+        if (_m && _m->rx < _m->wx) {
+            x = _m->q[_m->rx++];
+            --_m->size;
+            if (_m->rx == _m->wx) {
+                _m->rx = _m->wx = 0;
+                if (_q.back() != _m) {
+                    _memb* const m = (_memb*) _q.pop_front();
+                    _m->size = m->size;
+                    co::free(m, sizeof(_memb) + N * sizeof(void*));
+                }
+            }
+        }
+        return x;
+    }
+
+    union {
+        _memb* _m;
+        co::clist _q;
+    };
+};
+
 DEF_test(co) {
     int v = 0;
 
@@ -52,6 +116,32 @@ DEF_test(co) {
         v = 0;
     }
 
+    DEF_case(queue) {
+        queue q;
+        EXPECT(q.empty());
+
+        int a, b, c, d;
+        q.push_back(&a);
+        q.push_back(&b);
+        q.push_back(&c);
+        q.push_back(&d);
+        EXPECT_EQ(q.size(), 4);
+
+        EXPECT_EQ(q.pop_front(), &a);
+        EXPECT_EQ(q.pop_front(), &b);
+        EXPECT_EQ(q.size(), 2);
+
+        for (int i = 0; i < 12; ++i) q.push_back(&a);
+        EXPECT_EQ(q.size(), 14);
+
+        for (int i = 0; i < 12; ++i) q.pop_front();
+        EXPECT_EQ(q.size(), 2);
+
+        EXPECT_EQ(q.pop_front(), &a);
+        EXPECT_EQ(q.pop_front(), &a);
+        EXPECT(q.empty());
+    }
+
     DEF_case(mutex) {
         co::mutex m;
         co::wait_group wg;
@@ -63,7 +153,7 @@ DEF_test(co) {
         EXPECT_EQ(m.try_lock(), true);
         m.unlock();
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 12; ++i) {
             go([wg, m, &v]() {
                 co::mutex_guard g(m);
                 ++v;
@@ -80,7 +170,20 @@ DEF_test(co) {
         }
 
         wg.wait();
-        EXPECT_EQ(v, 8);
+        EXPECT_EQ(v, 16);
+        v = 0;
+
+        wg.add(16);
+        auto s = co::next_sched();
+        for (int i = 0; i < 16; ++i) {
+            s->go([wg, m, &v] {
+                co::mutex_guard g(m);
+                ++v;
+                wg.done();
+            });
+        }
+        wg.wait();
+        EXPECT_EQ(v, 16);
         v = 0;
     }
 
