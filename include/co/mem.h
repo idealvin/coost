@@ -149,7 +149,7 @@ class unique {
         if (_p) {
             static_cast<void>(sizeof(T));
             _p->~T();
-            co::free(_s - 1, _s[-1]);
+            co::free(_s, _s->n);
             _p = 0;
         }
     }
@@ -165,22 +165,20 @@ class unique {
     }
 
   private:
-    union {
-        T* _p;
-        size_t* _s;
-    };
+    struct S { T o; size_t n; };
+    union { S* _s; T* _p; };
 };
 
 template<typename T, typename... Args>
 inline unique<T> make_unique(Args&&... args) {
-    struct S { size_t n; T o; };
-    size_t* s = (size_t*) co::alloc(sizeof(S));
+    struct S { T o; size_t n; };
+    S* const s = (S*) co::alloc(sizeof(S));
     if (s) {
-        new(s + 1) T(std::forward<Args>(args)...);
-        *s = sizeof(S);
+        new(s) T(std::forward<Args>(args)...);
+        s->n = sizeof(S);
     }
     unique<T> x;
-    *(void**)&x = s + 1;
+    *(void**)&x = s;
     return x;
 }
 
@@ -196,8 +194,8 @@ class shared {
     constexpr shared(std::nullptr_t) noexcept : _p(0) {}
 
     shared(const shared& x) noexcept {
-        _p = x._p;
-        if (_p) atomic_inc(_s - 2, mo_relaxed);
+        _s = x._s;
+        if (_s) atomic_inc(&_s->refn, mo_relaxed);
     }
 
     shared(shared&& x) noexcept {
@@ -205,14 +203,7 @@ class shared {
         x._p = 0;
     }
 
-    ~shared() {
-        if (_p && atomic_dec(_s - 2, mo_acq_rel) == 0) {
-            static_cast<void>(sizeof(T));
-            _p->~T();
-            co::free(_s - 2, _s[-1]);
-            _p = 0;
-        } 
-    }
+    ~shared() { this->reset(); }
 
     shared& operator=(const shared& x) {
         if (&x != this) shared<T>(x).swap(*this);
@@ -229,7 +220,7 @@ class shared {
     > = 0>
     shared(const shared<X>& x) noexcept {
         _p = x.get();
-        if (_p) atomic_inc(_s - 2, mo_relaxed);
+        if (_s) atomic_inc(&_s->refn, mo_relaxed);
     }
 
     template<typename X, god::if_t<
@@ -265,15 +256,17 @@ class shared {
     bool operator!=(T* p) const noexcept { return _p != p; }
 
     void reset() {
-        if (_p && atomic_dec(_s - 2, mo_acq_rel) == 0) {
-            _p->~T();
-            co::free(_s - 2, _s[-1]);
+        if (_s) {
+            if (atomic_dec(&_s->refn, mo_acq_rel) == 0) {
+                _p->~T();
+                co::free(_s, _s->size);
+            }
+            _p = 0;
         } 
-        _p = 0;
     }
 
     size_t ref_count() const noexcept {
-        return _s ? atomic_load(_s - 2, mo_relaxed) : 0;
+        return _s ? atomic_load(&_s->refn, mo_relaxed) : 0;
     }
 
     size_t use_count() const noexcept {
@@ -291,23 +284,21 @@ class shared {
     }
 
   private:
-    union {
-        T* _p;
-        uint32* _s;
-    };
+    struct S { T o; uint32 refn; uint32 size; };
+    union { S* _s; T* _p; };
 };
 
 template<typename T, typename... Args>
 inline shared<T> make_shared(Args&&... args) {
-    struct S { uint32 refn; uint32 size; T o; };
-    uint32* s = (uint32*) co::alloc(sizeof(S));
+    struct S { T o; uint32 refn; uint32 size; };
+    S* const s = (S*) co::alloc(sizeof(S));
     if (s) {
-        new(s + 2) T(std::forward<Args>(args)...);
-        s[0] = 1;
-        s[1] = sizeof(S);
+        new(s) T(std::forward<Args>(args)...);
+        s->refn = 1;
+        s->size = sizeof(S);
     }
     shared<T> x;
-    *(void**)&x = s + 2;
+    *(void**)&x = s;
     return x;
 }
 
