@@ -13,6 +13,12 @@
 
 namespace co {
 
+#if __cpp_lib_hardware_interference_size >= 201703L
+constexpr size_t cache_line_size = std::hardware_destructive_interference_size;
+#else
+constexpr size_t cache_line_size = 64;
+#endif
+
 // alloc @size bytes
 __coapi void* alloc(size_t size);
 

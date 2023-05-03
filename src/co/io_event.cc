@@ -36,7 +36,7 @@ io_event::io_event(sock_t fd, _ev_t ev)
     : _fd(fd), _to(0), _nb_tcp(ev == ev_read ? nb_tcp_recv : nb_tcp_send), _timeout(false) {
     const auto sched = xx::gSched;
     sched->add_io_event(fd, ev); // add socket to IOCP
-    _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo), god::cache_line_size);
+    _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo), co::cache_line_size);
     memset(_info, 0, sizeof(PerIoInfo));
     _info->mlen = sizeof(PerIoInfo);
     _info->co = (void*) sched->running();
@@ -47,7 +47,7 @@ io_event::io_event(sock_t fd, int n)
     : _fd(fd), _to(0), _nb_tcp(0), _timeout(false) {
     const auto sched = xx::gSched;
     sched->add_io_event(fd, ev_read); // add socket to IOCP
-    _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n, god::cache_line_size);
+    _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n, co::cache_line_size);
     memset(_info, 0, sizeof(PerIoInfo) + n);
     _info->mlen = sizeof(PerIoInfo) + n;
     _info->co = (void*) sched->running();
@@ -59,14 +59,14 @@ io_event::io_event(sock_t fd, _ev_t ev, const void* buf, int size, int n)
     const auto sched = xx::gSched;
     sched->add_io_event(fd, ev);
     if (!sched->on_stack(buf)) {
-        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n, god::cache_line_size);
+        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n, co::cache_line_size);
         memset(_info, 0, sizeof(PerIoInfo) + n);
         _info->mlen = sizeof(PerIoInfo) + n;
         _info->co = (void*) sched->running();
         _info->buf.buf = (char*)buf;
         _info->buf.len = size;
     } else {
-        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n + size, god::cache_line_size);
+        _info = (PerIoInfo*) co::alloc(sizeof(PerIoInfo) + n + size, co::cache_line_size);
         memset(_info, 0, sizeof(PerIoInfo) + n);
         _info->mlen = sizeof(PerIoInfo) + n + size;
         _info->co = (void*) sched->running();
