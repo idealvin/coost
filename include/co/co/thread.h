@@ -43,52 +43,33 @@ inline uint32 thread_id() {
     return id != 0 ? id : (id = xx::thread_id());
 }
 
-// thread_ptr is based on TLS. Each thread sets and holds its own pointer.
-// It is easy to use, just like the std::unique_ptr.
-//   thread_ptr<T> pt;
-//   if (!pt) pt.reset(new T);
-template <typename T, typename D=std::default_delete<T>>
-class thread_ptr {
+template<typename T>
+class tls {
   public:
-    thread_ptr() { xx::tls_init(&_key); }
-    ~thread_ptr() { xx::tls_free(_key); }
+    tls() { xx::tls_init(&_key); }
+    ~tls() { xx::tls_free(_key); }
 
     T* get() const { return (T*) xx::tls_get(_key); }
 
-    void reset(T* p = 0) {
-        T* o = this->get();
-        if (o != p) {
-            if (o) D()(o);
-            xx::tls_set(_key, p);
-        }
-    }
-
-    void operator=(T* p) { this->reset(p); }
-
-    T* release() {
-        T* o = this->get();
-        xx::tls_set(_key, 0);
-        return o;
-    }
+    void set(T* p) { xx::tls_set(_key, p); }
 
     T* operator->() const {
-        T* o = this->get(); assert(o);
+        T* const o = this->get(); assert(o);
         return o;
     }
 
     T& operator*() const {
-        T* o = this->get(); assert(o);
+        T* const o = this->get(); assert(o);
         return *o;
     }
 
     bool operator==(T* p) const { return this->get() == p; }
     bool operator!=(T* p) const { return this->get() != p; }
-    bool operator!() const { return this->get() == 0; }
     explicit operator bool() const { return this->get() != 0; }
 
   private:
     xx::tls_key_t _key;
-    DISALLOW_COPY_AND_ASSIGN(thread_ptr);
+    DISALLOW_COPY_AND_ASSIGN(tls);
 };
 
 // for threads only

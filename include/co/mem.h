@@ -251,9 +251,9 @@ class shared {
     T* operator->() const { assert(_p); return _p; }
     T& operator*() const { assert(_p); return *_p; }
 
-    explicit operator bool() const noexcept { return _p != 0; }
     bool operator==(T* p) const noexcept { return _p == p; }
     bool operator!=(T* p) const noexcept { return _p != p; }
+    explicit operator bool() const noexcept { return _p != 0; }
 
     void reset() {
         if (_s) {

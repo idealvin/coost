@@ -15,12 +15,12 @@ static int errcb(const char* p, size_t n, void* u) {
 }
 
 const char* strerror(S* s) {
-    static co::thread_ptr<fastream> fs;
-    if (fs == NULL) fs.reset(new fastream(256));
+    static __thread fastream* fs = 0;
+    if (!fs) fs = co::_make_static<fastream>(256);
     fs->clear();
 
     if (ERR_peek_error() != 0) {
-        ERR_print_errors_cb(errcb, fs.get());
+        ERR_print_errors_cb(errcb, fs);
     } else if (co::error() != 0) {
         fs->append(co::strerror());
     } else if (s) {

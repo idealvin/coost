@@ -23,18 +23,17 @@ DEF_test(thread) {
         EXPECT_NE(co::thread_id(), -1);
     }
 
-    DEF_case(thread_ptr) {
-        co::thread_ptr<int> pi;
+    DEF_case(tls) {
+        co::tls<int> pi;
         EXPECT(!pi);
         EXPECT(pi == NULL);
 
-        pi.reset(new int(7));
+        int* p = co::make_static<int>(7);
+        pi.set(p);
+        EXPECT(pi == p);
+        EXPECT_EQ(pi.get(), p);
         EXPECT_EQ(*pi, 7);
         EXPECT_EQ(*pi.get(), 7);
-
-        pi = new int(3);
-        EXPECT_EQ(*pi, 3);
-        pi.reset();
     }
 }
 
