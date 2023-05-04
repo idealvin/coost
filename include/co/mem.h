@@ -258,11 +258,12 @@ class shared {
     void reset() {
         if (_s) {
             if (atomic_dec(&_s->refn, mo_acq_rel) == 0) {
+                static_cast<void>(sizeof(T));
                 _p->~T();
                 co::free(_s, _s->size);
             }
             _p = 0;
-        } 
+        }
     }
 
     size_t ref_count() const noexcept {

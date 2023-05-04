@@ -198,7 +198,7 @@ class StaticAlloc {
     }
 
     void dealloc(F&& f) {
-        char* p = (char*) _d.alloc(N);
+        const auto p = _d.alloc(N);
         new(p) F(std::forward<F>(f));
     }
 
