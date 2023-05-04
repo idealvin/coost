@@ -386,7 +386,6 @@ void event_impl::signal() {
     while (h) {
         waitx_t* const w = (waitx_t*) h;
         h = h->next;
-        // TODO: is mo_relaxed safe here?
         if (atomic_bool_cas(&w->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
             w->co->sched->add_ready_task(w->co);
         } else { /* timeout */

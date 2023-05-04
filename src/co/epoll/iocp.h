@@ -55,7 +55,7 @@ class Iocp {
     }
 
     void signal() {
-        if (!_signaled && atomic_bool_cas(&_signaled, 0, 1, mo_relaxed, mo_relaxed)) {
+        if (atomic_bool_cas(&_signaled, 0, 1, mo_acq_rel, mo_acquire)) {
             const BOOL r = PostQueuedCompletionStatus(_iocp, 0, 0, 0);
             if (!r) {
                 const uint32 e = ::GetLastError();
