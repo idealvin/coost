@@ -286,7 +286,7 @@ coost 实现了类似 golang 中 goroutine 的协程机制，它有如下特性�
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
 
-    co::WaitGroup wg;
+    co::wait_group wg;
     wg.add(2);
 
     go([wg](){
@@ -304,16 +304,16 @@ int main(int argc, char** argv) {
 }
 ```
 
-上面的代码中，`go()` 创建的协程会均匀的分配到不同的调度线程中。用户也可以自行控制协程的调度：
+上面的代码中，`go()` 创建的协程会分配到不同的调度线程中。用户也可以自行控制协程的调度：
 
 ```cpp
 // run f1 and f2 in the same scheduler
-auto s = co::next_scheduler();
+auto s = co::next_sched();
 s->go(f1);
 s->go(f2);
 
 // run f in all schedulers
-for (auto& s : co::schedulers()) {
+for (auto& s : co::scheds()) {
     s->go(f);
 }
 ```

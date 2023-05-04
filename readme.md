@@ -285,7 +285,7 @@ coost has implemented a [go-style](https://github.com/golang/go) coroutine, whic
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
 
-    co::WaitGroup wg;
+    co::wait_group wg;
     wg.add(2);
 
     go([wg](){
@@ -303,16 +303,16 @@ int main(int argc, char** argv) {
 }
 ```
 
-In the above code, the coroutines created by `go()` will be evenly distributed to different scheduling threads. Users can also control the scheduling of coroutines by themselves:
+In the above code, the coroutines created by `go()` will be distributed to different scheduling threads. Users can also control the scheduling of coroutines by themselves:
 
 ```cpp
 // run f1 and f2 in the same scheduler
-auto s = co::next_scheduler();
+auto s = co::next_sched();
 s->go(f1);
 s->go(f2);
 
 // run f in all schedulers
-for (auto& s : co::schedulers()) {
+for (auto& s : co::scheds()) {
     s->go(f);
 }
 ```
