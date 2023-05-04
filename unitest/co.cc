@@ -504,8 +504,8 @@ DEF_test(co) {
 
     DEF_case(pool) {
         co::pool p(
-            []() { return (void*) new int(0); },
-            [](void* p) { delete (int*)p; },
+            []() { return (void*) co::make<int>(0); },
+            [](void* p) { co::del((int*)p); },
             8192
         );
 
