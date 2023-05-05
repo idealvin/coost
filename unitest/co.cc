@@ -93,6 +93,173 @@ struct queue {
     };
 };
 
+struct Buffer {
+    struct H {
+        uint32 cap;
+        uint32 size;
+        char p[];
+    };
+
+    constexpr Buffer() noexcept : _h(0) {}
+    ~Buffer() { this->reset(); }
+
+    const char* data() const noexcept { return _h ? _h->p : 0; }
+    uint32 size() const noexcept { return _h ? _h->size : 0; }
+    uint32 capacity() const noexcept { return _h ? _h->cap : 0; }
+    void clear() noexcept { if (_h) _h->size = 0; }
+
+    void reset() {
+        if (_h) {
+            co::free(_h, _h->cap + 8);
+            _h = 0;
+        }
+    }
+
+    void append(const void* p, size_t size) {
+        const uint32 n = (uint32)size;
+        if (!_h) {
+            _h = (H*) co::alloc(size + 8); assert(_h);
+            _h->cap = n;
+            _h->size = 0;
+            goto lable;
+        }
+
+        if (_h->cap < _h->size + n) {
+            const uint32 o = _h->cap;
+            _h->cap += (o >> 1) + n;
+            _h = (H*) co::realloc(_h, o + 8, _h->cap + 8); assert(_h);
+            goto lable;
+        }
+
+      lable:
+        memcpy(_h->p + _h->size, p, n);
+        _h->size += n;
+    }
+
+    H* _h;
+};
+
+struct Coroutine {
+    Coroutine() { memset(this, 0, sizeof(*this)); }
+    ~Coroutine() { buf.~Buffer(); }
+
+    uint32 id; // coroutine id
+    void* ctx; // coroutine context, points to the stack bottom
+    union {
+        Buffer buf;   // for saving stack data of this coroutine
+        void* pbuf;
+    };
+    void* x[5];
+};
+
+class CoroutinePool {
+  public:
+    //static const int N = 13;
+    static const int N = 5;
+    static const int S = 1 << N;
+    static const int M = 1 << (N - 3);
+
+    CoroutinePool()
+        : _c(0), _o(0), _v(M), _use_count(M) {
+        _v.resize(M);
+        _use_count.resize(M);
+    }
+
+    ~CoroutinePool() {
+        for (size_t i = 0; i < _v.size(); ++i) {
+            if (_v[i]) ::free(_v[i]);
+        }
+        _v.clear();
+    }
+
+    Coroutine* pop() {
+        int id = 0;
+        if (!_v0.empty()) { id = _v0.pop_back(); goto reuse; }
+        if (!_vc.empty()) { id = _vc.pop_back(); goto reuse; }
+        if (_o < S) goto newco;
+        if (!_blks.empty()) {
+            _c = *_blks.begin();
+            _o = 0;
+            _blks.erase(_blks.begin());
+        } else {
+            ++_c;
+            _o = 0;
+        }
+
+      newco:
+        {
+            if (_c < _v.size()) {
+                if (!_v[_c]) _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+            } else {
+                const int c = god::align_up<M>(_c + 1);
+                _v.resize(c);
+                _use_count.resize(c);
+                _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+            }
+
+            auto& co = _v[_c][_o];
+            co.id = (_c << N) + _o++;
+            _use_count[_c]++;
+            return &co;
+        }
+
+      reuse:
+        {
+            const int q = id >> N;
+            const int r = id & (S - 1);
+            auto& co = _v[q][r];
+            co.ctx = 0;
+            co.buf.clear();
+            _use_count[q]++;
+            return &co;
+        }
+    }
+
+    void push(Coroutine* co) {
+        const int id = co->id;
+        const int q = id >> N;
+        if (q == 0) {
+            if (_v0.capacity() == 0) _v0.reserve(S);
+            _v0.push_back(id);
+        }
+        if (q > 0 && q == _c) {
+            if (_vc.capacity() == 0) _vc.reserve(S);
+            _vc.push_back(id);
+        }
+
+        if (--_use_count[q] == 0) {
+            ::free(_v[q]);
+            _v[q] = 0;
+            if (q != _c) {
+                _blks.insert(q);
+            } else {
+                _vc.clear();
+                _o = 0;
+                if (!_blks.empty() && *_blks.begin() < _c) {
+                    _blks.insert(_c);
+                    _c = *_blks.begin();
+                    _blks.erase(_blks.begin());
+                }
+            }
+        }
+    }
+
+    Coroutine& operator[](int i) const {
+        const int q = i >> N;
+        const int r = i & (S - 1);
+        return _v[q][r];
+    }
+
+  private:
+    int _c; // current block
+    int _o; // offset in the current block [0, S)
+    co::array<Coroutine*> _v;
+    co::array<int> _use_count;
+    co::array<int> _v0; // id of coroutine in _v[0]
+    co::array<int> _vc; // id of coroutine in _v[_c]
+    co::set<int> _blks; // blocks available
+};
+
 DEF_test(co) {
     int v = 0;
 
@@ -140,6 +307,87 @@ DEF_test(co) {
         EXPECT_EQ(q.pop_front(), &a);
         EXPECT_EQ(q.pop_front(), &a);
         EXPECT(q.empty());
+    }
+
+    DEF_case(Buffer) {
+        Buffer b;
+        EXPECT_EQ(b.capacity(), 0);
+
+        b.append("hello", 5);
+        EXPECT_EQ(b.capacity(), 5);
+        EXPECT_EQ(b.size(), 5);
+
+        b.append("world", 5);
+        EXPECT_EQ(b.size(), 10);
+        EXPECT_EQ(fastring(b.data(), b.size()), "helloworld");
+
+        const uint32 c = b.capacity();
+        b.clear();
+        EXPECT_EQ(b.size(), 0);
+        EXPECT_EQ(b.capacity(), c);
+
+        b.reset();
+        EXPECT_EQ(b.capacity(), 0);
+    }
+
+    DEF_case(CoroutinePool) {
+        CoroutinePool p;
+        typedef Coroutine* pco;
+        pco a, b, c, d, e, f, o, x, y, z;
+        a = p.pop();
+        b = p.pop();
+        EXPECT_EQ(a->id, 0);
+        EXPECT_EQ(b->id, 1);
+
+        p.push(b);
+        c = p.pop();
+        EXPECT_EQ(c->id, 1);
+
+        b = p.pop();
+        EXPECT_EQ(b->id, 2);
+
+        co::array<Coroutine*> ac;
+        for (int i = 0; i < 29; ++i) ac.push_back(p.pop());
+        d = p.pop();
+        e = p.pop();
+        f = p.pop();
+        EXPECT_EQ(d->id, 32);
+        EXPECT_EQ(e->id, 33);
+        EXPECT_EQ(f->id, 34);
+
+        p.push(e); // push 33
+        p.push(f); // push 34
+        e = p.pop();
+        f = p.pop();
+        EXPECT_EQ(e->id, 34);
+        EXPECT_EQ(f->id, 33);
+
+        for (int i = 0; i < 29; ++i) ac.push_back(p.pop());
+        for (int i = 0; i < 64; ++i) ac.push_back(p.pop());
+        x = p.pop();
+        y = p.pop();
+        EXPECT_EQ(x->id, 128);
+        EXPECT_EQ(y->id, 129);
+
+        p.push(b); // push 2
+        z = p.pop();
+        EXPECT_EQ(z->id, 2);
+        o = p.pop();
+        EXPECT_EQ(o->id, 130);
+
+        p.push(d);
+        p.push(e);
+        p.push(f);
+        for (int i = 29; i < 58; ++i) {
+            p.push(ac[i]);
+        }
+
+        p.push(x);
+        p.push(y);
+        p.push(o);
+
+        o = p.pop();
+        EXPECT_EQ(o->id, 32);
     }
 
     DEF_case(mutex) {

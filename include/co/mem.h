@@ -85,6 +85,7 @@ inline T* make_static(Args&&... args) {
     return (T*)p;
 }
 
+
 // similar to std::unique_ptr
 //   - It is **not allowed** to create unique object from a nake pointer,
 //     use **make_unique** instead.
@@ -141,9 +142,9 @@ class unique {
     T* operator->() const { assert(_p); return _p; }
     T& operator*() const { assert(_p); return *_p; }
 
-    explicit operator bool() const noexcept { return _p != 0; }
     bool operator==(T* p) const noexcept { return _p == p; }
     bool operator!=(T* p) const noexcept { return _p != p; }
+    explicit operator bool() const noexcept { return _p != 0; }
 
     void reset() {
         if (_p) {

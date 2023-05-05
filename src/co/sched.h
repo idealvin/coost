@@ -126,15 +126,23 @@ struct Coroutine {
     union { timer_id_t it;  char _dummy2[sizeof(timer_id_t)]; };
 };
 
-class alignas(64) CoroutinePool {
+class alignas(co::cache_line_size) CoroutinePool {
   public:
     static const int N = 13;
     static const int S = 1 << N;
+    static const int M = 1 << (N - 3);
 
     CoroutinePool()
-        : _c(0), _o(0), _v(1024), _use_count(1024) {
-        _v.resize(1024);
-        _use_count.resize(1024);
+        : _c(0), _o(0), _v(M), _use_count(M) {
+        _v.resize(M);
+        _use_count.resize(M);
+    }
+
+    ~CoroutinePool() {
+        for (size_t i = 0; i < _v.size(); ++i) {
+            if (_v[i]) ::free(_v[i]);
+        }
+        _v.clear();
     }
 
     Coroutine* pop() {
@@ -156,7 +164,9 @@ class alignas(64) CoroutinePool {
             if (_c < _v.size()) {
                 if (!_v[_c]) _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
             } else {
-                _v.resize(god::align_up<1024>(_c + 1));
+                const int c = god::align_up<M>(_c + 1);
+                _v.resize(c);
+                _use_count.resize(c);
                 _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
             }
 
@@ -224,7 +234,7 @@ class alignas(64) CoroutinePool {
 };
 
 // Task may be added from any thread. We need a mutex here.
-class alignas(64) TaskManager {
+class alignas(co::cache_line_size) TaskManager {
   public:
     TaskManager() = default;
     ~TaskManager() = default;
@@ -259,7 +269,7 @@ inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
 }
 
 // Timer must be added in the scheduler thread. We need no lock here.
-class alignas(64) TimerManager {
+class alignas(co::cache_line_size) TimerManager {
   public:
     TimerManager() : _timer(), _it(_timer.end()) {}
     ~TimerManager() = default;
@@ -370,6 +380,7 @@ class Sched {
         _epoll->del_event(fd);
     }
 
+    // cputime of this scheduler (us)
     int64 cputime() {
         return atomic_load(&_cputime, mo_relaxed);
     }
@@ -378,14 +389,12 @@ class Sched {
     void start() { std::thread(&Sched::loop, this).detach(); }
 
     // stop the scheduler thread
-    void stop();
+    void stop(uint32 ms=-1);
 
     // the thread function
     void loop();
 
   private:
-    friend class SchedManager;
-
     // entry function for coroutine
     static void main_func(tb_context_from_t from);
 
@@ -410,7 +419,7 @@ class Sched {
   private:
     union {
         int64 _cputime;
-        char _dummy[64];
+        char _dummy[co::cache_line_size];
     };
     CoroutinePool _co_pool;
     TimerManager _timer_mgr;
@@ -440,7 +449,7 @@ class SchedManager {
         return _scheds;
     }
 
-    void stop();
+    void stop(uint32 ms=(uint32)-1);
 
   private:
     std::function<Sched*(const co::vector<Sched*>&)> _next;

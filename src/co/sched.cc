@@ -36,15 +36,15 @@ Sched::Sched(uint32 id, uint32 sched_num, uint32 stack_num, uint32 stack_size)
 }
 
 Sched::~Sched() {
-    this->stop();
+    this->stop(128);
     co::del(_epoll);
     co::free(_stack, _stack_num * sizeof(Stack));
 }
 
-void Sched::stop() {
+void Sched::stop(uint32 ms) {
     if (atomic_swap(&_stop, true, mo_acq_rel) == false) {
         _epoll->signal();
-        _ev.wait(128); // wait at most 128ms
+        ms == (uint32)-1 ? _ev.wait() : (void)_ev.wait(ms);
     }
 }
 
@@ -309,7 +309,7 @@ SchedManager::SchedManager() {
 }
 
 SchedManager::~SchedManager() {
-    this->stop();
+    this->stop(128);
     co::cleanup_sock();
 }
 
@@ -318,9 +318,9 @@ inline SchedManager* sched_man() {
     return s;
 }
 
-void SchedManager::stop() {
+void SchedManager::stop(uint32 ms) {
     for (size_t i = 0; i < _scheds.size(); ++i) {
-        _scheds[i]->stop();
+        _scheds[i]->stop(ms);
     }
     atomic_swap(&is_active(), false, mo_acq_rel);
 }
