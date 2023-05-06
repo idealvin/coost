@@ -54,35 +54,44 @@ inline void del(T* p, size_t n=sizeof(T)) {
 
 // used internally by coost, do not call it
 __coapi void* _salloc(size_t n, int x);
-
-// used internally by coost, do not call it
 __coapi void _dealloc(std::function<void()>&& f, int x);
 
 // used internally by coost, do not call it
-template<typename T, typename... Args>
-inline T* _make_static(Args&&... args) {
+template<typename T, int N, typename... Args>
+inline T* _smake(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const auto p = _salloc(sizeof(T), 1);
+    const auto p = _salloc(sizeof(T), N);
     if (p) {
         new(p) T(std::forward<Args>(args)...);
         const bool x = god::is_trivially_destructible<T>();
-        !x ? _dealloc([p](){ ((T*)p)->~T(); }, 1) : (void)0;
+        !x ? _dealloc([p](){ ((T*)p)->~T(); }, N) : (void)0;
     }
     return (T*)p;
 }
 
-// create a static object, which will be destructed automatically at exit
+// used internally by coost, do not call it
+template<typename T, typename... Args>
+inline T* _make_nondep(Args&&... args) {
+    return _smake<T, 0>(std::forward<Args>(args)...);
+}
+
+// make non-dependent static object
+template<typename T, typename... Args>
+inline T* make_nondep(Args&&... args) {
+    return _smake<T, 1>(std::forward<Args>(args)...);
+}
+
+// used internally by coost, do not call it
+template<typename T, typename... Args>
+inline T* _make_static(Args&&... args) {
+    return _smake<T, 2>(std::forward<Args>(args)...);
+}
+
+// make static object, which will be destructed automatically at exit
 //   - T* p = co::make_static<T>(args)
 template<typename T, typename... Args>
 inline T* make_static(Args&&... args) {
-    static_assert(sizeof(T) <= 4096, "");
-    const auto p = _salloc(sizeof(T), 0);
-    if (p) {
-        new(p) T(std::forward<Args>(args)...);
-        const bool x = god::is_trivially_destructible<T>();
-        !x ? _dealloc([p](){ ((T*)p)->~T(); }, 0) : (void)0;
-    }
-    return (T*)p;
+    return _smake<T, 3>(std::forward<Args>(args)...);
 }
 
 

@@ -187,7 +187,7 @@ class StaticAlloc {
   public:
     static const uint32 N = sizeof(F);
 
-    StaticAlloc(uint32 m=32*1024, uint32 d=8*1024)
+    StaticAlloc(uint32 m=16*1024, uint32 d=8*1024)
         : _m(m), _d(d) {
     }
     ~StaticAlloc();
@@ -623,7 +623,7 @@ GlobalAlloc::~GlobalAlloc() {
 class ThreadAlloc {
   public:
     ThreadAlloc(GlobalAlloc* ga)
-        : _lb(0), _la(0), _sa(0), _ga(ga), _sai(), _sau() {
+        : _lb(0), _la(0), _sa(0), _ga(ga) {
         static uint32 g_alloc_id = (uint32)-1;
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
@@ -634,7 +634,7 @@ class ThreadAlloc {
     void* alloc(size_t n, size_t align);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
-    StaticAlloc& static_alloc(int i) { return i ? _sai : _sau; }
+    StaticAlloc& static_alloc(int i) { return _s[i]; }
 
   private:
     union { LargeBlock* _lb; co::clist _llb; };
@@ -642,8 +642,7 @@ class ThreadAlloc {
     union { SmallAlloc* _sa; co::clist _lsa; };
     uint32 _id;
     GlobalAlloc* _ga;
-    StaticAlloc _sai;
-    StaticAlloc _sau;
+    StaticAlloc _s[4]; // 0: ndi, 1: ndu, 2: sai, 3: sau
 };
 
 
