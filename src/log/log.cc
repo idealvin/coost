@@ -24,8 +24,14 @@
 #pragma warning (disable:4722)
 #endif
 
-DEF_string(log_dir, "logs", ">>#0 log dir, will be created if not exists");
-DEF_string(log_file_name, "", ">>#0 name of log file, use exename if empty");
+static fastring* g_log_dir = 0;
+static fastring* g_log_file_name = 0;
+static void _at_mod_init() {
+    DEF_string(log_dir, "logs", ">>#0 log dir, will be created if not exists");
+    DEF_string(log_file_name, "", ">>#0 name of log file, use exename if empty");
+    g_log_dir = &FLG_log_dir;
+    g_log_file_name = &FLG_log_file_name;
+}
 DEF_int32(min_log_level, 0, ">>#0 write logs at or above this level, 0-4 (debug|info|warning|error|fatal)");
 DEF_int32(max_log_size, 4096, ">>#0 max size of a single log");
 DEF_int64(max_log_file_size, 256 << 20, ">>#0 max size of log file, default: 256MB");
@@ -37,10 +43,13 @@ DEF_bool(cout, false, ">>#0 also logging to terminal");
 DEF_bool(log_daily, false, ">>#0 if true, enable daily log rotation");
 DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz");
 
-// When this value is true, the flag log_dir and log_file_name should have been 
-// initialized, and we are safe to start the logging thread.
-static bool _init_done = false;
-static bool& _unnamed = *[]() { _init_done = true; return &_init_done; }();
+// When this value is true, the above flags should have been initialized, 
+// and we are safe to start the logging thread.
+static bool g_init_done = false;
+static bool g_dummy = []() {
+    atomic_store(&g_init_done, true, mo_release);
+    return *co::_make_static<bool>(false);
+}();
 
 namespace _xx {
 namespace log {
@@ -198,11 +207,11 @@ bool LogFile::check_config(const char* topic, int level) {
     auto& s = *m.stream;
 
     // log dir, backslash to slash
-    auto& d = FLG_log_dir;
+    auto& d = *g_log_dir; // FLG_log_dir;
     for (size_t i = 0; i < d.size(); ++i) if (d[i] == '\\') d[i] = '/';
 
     // log file name, use process name by default
-    auto& f = FLG_log_file_name;
+    auto& f = *g_log_file_name; // FLG_log_file_name;
     s.clear();
     if (f.empty()) {
         s.append(*m.exename);
@@ -259,7 +268,7 @@ fs::file& LogFile::open(const char* topic, int level) {
 
     auto& m = mod();
     auto& s = *m.stream; s.clear();
-    auto& d = FLG_log_dir;
+    auto& d = *g_log_dir; // FLG_log_dir;
 
     // create log dir if not exists
     if (!topic) {
@@ -350,7 +359,6 @@ void LogFile::write(const char* topic, const char* p, size_t n) {
         const uint32 day = m.log_time->day();
         if (_day != day) { _day = day; _file.close(); }
     }
-
     if (_file || this->open(topic, 0)) {
         _file.write(p, n);
         const uint64 size = _file.size(); // -1 if not exists
@@ -613,7 +621,7 @@ void Logger::write_topic_logs(LogFile& f, const char* topic, const char* p, size
 void Logger::thread_fun() {
     bool signaled;
     int64 sec;
-    while (!_init_done) _log_event.wait(8);
+    while (atomic_load(&g_init_done, mo_acquire) != true) _log_event.wait(8);
     while (!_stop) {
         signaled = _log_event.wait(FLG_log_flush_ms);
         if (_stop) break;
@@ -1021,6 +1029,7 @@ int ExceptHandler::handle_exception(void*) { return 0; }
 #endif // _WIN32
 
 Mod::Mod() {
+    _at_mod_init();
     exename = co::_make_static<fastring>(os::exename());
     stream = co::_make_static<fastring>(4096);
     log_time = co::_make_static<LogTime>();
