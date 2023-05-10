@@ -115,8 +115,6 @@ class lru_map {
 
     lru_map() : _capacity(1024) {}
     ~lru_map() = default;
-    lru_map(const lru_map& x) = default;
-    lru_map& operator=(const lru_map&) = default;
 
     explicit lru_map(size_t capacity) {
         _capacity = capacity > 0 ? capacity : 1024;
@@ -127,12 +125,6 @@ class lru_map {
         _ki.swap(x._ki);
         _kl.swap(x._kl);
         _capacity = x._capacity;
-    }
-
-    lru_map& operator=(lru_map&& x) {
-        this->clear();
-        this->swap(x);
-        return *this;
     }
 
     size_t size()    const { return _kv.size(); }
@@ -201,6 +193,7 @@ class lru_map {
     co::hash_map<K, typename co::list<K>::iterator> _ki;
     co::list<K> _kl;  // key list
     size_t _capacity; // max capacity
+    DISALLOW_COPY_AND_ASSIGN(lru_map);
 };
 
 } // co
