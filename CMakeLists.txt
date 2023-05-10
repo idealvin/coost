@@ -48,6 +48,9 @@ option(FPIC "build with -fPIC" OFF)
 # build all projects (libco, gen, test, unitest)
 option(BUILD_ALL "Build all projects" OFF)
 
+# specify the value of L1 cache line size, 64 by default
+set(CACHE_LINE_SIZE "64" CACHE STRING "set value of L1 cache line size")
+
 # vs runtime, use MT
 if(MSVC)
     option(STATIC_VS_CRT "use /MT or /MTd" OFF)

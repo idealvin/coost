@@ -8,6 +8,7 @@ target("libco")
     add_files("**.cc")
     add_options("with_openssl")
     add_options("with_libcurl")
+    add_options("cache_line_size")
     if is_plat("linux", "macosx") then
         add_options("with_backtrace")
     end
@@ -32,6 +33,7 @@ target("libco")
     else
         set_configvar("COOST_SHARED", 0)
     end
+    set_configvar("CACHE_LINE_SIZE", "$(cache_line_size)")
     add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
 
     if is_plat("windows", "mingw") then

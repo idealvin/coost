@@ -27,6 +27,7 @@ elseif is_plat("mingw") then
     add_ldflags("-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic", {force = true})
     set_optimize("faster")
 else
+    --set_optimize("none")   -- faster: -O2  fastest: -O3  none: -O0
     set_optimize("faster")   -- faster: -O2  fastest: -O3  none: -O0
     --add_cxflags("-Wno-narrowing", "-Wno-sign-compare", "-Wno-strict-aliasing")
     if is_plat("macosx", "iphoneos") then
@@ -61,6 +62,12 @@ option("fpic")
     set_showmenu(true)
     set_description("build with -fPIC")
     add_cxflags("-fPIC")
+option_end()
+
+option("cache_line_size")
+    set_default("64")
+    set_showmenu(true)
+    set_description("set value of L1 cache line size")
 option_end()
 
 if has_config("with_libcurl") then
