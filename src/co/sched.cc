@@ -26,25 +26,33 @@ namespace xx {
 __thread Sched* gSched = 0;
 
 Sched::Sched(uint32 id, uint32 sched_num, uint32 stack_num, uint32 stack_size)
-    : _cputime(0), _co_pool(), _timer_mgr(), _task_mgr(), _ev(), _id(id),
-      _sched_num(sched_num), _stack_num(stack_num), _stack_size(stack_size),
-      _running(0), _wait_ms((uint32)-1), _timeout(false), _stop(false) {
-    _stack = (Stack*) co::zalloc(_stack_num * sizeof(Stack));
+    : _cputime(0), _task_mgr(), _timer_mgr(), _wait_ms(-1), _timeout(false),
+      _bufs(128), _co_pool(), _running(0), _id(id), _sched_num(sched_num),
+      _stack_num(stack_num), _stack_size(stack_size) {
+    new(&_x.ev) co::sync_event();
+    _x.epoll = co::make<Epoll>(id);
+    _x.stopped = false;
     _main_co = _co_pool.pop(); // id 0 is reserved for _main_co
     _main_co->sched = this;
-    _epoll = co::make<Epoll>(id);
+    _stack = (Stack*) co::zalloc(stack_num * sizeof(Stack));
 }
 
 Sched::~Sched() {
     this->stop(128);
-    co::del(_epoll);
+    co::del(_x.epoll);
+    _x.ev.~sync_event();
+    for (size_t i = 0; i < _bufs.size(); ++i) {
+        void* p = _bufs[i];
+        god::cast<Buffer*>(&p)->reset();
+    }
+    _bufs.clear();
     co::free(_stack, _stack_num * sizeof(Stack));
 }
 
 void Sched::stop(uint32 ms) {
-    if (atomic_swap(&_stop, true, mo_acq_rel) == false) {
-        _epoll->signal();
-        ms == (uint32)-1 ? _ev.wait() : (void)_ev.wait(ms);
+    if (atomic_swap(&_x.stopped, true, mo_acq_rel) == false) {
+        _x.epoll->signal();
+        ms == (uint32)-1 ? _x.ev.wait() : (void)_x.ev.wait(ms);
     }
 }
 
@@ -52,12 +60,10 @@ void Sched::main_func(tb_context_from_t from) {
     ((Coroutine*)from.priv)->ctx = from.ctx;
   #ifdef _MSC_VER
     __try {
-        //gSched->running()->cb->run(); // run the coroutine function
         ((Coroutine*)from.priv)->sched->running()->cb->run();
     } __except(_co_on_exception(GetExceptionInformation())) {
     }
   #else
-    //gSched->running()->cb->run(); // run the coroutine function
     ((Coroutine*)from.priv)->sched->running()->cb->run();
   #endif // _WIN32
     tb_context_jump(from.ctx, 0); // jump back to the from context
@@ -119,19 +125,19 @@ void Sched::resume(Coroutine* co) {
     } else {
         // the coroutine has terminated, recycle it
         _running->stack->co = 0;
-        _co_pool.push(_running);
+        this->recycle(_running);
     }
 }
 
 void Sched::loop() {
     gSched = this;
-    co::array<Closure*> new_tasks;
-    co::array<Coroutine*> ready_tasks;
+    co::array<Closure*> new_tasks(512);
+    co::array<Coroutine*> ready_tasks(512);
     co::Timer timer;
 
-    while (!_stop) {
-        int n = _epoll->wait(_wait_ms);
-        if (_stop) break;
+    while (!_x.stopped) {
+        int n = _x.epoll->wait(_wait_ms);
+        if (_x.stopped) break;
 
         if (unlikely(n == -1)) {
             if (co::error() != EINTR) ELOG << "epoll wait error: " << co::strerror();
@@ -142,16 +148,15 @@ void Sched::loop() {
         SCHEDLOG << "> check I/O tasks ready to resume, num: " << n;
 
         for (int i = 0; i < n; ++i) {
-            auto& ev = (*_epoll)[i];
-            if (_epoll->is_ev_pipe(ev)) {
-                _epoll->handle_ev_pipe();
+            auto& ev = (*_x.epoll)[i];
+            if (_x.epoll->is_ev_pipe(ev)) {
+                _x.epoll->handle_ev_pipe();
                 continue;
             }
 
           #if defined(_WIN32)
             auto info = xx::per_io_info(ev.lpOverlapped);
             auto co = (Coroutine*) info->co;
-            // TODO: is mo_relaxed safe here?
             if (atomic_bool_cas(&info->state, st_wait, st_ready, mo_relaxed, mo_relaxed)) {
                 info->n = ev.dwNumberOfBytesTransferred;
                 if (co->sched == this) {
@@ -164,13 +169,13 @@ void Sched::loop() {
             }
           #elif defined(__linux__)
             int32 rco = 0, wco = 0;
-            auto& ctx = co::get_sock_ctx(_epoll->user_data(ev));
+            auto& ctx = co::get_sock_ctx(_x.epoll->user_data(ev));
             if ((ev.events & EPOLLIN)  || !(ev.events & EPOLLOUT)) rco = ctx.get_ev_read(this->id());
             if ((ev.events & EPOLLOUT) || !(ev.events & EPOLLIN))  wco = ctx.get_ev_write(this->id());
             if (rco) this->resume(&_co_pool[rco]);
             if (wco) this->resume(&_co_pool[wco]);
           #else
-            this->resume((Coroutine*)_epoll->user_data(ev));
+            this->resume((Coroutine*)_x.epoll->user_data(ev));
           #endif
         }
 
@@ -179,17 +184,27 @@ void Sched::loop() {
             _task_mgr.get_all_tasks(new_tasks, ready_tasks);
 
             if (!new_tasks.empty()) {
-                SCHEDLOG << ">> resume new tasks, num: " << new_tasks.size();
-                for (size_t i = 0; i < new_tasks.size(); ++i) {
+                const size_t c = new_tasks.capacity();
+                const size_t s = new_tasks.size();
+                SCHEDLOG << ">> resume new tasks, num: " << s;
+                for (size_t i = 0; i < s; ++i) {
                     this->resume(this->new_coroutine(new_tasks[i]));
+                }
+                if (c >= 8192 && s <= (c >> 1)) {
+                    co::array<Closure*>(s).swap(new_tasks);
                 }
                 new_tasks.clear();
             }
 
             if (!ready_tasks.empty()) {
-                SCHEDLOG << ">> resume ready tasks, num: " << ready_tasks.size();
-                for (size_t i = 0; i < ready_tasks.size(); ++i) {
+                const size_t c = ready_tasks.capacity();
+                const size_t s = ready_tasks.size();
+                SCHEDLOG << ">> resume ready tasks, num: " << s;
+                for (size_t i = 0; i < s; ++i) {
                     this->resume(ready_tasks[i]);
+                }
+                if (c >= 8192 && s <= (c >> 1)) {
+                    co::array<Closure*>(s).swap(new_tasks);
                 }
                 ready_tasks.clear();
             }
@@ -214,7 +229,7 @@ void Sched::loop() {
         atomic_add(&_cputime, timer.us(), mo_relaxed);
     }
 
-    _ev.signal();
+    _x.ev.signal();
 }
 
 uint32 TimerManager::check_timeout(co::array<Coroutine*>& res) {

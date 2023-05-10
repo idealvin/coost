@@ -154,10 +154,9 @@ struct Coroutine {
 
 class CoroutinePool {
   public:
-    //static const int N = 13;
-    static const int N = 5;
-    static const int S = 1 << N;
-    static const int M = 1 << (N - 3);
+    static const int E = 5;
+    static const int N = 1 << E; // max coroutines per block
+    static const int M = 4;
 
     CoroutinePool()
         : _c(0), _o(0), _v(M), _use_count(M) {
@@ -176,40 +175,34 @@ class CoroutinePool {
         int id = 0;
         if (!_v0.empty()) { id = _v0.pop_back(); goto reuse; }
         if (!_vc.empty()) { id = _vc.pop_back(); goto reuse; }
-        if (_o < S) goto newco;
-        if (!_blks.empty()) {
-            _c = *_blks.begin();
-            _o = 0;
-            _blks.erase(_blks.begin());
-        } else {
-            ++_c;
-            _o = 0;
-        }
+        if (_o < N) goto newco;
+        _c = !_blks.empty() ? *_blks.begin() : _c + 1;
+        if (!_blks.empty()) _blks.erase(_blks.begin());
+        _o = 0;
 
       newco:
         {
             if (_c < _v.size()) {
-                if (!_v[_c]) _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+                if (!_v[_c]) _v[_c] = (Coroutine*) ::calloc(N, sizeof(Coroutine));
             } else {
                 const int c = god::align_up<M>(_c + 1);
                 _v.resize(c);
                 _use_count.resize(c);
-                _v[_c] = (Coroutine*) ::calloc(S, sizeof(Coroutine));
+                _v[_c] = (Coroutine*) ::calloc(N, sizeof(Coroutine));
             }
 
             auto& co = _v[_c][_o];
-            co.id = (_c << N) + _o++;
+            co.id = (_c << E) + _o++;
             _use_count[_c]++;
             return &co;
         }
 
       reuse:
         {
-            const int q = id >> N;
-            const int r = id & (S - 1);
+            const int q = id >> E;
+            const int r = id & (N - 1);
             auto& co = _v[q][r];
             co.ctx = 0;
-            co.buf.clear();
             _use_count[q]++;
             return &co;
         }
@@ -217,16 +210,19 @@ class CoroutinePool {
 
     void push(Coroutine* co) {
         const int id = co->id;
-        const int q = id >> N;
+        const int q = id >> E;
         if (q == 0) {
-            if (_v0.capacity() == 0) _v0.reserve(S);
+            if (_v0.capacity() == 0) _v0.reserve(N);
             _v0.push_back(id);
+            goto end;
         }
-        if (q > 0 && q == _c) {
-            if (_vc.capacity() == 0) _vc.reserve(S);
+        if (q == _c) {
+            if (_vc.capacity() == 0) _vc.reserve(N);
             _vc.push_back(id);
+            goto end;
         }
 
+      end:
         if (--_use_count[q] == 0) {
             ::free(_v[q]);
             _v[q] = 0;
@@ -245,8 +241,8 @@ class CoroutinePool {
     }
 
     Coroutine& operator[](int i) const {
-        const int q = i >> N;
-        const int r = i & (S - 1);
+        const int q = i >> E;
+        const int r = i & (N - 1);
         return _v[q][r];
     }
 
