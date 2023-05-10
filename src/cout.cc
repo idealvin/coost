@@ -105,16 +105,16 @@ namespace co {
 namespace xx {
 
 inline std::mutex& cmutex() {
-    static auto m = co::_make_static<std::mutex>();
+    static auto m = co::_make_rootic<std::mutex>();
     return *m;
 }
 
-fastream& cstream() {
+inline fastream& cstream() {
     static __thread fastream* s = 0;
-    return s ? *s : *(s = co::_make_static<fastream>(256));
+    return s ? *s : *(s = co::_make_rootic<fastream>(256));
 }
 
-Cout::Cout() : s(cstream())  {
+Cout::Cout() : s(cstream()) {
     n = s.size();
 }
 

@@ -156,9 +156,9 @@ class MemBlocks {
 
 void* MemBlocks::alloc(uint32 n, uint32 align) {
     if (unlikely(_m == 0)) {
-        _u = (uint32*)::malloc(sizeof(char*) * 8 + 8) + 2;
+        _u = (uint32*)::malloc(sizeof(char*) * 7 + 8) + 2;
         _m[0] = (char*)::malloc(_blk_size);
-        _u[-1] = 8; // cap
+        _u[-1] = 7; // cap
         _u[-2] = 1; // size
     }
 
@@ -171,8 +171,7 @@ void* MemBlocks::alloc(uint32 n, uint32 align) {
             _u[-1] *= 2;
         }
         x = (char*)::malloc(_blk_size);
-        _m[_u[-2]] = x;
-        _u[-2] += 1;
+        _m[_u[-2]++] = x;
         _p = 0;
         p = align != sizeof(void*) ? god::align_up(x, align) : x;
     }
@@ -181,46 +180,51 @@ void* MemBlocks::alloc(uint32 n, uint32 align) {
     return p;
 }
 
-typedef std::function<void()> F;
-
 class StaticAlloc {
   public:
-    static const uint32 N = sizeof(F);
-
-    StaticAlloc(uint32 m=16*1024, uint32 d=8*1024)
-        : _m(m), _d(d) {
-    }
-    ~StaticAlloc();
+    StaticAlloc(uint32 m) : _m(m) {}
+    ~StaticAlloc() = default;
 
     void* alloc(size_t n) {
         const size_t H = co::cache_line_size >> 1;
         return _m.alloc((uint32)n, n <= H ? sizeof(void*) : co::cache_line_size);
     }
 
-    void dealloc(F&& f) {
-        const auto p = _d.alloc(N);
-        new(p) F(std::forward<F>(f));
-    }
-
   private:
     MemBlocks _m;
-    MemBlocks _d;
 };
 
-StaticAlloc::~StaticAlloc() {
-    const uint32 M = _d.blk_size() / N;
-    for (uint32 i = _d.size(); i > 0; --i) {
-        const uint32 m = i != _d.size() ? M : _d.pos() / N;
-        for (uint32 x = m; x > 0; --x) {
-            F* f = god::cast<F*>(_d[i - 1] + (x - 1) * N);
-            (*f)();
+typedef std::function<void()> F;
+
+class Dealloc {
+  public:
+    static const uint32 N = sizeof(F);
+    Dealloc() : _m(8192) {}
+
+    ~Dealloc() {
+        const uint32 M = _m.blk_size() / N;
+        for (uint32 i = _m.size(); i > 0; --i) {
+            const uint32 m = i != _m.size() ? M : _m.pos() / N;
+            for (uint32 x = m; x > 0; --x) {
+                F* f = god::cast<F*>(_m[i - 1] + (x - 1) * N);
+                (*f)();
+                f->~F();
+            }
         }
     }
-}
+
+    void add_destructor(F&& f) {
+        const auto p = _m.alloc(N);
+        new(p) F(std::forward<F>(f));
+    }
+    
+  private:
+    MemBlocks _m;
+};
 
 class Root {
   public:
-    Root() : _mtx(), _a(4096, 4096) {}
+    Root() : _mtx(), _sa(8192) {}
     ~Root() = default;
 
     template<typename T, typename... Args>
@@ -228,15 +232,22 @@ class Root {
         void* p;
         {
             std::lock_guard<std::mutex> g(_mtx);
-            p = _a.alloc(sizeof(T));
-            if (p) _a.dealloc([p](){ ((T*)p)->~T(); });
+            p = _sa.alloc(sizeof(T));
+            if (p) _da.add_destructor([p](){ ((T*)p)->~T(); });
         }
         return p ? new(p) T(std::forward<Args>(args)...) : 0;
     }
 
+    void add_destructor(F&& f, int i) {
+        std::lock_guard<std::mutex> g(_mtx);
+        _dx[i].add_destructor(std::forward<F>(f));
+    }
+
   private:
     std::mutex _mtx;
-    StaticAlloc _a;
+    StaticAlloc _sa; // alloc memory for GlobalAlloc and ThreadAlloc
+    Dealloc _da;     // used to destruct GlobalAlloc and ThreadAlloc
+    Dealloc _dx[4];  // 0: _rootic, 1: _static, 2: rootic, 3: static 
 };
 
 Root& root() { static Root r; return r; }
@@ -590,8 +601,8 @@ class GlobalAlloc {
     GlobalAlloc() = default;
     ~GlobalAlloc();
 
-    struct _X {
-        _X() : mtx(), hb(0) {}
+    struct alignas(64) X {
+        X() : mtx(), hb(0) {}
         std::mutex mtx;
         union {
             HugeBlock* hb;
@@ -605,7 +616,7 @@ class GlobalAlloc {
     void free(void* p, HugeBlock* hb, uint32 alloc_id);
 
   private:
-    _X _x[g_array_size];
+    X _x[g_array_size];
 };
 
 GlobalAlloc::~GlobalAlloc() {
@@ -620,10 +631,10 @@ GlobalAlloc::~GlobalAlloc() {
     }
 }
 
-class ThreadAlloc {
+class alignas(co::cache_line_size) ThreadAlloc {
   public:
     ThreadAlloc(GlobalAlloc* ga)
-        : _lb(0), _la(0), _sa(0), _ga(ga) {
+        : _lb(0), _la(0), _sa(0), _ga(ga), _s(16 * 1024) {
         static uint32 g_alloc_id = (uint32)-1;
         _id = atomic_inc(&g_alloc_id, mo_relaxed);
     }
@@ -634,7 +645,7 @@ class ThreadAlloc {
     void* alloc(size_t n, size_t align);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
-    StaticAlloc& static_alloc(int i) { return _s[i]; }
+    void* salloc(size_t n) { return _s.alloc(n); }
 
   private:
     union { LargeBlock* _lb; co::clist _llb; };
@@ -642,7 +653,7 @@ class ThreadAlloc {
     union { SmallAlloc* _sa; co::clist _lsa; };
     uint32 _id;
     GlobalAlloc* _ga;
-    StaticAlloc _s[4]; // 0: ndi, 1: ndu, 2: sai, 3: sau
+    StaticAlloc _s; 
 };
 
 
@@ -921,13 +932,13 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 
 } // xx
 
-void* _salloc(size_t n, int x) {
+void* _salloc(size_t n) {
     assert(n <= 4096);
-    return xx::talloc()->static_alloc(x).alloc(n);
+    return xx::talloc()->salloc(n);
 }
 
 void _dealloc(std::function<void()>&& f, int x) {
-    xx::talloc()->static_alloc(x).dealloc(std::forward<xx::F>(f));
+    xx::root().add_destructor(std::forward<xx::F>(f), x);
 }
 
 #ifndef CO_USE_SYS_MALLOC

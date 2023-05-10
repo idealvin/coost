@@ -949,6 +949,7 @@ bool mutex::try_lock() const {
     return god::cast<xx::mutex_impl*>(_p)->try_lock();
 }
 
+
 event::event(bool manual_reset, bool signaled) {
     _p = co::alloc(sizeof(xx::event_impl), co::cache_line_size);
     new (_p) xx::event_impl(manual_reset, signaled);

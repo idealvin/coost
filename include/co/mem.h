@@ -13,11 +13,7 @@
 
 namespace co {
 
-#if __cpp_lib_hardware_interference_size >= 201703L
-constexpr size_t cache_line_size = std::hardware_destructive_interference_size;
-#else
-constexpr size_t cache_line_size = 64;
-#endif
+constexpr size_t cache_line_size = L1_CACHE_LINE_SIZE;
 
 // alloc @size bytes
 __coapi void* alloc(size_t size);
@@ -53,37 +49,37 @@ inline void del(T* p, size_t n=sizeof(T)) {
 }
 
 // used internally by coost, do not call it
-__coapi void* _salloc(size_t n, int x);
+__coapi void* _salloc(size_t n);
 __coapi void _dealloc(std::function<void()>&& f, int x);
 
 // used internally by coost, do not call it
 template<typename T, int N, typename... Args>
 inline T* _smake(Args&&... args) {
     static_assert(sizeof(T) <= 4096, "");
-    const auto p = _salloc(sizeof(T), N);
+    const auto p = _salloc(sizeof(T));
     if (p) {
         new(p) T(std::forward<Args>(args)...);
         const bool x = god::is_trivially_destructible<T>();
-        !x ? _dealloc([p](){ ((T*)p)->~T(); }, N) : (void)0;
+        if (!x) _dealloc([p](){ ((T*)p)->~T(); }, N);
     }
     return (T*)p;
 }
 
 // used internally by coost, do not call it
 template<typename T, typename... Args>
-inline T* _make_nondep(Args&&... args) {
+inline T* _make_rootic(Args&&... args) {
     return _smake<T, 0>(std::forward<Args>(args)...);
-}
-
-// make non-dependent static object
-template<typename T, typename... Args>
-inline T* make_nondep(Args&&... args) {
-    return _smake<T, 1>(std::forward<Args>(args)...);
 }
 
 // used internally by coost, do not call it
 template<typename T, typename... Args>
 inline T* _make_static(Args&&... args) {
+    return _smake<T, 1>(std::forward<Args>(args)...);
+}
+
+// make non-dependent static object at the root level
+template<typename T, typename... Args>
+inline T* make_rootic(Args&&... args) {
     return _smake<T, 2>(std::forward<Args>(args)...);
 }
 

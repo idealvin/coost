@@ -102,9 +102,9 @@ class MemBlocks {
 
 void* MemBlocks::alloc(uint32 n, uint32 align) {
     if (unlikely(_m == 0)) {
-        _u = (uint32*)::malloc(sizeof(char*) * 8 + 8) + 2;
+        _u = (uint32*)::malloc(sizeof(char*) * 7 + 8) + 2;
         _m[0] = (char*)::malloc(_blk_size);
-        _u[-1] = 8; // cap
+        _u[-1] = 7; // cap
         _u[-2] = 1; // size
     }
 
@@ -283,6 +283,9 @@ DEF_test(mem) {
         int* x = co::make_static<int>(7);
         EXPECT_NE(x, (void*)0);
         EXPECT_EQ(*x, 7);
+
+        int* r = co::make_rootic<int>(7);
+        EXPECT_EQ(*r, 7);
     }
 
     static int gc = 0;
