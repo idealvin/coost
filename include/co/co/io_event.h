@@ -60,7 +60,7 @@ struct PerIoInfo {
 
 // get PerIoInfo by a pointer to WSAOVERLAPPED
 inline PerIoInfo* per_io_info(void* ol) {
-    return (PerIoInfo*)((char*)ol - &((PerIoInfo*)0)->ol);
+    return (PerIoInfo*)((char*)ol - (size_t)&((PerIoInfo*)0)->ol);
 }
 
 } // xx
