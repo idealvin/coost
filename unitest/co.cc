@@ -501,8 +501,7 @@ DEF_test(co) {
                 wg.done();
             }).detach();
 
-            while (v < 2) co::sleep(1);
-            co::sleep(2);
+            while (v < 4) co::sleep(1);
             ev.signal();
             wg.wait();
             EXPECT_EQ(v, 4);
