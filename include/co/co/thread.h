@@ -2,10 +2,8 @@
 
 #include "../def.h"
 #include <assert.h>
-#include <memory>
 #include <mutex>
 #include <thread>
-#include <functional>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -16,6 +14,10 @@
 #include <pthread.h>
 #endif
 
+// add std::mutex_guard
+namespace std {
+typedef std::lock_guard<std::mutex> mutex_guard;
+} // std
 
 namespace co {
 namespace xx {
