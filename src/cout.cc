@@ -34,17 +34,32 @@ static const char* fg[16] = {
 namespace co {
 namespace color {
 
-inline bool ansi_esc_seq_enabled() {
-    static const bool x = !os::env("TERM").empty();
-    return x;
-}
-
 inline HANDLE cout_handle() {
     static HANDLE h = []() {
         HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
         return (h != INVALID_HANDLE_VALUE && h != NULL) ? h : (HANDLE)NULL;
     }();
     return h;
+}
+
+static bool check_vterm() {
+    if (!os::env("TERM").empty()) return true;
+  #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    auto h = cout_handle();
+    DWORD mode = 0;
+    if (h && GetConsoleMode(h, &mode)) {
+        mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        if (SetConsoleMode(h, mode)) return true;
+    }
+    return false;
+  #else
+    return false;
+  #endif
+}
+
+inline bool ansi_esc_seq_enabled() {
+    static const bool x = check_vterm();
+    return x;
 }
 
 inline int get_default_color() {
@@ -86,6 +101,7 @@ std::ostream& operator<<(std::ostream& os, color::Color c) {
     return os;
 }
 
+// ANSI color sequence may be not supported on windows
 fastream& operator<<(fastream& s, color::Color c) {
     if (color::ansi_esc_seq_enabled()) s << fg[c];
     return s;
