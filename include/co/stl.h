@@ -120,10 +120,8 @@ class lru_map {
         _capacity = capacity > 0 ? capacity : 1024;
     }
 
-    lru_map(lru_map&& x) {
-        _kv.swap(x._kv);
-        _ki.swap(x._ki);
-        _kl.swap(x._kl);
+    lru_map(lru_map&& x)
+        : _kv(std::move(x._kv)), _ki(std::move(x._ki)), _kl(std::move(x._kl)) {
         _capacity = x._capacity;
     }
 
