@@ -144,7 +144,7 @@ void Sched::loop() {
             continue;
         }
 
-        timer.restart();
+        if (_sched_num > 1) timer.restart();
         SCHEDLOG << "> check I/O tasks ready to resume, num: " << n;
 
         for (int i = 0; i < n; ++i) {
@@ -226,7 +226,7 @@ void Sched::loop() {
         } while (0);
 
         if (_running) _running = 0;
-        atomic_add(&_cputime, timer.us(), mo_relaxed);
+        if (_sched_num > 1) atomic_add(&_cputime, timer.us(), mo_relaxed);
     }
 
     _x.ev.signal();
