@@ -79,14 +79,13 @@ void test_rpc_client() {
     c.close();
 }
 
-co::Pool pool(
+co::pool pool(
     []() { return (void*) new rpc::Client(*proto); },
     [](void* p) { delete (rpc::Client*) p; }
 );
 
 void test_ping() {
-    co::PoolGuard<rpc::Client> c(pool);
-
+    co::pool_guard<rpc::Client> c(pool);
     while (true) {
         c->ping();
         co::sleep(3000);

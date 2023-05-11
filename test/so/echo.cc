@@ -11,7 +11,7 @@ void conn_cb(tcp::Connection conn) {
 
     while (true) {
         int r = conn.recvn(&buf[0], FLG_l);
-        if (r == 0) {         /* client close the connection */
+        if (r == 0) { /* client close the connection */
             conn.close();
             break;
         } else if (r < 0) { /* error */

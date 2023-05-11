@@ -6,7 +6,7 @@ DEF_string(url, "", "url of http request");
 DEF_string(data, "{\"api\":\"ping\"}", "data to send");
 DEF_string(path, "", "for PUT, path of the file to be uploaded");
 
-co::WaitGroup wg;
+co::wait_group wg;
 
 void fa() {
     http::Client c(FLG_s.c_str());

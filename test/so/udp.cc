@@ -21,7 +21,7 @@ void udp_server_fun() {
         int r = co::recvfrom(fd, buf, 4, &cli, &len);
         if (r >= 0) {
             LOG << "server recv " << fastring(buf, r) << " from "
-                 << co::ip_str(&cli) << ':' << ntoh16(cli.sin_port);
+                << co::ip_str(&cli) << ':' << ntoh16(cli.sin_port);
 
             //r = co::sendto(fd, "pong", 4, &cli, len);
             r = co::sendto(fd, pong, 4, &cli, len);
