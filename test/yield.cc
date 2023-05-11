@@ -3,7 +3,7 @@
 #include "co/time.h"
 
 void* gco = 0;
-co::WaitGroup wg;
+co::wait_group wg;
 
 void f() {
     co::print("coroutine starts: ", co::coroutine_id());

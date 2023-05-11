@@ -199,6 +199,7 @@ auto& gA = *co::make_static<co::array<void*>>(1024 * 1024);
 auto& gB = *co::make_static<co::array<void*>>(1024 * 1024);
 
 void test_xalloc() {
+    co::Timer t;
     for (int i = 0; i < FLG_n; ++i) {
         for (int k = 0; k < FLG_m; ++k) {
             void* p = co::alloc(32);
@@ -209,10 +210,12 @@ void test_xalloc() {
         }
         if (i % 100 == 0) co::sleep(1);
     }
+    co::print("xalloc done in ", t.ms(), "ms");
 }
 
 void test_xfree() {
     size_t n = FLG_m * FLG_n;
+    co::Timer t;
     while (true) {
         {
             std::lock_guard<std::mutex> g(gMtx);
@@ -229,6 +232,7 @@ void test_xfree() {
             co::sleep(1);
         }
     }
+    co::print("xfree done in ", t.ms(), "ms");
 }
 
 int main(int argc, char** argv) {
