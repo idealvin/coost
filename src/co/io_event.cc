@@ -92,6 +92,7 @@ io_event::~io_event() {
 bool io_event::wait(uint32 ms) {
     int r, e;
     const auto sched = xx::gSched;
+    if (_info->state != xx::st_wait) _info->state = xx::st_wait;
 
     // If fd is a non-blocking TCP socket, we post the I/O operation to IOCP using 
     // WSARecv or WSASend. Since _info->buf is empty, no data will be transfered, 
