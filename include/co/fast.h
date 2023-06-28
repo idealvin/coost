@@ -12,7 +12,7 @@
 namespace dp {
 
 struct _fpt {
-    constexpr _fpt(double v, int d) : v(v), d(d) {}
+    constexpr _fpt(double v, int d) noexcept : v(v), d(d) {}
     double v;
     int d;
 };
@@ -45,8 +45,7 @@ inline int dtoa(double v, char* buf, int mdp=324) {
     return milo::dtoa(v, buf, mdp);
 }
 
-// unsigned integer to hex string, return length of the result
-//   - 255 -> "0xff"
+// unsigned integer to hex string (e.g. 255 -> 0xff), return length of the result
 __coapi int u32toh(uint32 v, char* buf);
 __coapi int u64toh(uint64 v, char* buf);
 
@@ -141,9 +140,9 @@ class __coapi stream {
     size_t capacity() const noexcept { return _cap; }
     void clear() noexcept { _size = 0; }
 
-    // like clear(), but will zero-clear the memory
-    void safe_clear() {
-        memset(_p, 0, _size);
+    // clear and fill the memory with character @c
+    void clear(char c) {
+        memset(_p, c, _size);
         _size = 0;
     }
 
@@ -161,17 +160,18 @@ class __coapi stream {
 
     char& operator[](size_t i) { return _p[i]; }
     const char& operator[](size_t i) const { return ((stream*)this)->operator[](i); }
-    
+
+    // resize only, will not fill the expanded memory with zeros
     void resize(size_t n) {
         this->reserve(n);
         _size = n;
     }
-
-    // like resize(), but will fill the expanded memory with zeros
-    void safe_resize(size_t n) {
+   
+    // resize and fill the expanded memory with character @c
+    void resize(size_t n, char c) {
         if (_size < n) {
             this->reserve(n);
-            memset(_p + _size, 0, n - _size);
+            memset(_p + _size, c, n - _size);
         }
         _size = n;
     }
@@ -199,13 +199,13 @@ class __coapi stream {
         }
     }
 
-    void swap(stream& fs) noexcept {
-        std::swap(fs._cap, _cap);
-        std::swap(fs._size, _size);
-        std::swap(fs._p, _p);
+    void swap(stream& s) noexcept {
+        std::swap(s._cap, _cap);
+        std::swap(s._size, _size);
+        std::swap(s._p, _p);
     }
 
-    void swap(stream&& fs) noexcept { fs.swap(*this); }
+    void swap(stream&& s) noexcept { s.swap(*this); }
 
   protected:
     stream& append(size_t n, char c) {
@@ -221,39 +221,31 @@ class __coapi stream {
         return *this;
     }
 
-    stream& append(const void* p, size_t n) {
-        this->ensure(n);
-        memcpy(_p + _size, p, n);
-        _size += n;
-        return *this;
-    }
-
-    stream& safe_append(const void* s, size_t n) {
+    stream& append(const void* s, size_t n) {
         const char* const p = (const char*) s;
-        if (!(_p <= p && p < _p + _size)) return this->append(p, n);
+        if (p < _p || p >= _p + _size) return this->append_nomchk(p, n);
 
-        assert(p + n <= _p + _size);
         const size_t pos = p - _p;
+        assert(pos + n <= _size);
         this->ensure(n);
         memcpy(_p + _size, _p + pos, n);
         _size += n;
         return *this;
     }
 
+    stream& append_nomchk(const void* p, size_t n) {
+        this->ensure(n);
+        memcpy(_p + _size, p, n);
+        _size += n;
+        return *this;
+    }
+
     stream& operator<<(bool v) {
-        return v ? this->append("true", 4) : this->append("false", 5);
+        return v ? this->append_nomchk("true", 4) : this->append_nomchk("false", 5);
     }
 
     stream& operator<<(char v) {
         return this->append(v);
-    }
-
-    stream& operator<<(signed char v) {
-        return this->operator<<((char)v);
-    }
-
-    stream& operator<<(unsigned char v) {
-        return this->operator<<((char)v);
     }
 
     stream& operator<<(short v) {
@@ -322,10 +314,6 @@ class __coapi stream {
         return *this;
     }
 
-    stream& operator<<(const char* s) {
-        return this->append(s, strlen(s));
-    }
-
     stream& operator<<(const void* v) {
         this->ensure(sizeof(v) * 3);
         _size += fast::ptoh(v, _p + _size);
@@ -333,7 +321,7 @@ class __coapi stream {
     }
 
     stream& operator<<(std::nullptr_t) {
-        return this->append("0x0", 3);
+        return this->append_nomchk("0x0", 3);
     }
 
     size_t _cap;
