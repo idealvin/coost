@@ -353,7 +353,7 @@ void Mod::make_config(const fastring& exe) {
     }
 
     fastring fname(exe);
-    if (fname.ends_with(".exe")) fname.resize(fname.size() - 4);
+    fname.remove_suffix(".exe");
     fname += ".conf";
 
     fs::fstream f(fname.c_str(), 'w');
