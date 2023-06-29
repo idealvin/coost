@@ -34,6 +34,7 @@ target("libco")
         set_configvar("COOST_SHARED", 0)
     end
     set_configvar("CACHE_LINE_SIZE", "$(cache_line_size)")
+    set_configdir("./")
     add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
 
     if is_plat("windows", "mingw") then
