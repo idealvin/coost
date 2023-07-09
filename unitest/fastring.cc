@@ -4,6 +4,34 @@
 namespace test {
 
 DEF_test(fastring) {
+    DEF_case(constructor) {
+        {
+            fastring s;
+            EXPECT(s.empty());
+            EXPECT_EQ(s.size(), 0);
+        }
+        {
+            fastring s(32);
+            EXPECT(s.empty());
+            EXPECT_EQ(s.capacity(), 32);
+        }
+        {
+            fastring s(nullptr, 0);
+            EXPECT(s.empty());
+            EXPECT_EQ(s.capacity(), 0);
+        }
+        {
+            fastring s("helloworld", 5);
+            EXPECT_EQ(s.size(), 5);
+            EXPECT_EQ(s, "hello");
+        }
+        {
+            fastring s("helloworld");
+            EXPECT_EQ(s.size(), 10);
+            EXPECT_EQ(s, "helloworld");
+        }
+    }
+
     DEF_case(base) {
         {
             fastring s;
@@ -448,9 +476,9 @@ DEF_test(fastring) {
         EXPECT(!s.match("h?o"));
     }
 
-    DEF_case(safe_clear) {
+    DEF_case(clear) {
         fastring s("xxx");
-        s.safe_clear();
+        s.clear(0);
         EXPECT_EQ(s.size(), 0);
         s.resize(3);
         EXPECT_EQ(s[0], 0);
@@ -458,7 +486,7 @@ DEF_test(fastring) {
         EXPECT_EQ(s[2], 0);
 
         fastring x;
-        x.safe_clear();
+        x.clear(0);
         EXPECT_EQ(x.size(), 0);
     }
 

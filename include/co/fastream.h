@@ -30,15 +30,38 @@ class __coapi fastream : public fast::stream {
         return fastring(_p, _size);
     }
 
-    // It is not safe if p overlaps with the internal buffer of fastream, use 
-    // safe_append() in that case.
     fastream& append(const void* p, size_t n) {
         return (fastream&) fast::stream::append(p, n);
     }
 
-    // It is ok if p overlaps with the internal buffer of fastream
-    fastream& safe_append(const void* p, size_t n) {
-        return (fastream&) fast::stream::safe_append(p, n);
+    // like append(), but will not check if p overlaps with the internal memory
+    fastream& append_nomchk(const void* p, size_t n) {
+        return (fastream&) fast::stream::append_nomchk(p, n);
+    }
+
+    fastream& append(const char* s) {
+        return this->append(s, strlen(s));
+    }
+
+    // like append(), but will not check if s overlaps with the internal memory
+    fastream& append_nomchk(const char* s) {
+        return this->append_nomchk(s, strlen(s));
+    }
+
+    fastream& append(const fastring& s) {
+        return this->append_nomchk(s.data(), s.size());
+    }
+
+    fastream& append(const std::string& s) {
+        return this->append_nomchk(s.data(), s.size());
+    }
+
+    fastream& append(const fastream& s) {
+        if (&s != this) return this->append_nomchk(s.data(), s.size());
+        this->reserve(_size << 1);
+        memcpy(_p + _size, _p, _size); // append itself
+        _size <<= 1;
+        return *this;
     }
 
     // append n characters
@@ -48,31 +71,6 @@ class __coapi fastream : public fast::stream {
 
     fastream& append(char c, size_t n) {
         return this->append(n, c);
-    }
-
-    fastream& append(const char* s) {
-        return this->append(s, strlen(s));
-    }
-
-    fastream& safe_append(const char* s) {
-        return this->safe_append(s, strlen(s));
-    }
-
-    fastream& append(const fastring& s) {
-        return this->append(s.data(), s.size());
-    }
-
-    fastream& append(const std::string& s) {
-        return this->append(s.data(), s.size());
-    }
-
-    // It is ok if s is the fastream itself
-    fastream& append(const fastream& s) {
-        if (&s != this) return this->append(s.data(), s.size());
-        this->reserve(_size << 1);
-        memcpy(_p + _size, _p, _size); // append itself
-        _size <<= 1;
-        return *this;
     }
 
     fastream& append(char c) {
@@ -87,17 +85,19 @@ class __coapi fastream : public fast::stream {
         return this->append((char)c);
     }
 
-    // append binary data of integer types
+    // append binary data of uint16 (2 bytes)
     fastream& append(uint16 v) {
-        return this->append(&v, sizeof(v));
+        return this->append_nomchk(&v, sizeof(v));
     }
 
+    // append binary data of uint32 (4 bytes)
     fastream& append(uint32 v) {
-        return this->append(&v, sizeof(v));
+        return this->append_nomchk(&v, sizeof(v));
     }
 
+    // append binary data of uint64 (8 bytes)
     fastream& append(uint64 v) {
-        return this->append(&v, sizeof(v));
+        return this->append_nomchk(&v, sizeof(v));
     }
 
     fastream& cat() noexcept { return *this; }
@@ -120,11 +120,11 @@ class __coapi fastream : public fast::stream {
     }
 
     fastream& operator<<(signed char v) {
-        return (fastream&) fast::stream::operator<<(v);
+        return this->operator<<((char)v);
     }
 
     fastream& operator<<(unsigned char v) {
-        return (fastream&) fast::stream::operator<<(v);
+        return this->operator<<((char)v);
     }
 
     fastream& operator<<(short v) {
@@ -194,11 +194,11 @@ class __coapi fastream : public fast::stream {
     }
 
     fastream& operator<<(const fastring& s) {
-        return this->append(s.data(), s.size());
+        return this->append_nomchk(s.data(), s.size());
     }
 
     fastream& operator<<(const std::string& s) {
-        return this->append(s.data(), s.size());
+        return this->append_nomchk(s.data(), s.size());
     }
 
     fastream& operator<<(const fastream& s) {

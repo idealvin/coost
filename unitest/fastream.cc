@@ -63,17 +63,22 @@ DEF_test(fastream) {
     DEF_case(safe) {
         fastream s(16);
         s << "1234567890";
-        s.safe_append(s.data() + 1, 8);
+        s.append(s.data() + 1, 8);
         EXPECT_EQ(s.str(), "123456789023456789");
 
-        s.safe_clear();
+        s.clear(0);
         EXPECT_EQ(*s.data(), 0);
         EXPECT_EQ(*(s.data() + 3), 0);
 
         s.append("12345678");
-        s.safe_resize(10);
-        EXPECT_EQ(*(s.data() + 8), 0);
-        EXPECT_EQ(*(s.data() + 9), 0);
+        s.resize(6);
+        s.resize(10);
+        EXPECT_EQ(s[6], '7');
+        EXPECT_EQ(s[7], '8');
+        s.resize(6);
+        s.resize(10, 0);
+        EXPECT_EQ(s[6], 0);
+        EXPECT_EQ(s[7], 0);
     }
 
     DEF_case(bool) {

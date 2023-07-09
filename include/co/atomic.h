@@ -141,19 +141,19 @@ enum memory_order_t {
 };
 
 // mo: mo_relaxed, mo_consume, mo_acquire, mo_seq_cst
-template <typename T>
+template<typename T>
 inline T atomic_load(T* p, memory_order_t mo = mo_seq_cst) {
     return __atomic_load_n(p, mo);
 }
 
 // mo: mo_relaxed, mo_release, mo_seq_cst
-template <typename T, typename V>
+template<typename T, typename V>
 inline void atomic_store(T* p, V v, memory_order_t mo = mo_seq_cst) {
     __atomic_store_n(p, (T)v, mo);
 }
 
 // mo: all
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_swap(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_exchange_n(p, (T)v, mo);
 }
@@ -161,79 +161,79 @@ inline T atomic_swap(T* p, V v, memory_order_t mo = mo_seq_cst) {
 // smo: success memory order, all
 // fmo: failure memory order, cannot be mo_release, mo_acq_rel,
 //      and cannot be stronger than smo
-template <typename T, typename O, typename V>
+template<typename T, typename O, typename V>
 inline T atomic_compare_swap(T* p, O o, V v, memory_order_t smo = mo_seq_cst, memory_order_t fmo = mo_seq_cst) {
     T x = (T)o;
     __atomic_compare_exchange_n(p, &x, (T)v, false, smo, fmo);
     return x;
 }
 
-template <typename T>
+template<typename T>
 inline T atomic_inc(T* p, memory_order_t mo = mo_seq_cst) {
     return __atomic_add_fetch(p, 1, mo);
 }
 
-template <typename T>
+template<typename T>
 inline T atomic_dec(T* p, memory_order_t mo = mo_seq_cst) {
     return __atomic_sub_fetch(p, 1, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_add(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_add_fetch(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_sub(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_sub_fetch(p, v, mo);
 }
 
-template <typename T>
+template<typename T>
 inline T atomic_fetch_inc(T* p, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_add(p, 1, mo);
 }
 
-template <typename T>
+template<typename T>
 inline T atomic_fetch_dec(T* p, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_sub(p, 1, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_fetch_add(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_add(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_fetch_sub(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_sub(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_or(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_or_fetch(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_and(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_and_fetch(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_xor(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_xor_fetch(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_fetch_or(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_or(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_fetch_and(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_and(p, v, mo);
 }
 
-template <typename T, typename V>
+template<typename T, typename V>
 inline T atomic_fetch_xor(T* p, V v, memory_order_t mo = mo_seq_cst) {
     return __atomic_fetch_xor(p, v, mo);
 }

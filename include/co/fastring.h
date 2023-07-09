@@ -67,7 +67,6 @@ class __coapi fastring : public fast::stream {
         return this->assign(s, strlen(s));
     }
 
-    // It is ok if s overlaps with the internal buffer of fastring
     fastring& assign(const void* s, size_t n) {
         if (!this->_inside((const char*)s)) return this->_assign(s, n);
         assert((const char*)s + n <= _p + _size);
@@ -81,19 +80,26 @@ class __coapi fastring : public fast::stream {
         return this->operator=(std::forward<S>(s));
     }
 
-    // It is ok if s overlaps with the internal buffer of fastring
-    fastring& append(const void* s, size_t n) {
-        return (fastring&) fast::stream::safe_append(s, n);
+    fastring& append(const void* p, size_t n) {
+        return (fastring&) fast::stream::append(p, n);
     }
  
-    // It is ok if s overlaps with the internal buffer of fastring
+    // like append(), but will not check if p overlaps with the internal memory
+    fastring& append_nomchk(const void* p, size_t n) {
+        return (fastring&) fast::stream::append_nomchk(p, n);
+    }
+
     fastring& append(const char* s) {
         return this->append(s, strlen(s));
     }
 
-    // It is ok if s is the fastring itself
+    // like append(), but will not check if s overlaps with the internal memory
+    fastring& append_nomchk(const char* s) {
+        return this->append_nomchk(s, strlen(s));
+    }
+
     fastring& append(const fastring& s) {
-        if (&s != this) return (fastring&) fast::stream::append(s.data(), s.size());
+        if (&s != this) return this->append_nomchk(s.data(), s.size());
         this->reserve(_size << 1);
         memcpy(_p + _size, _p, _size); // append itself
         _size <<= 1;
@@ -101,7 +107,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& append(const std::string& s) {
-        return (fastring&) fast::stream::append(s.data(), s.size());
+        return this->append_nomchk(s.data(), s.size());
     }
 
     fastring& append(size_t n, char c) {
@@ -113,7 +119,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& append(char c) {
-        return (fastring&)fast::stream::append(c);
+        return (fastring&) fast::stream::append(c);
     }
 
     fastring& append(signed char c) {
@@ -149,11 +155,11 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& operator<<(signed char v) {
-        return (fastring&) fast::stream::operator<<(v);
+        return this->operator<<((char)v);
     }
 
     fastring& operator<<(unsigned char v) {
-        return (fastring&) fast::stream::operator<<(v);
+        return this->operator<<((char)v);
     }
 
     fastring& operator<<(short v) {
@@ -227,7 +233,7 @@ class __coapi fastring : public fast::stream {
     }
 
     fastring& operator<<(const std::string& s) {
-        return this->append(s);
+        return this->append_nomchk(s.data(), s.size());
     }
 
     bool contains(char c) const {

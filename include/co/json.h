@@ -265,7 +265,7 @@ class __coapi Json {
     Json& get(int i) const { return this->get((uint32)i); }
     Json& get(const char* key) const;
 
-    template <class T,  class ...X>
+    template<class T, class ...X>
     inline Json& get(T&& v, X&& ... x) const {
         auto& r = this->get(std::forward<T>(v));
         return r.is_null() ? r : r.get(std::forward<X>(x)...);
@@ -276,10 +276,10 @@ class __coapi Json {
     //   - eg.
     //     Json x;
     //     x.set("a", "b", 0, 3);  // x-> {"a": {"b": [3]}}
-    template <class T>
+    template<class T>
     inline Json& set(T&& v) { return *this = Json(std::forward<T>(v)); }
 
-    template <class A, class B,  class ...X>
+    template<class A, class B,  class ...X>
     inline Json& set(A&& a, B&& b, X&& ... x) {
         auto& r = this->_set(std::forward<A>(a));
         return r.set(std::forward<B>(b), std::forward<X>(x)...);

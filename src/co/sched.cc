@@ -204,7 +204,7 @@ void Sched::loop() {
                     this->resume(ready_tasks[i]);
                 }
                 if (c >= 8192 && s <= (c >> 1)) {
-                    co::array<Closure*>(s).swap(new_tasks);
+                    co::array<Coroutine*>(s).swap(ready_tasks);
                 }
                 ready_tasks.clear();
             }

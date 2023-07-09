@@ -38,7 +38,7 @@ BM_group(rand) {
 BM_group(malloc) {
     void* p;
 
-    BM_add(malloc)(
+    BM_add(::malloc)(
         p = ::malloc(32);
     );
     BM_use(p);
