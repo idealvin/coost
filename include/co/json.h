@@ -141,7 +141,7 @@ class __coapi Json {
     Json(Json& v) noexcept : _h(v._h) { v._h = 0; }
     ~Json() { if (_h) this->reset(); }
 
-    Json(const Json& v) = delete;
+    Json(const Json&) = delete;
     void operator=(const Json&) = delete;
 
     Json& operator=(Json&& v) {
