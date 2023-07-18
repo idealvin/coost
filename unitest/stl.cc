@@ -48,6 +48,16 @@ DEF_test(lru_map) {
 
     a.clear();
     EXPECT_EQ(a.size(), 0);
+
+    fastring k("hello");
+    co::lru_map<fastring, int> x;
+    x.insert(std::move(k), 8);
+    EXPECT(k.empty());
+    EXPECT_EQ(x.size(), 1);
+
+    auto i = x.find("hello");
+    EXPECT(i != x.end());
+    EXPECT_EQ(i->second, 8);
 }
 
 DEF_test(array){
