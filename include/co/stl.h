@@ -151,8 +151,9 @@ class lru_map {
         }
         auto r = _kv.emplace(std::forward<Key>(key), std::forward<Val>(value));
         if (r.second) {
-            _kl.push_front(key);
-            _ki[key] = _kl.begin();
+            const auto& k = r.first->first;
+            _kl.push_front(k);
+            _ki[k] = _kl.begin();
         }
     }
 
