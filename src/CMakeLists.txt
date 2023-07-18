@@ -63,6 +63,10 @@ if(WITH_BACKTRACE)
     target_link_libraries(co PUBLIC backtrace)
 endif()
 
+if(DISABLE_HOOK)
+    target_compile_definitions(co PRIVATE _CO_DISABLE_HOOK)
+endif()
+
 target_compile_features(co PUBLIC cxx_std_11)
 
 if(FPIC)

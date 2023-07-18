@@ -9,6 +9,7 @@ target("libco")
     add_options("with_openssl")
     add_options("with_libcurl")
     add_options("cache_line_size")
+    add_options("disable_hook")
     if is_plat("linux", "macosx") then
         add_options("with_backtrace")
     end
@@ -24,6 +25,10 @@ target("libco")
     elseif has_config("with_openssl") then
         add_defines("HAS_OPENSSL")
         add_packages("openssl")
+    end
+
+    if has_config("disable_hook") then
+        add_defines("_CO_DISABLE_HOOK")
     end
 
     if is_kind("shared") then

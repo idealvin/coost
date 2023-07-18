@@ -64,6 +64,12 @@ option("fpic")
     add_cxflags("-fPIC")
 option_end()
 
+option("disable_hook")
+    set_default(false)
+    set_showmenu(true)
+    set_description("disable system API hook")
+option_end()
+
 option("cache_line_size")
     set_default("64")
     set_showmenu(true)
