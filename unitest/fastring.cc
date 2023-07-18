@@ -16,6 +16,11 @@ DEF_test(fastring) {
             EXPECT_EQ(s.capacity(), 32);
         }
         {
+            fastring s(4, 'x');
+            EXPECT_EQ(s.size(), 4);
+            EXPECT_EQ(s, "xxxx");
+        }
+        {
             fastring s(nullptr, 0);
             EXPECT(s.empty());
             EXPECT_EQ(s.capacity(), 0);
@@ -39,6 +44,11 @@ DEF_test(fastring) {
             EXPECT_EQ(s.size(), 0);        
             s = "xxx";
             EXPECT_EQ(s, "xxx");
+
+            s.push_back('o');
+            EXPECT_EQ(s, "xxxo");
+            EXPECT_EQ(s.pop_back(), 'o');
+            EXPECT_EQ(s.size(), 3);
         }
 
         {
@@ -291,6 +301,9 @@ DEF_test(fastring) {
         fastring s("xxxyyyzzz");
         EXPECT_EQ(s.find('a'), s.npos);
         EXPECT_EQ(s.find('y'), 3);
+        EXPECT_EQ(s.find('Y'), s.npos);
+        EXPECT_EQ(s.ifind('Y'), 3);
+        EXPECT_EQ(s.ifind('Y', 5), 5);
         EXPECT_EQ(s.find('y', 0, 3), s.npos); // find in range [0, 3)
         EXPECT_EQ(s.find('y', 0, 4), 3);      // find in range [0, 4)
         EXPECT_EQ(s.find('y', 3, 3), 3);      // find in range [3, 6)
@@ -298,10 +311,17 @@ DEF_test(fastring) {
         EXPECT_EQ(s.find('y', 6, 3), s.npos); // find in range [6, 9)
         EXPECT_EQ(s.find('y', 4), 4);
         EXPECT_EQ(s.find('y', 32), s.npos);
+        EXPECT_EQ(s.rfind('a'), s.npos);
+        EXPECT_EQ(s.rfind('x'), 2);
         EXPECT_EQ(s.rfind('y'), 5);
+        EXPECT_EQ(s.rfind('y', 3), 3);
+        EXPECT_EQ(s.rfind('y', 2), s.npos);
+        EXPECT_EQ(s.rfind('z'), 8);
         EXPECT_EQ(s.rfind("xyz"), s.npos);
         EXPECT_EQ(s.rfind("xy"), 2);
         EXPECT_EQ(s.rfind("yy"), 4);
+        EXPECT_EQ(s.rfind("yy", 32), 4);
+        EXPECT_EQ(s.rfind("yy", 4), 3);
         EXPECT_EQ(fastring("0123456789").rfind("0"), 0);
         EXPECT_EQ(fastring("0123456789").rfind("01"), 0);
         EXPECT_EQ(fastring("0123456789").rfind("012"), 0);
@@ -312,10 +332,16 @@ DEF_test(fastring) {
         EXPECT_EQ(fastring("0123456789").rfind("345678"), 3);
         EXPECT_EQ(fastring("0123456789").rfind("56789"), 5);
         EXPECT_EQ(fastring("0123456789").rfind("0124"), s.npos);
+        EXPECT_EQ(fastring("0123\0abcd", 9).rfind("abc"), 5);
 
         EXPECT_EQ(s.find("xy"), 2);
         EXPECT_EQ(s.find("yy"), 3);
         EXPECT_EQ(s.find("yy", 4), 4);
+        EXPECT_EQ(s.find("XY"), s.npos);
+        EXPECT_EQ(s.ifind("XY"), 2);
+        EXPECT_EQ(s.ifind("YY", 4), 4);
+        EXPECT_EQ(s.ifind("Yy", 4), 4);
+        EXPECT_EQ(fastring().ifind("xx"), s.npos);
 
         EXPECT_EQ(s.find_first_of("xy"), 0);
         EXPECT_EQ(s.find_first_of("yz"), 3);
@@ -473,6 +499,9 @@ DEF_test(fastring) {
         EXPECT(s.match("h?llo"));
         EXPECT(s.match("h?l*"));
         EXPECT(s.match("h*l?o"));
+        EXPECT(s.match("h*l*o"));
+        EXPECT(s.match("*ll*"));
+        EXPECT(s.match("h**l**o"));
         EXPECT(!s.match("h?o"));
     }
 
