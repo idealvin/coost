@@ -255,9 +255,14 @@ DEF_test(fastring) {
         EXPECT_EQ(s.substr(88, 2), "");
     }
 
-    DEF_case(cmp) {
+    DEF_case(compare) {
+        fastring fs;
+        std::string ss;
+        const char* cs = "";
+        EXPECT_EQ(fs.compare(ss), 0);
+        EXPECT_EQ(fs.compare(cs), 0);
+
         fastring s = "88888888";
-        EXPECT_EQ(s.size(), 8);
         EXPECT_EQ("88888888", s);
         EXPECT_EQ(s, "88888888");
         EXPECT_EQ(s, fastring("88888888"));
@@ -295,6 +300,21 @@ DEF_test(fastring) {
         EXPECT_LE(s, fastring("88888888"));
         EXPECT_LE(s, std::string("88888888"));
         EXPECT_LE(s, "9999999");
+
+        EXPECT_LT(s, "888888880");
+        EXPECT_GT(s, "8888888");
+
+        EXPECT_EQ(s.compare(3, 3, "888"), 0);
+        EXPECT_EQ(s.compare(100, 3, ""), 0);
+        EXPECT_EQ(s.compare(5, 100, "888"), 0);
+        EXPECT_LT(s.compare(5, 3, "99"), 0);
+        EXPECT_GT(s.compare(5, 3, "7777"), 0);
+
+        fastring x("777888");
+        EXPECT_EQ(s.compare(3, 3, x, 3), 0);
+        EXPECT_EQ(s.compare(3, 3, x, 3, 8), 0);
+        EXPECT_GT(s.compare(3, 3, x, 1, 4), 0);
+        EXPECT_LT(s.compare(3, 2, x, 3, 3), 0);
     }
 
     DEF_case(find) {

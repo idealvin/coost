@@ -240,6 +240,52 @@ class __coapi fastring : public fast::stream {
         return this->append_nomchk(s.data(), s.size());
     }
 
+    int compare(const char* s, size_t n) const {
+        return _memcmp(_p, _size, s, n);
+    }
+
+    int compare(const char* s) const {
+        return this->compare(s, strlen(s));
+    }
+
+    int compare(const fastring& s) const noexcept {
+        return this->compare(s.data(), s.size());
+    }
+
+    int compare(const std::string& s) const noexcept {
+        return this->compare(s.data(), s.size());
+    }
+
+    int compare(size_t pos, size_t len, const char* s, size_t n) const {
+        const intptr_t x = (intptr_t)(_size - pos);
+        if (x > 0) return _memcmp(_p + pos, len < (size_t)x ? len : x, s, n);
+        return _memcmp(_p, 0, s, n);
+    }
+
+    int compare(size_t pos, size_t len, const char* s) const {
+        return this->compare(pos, len, s, strlen(s));
+    }
+
+    int compare(size_t pos, size_t len, const fastring& s) const {
+        return this->compare(pos, len, s.data(), s.size());
+    }
+
+    int compare(size_t pos, size_t len, const std::string& s) const {
+        return this->compare(pos, len, s.data(), s.size());
+    }
+
+    int compare(size_t pos, size_t len, const fastring& s, size_t spos, size_t n=npos) const {
+        const intptr_t x = (intptr_t)(s.size() - spos);
+        if (x > 0) return this->compare(pos, len, s.data() + spos, n < (size_t)x ? n : x);
+        return this->compare(pos, len, s.data(), 0);
+    }
+
+    int compare(size_t pos, size_t len, const std::string& s, size_t spos, size_t n=npos) const {
+        const intptr_t x = (intptr_t)(s.size() - spos);
+        if (x > 0) return this->compare(pos, len, s.data() + spos, n < (size_t)x ? n : x);
+        return this->compare(pos, len, s.data(), 0);
+    }
+
     bool contains(char c) const {
         return this->find(c) != npos;
     }
@@ -624,6 +670,11 @@ class __coapi fastring : public fast::stream {
     static char* _memmem_r(const char* s, size_t n, const char* p, size_t m);
     static bool _match(const char* s, size_t n, const char* p, size_t m);
 
+    static int _memcmp(const char* s, size_t n, const char* p, size_t m) {
+        const int i = ::memcmp(s, p, n < m ? n : m);
+        return i != 0 ? i : (n < m ? -1 : n != m);
+    }
+
     fastring& _assign(const void* s, size_t n) {
         _size = n;
         if (n > 0) {
@@ -683,11 +734,11 @@ inline fastring operator+(const char* a, const fastring& b) {
 }
 
 inline bool operator==(const fastring& a, const fastring& b) {
-    return a.size() == b.size() && (a.empty() || memcmp(a.data(), b.data(), a.size()) == 0);
+    return a.compare(b) == 0;
 }
 
 inline bool operator==(const fastring& a, const std::string& b) {
-    return a.size() == b.size() && (a.empty() || memcmp(a.data(), b.data(), a.size()) == 0);
+    return a.compare(b) == 0;
 }
 
 inline bool operator==(const std::string& a, const fastring& b) {
@@ -695,7 +746,7 @@ inline bool operator==(const std::string& a, const fastring& b) {
 }
 
 inline bool operator==(const fastring& a, const char* b) {
-    return a.size() == strlen(b) && (a.empty() || memcmp(a.data(), b, a.size()) == 0);
+    return a.compare(b) == 0;
 }
 
 inline bool operator==(const char* a, const fastring& b) {
@@ -723,53 +774,35 @@ inline bool operator!=(const char* a, const fastring& b) {
 }
 
 inline bool operator<(const fastring& a, const fastring& b) {
-    return a.size() < b.size()
-        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
-        : (memcmp(a.data(), b.data(), b.size()) < 0);
+    return a.compare(b) < 0;
 }
 
 inline bool operator<(const fastring& a, const std::string& b) {
-    return a.size() < b.size()
-        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
-        : (memcmp(a.data(), b.data(), b.size()) < 0);
+    return a.compare(b) < 0;
 }
 
 inline bool operator<(const std::string& a, const fastring& b) {
-    return a.size() < b.size()
-        ? (a.empty() || memcmp(a.data(), b.data(), a.size()) <= 0)
-        : (memcmp(a.data(), b.data(), b.size()) < 0);
+    return b.compare(a) > 0;
 }
 
 inline bool operator<(const fastring& a, const char* b) {
-    const size_t n = strlen(b);
-    return a.size() < n
-        ? (a.empty() || memcmp(a.data(), b, a.size()) <= 0)
-        : (memcmp(a.data(), b, n) < 0);
+    return a.compare(b) < 0;
 }
 
 inline bool operator>(const fastring& a, const fastring& b) {
-    return a.size() > b.size()
-        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
-        : (memcmp(a.data(), b.data(), a.size()) > 0);
+    return a.compare(b) > 0;
 }
 
 inline bool operator>(const fastring& a, const std::string& b) {
-    return a.size() > b.size()
-        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
-        : (memcmp(a.data(), b.data(), a.size()) > 0);
+    return a.compare(b) > 0;
 }
 
 inline bool operator>(const std::string& a, const fastring& b) {
-    return a.size() > b.size()
-        ? (b.empty() || memcmp(a.data(), b.data(), b.size()) >= 0)
-        : (memcmp(a.data(), b.data(), a.size()) > 0);
+    return b.compare(a) < 0;
 }
 
 inline bool operator>(const fastring& a, const char* b) {
-    const size_t n = strlen(b);
-    return a.size() > n
-        ? (n == 0 || memcmp(a.data(), b, n) >= 0)
-        : (memcmp(a.data(), b, a.size()) > 0);
+    return a.compare(b) > 0;
 }
 
 inline bool operator<(const char* a, const fastring& b) {
