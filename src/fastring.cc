@@ -92,25 +92,23 @@ fastring& fastring::trim(size_t n, char d) {
     return *this;
 }
 
-fastring& fastring::replace(const char* sub, const char* to, size_t maxreplace) {
-    if (this->empty()) return *this;
+fastring& fastring::replace(const char* sub, size_t n, const char* to, size_t m, size_t maxreplace) {
+    if (this->empty() || n == 0) return *this;
 
-    const char* from = this->c_str();
-    const char* p = strstr(from, sub);
+    const char* from = _p;
+    const char* p = _memmem(_p, _size, sub, n);
     if (!p) return *this;
 
-    const size_t n = strlen(sub);
-    const size_t m = strlen(to);
-
+    const char* const e = _p + _size;
     fastring s(_size);
 
     do {
         s.append(from, p - from).append(to, m);
         from = p + n;
         if (maxreplace && --maxreplace == 0) break;
-    } while ((p = strstr(from, sub)));
+    } while ((p = _memmem(from, e - from, sub, n)));
 
-    if (from < _p + _size) s.append(from);
+    if (from < _p + _size) s.append(from, e - from);
 
     this->swap(s);
     return *this;

@@ -122,28 +122,28 @@ class __coapi fastring : public fast::stream {
         return (fastring&) fast::stream::append(c);
     }
 
-    fastring& append(signed char c) {
-        return this->append((char)c);
-    }
-
-    fastring& append(unsigned char c) {
-        return this->append((char)c);
-    }
-
     fastring& push_back(char c) { return this->append(c); }
 
     char pop_back() { return _p[--_size]; }
 
-    template<typename T>
-    fastring& operator+=(T&& t) {
-        return this->append(std::forward<T>(t));
+    fastring& operator+=(const fastring& s) {
+        return this->append(s);
+    }
+
+    fastring& operator+=(const std::string& s) {
+        return this->append(s);
+    }
+
+    fastring& operator+=(const char* s) {
+        return this->append(s);
+    }
+
+    fastring& operator+=(char c) {
+        return this->append(c);
     }
 
     fastring& cat() { return *this; }
 
-    // concatenate fastring to any number of elements
-    //   - fastring s("hello");
-    //     s.cat(' ', 123);  // s -> "hello 123"
     template<typename X, typename ...V>
     fastring& cat(X&& x, V&& ... v) {
         (*this) << std::forward<X>(x);
@@ -405,9 +405,17 @@ class __coapi fastring : public fast::stream {
         return this->trim(std::forward<X>(x)...);
     }
 
-    // replace @sub in the string with @to, do not apply it to binary strings
+    fastring& replace(const char* sub, size_t n, const char* to, size_t m, size_t maxreplace=0);
+
+    // replace @sub in the string with @to
     // @maxreplace: 0 for unlimited
-    fastring& replace(const char* sub, const char* to, size_t maxreplace=0);
+    fastring& replace(const char* sub, const char* to, size_t maxreplace=0) {
+        return this->replace(sub, strlen(sub), to, strlen(to), maxreplace);
+    }
+
+    fastring& replace(const fastring& sub, const fastring& to, size_t maxreplace=0) {
+        return this->replace(sub.data(), sub.size(), to.data(), to.size(), maxreplace);
+    }
 
     fastring& tolower();
     fastring& toupper();
