@@ -52,7 +52,7 @@ fastring cwd() {
 
 static fastring _get_module_path() {
     DWORD n = 128, r = 0;
-    fastring s(n);
+    fastring s(128);
     while (true) {
         r = GetModuleFileNameA(NULL, (char*)s.data(), n);
         if (r < n) { s.resize(r); break; }
@@ -73,8 +73,8 @@ fastring exedir() {
     size_t n = s.rfind('\\');
     if (n != s.npos && n != 0) {
         if (s[n - 1] != ':') {
-            s.resize(n);
             s[n] = '\0';
+            s.resize(n);
         } else {
             s.resize(n + 1);
             if (s.capacity() > n + 1) s[n + 1] = '\0';
