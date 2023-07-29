@@ -66,7 +66,8 @@ const char kS[] = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW
 // Inspired by github.com/mcmikecreations/nanoid_cpp.
 // Also see https://github.com/ai/nanoid for details.
 fastring randstr(int n) {
-    n <= 0 ? (void)(n = 15) : (void)0;
+    if (unlikely(n <= 0)) return fastring();
+
     const uint32 mask = 63;
     const uint32 p = mask * n;
     const uint32 r = p / 40;
@@ -86,11 +87,10 @@ fastring randstr(int n) {
     }
 }
 
-// 2 <= len <= 255, n > 0
 fastring randstr(const char* s, int n) {
-    const uint32 len = (uint32) strlen(s);
-    if (unlikely(len < 2 || len > 255)) return fastring();
-    n <= 0 ? (void)(n = 15) : (void)0;
+    const uint32 len = s ? (uint32)strlen(s) : 0;
+    if (unlikely(len == 0 || len > 255 || n <= 0)) return fastring();
+    if (unlikely(len == 1)) return fastring(n, *s);
 
     const uint32 mask = _get_mask(len);
     const uint32 step = (uint32)::ceil(1.6 * (mask * n) / len);
