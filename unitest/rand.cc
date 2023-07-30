@@ -10,7 +10,8 @@ DEF_test(rand) {
     }
 
     EXPECT_GT(x, y);
-    EXPECT_EQ((x - y + 100) * 10 / 10000, 2);
+    double d = x * 1.0 / y;
+    EXPECT(1.4 < d && d < 1.6);
 
     EXPECT(co::randstr(0).empty());
     EXPECT(co::randstr(-1).empty());
