@@ -4,94 +4,52 @@
 
 namespace str {
 
-co::vector<fastring> split(const char* s, char c, uint32 maxsplit) {
+co::vector<fastring> split(const char* s, size_t n, char c, size_t t) {
     co::vector<fastring> v;
     v.reserve(8);
 
     const char* p;
-    const char* from = s;
+    const char* const end = s + n;
 
-    while ((p = strchr(from, c))) {
-        v.push_back(fastring(from, p - from));
-        from = p + 1;
-        if (v.size() == maxsplit) break;
+    while ((p = (const char*) memchr(s, c, end - s))) {
+        v.emplace_back(s, p - s);
+        s = p + 1;
+        if (v.size() == t) break;
     }
 
-    if (from < s + strlen(s)) v.push_back(fastring(from));
+    if (s < end) v.emplace_back(s, end - s);
     return v;
 }
 
-co::vector<fastring> split(const fastring& s, char c, uint32 maxsplit) {
+co::vector<fastring> split(const char* s, size_t n, const char* c, size_t m, size_t t) {
     co::vector<fastring> v;
     v.reserve(8);
 
     const char* p;
-    const char* from = s.data();
-    const char* end = from + s.size();
+    const char* const end = s + n;
 
-    while ((p = (const char*) memchr(from, c, end - from))) {
-        v.push_back(fastring(from, p - from));
-        from = p + 1;
-        if (v.size() == maxsplit) break;
+    while ((p = str::memmem(s, end - s, c, m))) {
+        v.emplace_back(s, p - s);
+        s = p + m;
+        if (v.size() == t) break;
     }
 
-    if (from < end) v.push_back(fastring(from, end - from));
+    if (s < end) v.emplace_back(s, end - s);
     return v;
 }
 
-co::vector<fastring> split(const char* s, const char* c, uint32 maxsplit) {
-    co::vector<fastring> v;
-    v.reserve(8);
-
+fastring replace(const char* s, size_t n, const char* sub, size_t m, const char* to, size_t l, size_t t) {
     const char* p;
-    const char* from = s;
-    size_t n = strlen(c);
+    const char* const end = s + n;
+    fastring x(n);
 
-    while ((p = strstr(from, c))) {
-        v.push_back(fastring(from, p - from));
-        from = p + n;
-        if (v.size() == maxsplit) break;
+    while ((p = str::memmem(s, end - s, sub, m))) {
+        x.append(s, p - s).append(to, l);
+        s = p + m;
+        if (t && --t == 0) break;
     }
 
-    if (from < s + strlen(s)) v.push_back(fastring(from));
-    return v;
-}
-
-fastring replace(const char* s, const char* sub, const char* to, uint32 maxreplace) {
-    const char* p;
-    const char* from = s;
-    size_t n = strlen(sub);
-    size_t m = strlen(to);
-
-    fastring x;
-
-    while ((p = strstr(from, sub))) {
-        x.append(from, p - from);
-        x.append(to, m);
-        from = p + n;
-        if (--maxreplace == 0) break;
-    }
-
-    if (from < s + strlen(s)) x.append(from);
-    return x;
-}
-
-fastring replace(const fastring& s, const char* sub, const char* to, uint32 maxreplace) {
-    const char* from = s.c_str();
-    const char* p = strstr(from, sub);
-    if (!p) return s;
-
-    size_t n = strlen(sub);
-    size_t m = strlen(to);
-    fastring x(s.size());
-
-    do {
-        x.append(from, p - from).append(to, m);
-        from = p + n;
-        if (--maxreplace == 0) break;
-    } while ((p = strstr(from, sub)));
-
-    if (from < s.data() + s.size()) x.append(from);
+    if (s < end) x.append(s, end - s);
     return x;
 }
 

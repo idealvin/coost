@@ -9,6 +9,19 @@
 #include <string>
 #include <ostream>
 
+namespace str {
+__coapi char* memrchr(const char* s, char c, size_t n);
+__coapi char* memmem(const char* s, size_t n, const char* p, size_t m);
+__coapi char* memimem(const char* s, size_t n, const char* p, size_t m);
+__coapi char* memrmem(const char* s, size_t n, const char* p, size_t m);
+__coapi bool match(const char* s, size_t n, const char* p, size_t m);
+
+inline int memcmp(const char* s, size_t n, const char* p, size_t m) {
+    const int i = ::memcmp(s, p, n < m ? n : m);
+    return i != 0 ? i : (n < m ? -1 : n != m);
+}
+} // str
+
 class __coapi fastring : public fast::stream {
   public:
     static const size_t npos = (size_t)-1;
@@ -241,7 +254,7 @@ class __coapi fastring : public fast::stream {
     }
 
     int compare(const char* s, size_t n) const {
-        return _memcmp(_p, _size, s, n);
+        return str::memcmp(_p, _size, s, n);
     }
 
     int compare(const char* s) const {
@@ -258,8 +271,8 @@ class __coapi fastring : public fast::stream {
 
     int compare(size_t pos, size_t len, const char* s, size_t n) const {
         const intptr_t x = (intptr_t)(_size - pos);
-        if (x > 0) return _memcmp(_p + pos, len < (size_t)x ? len : x, s, n);
-        return _memcmp(_p, 0, s, n);
+        if (x > 0) return str::memcmp(_p + pos, len < (size_t)x ? len : x, s, n);
+        return str::memcmp(_p, 0, s, n);
     }
 
     int compare(size_t pos, size_t len, const char* s) const {
@@ -307,7 +320,7 @@ class __coapi fastring : public fast::stream {
     }
 
     bool starts_with(const char* s, size_t n) const {
-        return n == 0 || (n <= _size && memcmp(_p, s, n) == 0);
+        return n == 0 || (n <= _size && ::memcmp(_p, s, n) == 0);
     }
 
     bool starts_with(const char* s) const {
@@ -327,7 +340,7 @@ class __coapi fastring : public fast::stream {
     }
 
     bool ends_with(const char* s, size_t n) const {
-        return n == 0 || (n <= _size && memcmp(_p + _size - n, s, n) == 0);
+        return n == 0 || (n <= _size && ::memcmp(_p + _size - n, s, n) == 0);
     }
 
     bool ends_with(const char* s) const {
@@ -375,7 +388,7 @@ class __coapi fastring : public fast::stream {
         return this->remove_suffix(s.data(), s.size());
     }
 
-    // remove character @c on the left or right side, or both sides
+    // remove character @c at the left or right side, or both sides
     // @d: 'l' or 'L' for left, 'r' or 'R' for right, otherwise for both sides
     fastring& trim(char c, char d='b');
 
@@ -387,7 +400,7 @@ class __coapi fastring : public fast::stream {
         return this->trim((char)c, d);
     }
 
-    // remove characters in @s on the left or right side, or both sides
+    // remove characters in @s at the left or right side, or both sides
     // @d: 'l' or 'L' for left, 'r' or 'R' for right, otherwise for both sides
     fastring& trim(const char* s=" \t\r\n", char d='b');
     
@@ -405,16 +418,16 @@ class __coapi fastring : public fast::stream {
         return this->trim(std::forward<X>(x)...);
     }
 
-    fastring& replace(const char* sub, size_t n, const char* to, size_t m, size_t maxreplace=0);
+    // replace substring @sub (len: @n) with @to (len: @m)
+    // try @t times at most
+    fastring& replace(const char* sub, size_t n, const char* to, size_t m, size_t t=0);
 
-    // replace @sub in the string with @to
-    // @maxreplace: 0 for unlimited
-    fastring& replace(const char* sub, const char* to, size_t maxreplace=0) {
-        return this->replace(sub, strlen(sub), to, strlen(to), maxreplace);
+    fastring& replace(const char* sub, const char* to, size_t t=0) {
+        return this->replace(sub, strlen(sub), to, strlen(to), t);
     }
 
-    fastring& replace(const fastring& sub, const fastring& to, size_t maxreplace=0) {
-        return this->replace(sub.data(), sub.size(), to.data(), to.size(), maxreplace);
+    fastring& replace(const fastring& sub, const fastring& to, size_t t=0) {
+        return this->replace(sub.data(), sub.size(), to.data(), to.size(), t);
     }
 
     fastring& tolower();
@@ -474,14 +487,14 @@ class __coapi fastring : public fast::stream {
 
     // find sub string @s
     size_t find(const char* s) const {
-        char* const p = _memmem(_p, _size, s, strlen(s));
+        char* const p = str::memmem(_p, _size, s, strlen(s));
         return p ? p - _p : npos;
     }
 
     // find @s (length: @n) from @pos
     size_t find(const char* s, size_t pos, size_t n) const {
         if (pos < _size) {
-            char* const p = _memmem(_p + pos, _size - pos, s, n);
+            char* const p = str::memmem(_p + pos, _size - pos, s, n);
             return p ? p - _p : npos;
         }
         return npos;
@@ -504,14 +517,14 @@ class __coapi fastring : public fast::stream {
 
     // find @s (ignore the case)
     size_t ifind(const char* s) const {
-        char* const p = _memmem_i(_p, _size, s, strlen(s));
+        char* const p = str::memimem(_p, _size, s, strlen(s));
         return p ? p - _p : npos;
     }
 
     // find @s (length: @n) from @pos (ignore the case)
     size_t ifind(const char* s, size_t pos, size_t n) const {
         if (pos < _size) {
-            char* const p = _memmem_i(_p + pos, _size - pos, s, n);
+            char* const p = str::memimem(_p + pos, _size - pos, s, n);
             return p ? p - _p : npos;
         }
         return npos;
@@ -539,13 +552,13 @@ class __coapi fastring : public fast::stream {
 
     // reverse find char @c
     size_t rfind(char c) const {
-        char* const p = _memrchr(_p, c, _size);
+        char* const p = str::memrchr(_p, c, _size);
         return p ? p - _p : npos;
     }
 
     // reverse find char @c from @pos
     size_t rfind(char c, size_t pos) const {
-        char* const p = _memrchr(_p, c, pos < _size ? pos + 1 : _size);
+        char* const p = str::memrchr(_p, c, pos < _size ? pos + 1 : _size);
         return p ? p - _p : npos;
     }
 
@@ -553,7 +566,7 @@ class __coapi fastring : public fast::stream {
     size_t rfind(const char* s) const {
         const size_t n = strlen(s);
         if (n > 0) {
-            char* const p = _memmem_r(_p, _size, s, n);
+            char* const p = str::memrmem(_p, _size, s, n);
             return p ? p - _p : npos;
         }
         return _size;
@@ -562,7 +575,7 @@ class __coapi fastring : public fast::stream {
     // reverse find @s (length: @n) from @pos
     size_t rfind(const char* s, size_t pos, size_t n) const {
         if (n > 0) {
-            char* const p = _memmem_r(_p, pos >= _size ? _size : pos + 1, s, n);
+            char* const p = str::memrmem(_p, pos >= _size ? _size : pos + 1, s, n);
             return p ? p - _p : npos;
         }
         return pos >= _size ? _size : pos;
@@ -664,7 +677,7 @@ class __coapi fastring : public fast::stream {
     // * matches 0 or more characters
     // ? matches exactly one character
     bool match(const char* pattern) const {
-        return _match(_p, _size, pattern, strlen(pattern));
+        return str::match(_p, _size, pattern, strlen(pattern));
     }
 
     void shrink() {
@@ -672,17 +685,6 @@ class __coapi fastring : public fast::stream {
     }
 
   private:
-    static char* _memrchr(const char* s, char c, size_t n);
-    static char* _memmem(const char* s, size_t n, const char* p, size_t m);
-    static char* _memmem_i(const char* s, size_t n, const char* p, size_t m);
-    static char* _memmem_r(const char* s, size_t n, const char* p, size_t m);
-    static bool _match(const char* s, size_t n, const char* p, size_t m);
-
-    static int _memcmp(const char* s, size_t n, const char* p, size_t m) {
-        const int i = ::memcmp(s, p, n < m ? n : m);
-        return i != 0 ? i : (n < m ? -1 : n != m);
-    }
-
     fastring& _assign(const void* s, size_t n) {
         _size = n;
         if (n > 0) {

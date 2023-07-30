@@ -45,8 +45,15 @@ DEF_test(str) {
         EXPECT_EQ(v[2], "y");
 
         v = str::split("||x||y||", "||", 2);
+        EXPECT_EQ(v.size(), 3);
         EXPECT_EQ(v[0], "");
         EXPECT_EQ(v[1], "x");
+        EXPECT_EQ(v[2], "y||");
+
+        fastring s("||x||y||");
+        v = str::split(s.data(), s.size(), "||", 2, 2);
+        EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v[0], "");
         EXPECT_EQ(v[2], "y||");
     }
 
@@ -57,6 +64,7 @@ DEF_test(str) {
         fastring s("hello world");
         EXPECT_EQ(str::replace(s, "l", "x"), "hexxo worxd");
         EXPECT_EQ(str::replace(s, "o", "x"), "hellx wxrld");
+        EXPECT_EQ(str::replace(s, "o", "x", 1), "hellx world");
     }
 
     DEF_case(trim) {

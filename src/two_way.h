@@ -29,9 +29,6 @@
   LONG_NEEDLE_THRESHOLD.
 */
 
-#include <limits.h>
-#include <stdint.h>
-
 /* We use the Two-Way string matching algorithm, which guarantees
    linear complexity with constant space.  Additionally, for long
    needles, we also use a bad character shift table similar to the
@@ -66,7 +63,7 @@
 # define CANON_ELEMENT(c) c
 #endif
 #ifndef CMP_FUNC
-# define CMP_FUNC memcmp
+# define CMP_FUNC ::memcmp
 #endif
 
 /* Perform a critical factorization of NEEDLE, of length NEEDLE_LEN.
