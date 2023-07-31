@@ -4,6 +4,23 @@
 
 namespace str {
 
+fastring replace(const char* s, size_t n, const char* sub, size_t m, const char* to, size_t l, size_t t) {
+    if (unlikely(m == 0)) return fastring(s, n);
+
+    const char* p;
+    const char* const end = s + n;
+    fastring x(n);
+
+    while ((p = str::memmem(s, end - s, sub, m))) {
+        x.append(s, p - s).append(to, l);
+        s = p + m;
+        if (t && --t == 0) break;
+    }
+
+    if (s < end) x.append(s, end - s);
+    return x;
+}
+
 co::vector<fastring> split(const char* s, size_t n, char c, size_t t) {
     co::vector<fastring> v;
     v.reserve(8);
@@ -11,7 +28,7 @@ co::vector<fastring> split(const char* s, size_t n, char c, size_t t) {
     const char* p;
     const char* const end = s + n;
 
-    while ((p = (const char*) memchr(s, c, end - s))) {
+    while ((p = (const char*) ::memchr(s, c, end - s))) {
         v.emplace_back(s, p - s);
         s = p + 1;
         if (v.size() == t) break;
@@ -23,6 +40,7 @@ co::vector<fastring> split(const char* s, size_t n, char c, size_t t) {
 
 co::vector<fastring> split(const char* s, size_t n, const char* c, size_t m, size_t t) {
     co::vector<fastring> v;
+    if (unlikely(m == 0)) return v;
     v.reserve(8);
 
     const char* p;
@@ -36,21 +54,6 @@ co::vector<fastring> split(const char* s, size_t n, const char* c, size_t m, siz
 
     if (s < end) v.emplace_back(s, end - s);
     return v;
-}
-
-fastring replace(const char* s, size_t n, const char* sub, size_t m, const char* to, size_t l, size_t t) {
-    const char* p;
-    const char* const end = s + n;
-    fastring x(n);
-
-    while ((p = str::memmem(s, end - s, sub, m))) {
-        x.append(s, p - s).append(to, l);
-        s = p + m;
-        if (t && --t == 0) break;
-    }
-
-    if (s < end) x.append(s, end - s);
-    return x;
 }
 
 // co::error() is equal to errno on linux/mac, that's not the fact on windows.
