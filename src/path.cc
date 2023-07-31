@@ -1,25 +1,21 @@
 #include "co/path.h"
+#include "ctype.h"
 
 namespace path {
 
-fastring clean(const fastring& s) {
-    if (s.empty()) return fastring(1, '.');
+fastring clean(const char* s, size_t n) {
+    if (n == 0) return fastring(1, '.');
 
-    fastring r(s.data(), s.size());
-    size_t n = s.size();
-
+    fastring r(s, n);
     bool rooted = s[0] == '/';
-    size_t beg = rooted ? 1 : 0;
-    size_t p = rooted ? 1 : 0;      // index for string r
-    size_t dotdot = rooted ? 1 : 0; // index where .. must stop
+    size_t beg = rooted;
+    size_t p = rooted;      // index for string r
+    size_t dotdot = rooted; // index where .. must stop
 
   #ifdef _WIN32
-    if (!rooted && s.size() > 2 && s[1] == ':' && s[2] == '/'){
-        const char c = s[0];
-        if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
-            rooted = true;
-            beg = p = dotdot = 3;
-        }
+    if (!rooted && n > 2 && s[1] == ':' && s[2] == '/' && ::isalpha(s[0])) {
+        rooted = true;
+        beg = p = dotdot = 3;
     }
   #endif
 
@@ -58,23 +54,47 @@ fastring clean(const fastring& s) {
     }
 
     if (p == 0) return fastring(1, '.');
-    return r.substr(0, p);
+    if (p < r.size()) r.resize(p);
+    return r;
 }
 
-fastring base(const fastring& s) {
-    if (s.empty()) return fastring(1, '.');
+std::pair<fastring, fastring> split(const char* s, size_t n) {
+  #ifdef _WIN32
+    if (n == 2 && s[1] == ':' && ::isalpha(s[0])) {
+        return std::make_pair(fastring(s, n), fastring());
+    }
+  #endif
+ 
+    const char* p = str::memrchr(s, '/', n) + 1;
+    if (p != (char*)1) {
+        const size_t m = p - s;
+        return std::make_pair(fastring(s, m), fastring(p, n - m));
+    }
+    return std::make_pair(fastring(), fastring(s, n));
+}
 
-    size_t p = s.size();
+fastring dir(const char* s, size_t n) {
+  #ifdef _WIN32
+    if (n == 2 && s[1] == ':' && ::isalpha(s[0])) {
+        return fastring(s, n);
+    }
+  #endif
+ 
+    const char* p = str::memrchr(s, '/', n);
+    return p ? clean(fastring(s, p + 1 - s)): fastring(1, '.');
+}
+
+fastring base(const char* s, size_t n) {
+    if (n == 0) return fastring(1, '.');
+
+    size_t p = n;
     for (; p > 0; --p) {
         if (s[p - 1] != '/') break;
     }
     if (p == 0) return fastring(1, '/');
   #ifdef _WIN32
-    if (p == 2 && s[1] == ':') {
-        const char c = s[0];
-        if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
-            return s.substr(0, s.size() > 2 ? 3 : 2);
-        }
+    if (p == 2 && s[1] == ':' && ::isalpha(s[0])) {
+        return fastring(s, n > 3 ? 3 : n);
     }
   #endif
 
@@ -82,12 +102,13 @@ fastring base(const fastring& s) {
     for (; p > 0; --p) {
         if (s[p - 1] == '/') break;
     }
-    return s.substr(p, e - p);
+    return fastring(s + p, e - p);
 }
 
-fastring ext(const fastring& s) {
-    for (size_t i = s.size() - 1; i != (size_t)-1 && s[i] != '/'; --i) {
-        if (s[i] == '.') return s.substr(i);
+fastring ext(const char* s, size_t n) {
+    const char* const e = s + n;
+    for (const char* p = e; p != s && *--p != '/';) {
+        if (*p == '.') return fastring(p, e - p);
     }
     return fastring();
 }
