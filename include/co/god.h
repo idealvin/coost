@@ -98,7 +98,7 @@ inline bool eq(const void* p, const void* q) {
 }
 
 // copy N bytes from @src to @dst
-template<int N>
+template<size_t N>
 inline void copy(void* dst, const void* src) {
     copy<N - 1>(dst, src);
     *((char*)dst + N - 1) = *((const char*)src + N - 1);
