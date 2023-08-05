@@ -34,8 +34,6 @@ int64 fsize(const char* path) {
     return ::lstat(path, &attr) == 0 ? attr.st_size : -1;
 }
 
-// p = false  ->  mkdir
-// p = true   ->  mkdir -p
 bool mkdir(const char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
@@ -43,12 +41,8 @@ bool mkdir(const char* path, bool p) {
     if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
 
     fastring parent(path, s - path);
-    
-    if (fs::exists(parent.c_str())) {
-        return ::mkdir(path, 0755) == 0;
-    } else {
-        return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
-    }
+    if (fs::exists(parent.c_str())) return ::mkdir(path, 0755) == 0;
+    return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
 }
 
 bool mkdir(char* path, bool p) {
@@ -68,8 +62,6 @@ bool mkdir(char* path, bool p) {
     }
 }
 
-// rf = false  ->  rm or rmdir
-// rf = true   ->  rm -rf
 bool remove(const char* path, bool rf) {
     if (!fs::exists(path)) return true;
 
@@ -77,11 +69,10 @@ bool remove(const char* path, bool rf) {
         if (fs::isdir(path)) return ::rmdir(path) == 0;
         return ::unlink(path) == 0;
     } else {
-        fastring cmd(strlen(path) + 9);
+        fastring cmd(strlen(path) + 10);
         cmd.append("rm -rf \"").append(path).append('"');
         FILE* f = popen(cmd.c_str(), "w");
-        if (f == NULL) return false;
-        return pclose(f) != -1;
+        return f ? pclose(f) != -1 : false;
     }
 }
 
