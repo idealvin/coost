@@ -249,10 +249,10 @@ class CoroutinePool {
   private:
     int _c; // current block
     int _o; // offset in the current block [0, S)
-    co::array<Coroutine*> _v;
-    co::array<int> _use_count;
-    co::array<int> _v0; // id of coroutine in _v[0]
-    co::array<int> _vc; // id of coroutine in _v[_c]
+    co::vector<Coroutine*> _v;
+    co::vector<int> _use_count;
+    co::vector<int> _v0; // id of coroutine in _v[0]
+    co::vector<int> _vc; // id of coroutine in _v[_c]
     co::set<int> _blks; // blocks available
 };
 
@@ -342,7 +342,7 @@ DEF_test(co) {
         b = p.pop();
         EXPECT_EQ(b->id, 2);
 
-        co::array<Coroutine*> ac;
+        co::vector<Coroutine*> ac;
         for (int i = 0; i < 29; ++i) ac.push_back(p.pop());
         d = p.pop();
         e = p.pop();
@@ -754,7 +754,7 @@ DEF_test(co) {
 
         int n = co::sched_num();
         auto& scheds = co::scheds();
-        co::array<int> vi(n, 0);
+        co::vector<int> vi(n, 0);
 
         co::wait_group wg;
         wg.add(n);

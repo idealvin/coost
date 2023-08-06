@@ -827,7 +827,7 @@ bool pipe::is_closed() const {
 
 class pool_impl {
   public:
-    typedef co::array<void*> V;
+    typedef co::vector<void*> V;
 
     pool_impl()
         : _maxcap((size_t)-1), _refn(1) {

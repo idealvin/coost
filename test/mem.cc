@@ -9,7 +9,7 @@ DEF_bool(xfree, false, "test xfree");
 
 void test_fun(int id) {
     int N = FLG_n;
-    co::array<void*> v(N);
+    co::vector<void*> v(N);
     fastream s(1024);
     co::Timer t;
     int64 us;
@@ -108,17 +108,8 @@ void test_vector() {
     int64 us;
     double avg = 0;
 
-    co::array<int> ca;
     co::vector<int> cv;
     std::vector<int> sv;
-
-    t.restart();
-    for (int i = 0; i < N; ++i) {
-        ca.push_back(i);
-    }
-    us = t.us();
-    avg = us * 1000.0 / N;
-    s << "co::array " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {
@@ -195,8 +186,8 @@ void test_unordered_map() {
 }
 
 auto& gMtx = *co::make_static<std::mutex>();
-auto& gA = *co::make_static<co::array<void*>>(1024 * 1024);
-auto& gB = *co::make_static<co::array<void*>>(1024 * 1024);
+auto& gA = *co::make_static<co::vector<void*>>(1024 * 1024);
+auto& gB = *co::make_static<co::vector<void*>>(1024 * 1024);
 
 void test_xalloc() {
     co::Timer t;

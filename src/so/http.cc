@@ -938,7 +938,7 @@ void easy(const char* root_dir, const char* ip, int port) {
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
     typedef co::lru_map<fastring, std::pair<fastring, int64>> Map;
-    co::vector<Map> contents(co::sched_num());
+    co::vector<Map> contents(co::sched_num(), 0);
     fastring root(path::clean(root_dir));
 
     serv.on_req(

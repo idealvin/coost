@@ -3,7 +3,6 @@
 #include "co/os.h"
 #include "co/mem.h"
 #include "co/str.h"
-#include "co/array.h"
 #include "co/time.h"
 #include "co/co.h"
 #include "../co/hook.h"

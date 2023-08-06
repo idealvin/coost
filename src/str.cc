@@ -22,9 +22,7 @@ fastring replace(const char* s, size_t n, const char* sub, size_t m, const char*
 }
 
 co::vector<fastring> split(const char* s, size_t n, char c, size_t t) {
-    co::vector<fastring> v;
-    v.reserve(8);
-
+    co::vector<fastring> v(8);
     const char* p;
     const char* const end = s + n;
 

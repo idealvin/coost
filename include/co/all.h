@@ -6,7 +6,6 @@
 #include "closure.h"
 #include "defer.h"
 #include "god.h"
-#include "maybe.h"
 
 #include "fast.h"
 #include "fastring.h"

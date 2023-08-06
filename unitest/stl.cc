@@ -60,9 +60,9 @@ DEF_test(lru_map) {
     EXPECT_EQ(i->second, 8);
 }
 
-DEF_test(array){
+DEF_test(vector){
     DEF_case(base) {
-        co::array<int> v;
+        co::vector<int> v;
         EXPECT(v.empty());
         EXPECT_EQ(v.size(), 0);
         EXPECT_EQ(v.capacity(), 0);
@@ -75,11 +75,11 @@ DEF_test(array){
     }
 
     DEF_case(construct) {
-        co::array<int> _(8);
+        co::vector<int> _(8);
         EXPECT_EQ(_.size(), 0);
         EXPECT_EQ(_.capacity(), 8);
 
-        co::array<int> v(8, 7);
+        co::vector<int> v(8, 7);
         EXPECT_EQ(v.size(), 8);
         EXPECT_EQ(v.capacity(), 8);
         EXPECT_EQ(v[0], 7);
@@ -87,7 +87,7 @@ DEF_test(array){
         EXPECT_EQ(v.front(), 7);
         EXPECT_EQ(v.back(), 7);
 
-        co::array<int> u(v);
+        co::vector<int> u(v);
         EXPECT_EQ(u.size(), 8);
         EXPECT_EQ(u.capacity(), 8);
         EXPECT_EQ(u[0], 7);
@@ -106,50 +106,50 @@ DEF_test(array){
         EXPECT_EQ(u.size(), 8);
         EXPECT_EQ(u.capacity(), 8);
 
-        co::array<int> w(std::move(u));
+        co::vector<int> w(std::move(u));
         EXPECT_EQ(u.size(), 0);
         EXPECT_EQ(u.capacity(), 0);
         EXPECT_EQ(w.size(), 8);
         EXPECT_EQ(w.capacity(), 8);
 
-        co::array<fastring> a(8, 0);
+        co::vector<fastring> a(8, 0);
         EXPECT_EQ(a.size(), 8);
         EXPECT_EQ(a.capacity(), 8);
         EXPECT_EQ(a[0].data(), (const char*)0);
 
-        co::array<fastring> b(8, (size_t)16);
+        co::vector<fastring> b(8, (size_t)16);
         EXPECT_EQ(b.size(), 8);
         EXPECT_EQ(b.capacity(), 8);
         EXPECT_EQ(b[0].capacity(), 16);
         EXPECT_EQ(b[7].capacity(), 16);
 
-        co::array<int> x = { 1, 2, 3 };
+        co::vector<int> x = { 1, 2, 3 };
         EXPECT_EQ(x.size(), 3);
         EXPECT_EQ(x[0], 1);
         EXPECT_EQ(x[1], 2);
         EXPECT_EQ(x[2], 3);
 
-        co::array<int> z(x.begin(), x.end());
+        co::vector<int> z(x.begin(), x.end());
         EXPECT_EQ(z.size(), 3);
         EXPECT_EQ(z[0], 1);
         EXPECT_EQ(z[1], 2);
         EXPECT_EQ(z[2], 3);
 
-        co::array<int> k(z.data(), 2);
+        co::vector<int> k(z.data(), 2);
         EXPECT_EQ(k.size(), 2);
         EXPECT_EQ(k[0], 1);
         EXPECT_EQ(k[1], 2);
 
         int xx[4] = { 1, 2, 3, 4 };
-        co::array<int> m(xx, 4);
+        co::vector<int> m(xx, 4);
         EXPECT_EQ(m.size(), 4);
         EXPECT_EQ(m[0], 1);
         EXPECT_EQ(m[3], 4);
     }
 
     DEF_case(copy) {
-        co::array<int> v = { 1, 2, 3 };
-        co::array<int> u(++v.begin(), v.end());
+        co::vector<int> v = { 1, 2, 3 };
+        co::vector<int> u(++v.begin(), v.end());
         EXPECT_EQ(u.size(), 2);
         EXPECT_EQ(u[0], 2);
         EXPECT_EQ(u[1], 3);
@@ -172,7 +172,7 @@ DEF_test(array){
     }
 
     DEF_case(append) {
-        co::array<int> v(4);
+        co::vector<int> v(4);
         v.append(v);
         EXPECT_EQ(v.size(), 0);
 
@@ -215,11 +215,11 @@ DEF_test(array){
 
         fastring s("hello");
         const auto p = s.data();
-        co::array<fastring> u;
+        co::vector<fastring> u;
         u.append(std::move(s));
         EXPECT_EQ(u[0].data(), p);
 
-        co::array<fastring> w;
+        co::vector<fastring> w;
         w.append(std::move(u));
         EXPECT_EQ(w[0].data(), p);
         EXPECT_EQ(u[0].size(), 0);
@@ -227,7 +227,7 @@ DEF_test(array){
     }
 
     DEF_case(modify) {
-        co::array<int> v = { 1, 2, 3, 4 };
+        co::vector<int> v = { 1, 2, 3, 4 };
         EXPECT_EQ(v.size(), 4);
 
         v.resize(2);
@@ -256,7 +256,7 @@ DEF_test(array){
 
         fastring s("hello");
         const auto p = s.data();
-        co::array<fastring> a(8);
+        co::vector<fastring> a(8);
         a.push_back(std::move(s));
         EXPECT_EQ(a.size(), 1);
         EXPECT_EQ(a[0].data(), p);
@@ -265,11 +265,11 @@ DEF_test(array){
         EXPECT(a.empty());
         EXPECT_EQ(t.data(), p);
 
-        a.emplace(3, 'x');
+        a.emplace_back(3, 'x');
         EXPECT_EQ(a.size(), 1);
         EXPECT_EQ(a[0], "xxx");
 
-        a.emplace("8888");
+        a.emplace_back("8888");
         EXPECT_EQ(a.size(), 2);
         EXPECT_EQ(a.back(), "8888");
     }
@@ -285,13 +285,13 @@ DEF_test(array){
     };
 
     DEF_case(resize) {
-        co::array<int> _(8, 3);
+        co::vector<int> _(8, 3);
         _.resize(16);
         EXPECT_EQ(_[7], 3);
         EXPECT_EQ(_[8], 0);
         EXPECT_EQ(_[15], 0);
 
-        co::array<A> a(8, 0);
+        co::vector<A> a(8, 0);
         EXPECT_EQ(gc, 8);
 
         a.resize(16);
@@ -300,10 +300,10 @@ DEF_test(array){
         a.resize(8);
         EXPECT_EQ(gd, 8);
 
-        co::array<A> b(a);
+        co::vector<A> b(a);
         EXPECT_EQ(gc, 24);
 
-        co::array<A> c(std::move(b));
+        co::vector<A> c(std::move(b));
         EXPECT_EQ(gc, 24);
 
         c.remove_back(); // gd + 1

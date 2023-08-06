@@ -4,8 +4,8 @@
 namespace unitest {
 namespace xx {
 
-inline co::array<Test>& tests() {
-    static auto t = co::_make_static<co::array<Test>>(32);
+inline co::vector<Test>& tests() {
+    static auto t = co::_make_static<co::vector<Test>>(32);
     return *t;
 }
 
@@ -24,7 +24,7 @@ int run_tests() {
     co::Timer timer;
     auto& tests = xx::tests();
 
-    co::array<xx::Test*> enabled;
+    co::vector<xx::Test*> enabled(32);
     for (auto& t: tests) if (t.enabled) enabled.push_back(&t);
 
     if (enabled.empty()) { /* run all tests by default */

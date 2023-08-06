@@ -2,20 +2,20 @@
 
 #include "def.h"
 #include "mem.h"
-#include "array.h"
+#include "vector.h"
 #include "fastring.h"
 
 namespace flag {
 
 // parse command line arguments.
 // config file specified by -conf or -config will also be parsed.
-__coapi co::array<fastring> parse(int argc, char** argv);
+__coapi co::vector<fastring> parse(int argc, char** argv);
 
 // parse config file
 __coapi void parse(const fastring& path);
 
 // deprecated, use flag::parse() instead
-inline co::array<fastring> init(int argc, char** argv) {
+inline co::vector<fastring> init(int argc, char** argv) {
     return flag::parse(argc, argv);
 }
 

@@ -105,12 +105,12 @@ inline co::Hook& gHook() {
 }
 
 inline struct hostent* gHostEnt() {
-    static auto& e = *co::_make_static<co::vector<struct hostent>>(co::sched_num());
+    static auto& e = *co::_make_static<co::vector<struct hostent>>(co::sched_num(), 0);
     return &e[co::xx::gSched->id()];
 }
 
 inline co::mutex& gDnsMutex_t() {
-    static auto& m = *co::_make_static<co::vector<co::mutex>>(co::sched_num());
+    static auto& m = *co::_make_static<co::vector<co::mutex>>(co::sched_num(), 0);
     return m[co::xx::gSched->id()];
 }
 

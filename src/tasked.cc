@@ -1,5 +1,5 @@
 #include "co/tasked.h"
-#include "co/array.h"
+#include "co/vector.h"
 #include "co/time.h"
 #include "co/co/thread.h"
 
@@ -30,13 +30,13 @@ class TaskedImpl {
 
     void run_in(F&& f, int sec) {
         std::lock_guard<std::mutex> g(_mtx);
-        _new_tasks.emplace(std::move(f), 0, sec);
+        _new_tasks.emplace_back(std::move(f), 0, sec);
         if (sec <= 0) _ev.signal();
     }
 
     void run_every(F&& f, int sec) {
         std::lock_guard<std::mutex> g(_mtx);
-        _new_tasks.emplace(std::move(f), sec, sec);
+        _new_tasks.emplace_back(std::move(f), sec, sec);
     }
 
     void run_at(F&& f, int hour, int minute, int second, bool daily);
@@ -48,8 +48,8 @@ class TaskedImpl {
 
   private:
     int _stop;
-    co::array<Task> _tasks;
-    co::array<Task> _new_tasks;
+    co::vector<Task> _tasks;
+    co::vector<Task> _new_tasks;
     co::sync_event _ev;
     std::mutex _mtx;
 };
@@ -71,14 +71,14 @@ void TaskedImpl::run_at(F&& f, int hour, int minute, int second, bool daily) {
     int diff = seconds - now_seconds;
 
     std::lock_guard<std::mutex> g(_mtx);
-    _new_tasks.emplace(std::move(f), (daily ? 86400 : 0), diff);
+    _new_tasks.emplace_back(std::move(f), (daily ? 86400 : 0), diff);
 }
 
 void TaskedImpl::loop() {
     int64 ms = 0;
     int sec = 0;
     co::Timer timer;
-    co::array<Task> tmp(32);
+    co::vector<Task> tmp(32);
 
     while (!_stop) {
         timer.restart();

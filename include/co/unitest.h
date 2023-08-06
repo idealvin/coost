@@ -2,7 +2,7 @@
 
 #include "cout.h"
 #include "flag.h"
-#include "array.h"
+#include "vector.h"
 #include "fastring.h"
 
 namespace unitest {
@@ -33,7 +33,7 @@ struct Test {
     const char* c;    // current case name
     bool& enabled;    // if this test unit is enabled
     void (*f)(Test&);
-    co::array<Failed> failed;
+    co::vector<Failed> failed;
 };
 
 __coapi bool add_test(const char* name, bool& e, void(*f)(Test&));

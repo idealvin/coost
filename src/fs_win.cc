@@ -301,8 +301,7 @@ co::vector<fastring> dir::all() const {
     dctx* d = (dctx*)_p;
     if (!d || d->d == INVALID_HANDLE_VALUE) return co::vector<fastring>();
 
-    co::vector<fastring> r;
-    r.reserve(8);
+    co::vector<fastring> r(8);
     do {
         char* const p = d->e.cFileName;
         if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) {

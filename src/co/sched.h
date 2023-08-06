@@ -223,10 +223,10 @@ class CoroutinePool {
   private:
     int _c; // current block
     int _o; // offset in the current block [0, S)
-    co::array<Coroutine*> _v;
-    co::array<int> _use_count;
-    co::array<int> _v0; // id of coroutine in _v[0]
-    co::array<int> _vc; // id of coroutine in _v[_c]
+    co::vector<Coroutine*> _v;
+    co::vector<int> _use_count;
+    co::vector<int> _v0; // id of coroutine in _v[0]
+    co::vector<int> _vc; // id of coroutine in _v[_c]
     co::set<int> _blks; // blocks available
 };
 
@@ -247,8 +247,8 @@ class alignas(co::cache_line_size) TaskManager {
     }
 
     void get_all_tasks(
-        co::array<Closure*>& new_tasks,
-        co::array<Coroutine*>& ready_tasks
+        co::vector<Closure*>& new_tasks,
+        co::vector<Coroutine*>& ready_tasks
     ) {
         std::lock_guard<std::mutex> g(_mtx);
         if (!_new_tasks.empty()) _new_tasks.swap(new_tasks);
@@ -257,8 +257,8 @@ class alignas(co::cache_line_size) TaskManager {
  
   private:
     std::mutex _mtx;
-    co::array<Closure*> _new_tasks;
-    co::array<Coroutine*> _ready_tasks;
+    co::vector<Closure*> _new_tasks;
+    co::vector<Coroutine*> _ready_tasks;
 };
 
 inline fastream& operator<<(fastream& fs, const timer_id_t& id) {
@@ -283,7 +283,7 @@ class TimerManager {
     timer_id_t end() { return _timer.end(); }
 
     // get timedout coroutines, return time(ms) to wait for the next timeout
-    uint32 check_timeout(co::array<Coroutine*>& res);
+    uint32 check_timeout(co::vector<Coroutine*>& res);
 
   private:
     co::multimap<int64, Coroutine*> _timer;        // timed-wait tasks: <time_ms, co>
@@ -447,7 +447,7 @@ class Sched {
     TimerManager _timer_mgr;
     uint32 _wait_ms;     // time the epoll to wait for
     bool _timeout;
-    co::array<void*> _bufs;
+    co::vector<void*> _bufs;
     CoroutinePool _co_pool;
     Coroutine* _running; // the current running coroutine
     Coroutine* _main_co; // save the main context

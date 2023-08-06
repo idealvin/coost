@@ -281,9 +281,7 @@ co::vector<fastring> dir::all() const {
     dctx* d = (dctx*)_p;
     if (!d || !d->d) return co::vector<fastring>();
 
-    co::vector<fastring> r;
-    r.reserve(8);
-
+    co::vector<fastring> r(8);
     while ((d->e = ::readdir(d->d))) {
         char* const p = d->e->d_name;
         // ignore . and ..

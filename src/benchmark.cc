@@ -14,8 +14,8 @@ int calc_iters(int64 ns) {
     return 1;
 }
 
-inline co::array<Group>& groups() {
-    static auto g = co::_make_static<co::array<Group>>();
+inline co::vector<Group>& groups() {
+    static auto g = co::_make_static<co::vector<Group>>();
     return *g;
 }
 

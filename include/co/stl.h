@@ -1,12 +1,12 @@
 #pragma once
 
 #include "clist.h"
-#include "array.h"
 #include "table.h"
+#include "vector.h"
 #include "hash/murmur_hash.h"
-#include <vector>
 #include <list>
 #include <deque>
+#include <vector>
 #include <map>
 #include <set>
 #include <unordered_map>
@@ -60,9 +60,6 @@ struct eq<const char*> {
 };
 
 } // xx
-
-template<class T, class Alloc = co::stl_allocator<T>>
-using vector = std::vector<T, Alloc>;
 
 template<class T, class Alloc = co::stl_allocator<T>>
 using deque = std::deque<T, Alloc>;

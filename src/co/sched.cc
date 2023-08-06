@@ -131,8 +131,8 @@ void Sched::resume(Coroutine* co) {
 
 void Sched::loop() {
     gSched = this;
-    co::array<Closure*> new_tasks(512);
-    co::array<Coroutine*> ready_tasks(512);
+    co::vector<Closure*> new_tasks(512);
+    co::vector<Coroutine*> ready_tasks(512);
     co::Timer timer;
 
     while (!_x.stopped) {
@@ -191,7 +191,7 @@ void Sched::loop() {
                     this->resume(this->new_coroutine(new_tasks[i]));
                 }
                 if (c >= 8192 && s <= (c >> 1)) {
-                    co::array<Closure*>(s).swap(new_tasks);
+                    co::vector<Closure*>(s).swap(new_tasks);
                 }
                 new_tasks.clear();
             }
@@ -204,7 +204,7 @@ void Sched::loop() {
                     this->resume(ready_tasks[i]);
                 }
                 if (c >= 8192 && s <= (c >> 1)) {
-                    co::array<Coroutine*>(s).swap(ready_tasks);
+                    co::vector<Coroutine*>(s).swap(ready_tasks);
                 }
                 ready_tasks.clear();
             }
@@ -232,7 +232,7 @@ void Sched::loop() {
     _x.ev.signal();
 }
 
-uint32 TimerManager::check_timeout(co::array<Coroutine*>& res) {
+uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
     int64 now_ms = now::ms();
@@ -267,7 +267,7 @@ inline bool& main_thread_as_sched() {
 
 struct SchedInfo {
     SchedInfo() : cputime(co::sched_num(), 0), seed(co::rand()) {}
-    co::array<int64> cputime;
+    co::vector<int64> cputime;
     uint32 seed;
 };
 
