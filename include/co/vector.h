@@ -71,9 +71,9 @@ class vector {
     }
 
     // create vector from an vector
-    vector(T* p, size_t n) : vector(n) {
+    vector(T* p, size_t n)
+        : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
         this->_copy_n(_p, p, n);
-        _size += n;
     }
 
     ~vector() { this->reset(); }
@@ -173,12 +173,19 @@ class vector {
         for (auto it = beg; it != end; ++it) this->append(*it);
     }
 
-    // append n elements, it is not safe if p overlaps with the internal buffer 
-    // of the vector, use safe_append() in that case.
+    // append n elements
     void append(const T* p, size_t n) {
-        this->reserve(_size + n);
-        this->_copy_n(_p + _size, p, n);
-        _size += n;
+        if (p < _p || p >= _p + _size) {
+            this->reserve(_size + n);
+            this->_copy_n(_p + _size, p, n);
+            _size += n;
+        } else {
+            assert(p + n <= _p + _size);
+            const size_t x = p - _p;
+            this->reserve(_size + n);
+            this->_copy_n(_p + _size, _p + x, n);
+            _size += n;
+        }
     }
 
     // append an vector, &x == this is ok.
@@ -205,19 +212,6 @@ class vector {
         }
     }
 
-    // it is ok if p overlaps with the internal buffer of the vector
-    void safe_append(const T* p, size_t n) {
-        if (p < _p || p >= _p + _size) {
-            this->append(p, n);
-        } else {
-            assert(p + n <= _p + _size);
-            const size_t x = p - _p;
-            this->reserve(_size + n);
-            this->_copy_n(_p + _size, _p + x, n);
-            _size += n;
-        }
-    }
-
     // insert a new element (construct with args x...) at the back
     //   - e.g. 
     //     co::vector<fastring> x; x.emplace_back(4, 'x'); // x.back() -> "xxxx"
@@ -239,7 +233,7 @@ class vector {
 
     // remove the last element
     void remove_back() {
-        this->_destruct(_p[--_size]);
+        if (_size > 0) this->_destruct(_p[--_size]);
     }
 
     // remove the nth element, and move the last element to the nth position
@@ -250,7 +244,7 @@ class vector {
                 new (_p + n) T(std::move(_p[--_size]));
                 this->_destruct(_p[_size]);
             } else {
-                this->remove_back();
+                this->_destruct(_p[--_size]);
             }
         }
     }
