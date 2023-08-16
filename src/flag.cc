@@ -330,17 +330,14 @@ inline void Mod::print_help() {
 
 // add quotes to string if necessary
 void format_str(fastring& s) {
-    size_t px = s.find('"');
-    size_t py = s.find('\'');
-    size_t pz = s.find('`');
-    if (px == s.npos && py == s.npos && pz == s.npos) return;
+    const size_t a = s.find_first_of("\"'`#");
+    const size_t b = s.find("//");
+    if (a == s.npos && b == s.npos) return;
 
-    fastring x(std::move(s));
-    s.reserve(x.size() + 8);
-    if (px == s.npos) { s << '"' << x << '"'; return; }
-    if (py == s.npos) { s << '\'' << x << '\''; return; }
-    if (pz == s.npos) { s << '`' << x << '`'; return; }
-    s << "```" << x << "```";
+    fastring r(std::move(s));
+    if (a == s.npos || !r.contains('"')) { s << '"' << r << '"'; return; }
+    if (!r.contains('\'')) { s << '\'' << r << '\''; return; }
+    s << "```" << r << "```";
 }
 
 void Mod::make_config(const fastring& exe) {
