@@ -208,7 +208,7 @@ DEF_test(vector){
         EXPECT_EQ(v[4], 7);
         EXPECT_EQ(v[7], 7);
 
-        v.safe_append(v.data() + 4, 4);
+        v.append(v.data() + 4, 4);
         EXPECT_EQ(v.size(), 12);
         EXPECT_EQ(v[8], 7);
         EXPECT_EQ(v[11], 7);
