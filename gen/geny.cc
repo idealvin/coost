@@ -22,20 +22,13 @@
 
 #line 2 "geny.yy"
 #include "gen.h"
-
-inline fastring make_uname() {
-    static int n = 0;
-    fastring s(16);
-    s << "_unamed_" << ++n;
-    return s;
-}
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #endif
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
-#line 12 "geny.yy"
+#line 5 "geny.yy"
 typedef union YYSTYPE {
     char* iden;
     char* keyword;
@@ -49,7 +42,7 @@ typedef union YYSTYPE {
     Object* tobject;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 53 "geny.cc"
+#line 46 "geny.cc"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -1139,54 +1132,54 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 60 "geny.yy"
+#line 54 "geny.yy"
 	{}
-#line 1145 "geny.cc"
+#line 1138 "geny.cc"
 break;
 case 2:
-#line 64 "geny.yy"
+#line 58 "geny.yy"
 	{}
-#line 1150 "geny.cc"
+#line 1143 "geny.cc"
 break;
 case 3:
-#line 65 "geny.yy"
+#line 59 "geny.yy"
 	{}
-#line 1155 "geny.cc"
+#line 1148 "geny.cc"
 break;
 case 4:
-#line 69 "geny.yy"
+#line 63 "geny.yy"
 	{}
-#line 1160 "geny.cc"
+#line 1153 "geny.cc"
 break;
 case 5:
-#line 73 "geny.yy"
+#line 67 "geny.yy"
 	{
         g_prog->add_pkg(S(yystack.l_mark[0].iden));
     }
-#line 1167 "geny.cc"
+#line 1160 "geny.cc"
 break;
 case 6:
-#line 79 "geny.yy"
+#line 73 "geny.yy"
 	{}
-#line 1172 "geny.cc"
+#line 1165 "geny.cc"
 break;
 case 7:
-#line 80 "geny.yy"
+#line 74 "geny.yy"
 	{}
-#line 1177 "geny.cc"
+#line 1170 "geny.cc"
 break;
 case 8:
-#line 84 "geny.yy"
+#line 78 "geny.yy"
 	{}
-#line 1182 "geny.cc"
+#line 1175 "geny.cc"
 break;
 case 9:
-#line 86 "geny.yy"
+#line 80 "geny.yy"
 	{}
-#line 1187 "geny.cc"
+#line 1180 "geny.cc"
 break;
 case 10:
-#line 90 "geny.yy"
+#line 84 "geny.yy"
 	{
         if (g_prog->service()) {
             cout << "error: found multiple service" << endl;
@@ -1196,10 +1189,10 @@ case 10:
         yystack.l_mark[-1].tservice->set_name(S(yystack.l_mark[-3].iden));
         g_prog->set_service(yystack.l_mark[-1].tservice);
     }
-#line 1200 "geny.cc"
+#line 1193 "geny.cc"
 break;
 case 11:
-#line 102 "geny.yy"
+#line 96 "geny.yy"
 	{
         yyval.tservice = yystack.l_mark[-1].tservice;
         fastring m = S(yystack.l_mark[0].iden);
@@ -1208,24 +1201,24 @@ case 11:
             exit(0);
         }
     }
-#line 1212 "geny.cc"
+#line 1205 "geny.cc"
 break;
 case 12:
-#line 110 "geny.yy"
+#line 104 "geny.yy"
 	{
         yyval.tservice = co::make<Service>();
     }
-#line 1219 "geny.cc"
+#line 1212 "geny.cc"
 break;
 case 13:
-#line 116 "geny.yy"
+#line 110 "geny.yy"
 	{
         yyval.iden = yystack.l_mark[-1].iden;
     }
-#line 1226 "geny.cc"
+#line 1219 "geny.cc"
 break;
 case 14:
-#line 122 "geny.yy"
+#line 116 "geny.yy"
 	{
         yyval.tobject = yystack.l_mark[-1].tobject;
         yyval.tobject->set_name(S(yystack.l_mark[-3].iden));
@@ -1235,10 +1228,10 @@ case 14:
             exit(0);
         }
     }
-#line 1239 "geny.cc"
+#line 1232 "geny.cc"
 break;
 case 15:
-#line 134 "geny.yy"
+#line 128 "geny.yy"
 	{
         yyval.tobject = yystack.l_mark[-1].tobject;
         if (!(yyval.tobject->add_field(yystack.l_mark[0].tfield))) {
@@ -1246,27 +1239,27 @@ case 15:
             exit(0);
         }
     }
-#line 1250 "geny.cc"
+#line 1243 "geny.cc"
 break;
 case 16:
-#line 141 "geny.yy"
+#line 135 "geny.yy"
 	{
         yyval.tobject = co::make<Object>();
     }
-#line 1257 "geny.cc"
+#line 1250 "geny.cc"
 break;
 case 17:
-#line 147 "geny.yy"
+#line 141 "geny.yy"
 	{
         yyval.tfield = co::make<Field>();
         yyval.tfield->set_type(yystack.l_mark[-2].ttype);
         yyval.tfield->set_name(S(yystack.l_mark[-1].iden));
         yyval.tfield->set_value(yystack.l_mark[0].tvalue);
     }
-#line 1267 "geny.cc"
+#line 1260 "geny.cc"
 break;
 case 18:
-#line 154 "geny.yy"
+#line 148 "geny.yy"
 	{
         yyval.tfield = co::make<Field>();
         auto a = co::make<Array>();
@@ -1274,21 +1267,20 @@ case 18:
         yyval.tfield->set_type(a);
         yyval.tfield->set_name(S(yystack.l_mark[-3].iden));
     }
-#line 1278 "geny.cc"
+#line 1271 "geny.cc"
 break;
 case 19:
-#line 162 "geny.yy"
+#line 156 "geny.yy"
 	{
-        yystack.l_mark[-1].tobject->set_name(make_uname());
-        g_prog->add_object(yystack.l_mark[-1].tobject);
+        g_prog->add_anony_object(yystack.l_mark[-1].tobject);
         yyval.tfield = co::make<Field>();
         yyval.tfield->set_type(yystack.l_mark[-1].tobject);
         yyval.tfield->set_name(S(yystack.l_mark[-3].iden));
     }
-#line 1289 "geny.cc"
+#line 1281 "geny.cc"
 break;
 case 20:
-#line 172 "geny.yy"
+#line 165 "geny.yy"
 	{
         fastring s = S(yystack.l_mark[0].iden);
         yyval.ttype = g_prog->find_object(s);
@@ -1297,188 +1289,187 @@ case 20:
             exit(0);
         }
     }
-#line 1301 "geny.cc"
+#line 1293 "geny.cc"
 break;
 case 21:
-#line 181 "geny.yy"
+#line 174 "geny.yy"
 	{
         yyval.ttype = yystack.l_mark[0].ttype;
     }
-#line 1308 "geny.cc"
+#line 1300 "geny.cc"
 break;
 case 22:
-#line 185 "geny.yy"
+#line 178 "geny.yy"
 	{
         auto a = co::make<Array>();
         a->set_element_type(yystack.l_mark[-1].ttype);
         yyval.ttype = a;
     }
-#line 1317 "geny.cc"
+#line 1309 "geny.cc"
 break;
 case 23:
-#line 191 "geny.yy"
+#line 184 "geny.yy"
 	{
         yyval.ttype = yystack.l_mark[0].tobject;
-        yyval.ttype->set_name(make_uname());
-        g_prog->add_object(yystack.l_mark[0].tobject);
+        g_prog->add_anony_object(yystack.l_mark[0].tobject);
     }
-#line 1326 "geny.cc"
+#line 1317 "geny.cc"
 break;
 case 24:
-#line 199 "geny.yy"
+#line 191 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("bool");
         yyval.ttype->set_type(type_bool);
     }
-#line 1335 "geny.cc"
+#line 1326 "geny.cc"
 break;
 case 25:
-#line 205 "geny.yy"
+#line 197 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("int");
         yyval.ttype->set_type(type_int);
     }
-#line 1344 "geny.cc"
+#line 1335 "geny.cc"
 break;
 case 26:
-#line 211 "geny.yy"
+#line 203 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("int32");
         yyval.ttype->set_type(type_int32);
     }
-#line 1353 "geny.cc"
+#line 1344 "geny.cc"
 break;
 case 27:
-#line 217 "geny.yy"
+#line 209 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("int64");
         yyval.ttype->set_type(type_int64);
     }
-#line 1362 "geny.cc"
+#line 1353 "geny.cc"
 break;
 case 28:
-#line 223 "geny.yy"
+#line 215 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("uint32");
         yyval.ttype->set_type(type_uint32);
     }
-#line 1371 "geny.cc"
+#line 1362 "geny.cc"
 break;
 case 29:
-#line 229 "geny.yy"
+#line 221 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("uint64");
         yyval.ttype->set_type(type_uint64);
     }
-#line 1380 "geny.cc"
+#line 1371 "geny.cc"
 break;
 case 30:
-#line 235 "geny.yy"
+#line 227 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("double");
         yyval.ttype->set_type(type_double);
     }
-#line 1389 "geny.cc"
+#line 1380 "geny.cc"
 break;
 case 31:
-#line 241 "geny.yy"
+#line 233 "geny.yy"
 	{
         yyval.ttype = co::make<Type>();
         yyval.ttype->set_name("string");
         yyval.ttype->set_type(type_string);
     }
-#line 1398 "geny.cc"
+#line 1389 "geny.cc"
 break;
 case 32:
-#line 249 "geny.yy"
+#line 241 "geny.yy"
 	{
         yyval.iden = yystack.l_mark[0].iden;
     }
-#line 1405 "geny.cc"
+#line 1396 "geny.cc"
 break;
 case 33:
-#line 255 "geny.yy"
+#line 247 "geny.yy"
 	{
         yyval.tvalue = yystack.l_mark[0].tvalue;
     }
-#line 1412 "geny.cc"
+#line 1403 "geny.cc"
 break;
 case 34:
-#line 258 "geny.yy"
+#line 250 "geny.yy"
 	{
         yyval.tvalue = nullptr;
     }
-#line 1419 "geny.cc"
+#line 1410 "geny.cc"
 break;
 case 35:
-#line 264 "geny.yy"
+#line 256 "geny.yy"
 	{
         yyval.tvalue = co::make<Value>();
         yyval.tvalue->set_bool(yystack.l_mark[0].bconst);
     }
-#line 1427 "geny.cc"
+#line 1418 "geny.cc"
 break;
 case 36:
-#line 269 "geny.yy"
+#line 261 "geny.yy"
 	{
         yyval.tvalue = co::make<Value>();
         yyval.tvalue->set_integer(yystack.l_mark[0].iconst);
     }
-#line 1435 "geny.cc"
+#line 1426 "geny.cc"
 break;
 case 37:
-#line 274 "geny.yy"
+#line 266 "geny.yy"
 	{
         yyval.tvalue = co::make<Value>();
         yyval.tvalue->set_double(yystack.l_mark[0].dconst);
     }
-#line 1443 "geny.cc"
+#line 1434 "geny.cc"
 break;
 case 38:
-#line 279 "geny.yy"
+#line 271 "geny.yy"
 	{
         yyval.tvalue = co::make<Value>();
         yyval.tvalue->set_string(yystack.l_mark[0].iden);
     }
-#line 1451 "geny.cc"
+#line 1442 "geny.cc"
 break;
 case 39:
-#line 286 "geny.yy"
+#line 278 "geny.yy"
 	{
         yyval.tobject = yystack.l_mark[-1].tobject;
     }
-#line 1458 "geny.cc"
+#line 1449 "geny.cc"
 break;
 case 40:
-#line 290 "geny.yy"
+#line 282 "geny.yy"
 	{
         yyval.tobject = yystack.l_mark[-1].tobject;
     }
-#line 1465 "geny.cc"
+#line 1456 "geny.cc"
 break;
 case 41:
-#line 296 "geny.yy"
+#line 288 "geny.yy"
 	{}
-#line 1470 "geny.cc"
+#line 1461 "geny.cc"
 break;
 case 42:
-#line 298 "geny.yy"
+#line 290 "geny.yy"
 	{}
-#line 1475 "geny.cc"
+#line 1466 "geny.cc"
 break;
 case 43:
-#line 300 "geny.yy"
+#line 292 "geny.yy"
 	{}
-#line 1480 "geny.cc"
+#line 1471 "geny.cc"
 break;
-#line 1482 "geny.cc"
+#line 1473 "geny.cc"
     default:
         break;
     }

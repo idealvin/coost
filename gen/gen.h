@@ -102,16 +102,12 @@ class Value {
     };
 };
 
+// anonymous 
 class Field {
   public:
     Field() : _type(0), _value(0) {}
     ~Field() {
-        if (_type) {
-            const auto t = _type->type();
-            if (t != type_object || _type->name().empty()) {
-                co::del(_type);
-            }
-        }
+        if (_type->type() != type_object) co::del(_type);
         if (_value) co::del(_value);
     }
 
@@ -137,10 +133,7 @@ class Array : public Type {
     }
 
     virtual ~Array() {
-        const auto t = _element_type->type();
-        if (t != type_object || _element_type->name().empty()) {
-            co::del(_element_type);
-        }
+        if (_element_type->type() != type_object) co::del(_element_type);
     }
 
     Type* element_type() const {
@@ -163,6 +156,7 @@ class Object : public Type {
 
     virtual ~Object() {
         for (auto& x : _fields) co::del(x);
+        for (auto& x : _anony_objects) co::del(x);
     }
 
     bool add_field(Field* f) {
@@ -176,9 +170,18 @@ class Object : public Type {
         return _fields;
     }
 
+    const co::vector<Object*>& anony_objects() const {
+        return _anony_objects;
+    }
+
+    void set_anony_objects(co::vector<Object*>&& x) {
+        _anony_objects = std::move(x);
+    }
+
   private:
     co::vector<Field*> _fields;
     co::hash_set<fastring> _keys;
+    co::vector<Object*> _anony_objects;
 };
 
 class Program {
@@ -207,7 +210,12 @@ class Program {
         auto it = _idx.emplace(x->name(), _objects.size());
         if (!it.second) return false;
         _objects.push_back(x);
+        x->set_anony_objects(std::move(_anony_objects));
         return true;
+    }
+
+    void add_anony_object(Object* x) {
+        _anony_objects.push_back(x);
     }
 
     Object* find_object(const fastring& name) const {
@@ -237,6 +245,7 @@ class Program {
     co::vector<fastring> _pkgs;
     Service* _serv;
     co::vector<Object*> _objects;
+    co::vector<Object*> _anony_objects;
     co::hash_map<fastring, size_t> _idx;
 };
 

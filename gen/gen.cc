@@ -13,7 +13,8 @@ void yyerror(const char* s) {
     cout << s << " at line " << yylineno << ", last token: " << yytext << endl;
 }
 
-int g_un = 0;
+int g_us = 0;
+int g_uv = 0;
 Program* g_prog = 0;
 fastring g_sname;
 fastring g_aname;
@@ -72,16 +73,22 @@ fastring array_proto(Array* a) {
     return s;
 }
 
-inline fastring make_uname() {
+inline fastring unamed_var() {
     fastring s(16);
-    s << "_unamed_v" << ++g_un;
+    s << "_unamed_v" << ++g_uv;
+    return s;
+}
+
+inline fastring unamed_struct() {
+    fastring s(16);
+    s << "_unamed_s" << ++g_us;
     return s;
 }
 
 void decode_array(fs::fstream& fs, Array* a, const fastring& name, const fastring& js, int n) {
     Type* et = a->element_type();
-    fastring ua = make_uname();
-    fastring uo = make_uname();
+    fastring ua = unamed_var();
+    fastring uo = unamed_var();
     fs << indent(n) << "auto& " << ua << " = " << js << ";\n"
        << indent(n) << "for (uint32 i = 0; i < " << ua << ".array_size(); ++i) {\n";
 
@@ -139,8 +146,8 @@ void encode_array(fs::fstream& fs, Array* a, const fastring& name, const fastrin
         break;
       case type_array:
         {
-            fastring ua = make_uname();
-            fastring ub = make_uname();
+            fastring ua = unamed_var();
+            fastring ub = unamed_var();
             fs << indent(n + 4) << "const auto& " << ua << " = " << name << "[i];\n";
             fs << indent(n + 4) << "co::Json " << ub << ";\n";
             encode_array(fs, (Array*)et, ua, ub, n + 4);
@@ -154,71 +161,76 @@ void encode_array(fs::fstream& fs, Array* a, const fastring& name, const fastrin
     fs << indent(n) << "}\n";
 }
 
-void gen_object(fs::fstream& fs, Object* o) {
-    fs << "struct " << o->name() << " {\n";
+void gen_object(fs::fstream& fs, Object* o, int n=0) {
+    fs << indent(n) << "struct " << o->name() << " {\n";
+    const auto& aos = o->anony_objects();
+    for (auto& ao : aos) {
+        ao->set_name(unamed_struct());
+        gen_object(fs, ao, n + 4);
+    }
 
     // fields
     const auto& fields = o->fields();
     for (auto& f : fields) {
         Type* t = f->type();
         if (t->type() == type_string) {
-            fs << indent(4) << g_sname << ' ' << f->name() << ";\n";
+            fs << indent(n + 4) << g_sname << ' ' << f->name() << ";\n";
         } else if (t->type() != type_array) {
-            fs << indent(4) << t->name() << ' ' << f->name() << ";\n";
+            fs << indent(n + 4) << t->name() << ' ' << f->name() << ";\n";
         } else {
             auto x = array_proto((Array*)t);
-            fs << indent(4) << x << ' ' << f->name() << ";\n";
+            fs << indent(n + 4) << x << ' ' << f->name() << ";\n";
         }
     }
 
     if (!fields.empty()) fs << '\n';
 
     // method from_json
-    fs << indent(4) << "void from_json(const co::Json& _x_) {\n";
+    fs << indent(n + 4) << "void from_json(const co::Json& _x_) {\n";
     for (auto& f : fields) {
         Type* t = f->type();
-        const fastring& n = f->name();
+        const fastring& name = f->name();
         fastring js(32);
-        js << "_x_.get(\"" << n << "\")";
+        js << "_x_.get(\"" << name << "\")";
 
         switch (t->type()) {
           case type_string:
-            fs << indent(8) << n << " = " << js << ".as_c_str();\n";
+            fs << indent(n + 8) << name << " = " << js << ".as_c_str();\n";
             break;
           case type_bool:
-            fs << indent(8) << n << " = " << js << ".as_bool();\n";
+            fs << indent(n + 8) << name << " = " << js << ".as_bool();\n";
             break;
           case type_int:
           case type_int32:
           case type_int64:
           case type_uint32:
           case type_uint64:
-            fs << indent(8) << n << " = (" << t->name() << ")" << js << ".as_int64();\n";
+            fs << indent(n + 8) << name << " = (" << t->name() << ")" << js << ".as_int64();\n";
             break;
           case type_double:
-            fs << indent(8) << n << " = " << js << ".as_double();\n";
+            fs << indent(n + 8) << name << " = " << js << ".as_double();\n";
             break;
           case type_object:
-            fs << indent(8) << n << ".from_json(" << js << ");\n";
+            fs << indent(n + 8) << name << ".from_json(" << js << ");\n";
             break;
           case type_array:
-            g_un = 0;
-            fs << indent(8) << "do {\n";
-            decode_array(fs, (Array*)t, f->name(), js, 12);
-            fs << indent(8) << "} while (0);\n";
+            g_uv = 0;
+            fs << indent(n + 8) << "do {\n";
+            decode_array(fs, (Array*)t, f->name(), js, n + 12);
+            fs << indent(n + 8) << "} while (0);\n";
             break;
           default:
             break;
         }
     }
-    fs << indent(4) << "}\n\n";
+    fs << indent(n + 4) << "}\n\n";
 
     // method as_json()
-    fs << indent(4) << "co::Json as_json() const {\n";
-    fs << indent(8) << "co::Json _x_;\n";
+    fs << indent(n + 4) << "co::Json as_json() const {\n";
+    fs << indent(n + 8) << "co::Json _x_;\n";
     for (auto& f : fields) {
         Type* t = f->type();
-        const fastring& n = f->name();
+        const fastring& name = f->name();
 
         switch (t->type()) {
           case type_string:
@@ -229,30 +241,30 @@ void gen_object(fs::fstream& fs, Object* o) {
           case type_uint32:
           case type_uint64:
           case type_double:
-            fs << indent(8) << "_x_.add_member(\"" << n << "\", " << n << ");\n";
+            fs << indent(n + 8) << "_x_.add_member(\"" << name << "\", " << name << ");\n";
             break;
           case type_object:
-            fs << indent(8) << "_x_.add_member(\"" << n << "\", " << n << ".as_json());\n";
+            fs << indent(n + 8) << "_x_.add_member(\"" << name << "\", " << name << ".as_json());\n";
             break;
           case type_array:
             {
-                g_un = 0;
-                fastring uname = make_uname();
-                fs << indent(8) << "do {\n";
-                fs << indent(12) << "co::Json " << uname << ";\n";
-                encode_array(fs, (Array*)t, f->name(), uname, 12);
-                fs << indent(12) << "_x_.add_member(\"" << n << "\", " << uname << ");\n";
-                fs << indent(8) << "} while (0);\n";
+                g_uv = 0;
+                fastring uname = unamed_var();
+                fs << indent(n + 8) << "do {\n";
+                fs << indent(n + 12) << "co::Json " << uname << ";\n";
+                encode_array(fs, (Array*)t, f->name(), uname, n + 12);
+                fs << indent(n + 12) << "_x_.add_member(\"" << name << "\", " << uname << ");\n";
+                fs << indent(n + 8) << "} while (0);\n";
             }
             break;
           default:
             break;
         }
     }
-    fs << indent(8) << "return _x_;\n";
-    fs << indent(4) << "}\n";
+    fs << indent(n + 8) << "return _x_;\n";
+    fs << indent(n + 4) << "}\n";
 
-    fs << "};\n\n";
+    fs << indent(n) << "};\n\n";
 }
 
 void gen(Program* p) {
@@ -291,7 +303,10 @@ void gen(Program* p) {
     if (s) gen_service(fs, s->name(), s->methods());
 
     // objects
-    for (auto& o : objects) gen_object(fs, o);
+    for (auto& o : objects) {
+        g_us = 0;
+        gen_object(fs, o, 0);
+    }
 
     for (auto& pkg : pkgs) {
         fs << "} // " << pkg << "\n";

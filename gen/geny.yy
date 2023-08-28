@@ -1,12 +1,5 @@
 %{
 #include "gen.h"
-
-inline fastring make_uname() {
-    static int n = 0;
-    fastring s(16);
-    s << "_unamed_" << ++n;
-    return s;
-}
 %}
 
 %union {
@@ -52,6 +45,7 @@ inline fastring make_uname() {
 %type<tfield>    Field
 %type<tvalue>    FieldValue
 %type<tvalue>    ConstValue
+
 
 %%
 
@@ -160,8 +154,7 @@ Field:
     }
   | FieldName '{' FieldList '}'
     {
-        $3->set_name(make_uname());
-        g_prog->add_object($3);
+        g_prog->add_anony_object($3);
         $$ = co::make<Field>();
         $$->set_type($3);
         $$->set_name(S($1));
@@ -190,8 +183,7 @@ FieldType:
   | AnonymousObject
     {
         $$ = $1;
-        $$->set_name(make_uname());
-        g_prog->add_object($1);
+        g_prog->add_anony_object($1);
     }
 
 BaseType:
