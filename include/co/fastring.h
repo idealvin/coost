@@ -34,6 +34,11 @@ class __coapi fastring : public fast::stream {
         : fast::stream(cap) {
     }
 
+    // @p: memory allocated by co::alloc()
+    fastring(char* p, size_t cap, size_t size) noexcept
+        : fast::stream(p, cap, size) {
+    }
+
     ~fastring() = default;
 
     fastring(size_t n, char c)

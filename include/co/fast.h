@@ -115,6 +115,10 @@ class __coapi stream {
         _p = cap > 0 ? (char*)co::alloc(cap) : 0;
     }
 
+    stream(char* p, size_t cap, size_t size) noexcept
+        : _cap(cap), _size(size), _p(p) {
+    }
+
     ~stream() { this->reset(); }
 
     stream(const stream&) = delete;
