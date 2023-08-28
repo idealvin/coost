@@ -32,7 +32,7 @@ object X {
 }
 ```
 
-For field of array or object type, we can put field name ahead.
+For field of array or anonymous object type, we can put field name ahead.
 
 
 ### Build
