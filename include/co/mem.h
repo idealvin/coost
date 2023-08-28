@@ -33,6 +33,7 @@ __coapi void free(void* p, size_t size);
 //   - @new_size must be greater than @old_size
 __coapi void* realloc(void* p, size_t old_size, size_t new_size);
 
+__coapi char* strdup(const char* s);
 
 // alloc memory and construct an object on it
 //   - T* p = co::make<T>(args)
@@ -89,7 +90,6 @@ template<typename T, typename... Args>
 inline T* make_static(Args&&... args) {
     return _smake<T, 3>(std::forward<Args>(args)...);
 }
-
 
 // similar to std::unique_ptr
 //   - It is **not allowed** to create unique object from a nake pointer,
@@ -308,7 +308,6 @@ inline shared<T> make_shared(Args&&... args) {
     *(void**)&x = s;
     return x;
 }
-
 
 struct default_allocator {
     static void* alloc(size_t n) {

@@ -974,4 +974,11 @@ void* zalloc(size_t size) {
     return ::calloc(1, size);
 }
 
+char* strdup(const char* s) {
+    const size_t n = strlen(s);
+    char* const p = (char*) co::alloc(n + 1);
+    memcpy(p, s, n + 1);
+    return p;
+}
+
 } // co
