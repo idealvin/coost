@@ -16,7 +16,7 @@ service HelloWorld {
 }
 
 // supported base types:
-//   bool, int, int32, uint32, int64, uint64, double, string, binary
+//   bool, int, int32, uint32, int64, uint64, double, string
 object X {
     string api
     data {  // anonymous object, field name can be put ahead
