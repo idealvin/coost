@@ -3,6 +3,7 @@
 #include "clist.h"
 #include "table.h"
 #include "vector.h"
+#include "fastream.h"
 #include "hash/murmur_hash.h"
 #include <list>
 #include <deque>
@@ -192,4 +193,248 @@ class lru_map {
     DISALLOW_COPY_AND_ASSIGN(lru_map);
 };
 
+namespace xx {
+
+struct Fmt {
+    fastream& fmt(fastream& fs, const char* s, size_t n) {
+        fs.append('"');
+        for (size_t i = 0; i < n; ++i) {
+            const char c = s[i];
+            switch (c) {
+              case '"':
+                fs.append("\\\"", 2);
+                break;
+              case '\r':
+                fs.append("\\r", 2);
+                break;
+              case '\n':
+                fs.append("\\n", 2);
+                break;
+              case '\t':
+                fs.append("\\t", 2);
+                break;
+              case '\b':
+                fs.append("\\b", 2);
+                break;
+              case '\f':
+                fs.append("\\f", 2);
+                break;
+              case '\\':
+                fs.append("\\\\", 2);
+                break;
+              default:
+                fs.append(c);
+                break;
+            }
+        }
+        return fs.append('"');
+    }
+
+    fastream& fmt(fastream& fs, const char* s) {
+        return fmt(fs, s, strlen(s));
+    }
+
+    fastream& fmt(fastream& fs, const fastring& s) {
+        return fmt(fs, s.data(), s.size());
+    }
+
+    fastream& fmt(fastream& fs, const std::string& s) {
+        return fmt(fs, s.data(), s.size());
+    }
+
+    fastream& fmt(fastream& fs, char x) { return fs << x; }
+    fastream& fmt(fastream& fs, signed char x) { return fs << x; }
+    fastream& fmt(fastream& fs, unsigned char x) { return fs << x; }
+    fastream& fmt(fastream& fs, bool x) { return fs << x; }
+    fastream& fmt(fastream& fs, float x) { return fs << x; }
+    fastream& fmt(fastream& fs, double x) { return fs << x; }
+    fastream& fmt(fastream& fs, short x) { return fs << x; }
+    fastream& fmt(fastream& fs, int x) { return fs << x; }
+    fastream& fmt(fastream& fs, long x) { return fs << x; }
+    fastream& fmt(fastream& fs, long long x) { return fs << x; }
+    fastream& fmt(fastream& fs, unsigned short x) { return fs << x; }
+    fastream& fmt(fastream& fs, unsigned int x) { return fs << x; }
+    fastream& fmt(fastream& fs, unsigned long x) { return fs << x; }
+    fastream& fmt(fastream& fs, unsigned long long x) { return fs << x; }
+    fastream& fmt(fastream& fs, const void* x) { return fs << x; }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const std::pair<K, V>& x) {
+        fmt(fs, x.first);
+        fs << ':';
+        return fmt(fs, x.second);
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const T& beg, const T& end, char c1, char c2) {
+        if (beg != end) {
+            fs << c1;
+            for (T it = beg; it != end; ++it) {
+                fmt(fs, *it);
+                fs << ',';
+            }
+            fs.back() = c2;
+        } else {
+            fs << c1 << c2;
+        }
+        return fs;
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const co::vector<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const std::vector<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const co::deque<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const std::deque<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const co::list<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const std::list<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '[', ']');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const co::set<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const std::set<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const co::hash_set<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename T>
+    fastream& fmt(fastream& fs, const std::unordered_set<T>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const co::map<K, V>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const std::map<K, V>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const co::hash_map<K, V>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const std::unordered_map<K, V>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+
+    template<typename K, typename V>
+    fastream& fmt(fastream& fs, const co::lru_map<K, V>& x) {
+        return fmt(fs, x.begin(), x.end(), '{', '}');
+    }
+};
+
+} // xx
 } // co
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const co::vector<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const std::vector<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const co::deque<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const std::deque<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const co::list<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const std::list<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const co::set<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const std::set<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const co::hash_set<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename T>
+inline fastream& operator<<(fastream& fs, const std::unordered_set<T>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const std::pair<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const co::map<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const std::map<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const co::hash_map<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const std::unordered_map<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
+
+template<typename K, typename V>
+inline fastream& operator<<(fastream& fs, const co::lru_map<K, V>& x) {
+    return co::xx::Fmt().fmt(fs, x);
+}
