@@ -123,51 +123,6 @@ inline fastring from(T t) {
 }
 
 namespace xx {
-inline void dbg(const char* s, fastring& fs) {
-    fs << '\"' << s << '\"';
-}
-
-inline void dbg(const fastring& s, fastring& fs) {
-    fs << '\"' << s << '\"';
-}
-
-inline void dbg(const std::string& s, fastring& fs) {
-    fs << '\"' << s << '\"';
-}
-
-template<typename T>
-inline void dbg(const T& t, fastring& fs) {
-    fs << t;
-}
-
-template<typename K, typename V>
-inline void dbg(const std::pair<K, V>& x, fastring& fs) {
-    dbg(x.first, fs);
-    fs << ':';
-    dbg(x.second, fs);
-}
-
-template<typename T>
-void dbg(const T& beg, const T& end, char c1, char c2, fastring& fs) {
-    if (beg == end) {
-        fs << c1 << c2;
-        return;
-    }
-
-    fs << c1;
-    for (T it = beg; it != end; ++it) {
-        dbg(*it, fs);
-        fs << ',';
-    }
-    fs.back() = c2;
-}
-
-template<typename T>
-inline fastring dbg(const T& beg, const T& end, char c1, char c2) {
-    fastring fs(128);
-    dbg(beg, end, c1, c2, fs);
-    return fs;
-}
 
 inline void cat(fastring&) {}
 
@@ -176,75 +131,14 @@ inline void cat(fastring& s, X&& x, V&& ... v) {
     s << std::forward<X>(x);
     cat(s, std::forward<V>(v)...);
 }
+
+template<typename T>
+inline fastring dbg(const T& x) {
+    fastring s(32);
+    (fastream&)s << x;
+    return s;
+}
 } // xx
-
-// convert std::pair to a debug string
-template<typename K, typename V>
-inline fastring dbg(const std::pair<K, V>& x) {
-    fastring fs(64);
-    xx::dbg(x, fs);
-    return fs;
-}
-
-// convert std::vector to a debug string
-template<typename T>
-inline fastring dbg(const std::vector<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '[', ']');
-}
-
-// convert co::vector to a debug string
-template<typename T>
-inline fastring dbg(const co::vector<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '[', ']');
-}
-
-// convert std::set to a debug string
-template<typename T>
-inline fastring dbg(const std::set<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert co::set to a debug string
-template<typename T>
-inline fastring dbg(const co::set<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert std::map to a debug string
-template<typename K, typename V>
-inline fastring dbg(const std::map<K, V>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert co::map to a debug string
-template<typename K, typename V>
-inline fastring dbg(const co::map<K, V>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert std::unordered_set to a debug string
-template<typename T>
-inline fastring dbg(const std::unordered_set<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert co::hash_set to a debug string
-template<typename T>
-inline fastring dbg(const co::hash_set<T>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert std::unordered_map to a debug string
-template<typename K, typename V>
-inline fastring dbg(const std::unordered_map<K, V>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
-
-// convert co::hash_map to a debug string
-template<typename K, typename V>
-inline fastring dbg(const co::hash_map<K, V>& v) {
-    return xx::dbg(v.begin(), v.end(), '{', '}');
-}
 
 inline fastring cat() { return fastring(); }
 
@@ -256,6 +150,86 @@ inline fastring cat(X&& ... x) {
     fastring s(64);
     xx::cat(s, std::forward<X>(x)...);
     return s;
+}
+
+template<typename K, typename V>
+inline fastring dbg(const std::pair<K, V>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const std::vector<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const co::vector<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const std::list<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const co::list<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const std::deque<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const co::deque<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const std::set<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const co::set<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename K, typename V>
+inline fastring dbg(const std::map<K, V>& x) {
+    return xx::dbg(x);
+}
+
+template<typename K, typename V>
+inline fastring dbg(const co::map<K, V>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const std::unordered_set<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename T>
+inline fastring dbg(const co::hash_set<T>& x) {
+    return xx::dbg(x);
+}
+
+template<typename K, typename V>
+inline fastring dbg(const std::unordered_map<K, V>& x) {
+    return xx::dbg(x);
+}
+
+template<typename K, typename V>
+inline fastring dbg(const co::hash_map<K, V>& x) {
+    return xx::dbg(x);
+}
+
+template<typename K, typename V>
+inline fastring dbg(const co::lru_map<K, V>& x) {
+    return xx::dbg(x);
 }
 
 } // namespace str
