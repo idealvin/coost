@@ -128,7 +128,7 @@ inline void cat(fastring&) {}
 
 template<typename X, typename ...V>
 inline void cat(fastring& s, X&& x, V&& ... v) {
-    s << std::forward<X>(x);
+    (fastream&)s << std::forward<X>(x);
     cat(s, std::forward<V>(v)...);
 }
 

@@ -208,6 +208,9 @@ DEF_test(str) {
         std::string s("sss");
         const char* c = "ccc";
         EXPECT_EQ(str::cat(f, s, c, 123), "fffsssccc123");
+
+        co::vector<int> v = { 1, 2, 3 };
+        EXPECT_EQ(str::cat(v), "[1,2,3]");
     }
 }
 
