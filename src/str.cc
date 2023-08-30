@@ -191,41 +191,4 @@ double to_double(const char* s) {
 #undef _co_set_error
 #undef _co_reset_error
 
-namespace xx {
-
-void dbg(fastring& fs, const char* s, size_t n) {
-    fs.append('"');
-    for (size_t i = 0; i < n; ++i) {
-        const char c = s[i];
-        switch (c) {
-          case '"':
-            fs.append("\\\"", 2);
-            break;
-          case '\r':
-            fs.append("\\r", 2);
-            break;
-          case '\n':
-            fs.append("\\n", 2);
-            break;
-          case '\t':
-            fs.append("\\t", 2);
-            break;
-          case '\b':
-            fs.append("\\b", 2);
-            break;
-          case '\f':
-            fs.append("\\f", 2);
-            break;
-          case '\\':
-            fs.append("\\\\", 2);
-            break;
-          default:
-            fs.append(c);
-            break;
-        }
-    }
-    fs.append('"');
-}
-
-} // xx
 } // namespace str
