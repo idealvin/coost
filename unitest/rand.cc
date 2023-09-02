@@ -35,6 +35,10 @@ DEF_test(rand) {
         v ^= s[i];
     }
     EXPECT(v == 0 || v == ('a' ^ 'b'));
+
+    s = co::randstr("0-2", 8);
+    EXPECT(s.contains('0') || s.contains('1') || s.contains('2'));
+    EXPECT(!s.contains('a') && !s.contains('b') && !s.contains('3'));
 }
 
 } // test

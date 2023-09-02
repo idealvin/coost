@@ -18,13 +18,13 @@ inline uint32 rand(uint32& seed) {
     return seed > M ? (seed -= M) : seed;
 }
 
-// return a random string with default symbols (thread-safe)
+// return a random string with default symbols ("_-0-9a-zA-Z", thread-safe)
 // - @n: length of the random string, 15 by default
 __coapi fastring randstr(int n = 15);
 
 // return a random string with specific symbols (thread-safe)
-// - @s: a null-terminated string stores the symbols to be used,
-//       strlen(s) <= 255, otherwise return an empty string.
+// - @s: a null-terminated string stores the symbols (length < 256),
+//       abbreviation like "0-9", "a-f" can be used.
 // - @n: length of the random string
 __coapi fastring randstr(const char* s, int n);
 
