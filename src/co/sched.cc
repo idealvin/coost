@@ -276,6 +276,8 @@ inline SchedInfo& sched_info() {
     return s ? *s : *(s = co::_make_static<SchedInfo>());
 }
 
+static uint32 g_nco = 0;
+
 SchedManager::SchedManager() {
     co::init_sock();
     co::init_hook();
@@ -291,6 +293,10 @@ SchedManager::SchedManager() {
     if (n != 1) {
         if ((n & (n - 1)) == 0) {
             _next = [](const co::vector<Sched*>& v) {
+                if (g_nco < v.size()) {
+                    const uint32 i = atomic_fetch_inc(&g_nco);
+                    if (i < v.size()) return v[i];
+                }
                 auto& si = sched_info();
                 const uint32 x = god::cast<uint32>(v.size() - 1);
                 const uint32 i = co::rand(si.seed) & x;
@@ -301,6 +307,10 @@ SchedManager::SchedManager() {
             };
         } else {
             _next = [](const co::vector<Sched*>& v) {
+                if (g_nco < v.size()) {
+                    const uint32 i = atomic_fetch_inc(&g_nco);
+                    if (i < v.size()) return v[i];
+                }
                 auto& si = sched_info();
                 const uint32 x = god::cast<uint32>(v.size());
                 const uint32 i = co::rand(si.seed) % x;

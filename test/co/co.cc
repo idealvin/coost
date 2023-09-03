@@ -1,65 +1,27 @@
 #include "co/co.h"
-#include "co/log.h"
-#include "co/time.h"
+#include "co/stl.h"
 #include "co/cout.h"
 
-DEF_bool(m, false, "main thread as scheduler");
+DEF_int32(n, 32, "n coroutines");
 
-co::event ev;
-co::mutex mtx;
-co::pool pool;
-
-int v = 0;
-int n = 0;
-
-void f1() {
-    ev.wait();
-    co::print("f1()");
-
-    {
-        co::mutex_guard g(mtx);
-        ++v;
-    }
-
-    int* p = (int*) pool.pop();
-    if (!p) p = new int(atomic_inc(&n));
-    pool.push(p);
-}
+co::wait_group g_wg;
+co::mutex g_m;
+co::map<int, int> g_c;
 
 void f() {
     co::sleep(32);
-    co::print("s: ", co::sched_id(), " c: ", co::coroutine_id());
+    {
+        co::mutex_guard g(g_m);
+        g_c[co::sched_id()]++;
+    }
+    g_wg.done();
 }
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-
-    co::MainSched* ms = 0;
-    if (FLG_m) ms = co::main_sched();
-
-    for (int i = 0; i < 8; ++i) go(f1);
-    go([]() {
-        bool r = ev.wait(50);
-        co::print("f2() r: ", r);
-    });
-
-    sleep::ms(100);
-    go([]() {
-        co::print("f3()");
-        ev.signal();
-    });
-    
-    co::print("co::event wait in non-coroutine beg: ", now::ms());
-    ev.wait(200);
-    co::print("co::event wait in non-coroutine end: ", now::ms());
-    sleep::ms(200);
-
-    co::print("v: ", v);
-    co::print("n: ", n);
-
-    for (int i = 0; i < 32; ++i) go(f);
-
-    if (FLG_m) ms->loop();
-    sleep::ms(100);
+    g_wg.add(FLG_n);
+    for (int i = 0; i < FLG_n; ++i) go(f);
+    g_wg.wait();
+    co::print(g_c);
     return 0;
 }
