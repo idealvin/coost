@@ -107,7 +107,6 @@ class pool_guard {
 
     bool operator==(T* e) const noexcept { return _e == e; }
     bool operator!=(T* e) const noexcept { return _e != e; }
-    bool operator!() const noexcept { return _e == NULL; }
     explicit operator bool() const noexcept { return _e != NULL; }
 
     // get the pointer owns by pool_guard
