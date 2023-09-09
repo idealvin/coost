@@ -49,9 +49,7 @@ class Iocp {
         const BOOL r = __sys_api(GetQueuedCompletionStatusEx)(_iocp, _ev, 1024, &n, ms, false);
         if (r == TRUE) return (int)n;
         const uint32 e = ::GetLastError();
-        if (e == WAIT_TIMEOUT) return 0;
-        co::error() = e;
-        return -1;
+        return e == WAIT_TIMEOUT ? 0 : -1;
     }
 
     void signal() {

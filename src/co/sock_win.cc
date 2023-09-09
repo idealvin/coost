@@ -24,7 +24,7 @@ sock_t socket(int domain, int type, int protocol) {
         __sys_api(ioctlsocket)(fd, FIONBIO, &mode);
         if (type != SOCK_STREAM) set_skip_iocp_on_success(fd);
     } else {
-        co::error() = WSAGetLastError();
+        co::error(WSAGetLastError());
     }
     return fd;
 }
@@ -38,7 +38,7 @@ int close(sock_t fd, int ms) {
 
     int r = __sys_api(closesocket)(fd);
     if (r == 0) return 0;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
@@ -62,21 +62,21 @@ int shutdown(sock_t fd, char c) {
     }
 
     if (r == 0) return 0;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
 int bind(sock_t fd, const void* addr, int addrlen) {
     int r = ::bind(fd, (const struct sockaddr*)addr, addrlen);
     if (r == 0) return 0;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
 int listen(sock_t fd, int backlog) {
     int r = ::listen(fd, backlog);
     if (r == 0) return 0;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
@@ -93,7 +93,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     CHECK(sched) << "must be called in coroutine..";
 
     if (fd == (sock_t)-1) {
-        co::error() = WSAENOTSOCK;
+        co::error(WSAENOTSOCK);
         return (sock_t)-1;
     }
 
@@ -141,7 +141,7 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
     return connfd;
 
   err:
-    co::error() = e;
+    co::error(e);
     __sys_api(closesocket)(connfd);
     return (sock_t)-1;
 }
@@ -192,7 +192,7 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
     }
 
   err:
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return -1;
 }
 
@@ -210,7 +210,7 @@ int recv(sock_t fd, void* buf, int n, int ms) {
         if (e == WSAEWOULDBLOCK) {
             if (!ev.wait(ms)) return -1;
         } else {
-            co::error() = e;
+            co::error(e);
             return -1;
         }
     } while (true);
@@ -234,7 +234,7 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
             if (e == WSAEWOULDBLOCK) {
                 if (!ev.wait(ms)) return -1;
             } else {
-                co::error() = e;
+                co::error(e);
                 return -1;
             }
         } else {
@@ -268,7 +268,7 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
         if (e == WSA_IO_PENDING) {
             if (!ev.wait(ms)) return -1;
         } else {
-            co::error() = e;
+            co::error(e);
             return -1;
         }
     }
@@ -298,7 +298,7 @@ int send(sock_t fd, const void* buf, int n, int ms) {
             if (e == WSAEWOULDBLOCK) {
                 if (!ev.wait(ms)) return -1;
             } else {
-                co::error() = e;
+                co::error(e);
                 return -1;
             }
         } else {
@@ -324,7 +324,7 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
             if (e == WSA_IO_PENDING) {
                 if (!ev.wait(ms)) return -1;
             } else {
-                co::error() = e;
+                co::error(e);
                 return -1;
             }
         }

@@ -243,7 +243,7 @@ __coapi int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int 
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
     int r = ::getsockopt(fd, lv, opt, (char*)optval, optlen);
     if (r == 0) return r;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
@@ -251,7 +251,7 @@ inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
     int r = ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
     if (r == 0) return r;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 

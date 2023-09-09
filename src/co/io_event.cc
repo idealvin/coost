@@ -123,7 +123,7 @@ bool io_event::wait(uint32 ms) {
         if (!_timeout) return true;
 
         CancelIo((HANDLE)_fd);
-        co::error() = ETIMEDOUT;
+        co::error(ETIMEDOUT);
         WSASetLastError(WSAETIMEDOUT);
         return false;
     } else {
@@ -132,7 +132,7 @@ bool io_event::wait(uint32 ms) {
     }
 
   err:
-    co::error() = e;
+    co::error(e);
     return false;
 
   wait_for_connect:
@@ -148,7 +148,7 @@ bool io_event::wait(uint32 ms) {
             if (r != 0) return false;
             if (sec >= 0) return true; // connect ok
             if (ms == 0) {
-                co::error() = ETIMEDOUT;
+                co::error(ETIMEDOUT);
                 WSASetLastError(WSAETIMEDOUT);
                 return false;
             }
