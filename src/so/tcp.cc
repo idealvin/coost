@@ -6,6 +6,7 @@
 #include "co/log.h"
 #include "co/str.h"
 #include "co/time.h"
+#include "co/defer.h"
 
 DEF_int32(ssl_handshake_timeout, 3000, ">>#2 ssl handshake timeout in ms");
 
@@ -322,7 +323,7 @@ void ServerImpl::loop() {
 
         const uint32 n = this->ref() - 1;
         DLOG << "server " << _ip << ':' << _port
-             << " accept connection: " << co::to_string(&_addr, _addrlen)
+             << " accept connection: " << co::addr2str(&_addr, _addrlen)
              << ", connfd: " << _connfd << ", conn num: " << n;
         go(&_on_sock, _connfd);
     }
@@ -402,64 +403,111 @@ void Server::exit() {
     ((ServerImpl*)_p)->exit();
 }
 
+// |ref(4)|len(4)|port(8)|ip|
+// |ssl_ctx(void*)|ssl(void*)|ref(4)|len(4)|port(8)|ip|
 Client::Client(const char* ip, int port, bool use_ssl)
-    : _port((uint16)port), _use_ssl(use_ssl), _fd(-1) {
+    : _fd(-1), _use_ssl(use_ssl), _connected(false) {
     if (!ip || !*ip) ip = "127.0.0.1";
     const size_t n = strlen(ip) + 1;
     if (!use_ssl) {
-        _ip = (char*) co::alloc(n);
-        memcpy(_ip, ip, n);
+        _p = (char*) co::alloc(n + 16);
+        _u[1] = n + 16;
     } else {
         const int h = sizeof(void*) * 2;
-        _ip = ((char*)co::alloc(h + n)) + h;
-        memcpy(_ip, ip, n);
+        _p = ((char*) co::alloc(n + 16 + h)) + h;
+        _u[1] = n + 16 + h;
         _s[-1] = _s[-2] = 0;
     }
+    _u[0] = 1;
+    memcpy(_p + 16, ip, n);
+    *(_p + 8 + fast::utoa((uint16)port, _p + 8)) = '\0';
+}
+
+Client::Client(const Client& c)
+    : _u(c._u), _fd(-1), _use_ssl(c._use_ssl), _connected(false) {
+    if (_u) atomic_inc(_u, mo_relaxed);
 }
 
 Client::~Client() {
     this->close();
-    if (_ip) {
-        const size_t n = strlen(_ip) + 1;
-        const int h = sizeof(void*) * 2;
-        !_use_ssl ? co::free(_ip, n) : co::free(_ip - h, n + h);
-        _ip = 0;
+    if (_u && atomic_dec(_u, mo_acq_rel) == 0) {
+        co::free(!_use_ssl ? _p : _p - sizeof(void*)*2, _u[1]);
+        _u = 0;
     }
 }
 
 int Client::recv(void* buf, int n, int ms) {
-    if (!_use_ssl) return co::recv(_fd, buf, n, ms);
-    return ssl::recv(_s[-1], buf, n, ms);
+    return !_use_ssl ? co::recv(_fd, buf, n, ms) : ssl::recv(_s[-1], buf, n, ms);
 }
 
 int Client::recvn(void* buf, int n, int ms) {
-    if (!_use_ssl) return co::recvn(_fd, buf, n, ms);
-    return ssl::recvn(_s[-1], buf, n, ms);
+    return !_use_ssl ? co::recvn(_fd, buf, n, ms) : ssl::recvn(_s[-1], buf, n, ms);
 }
 
 int Client::send(const void* buf, int n, int ms) {
-    if (!_use_ssl) return co::send(_fd, buf, n, ms);
-    return ssl::send(_s[-1], buf, n, ms);
+    return !_use_ssl ? co::send(_fd, buf, n, ms) : ssl::send(_s[-1], buf, n, ms);
+}
+
+bool Client::bind(const char* ip, int port) {
+    CHECK(!this->connected()) << "bind must be called before connect";
+
+    const char* const serv_ip = _p + 16;
+    const char* const serv_port = _p + 8;
+    struct addrinfo *srv = 0, *cli = 0;
+    defer(
+        if (srv) freeaddrinfo(srv);
+        if (cli) freeaddrinfo(cli);
+    );
+
+    int r = getaddrinfo(serv_ip, serv_port, NULL, &srv);
+    if (r != 0) goto err;
+
+    CHECK_NOTNULL(srv);
+    if (_fd == -1) {
+        _fd = (int) co::tcp_socket(srv->ai_family);
+        if (_fd == -1) {
+            ELOG << "tcp::Client::bind() failed: " << co::strerror();
+            goto err;
+        }
+    }
+
+    {
+        fastring s = str::from(port);
+        r = getaddrinfo(ip, s.c_str(), NULL, &cli);
+        if (r != 0) goto err;
+        CHECK_NOTNULL(cli);
+        if (co::bind(_fd, cli->ai_addr, (int)cli->ai_addrlen) != 0) goto err;
+    }
+
+    return true;
+
+  err:
+    return false;
 }
 
 bool Client::connect(int ms) {
     if (this->connected()) return true;
 
-    fastring port = str::from(_port);
+    const char* const ip = _p + 16;
+    const char* const port = _p + 8;
     struct addrinfo* info = 0;
-    int r = getaddrinfo(_ip, port.c_str(), NULL, &info);
+    defer(if (info) freeaddrinfo(info));
+
+    int r = getaddrinfo(ip, port, NULL, &info);
     if (r != 0) goto end;
 
     CHECK_NOTNULL(info);
-    _fd = (int) co::tcp_socket(info->ai_family);
     if (_fd == -1) {
-        ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
-        goto end;
+        _fd = (int) co::tcp_socket(info->ai_family);
+        if (_fd == -1) {
+            ELOG << "connect to " << ip << ':' << port << " failed: " << co::strerror();
+            goto end;
+        }
     }
 
     r = co::connect(_fd, info->ai_addr, (int)info->ai_addrlen, ms);
     if (r != 0) {
-        ELOG << "connect to " << _ip << ':' << _port << " failed: " << co::strerror();
+        ELOG << "connect to " << ip << ':' << port << " failed: " << co::strerror();
         goto end;
     }
 
@@ -471,7 +519,7 @@ bool Client::connect(int ms) {
         if (ssl::connect(_s[-1], ms) != 1) goto connect_err;
     }
 
-    if (info) freeaddrinfo(info);
+    _connected = true;
     return true;
 
   new_ctx_err:
@@ -488,7 +536,6 @@ bool Client::connect(int ms) {
     goto end;
   end:
     this->disconnect();
-    if (info) freeaddrinfo(info);
     return false;
 }
 
@@ -500,6 +547,7 @@ void Client::disconnect() {
         }
         co::close(_fd); _fd = -1;
     }
+    _connected = false;
 }
 
 const char* Client::strerror() const {

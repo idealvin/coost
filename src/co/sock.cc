@@ -1,8 +1,7 @@
 #ifndef _WIN32
 
 #include "close.h"
-#include "scheduler.h"
-#include <unordered_map>
+#include "sched.h"
 
 namespace co {
 
@@ -32,9 +31,10 @@ sock_t socket(int domain, int type, int protocol) {
 
 int close(sock_t fd, int ms) {
     if (fd < 0) return 0;
-    if (gSched) {
-        gSched->del_io_event(fd);
-        if (ms > 0) gSched->sleep(ms);
+    const auto sched = xx::gSched;
+    if (sched) {
+        sched->del_io_event(fd);
+        if (ms > 0) sched->sleep(ms);
     } else {
         co::get_sock_ctx(fd).del_event();
     }
@@ -43,20 +43,20 @@ int close(sock_t fd, int ms) {
 
 int shutdown(sock_t fd, char c) {
     if (fd < 0) return 0;
-
+    const auto sched = xx::gSched;
     int how;
-    if (gSched) {
+    if (sched) {
         switch (c) {
           case 'r':
-            gSched->del_io_event(fd, ev_read);
+            sched->del_io_event(fd, ev_read);
             how = SHUT_RD;
             break;
           case 'w':
-            gSched->del_io_event(fd, ev_write);
+            sched->del_io_event(fd, ev_write);
             how = SHUT_WR;
             break;
           default:
-            gSched->del_io_event(fd);
+            sched->del_io_event(fd);
             how = SHUT_RDWR;
         } 
 
@@ -88,9 +88,10 @@ int listen(sock_t fd, int backlog) {
 }
 
 sock_t accept(sock_t fd, void* addr, int* addrlen) {
-    CHECK(gSched) << "must be called in coroutine..";
-    IoEvent ev(fd, ev_read);
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
 
+    io_event ev(fd, ev_read);
     do {
       #ifdef SOCK_NONBLOCK
         sock_t connfd = __sys_api(accept4)(fd, (sockaddr*)addr, (socklen_t*)addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -113,13 +114,15 @@ sock_t accept(sock_t fd, void* addr, int* addrlen) {
 }
 
 int connect(sock_t fd, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
+
     do {
         int r = __sys_api(connect)(fd, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r == 0) return 0;
 
         if (errno == EINPROGRESS) {
-            IoEvent ev(fd, ev_write);
+            io_event ev(fd, ev_write);
             if (!ev.wait(ms)) return -1;
 
             int err, len = sizeof(err);
@@ -136,9 +139,10 @@ int connect(sock_t fd, const void* addr, int addrlen, int ms) {
 }
 
 int recv(sock_t fd, void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    IoEvent ev(fd, ev_read);
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
 
+    io_event ev(fd, ev_read);
     do {
         int r = (int) __sys_api(recv)(fd, buf, n, 0);
         if (r != -1) return r;
@@ -152,12 +156,11 @@ int recv(sock_t fd, void* buf, int n, int ms) {
 }
 
 int recvn(sock_t fd, void* buf, int n, int ms) {
-    char* s = (char*) buf;
+    char* p = (char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_read);
-
+    io_event ev(fd, ev_read);
     do {
-        int r = (int) __sys_api(recv)(fd, s, remain, 0);
+        int r = (int) __sys_api(recv)(fd, p, remain, 0);
         if (r == remain) return n;
         if (r == 0) return 0;
 
@@ -169,14 +172,16 @@ int recvn(sock_t fd, void* buf, int n, int ms) {
             }
         } else {
             remain -= r;
-            s += r;
+            p += r;
         }
     } while (true);
 }
 
 int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    IoEvent ev(fd, ev_read);
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
+
+    io_event ev(fd, ev_read);
     do {
         int r = (int) __sys_api(recvfrom)(fd, buf, n, 0, (sockaddr*)addr, (socklen_t*)addrlen);
         if (r != -1) return r;
@@ -190,13 +195,15 @@ int recvfrom(sock_t fd, void* buf, int n, void* addr, int* addrlen, int ms) {
 }
 
 int send(sock_t fd, const void* buf, int n, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    const char* s = (const char*) buf;
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
+
+    const char* p = (const char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_write);
+    io_event ev(fd, ev_write);
 
     do {
-        int r = (int) __sys_api(send)(fd, s, remain, 0);
+        int r = (int) __sys_api(send)(fd, p, remain, 0);
         if (r == remain) return n;
 
         if (r == -1) {
@@ -207,19 +214,21 @@ int send(sock_t fd, const void* buf, int n, int ms) {
             }
         } else {
             remain -= r;
-            s += r;
+            p += r;
         }
     } while (true);
 }
 
 int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int ms) {
-    CHECK(gSched) << "must be called in coroutine..";
-    const char* s = (const char*) buf;
+    const auto sched = xx::gSched;
+    CHECK(sched) << "must be called in coroutine..";
+
+    const char* p = (const char*) buf;
     int remain = n;
-    IoEvent ev(fd, ev_write);
+    io_event ev(fd, ev_write);
 
     do {
-        int r = (int) __sys_api(sendto)(fd, s, remain, 0, (const sockaddr*)addr, (socklen_t)addrlen);
+        int r = (int) __sys_api(sendto)(fd, p, remain, 0, (const sockaddr*)addr, (socklen_t)addrlen);
         if (r == remain) return n;
 
         if (r == -1) {
@@ -230,13 +239,10 @@ int sendto(sock_t fd, const void* buf, int n, const void* addr, int addrlen, int
             }
         } else {
             remain -= r;
-            s += r;
+            p += r;
         }
     } while (true);
 }
-
-void init_sock() {}
-void cleanup_sock() {}
 
 } // co
 

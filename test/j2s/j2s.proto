@@ -1,0 +1,16 @@
+package xx
+
+object XX {
+    bool b
+    int i
+    string s
+    data {       // anonymous object, field name can be put ahead
+        int ii
+        string ss
+    }
+    [int] ai     // array of int
+    ao [{        // array of anonymous object, field name can be put ahead
+        int xx
+        string yy
+    }]
+}

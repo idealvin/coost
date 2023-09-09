@@ -6,7 +6,7 @@ DEF_string(url, "", "url of http request");
 DEF_string(data, "{\"api\":\"ping\"}", "data to send");
 DEF_string(path, "", "for PUT, path of the file to be uploaded");
 
-co::WaitGroup wg;
+co::wait_group wg;
 
 void fa() {
     http::Client c(FLG_s.c_str());
@@ -39,7 +39,7 @@ void fa() {
 
 void fb() {
     http::Client c(FLG_s.c_str());
-    COUT << FLG_m << " " << FLG_url;
+    co::print(FLG_m, " ", FLG_url);
     if (FLG_m == "GET") {
         c.get(FLG_url.c_str());
     } else if (FLG_m == "POST") {
@@ -61,7 +61,7 @@ void fb() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     wg.add();

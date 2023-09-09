@@ -16,25 +16,28 @@ DEF_double(dbl, 3.14, "double");
 DEF_string(s, "hello world", "string");
 
 int main(int argc, char** argv) {
-    auto args = flag::init(argc, argv);
+    FLG_version = "v3.1.4";
+    flag::alias("version", "v");
+    auto args = flag::parse(argc, argv);
 
-    COUT << "boo: " << FLG_boo;
-    COUT << "x: " << FLG_x;
-    COUT << "y: " << FLG_y;
-    COUT << "z: " << FLG_z;
-    COUT << "n: " << FLG_n;
+    co::print("boo: ", FLG_boo);
+    co::print("x: ", FLG_x);
+    co::print("y: ", FLG_y);
+    co::print("z: ", FLG_z);
+    co::print("n: ", FLG_n);
 
-    COUT << "i32: " << FLG_i32;
-    COUT << "i64: " << FLG_i64;
-    COUT << "u32: " << FLG_u32;
-    COUT << "u64: " << FLG_u64;
+    co::print("i32: ", FLG_i32);
+    co::print("i64: ", FLG_i64);
+    co::print("u32: ", FLG_u32);
+    co::print("u64: ", FLG_u64);
 
-    COUT << "dbl: " << FLG_dbl;
-    COUT << FLG_s << "|" << FLG_s.size();
+    co::print("dbl: ", FLG_dbl);
+    co::print(FLG_s, "|", FLG_s.size());
 
     if (argc == 1) {
-        COUT << "\nYou may try running " << argv[0] << " as below:";
-        COUT << argv[0] << "  -xz i32=4k i64=8M u32=1g -s=xxx";
+        co::print("\nYou may try running ", argv[0], " as below:");
+        co::print(argv[0], "  -xz -i32 4k i64=8M u32=1g -s=xxx");
+        co::print(argv[0], "  -v");
     }
 
     return 0;

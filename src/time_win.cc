@@ -2,53 +2,61 @@
 
 #include "co/time.h"
 #include <time.h>
-#include <winsock2.h>  // for struct timeval
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
 
+namespace co {
 namespace now {
-namespace _Mono {
+namespace xx {
 
-inline int64 _QueryFrequency() {
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-    return freq.QuadPart;
+inline int64 _query_counts() {
+    LARGE_INTEGER x;
+    QueryPerformanceCounter(&x);
+    return x.QuadPart;
 }
 
-inline int64 _QueryCounter() {
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return counter.QuadPart;
-}
-
-inline const int64& _Frequency() {
-    static int64 freq = _QueryFrequency();
+inline const int64& _counts_per_sec() {
+    static const int64 freq = [](){
+        LARGE_INTEGER x;
+        QueryPerformanceFrequency(&x);
+        return x.QuadPart;
+    }();
     return freq;
 }
 
-inline int64 ms() {
-    int64 count = _QueryCounter();
-    const int64& freq = _Frequency();
-    return (count / freq) * 1000 + (count % freq * 1000 / freq);
+inline int64 ns() {
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000000000 / freq);
 }
 
 inline int64 us() {
-    int64 count = _QueryCounter();
-    const int64& freq = _Frequency();
-    return (count / freq) * 1000000 + (count % freq * 1000000 / freq);
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000000 / freq);
 }
 
-} // _Mono
+inline int64 ms() {
+    const int64 count = _query_counts();
+    const int64& freq = _counts_per_sec();
+    return (int64)(static_cast<double>(count) * 1000 / freq);
+}
 
-int64 ms() {
-    return _Mono::ms();
+} // xx
+
+int64 ns() {
+    return xx::ns();
 }
 
 int64 us() {
-    return _Mono::us();
+    return xx::us();
+}
+
+int64 ms() {
+    return xx::ms();
 }
 
 fastring str(const char* fm) {
@@ -83,8 +91,9 @@ int64 us() {
 }
 
 } // epoch
+} // co
 
-namespace ___ {
+namespace _xx {
 namespace sleep {
 
 void ms(uint32 n) {
@@ -96,6 +105,6 @@ void sec(uint32 n) {
 }
 
 } // sleep
-} // ___
+} // _xx
 
 #endif

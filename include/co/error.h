@@ -9,9 +9,11 @@
 namespace co {
 
 #ifdef _WIN32
-__coapi int& error();
+__coapi int error();
+__coapi void error(int e);
 #else
-inline int& error() { return errno; }
+inline int error() { return errno; }
+inline void error(int e) { errno = e; }
 #endif
 
 // get string of a error number (thread-safe)

@@ -23,16 +23,16 @@ class X : public co::Closure {
 class Y {
   public:
     Y(int v) : _v(v) {
-        COUT << "Y()";
+        co::print("Y()");
     }
 
     Y(const Y& y) : _v(y._v) {
-        COUT << "Y(&)";
+        co::print("Y(&)");
     }
 
     Y(Y&& y) : _v(y._v) {
         y._v = 0;
-        COUT << "Y(&&)";
+        co::print("Y(&&)");
     }
 
     int value() const {
@@ -44,11 +44,11 @@ class Y {
 };
 
 void funca(const Y& v) {
-    COUT << "funca: hello " << v.value();
+    co::print("funca: hello ", v.value());
 }
 
 void funcb(const Y* v) {
-    COUT << "funcb: hello " << v->value();
+    co::print("funcb: hello ", v->value());
 }
 
 template <class F, typename T>
@@ -85,16 +85,16 @@ void test() {
 }
 
 void f0() {
-    COUT << "f0()";
+    co::print("f0()");
 }
 
 void f1(int v) {
-    COUT << "f1: " << v;
+    co::print("f1: ", v);
 }
 
 void test_new_closure() {
     auto f = [](int v) {
-        COUT << "xxxxx: " << v;
+        co::print("xxxxx: ", v);
     };
 
     co::Closure* c = co::new_closure(&f, 3);

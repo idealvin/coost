@@ -10,16 +10,14 @@ struct clink {
 class clist {
   public:
     constexpr static clink* const null = (clink*)0;
-
-    clist() : _head(0) {}
+    constexpr clist() noexcept : _head(0) {}
     ~clist() = default;
 
-    clink* front() const { return _head; }
-    clink* back() const { return _head ? _head->prev : 0; }
-    bool empty() const { return _head == null; }
-    void clear() { _head = 0; }
+    clink* front() const noexcept { return _head; }
+    clink* back() const noexcept { return _head ? _head->prev : 0; }
+    bool empty() const noexcept { return _head == null; }
+    void clear() noexcept { _head = 0; }
 
-    // push a new node to the front
     void push_front(clink* node) {
         if (_head) {
             node->next = _head;
@@ -33,7 +31,6 @@ class clist {
         }
     }
 
-    // push a new node to the back
     void push_back(clink* node) {
         if (_head) {
             node->next = 0;
@@ -47,7 +44,21 @@ class clist {
         }
     }
 
-    // erase a node from the list
+    clink* pop_front() {
+        clink* const x = _head;
+        if (_head) {
+            _head = _head->next;
+            if (_head) _head->prev = x->prev;
+        }
+        return x;
+    }
+
+    clink* pop_back() {
+        clink* const x = this->back();
+        if (x) this->erase(x);
+        return x;
+    }
+
     void erase(clink* node) {
         if (node != _head) {
             node->prev->next = node->next;
@@ -59,7 +70,6 @@ class clist {
         }
     }
 
-    // move a node to the front
     void move_front(clink* node) {
         if (node != _head) {
             node->prev->next = node->next;
@@ -73,7 +83,6 @@ class clist {
         }
     }
 
-    // move a node to the back
     void move_back(clink* node) {
         if (node != _head->prev) {
             if (node == _head) {
@@ -90,6 +99,14 @@ class clist {
             }
         }
     }
+
+    void swap(clist& l) {
+        clink* const x = _head;
+        _head = l._head;
+        l._head = x;
+    }
+
+    void swap(clist&& l) { l.swap(*this); }
 
   private:
     clink* _head;

@@ -38,6 +38,7 @@ DEF_test(path) {
         EXPECT_EQ(path::join("x", "", "y"), "x/y");
         EXPECT_EQ(path::join("D:", "x"), "D:/x");
         EXPECT_EQ(path::join("D:/x/", "y"), "D:/x/y");
+        EXPECT_EQ(path::join("x", fastring("y"), std::string("z")), "x/y/z");
     }
 
     DEF_case(split) {

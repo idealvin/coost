@@ -2,20 +2,25 @@
 #include "co/cout.h"
 #include "co/time.h"
 
-void f(int x, int y) {
-    CLOG << (x + y);
+void f(int sn, int x, int y) {
+    co::print(sn, ": ", x + y);
 }
 
 void f() {
-    Timer t;
-    defer(CLOG << "time elapse: " << t.us() << " us");
-    CLOG << "hello f()";
+    co::Timer t;
+    defer(
+        co::print("time elapse: ", t.us(), "us")
+    );
+    co::print("hello f()");
 }
 
 int main(int argc, char** argv) {
-    defer(CLOG << "hello world");
-    defer(CLOG << "hello again");
-    defer(f(1, 1); f(1, 3));
+    defer(co::print("hello world"));
+    defer(co::print("hello again"));
+    defer(
+        f(1, 1, 1);
+        f(2, 1, 3);
+    );
     f();
     f();
     return 0;

@@ -16,7 +16,7 @@ class SockCtx {
     bool has_event() const { return _x; }
 
     int add_event() {
-        return atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
+        return atomic_cas(&_x, 0, 0x0101, mo_acq_rel, mo_acquire);
     }
 
     void del_ev_read()  { _s.r = 0; }
@@ -82,26 +82,26 @@ class SockCtx {
     }
 
   private:
-    struct event_t {
+    struct S {
         int32 s; // scheduler id
         int32 c; // coroutine id
     };
-    union { event_t _rev; uint64 _r64; };
-    union { event_t _wev; uint64 _w64; };
+    union { S _rev; uint64 _r64; };
+    union { S _wev; uint64 _w64; };
 };
 
 #else
 
 class SockCtx {
   public:
-    SockCtx() : _x(0) {}
+    SockCtx() = delete;
 
     bool has_event()    const { return _x; }
     bool has_ev_read()  const { return _s.r; }
     bool has_ev_write() const { return _s.w; }
 
     void add_event() {
-        atomic_compare_swap(&_x, 0, (uint16)0x0101, mo_acq_rel, mo_acquire);
+        atomic_cas(&_x, 0, 0x0101, mo_acq_rel, mo_acquire);
     }
 
     void add_ev_read()  { _s.r = 1; }
@@ -123,8 +123,8 @@ class SockCtx {
 #endif
 
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static auto& k_sock_ctx_tb = *co::static_new<co::table<SockCtx>>(15, 16);
-    return k_sock_ctx_tb[sock];
+    static auto& tb = *co::_make_static<co::table<SockCtx>>(15, 16);
+    return tb[sock];
 }
 
 } // co

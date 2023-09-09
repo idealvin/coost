@@ -1,11 +1,6 @@
-option("libbacktrace")
-    add_cincludes("backtrace.h")
-option_end()
-
-option("cxxabi")
-    add_cxxincludes("cxxabi.h")
-option_end()
-
+--option("cxxabi")
+--    add_cxxincludes("cxxabi.h")
+--option_end()
 
 target("libco")
     set_kind("$(kind)")
@@ -13,6 +8,11 @@ target("libco")
     add_files("**.cc")
     add_options("with_openssl")
     add_options("with_libcurl")
+    add_options("cache_line_size")
+    add_options("disable_hook")
+    if is_plat("linux", "macosx") then
+        add_options("with_backtrace")
+    end
     if not is_plat("windows") then
         add_options("fpic")
     end
@@ -25,7 +25,11 @@ target("libco")
     elseif has_config("with_openssl") then
         add_defines("HAS_OPENSSL")
         add_packages("openssl")
-    end 
+    end
+
+    if has_config("disable_hook") then
+        add_defines("_CO_DISABLE_HOOK")
+    end
 
     if is_kind("shared") then
         set_symbols("debug", "hidden")
@@ -34,6 +38,7 @@ target("libco")
     else
         set_configvar("COOST_SHARED", 0)
     end
+    set_configvar("CACHE_LINE_SIZE", "$(cache_line_size)")
     add_configfiles("../include/co/config.h.in", {filename = "../include/co/config.h"})
 
     if is_plat("windows", "mingw") then
@@ -58,13 +63,13 @@ target("libco")
         end
     else
         add_cxflags("-Wno-strict-aliasing")
-        if has_config("libbacktrace") then
+        if has_config("with_backtrace") then
             add_defines("HAS_BACKTRACE_H")
-            add_syslinks("backtrace", { public = true })
+            add_packages("libbacktrace", { public = true })
         end
-        if has_config("cxxabi") then
-            add_defines("HAS_CXXABI_H")
-        end
+        --if has_config("cxxabi") then
+        --    add_defines("HAS_CXXABI_H")
+        --end
         if not is_plat("android") then
             add_syslinks("pthread", { public = true })
             add_syslinks("dl")

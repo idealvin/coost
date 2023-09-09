@@ -6,55 +6,122 @@
 using std::cout;
 using std::endl;
 
-#ifdef _WIN32
+namespace co {
 namespace color {
 
-struct __coapi Color {
-    Color(const char* s, int i);
+enum Color {
+    deflt = 0,
+    red = 1,
+    green = 2,
+    yellow = 3,  // red | green
+    blue = 4,
+    magenta = 5, // blue | red
+    cyan = 6,    // blue | green
+    bold = 8,
+};
 
+} // color
+
+namespace text {
+
+struct Text {
+    constexpr Text(const char* s, size_t n, color::Color c) noexcept
+        : s(s), n(n), c(c) {
+    }
+    const char* s;
+    size_t n;
+    color::Color c;
+};
+
+inline Text red(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::red);
+}
+
+inline Text green(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::green);
+}
+
+inline Text blue(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::blue);
+}
+
+inline Text yellow(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::yellow);
+}
+
+inline Text magenta(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::magenta);
+}
+
+inline Text cyan(const anystr& s) noexcept {
+    return Text(s.data(), s.size(), color::cyan);
+}
+
+struct Bold {
+    constexpr Bold(const char* s, size_t n) noexcept
+        : s(s), n(n), c(color::bold) {
+    }
+    Bold& red() noexcept { i |= color::red; return *this; }
+    Bold& green() noexcept { i |= color::green; return *this; }
+    Bold& blue() noexcept { i |= color::blue; return *this; }
+    Bold& yellow() noexcept { i |= color::yellow; return *this; }
+    Bold& magenta() noexcept { i |= color::magenta; return *this; }
+    Bold& cyan() noexcept { i |= color::cyan; return *this; }
+    const char* s;
+    size_t n;
     union {
         int i;
-        const char* s;
+        color::Color c;
     };
 };
 
-__coapi extern const Color red;
-__coapi extern const Color green;
-__coapi extern const Color blue;
-__coapi extern const Color yellow;
-__coapi extern const Color deflt; // default color
+inline Bold bold(const anystr& s) noexcept {
+    return Bold(s.data(), s.size());
+}
 
-} // color
+} // text
+} // co
 
-__coapi std::ostream& operator<<(std::ostream&, const color::Color&);
+namespace color = co::color;
+namespace text = co::text;
 
-#else /* unix */
-namespace color {
+__coapi std::ostream& operator<<(std::ostream&, color::Color);
+__coapi fastream& operator<<(fastream&, color::Color);
 
-const char* const red = "\033[38;5;1m";
-const char* const green = "\033[38;5;2m";
-const char* const blue = "\033[38;5;12m";
-const char* const yellow = "\033[38;5;3m"; // or 11
-const char* const deflt = "\033[39m";
+inline std::ostream& operator<<(std::ostream& os, const text::Text& x) {
+    return (os << x.c).write(x.s, x.n) << color::deflt;
+}
 
-} // color
-#endif
+inline std::ostream& operator<<(std::ostream& os, const text::Bold& x) {
+    return (os << x.c).write(x.s, x.n) << color::deflt;
+}
+
+inline fastream& operator<<(fastream& os, const text::Text& x) {
+    return (os << x.c).append(x.s, x.n) << color::deflt;
+}
+
+inline fastream& operator<<(fastream& os, const text::Bold& x) {
+    return (os << x.c).append(x.s, x.n) << color::deflt;
+}
+
 
 namespace co {
 namespace xx {
 
 struct __coapi Cout {
     Cout();
-    Cout(const char* file, unsigned int line);
     ~Cout();
-
-    fastream& stream();
-    size_t _n;
+    fastream& s;
+    size_t n;
 };
 
 } // xx
-} // co
 
-// thread-safe, but may not support color output on Windows
-#define COUT   co::xx::Cout().stream()
-#define CLOG   co::xx::Cout(__FILE__, __LINE__).stream()
+// print to stdout with newline (thread-safe)
+//   - co::print("hello", text::green(" xxx "), 23);
+template<typename ...X>
+inline void print(X&& ... x) {
+    xx::Cout().s.cat(std::forward<X>(x)...);
+}
+
+} // co

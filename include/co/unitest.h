@@ -1,113 +1,81 @@
 #pragma once
 
-#include "flag.h"
 #include "cout.h"
+#include "flag.h"
+#include "vector.h"
 #include "fastring.h"
-
-// co/unitest is an unit test framework similar to google's gtests.
 
 namespace unitest {
 
-__coapi int run_all_tests();
+// return number of failed test cases
+__coapi int run_tests();
 
-__coapi void push_failed_msg(
-    const fastring& test_name, const fastring& case_name, 
-    const char* file, int line, const fastring& msg
-);
+// deprecated, use run_tests() instead
+inline int run_all_tests() { return run_tests(); }
+
+namespace xx {
+
+struct Failed {
+    Failed(const char* c, const char* file, int line, fastring&& msg)
+        : c(c), file(file), line(line), msg(std::move(msg)) {
+    }
+    const char* c; // case name
+    const char* file;
+    int line;
+    fastring msg;
+};
 
 struct Test {
-    Test() = default;
-    virtual ~Test() = default;
-
-    virtual void run() = 0;
-    virtual bool enabled() = 0;
-    virtual const fastring& name() = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(Test);
-};
-
-struct __coapi TestSaver {
-    TestSaver(Test* test);
-};
-
-struct Case {
-    Case(const fastring& name)
-        : _name(name) {
-        cout << " case " << _name << ':' << endl;
+    Test(const char* name, bool& e, void (*f)(Test&)) noexcept
+        : name(name), c("default"), enabled(e), f(f) {
     }
-
-    const fastring& name() const {
-        return _name;
-    }
-
-  private:
-    fastring _name;
+    const char* name; // test name
+    const char* c;    // current case name
+    bool& enabled;    // if this test unit is enabled
+    void (*f)(Test&);
+    co::vector<Failed> failed;
 };
 
-} // namespace unitest
+__coapi bool add_test(const char* name, bool& e, void(*f)(Test&));
+
+} // xx
+} // unitest
 
 // define a test unit
 #define DEF_test(_name_) \
     DEF_bool(_name_, false, "enable this test if true"); \
-    \
-    struct _UTest_##_name_ : public unitest::Test { \
-        _UTest_##_name_() : _name(#_name_) {} \
-        virtual ~_UTest_##_name_() {} \
-        \
-        virtual void run(); \
-        virtual bool enabled() { return FLG_##_name_; } \
-        virtual const fastring& name() { return _name; } \
-        \
-      private: \
-        fastring _name; \
-        co::unique_ptr<unitest::Case> _current_case; \
-    }; \
-    \
-    static unitest::TestSaver _UT_sav_test_##_name_(co::make<_UTest_##_name_>()); \
-    \
-    void _UTest_##_name_::run()
+    void _co_ut_##_name_(unitest::xx::Test&); \
+    static bool _co_ut_v_##_name_ = unitest::xx::add_test(#_name_, FLG_##_name_, _co_ut_##_name_); \
+    void _co_ut_##_name_(unitest::xx::Test& _t_)
 
 // define a test case in the current unit
-#define DEF_case(name) _current_case.reset(co::make<unitest::Case>(#name));
+#define DEF_case(name) _t_.c = #name; cout << " case " << #name << ':' << endl;
 
 #define EXPECT(x) \
 { \
-    if (_current_case == NULL) { \
-        _current_case.reset(co::make<unitest::Case>("default")); \
-    } \
-    \
     if (x) { \
-        cout << color::green << "  EXPECT(" << #x << ") passed" \
-             << color::deflt << endl; \
+        cout << color::green << "  EXPECT(" << #x << ") passed" << color::deflt << endl; \
     } else { \
         fastring _U_s(32); \
         _U_s << "EXPECT(" << #x << ") failed"; \
         cout << color::red << "  " << _U_s << color::deflt << endl; \
-        unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
+        _t_.failed.push_back(unitest::xx::Failed(_t_.c, __FILE__, __LINE__, std::move(_U_s))); \
     } \
 }
 
 #define EXPECT_OP(x, y, op, opname) \
 { \
-    if (_current_case == NULL) { \
-        _current_case.reset(co::make<unitest::Case>("default")); \
-    } \
-    \
     auto _U_x = (x); \
     auto _U_y = (y); \
-    \
     if (_U_x op _U_y) { \
-        cout << color::green \
-             << "  EXPECT_" << opname << "(" << #x << ", " << #y << ") passed"; \
+        cout << color::green << "  EXPECT_" << opname << "(" << #x << ", " << #y << ") passed"; \
         if (strcmp("==", #op) != 0) cout << ": " << _U_x << " vs " << _U_y; \
         cout << color::deflt << endl; \
-        \
     } else { \
         fastring _U_s(128); \
-        _U_s << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " \
-             << _U_x << " vs " << _U_y; \
+        _U_s << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " << _U_x << " vs " << _U_y; \
         cout << color::red << "  " << _U_s << color::deflt << endl; \
-        unitest::push_failed_msg(_name, _current_case->name(), __FILE__, __LINE__, _U_s); \
+        _t_.failed.push_back(unitest::xx::Failed(_t_.c, __FILE__, __LINE__, std::move(_U_s))); \
     } \
 }
 

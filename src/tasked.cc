@@ -1,7 +1,10 @@
 #include "co/tasked.h"
-#include "co/array.h"
+#include "co/vector.h"
 #include "co/time.h"
-#include "co/thread.h"
+#include "co/co/thread.h"
+
+namespace co {
+namespace xx {
 
 class TaskedImpl {
   public:
@@ -9,16 +12,16 @@ class TaskedImpl {
 
     struct Task {
         Task(F&& f, int p, int c)
-            : fun(f), period(p), count(c) {
+            : fun(std::move(f)), period(p), count(c) {
         }
-
         F fun;
         int period; // in seconds
         int count;
     };
 
     TaskedImpl()
-        : _stop(0), _mtx(), _ev(), _t(&TaskedImpl::loop, this) {
+        : _stop(0), _tasks(32), _new_tasks(32), _ev(), _mtx() {
+        std::thread(&TaskedImpl::loop, this).detach();
     }
 
     ~TaskedImpl() {
@@ -26,14 +29,14 @@ class TaskedImpl {
     }
 
     void run_in(F&& f, int sec) {
-        MutexGuard g(_mtx);
-        _tmp.push_back(co::make<Task>(std::move(f), 0, sec));
+        std::lock_guard<std::mutex> g(_mtx);
+        _new_tasks.emplace_back(std::move(f), 0, sec);
         if (sec <= 0) _ev.signal();
     }
 
     void run_every(F&& f, int sec) {
-        MutexGuard g(_mtx);
-        _tmp.push_back(co::make<Task>(std::move(f), sec, sec));
+        std::lock_guard<std::mutex> g(_mtx);
+        _new_tasks.emplace_back(std::move(f), sec, sec);
     }
 
     void run_at(F&& f, int hour, int minute, int second, bool daily);
@@ -43,19 +46,12 @@ class TaskedImpl {
   private:
     void loop();
 
-    void clear(co::array<Task*>& v) {
-        for (size_t i = 0; i < v.size(); ++i) co::del(v[i]);
-        v.clear();
-    }
-
   private:
-    bool _stop;
-    Mutex _mtx;
-    SyncEvent _ev;
-    Thread _t;
-
-    co::array<Task*> _tasks;
-    co::array<Task*> _tmp;
+    int _stop;
+    co::vector<Task> _tasks;
+    co::vector<Task> _new_tasks;
+    co::sync_event _ev;
+    std::mutex _mtx;
 };
 
 // if @daily is false, run f() only once, otherwise run f() every day at hour:minute:second
@@ -74,25 +70,25 @@ void TaskedImpl::run_at(F&& f, int hour, int minute, int second, bool daily) {
     if (seconds < now_seconds) seconds += 86400;
     int diff = seconds - now_seconds;
 
-    MutexGuard g(_mtx);
-    _tmp.push_back(co::make<Task>(std::move(f), (daily ? 86400 : 0), diff));
+    std::lock_guard<std::mutex> g(_mtx);
+    _new_tasks.emplace_back(std::move(f), (daily ? 86400 : 0), diff);
 }
 
 void TaskedImpl::loop() {
     int64 ms = 0;
     int sec = 0;
-    Timer t;
-    co::array<Task*> tmp;
+    co::Timer timer;
+    co::vector<Task> tmp(32);
 
     while (!_stop) {
-        t.restart();
+        timer.restart();
         {
-            MutexGuard g(_mtx);
-            if (!_tmp.empty()) _tmp.swap(tmp);
+            std::lock_guard<std::mutex> g(_mtx);
+            if (!_new_tasks.empty()) _new_tasks.swap(tmp);
         }
 
         if (!tmp.empty()) {
-            _tasks.push_back(tmp.data(), tmp.size());
+            _tasks.append(std::move(tmp));
             tmp.clear();
         }
 
@@ -102,17 +98,14 @@ void TaskedImpl::loop() {
         }
 
         for (size_t i = 0; i < _tasks.size();) {
-            Task* task = _tasks[i];
-            if ((task->count -= sec) <= 0) {
-                task->fun();
-                if (task->period > 0) {
-                    task->count = task->period;
+            auto& t = _tasks[i];
+            if ((t.count -= sec) <= 0) {
+                t.fun();
+                if (t.period > 0) {
+                    t.count = t.period;
                     ++i;
                 } else {
-                    co::del(task);
-                    if (i != _tasks.size() - 1) _tasks[i] = _tasks.back();
-                    // remove the tail task, don't ++i here.
-                    _tasks.pop_back();
+                    _tasks.remove(i);
                 }
             } else {
                 ++i;
@@ -120,48 +113,55 @@ void TaskedImpl::loop() {
         }
 
         _ev.wait(1000);
-        if (_stop) return;
-        ms += t.ms();
+        if (_stop) { atomic_store(&_stop, 2); return; }
+        ms += timer.ms();
     }
 }
 
 void TaskedImpl::stop() {
-    if (atomic_swap(&_stop, 1) == 0) {
+    int x = atomic_cas(&_stop, 0, 1);
+    if (x == 0) {
         _ev.signal();
-        _t.join();
-        MutexGuard g(_mtx);
-        this->clear(_tasks);
-        this->clear(_tmp);
+        while (_stop != 2) sleep::ms(1);
+        std::lock_guard<std::mutex> g(_mtx);
+        _tasks.clear();
+        _new_tasks.clear();
+    } else if (x == 1) {
+        while (_stop != 2) sleep::ms(1);
     }
 }
 
+} // xx
+
 Tasked::Tasked() {
-    _p = co::make<TaskedImpl>();
+    _p = co::make<xx::TaskedImpl>();
 }
 
 Tasked::~Tasked() {
     if (_p) {
-        co::del((TaskedImpl*)_p);
+        co::del((xx::TaskedImpl*)_p);
         _p = 0;
     }
 }
 
 void Tasked::run_in(F&& f, int sec) {
-    ((TaskedImpl*)_p)->run_in(std::move(f), sec);
+    ((xx::TaskedImpl*)_p)->run_in(std::move(f), sec);
 }
 
 void Tasked::run_every(F&& f, int sec) {
-    ((TaskedImpl*)_p)->run_every(std::move(f), sec);
+    ((xx::TaskedImpl*)_p)->run_every(std::move(f), sec);
 }
 
 void Tasked::run_at(F&& f, int hour, int minute, int second) {
-    ((TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, false);
+    ((xx::TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, false);
 }
 
 void Tasked::run_daily(F&& f, int hour, int minute, int second) {
-    ((TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, true);
+    ((xx::TaskedImpl*)_p)->run_at(std::move(f), hour, minute, second, true);
 }
 
 void Tasked::stop() {
-    ((TaskedImpl*)_p)->stop();
+    ((xx::TaskedImpl*)_p)->stop();
 }
+
+} // co

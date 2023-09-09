@@ -60,6 +60,27 @@ DEF_test(fastream) {
         EXPECT_EQ(s.cat(' ', "hello ", false).str(), "123 hello false");
     }
 
+    DEF_case(safe) {
+        fastream s(16);
+        s << "1234567890";
+        s.append(s.data() + 1, 8);
+        EXPECT_EQ(s.str(), "123456789023456789");
+
+        s.clear(0);
+        EXPECT_EQ(*s.data(), 0);
+        EXPECT_EQ(*(s.data() + 3), 0);
+
+        s.append("12345678");
+        s.resize(6);
+        s.resize(10);
+        EXPECT_EQ(s[6], '7');
+        EXPECT_EQ(s[7], '8');
+        s.resize(6);
+        s.resize(10, 0);
+        EXPECT_EQ(s[6], 0);
+        EXPECT_EQ(s[7], 0);
+    }
+
     DEF_case(bool) {
         fastream fs;
         fs << false << ' ' << true;
@@ -106,12 +127,16 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.str(), "3.14159");
 
         fs.clear();
-        fs << co::maxdp(3) << d;
+        fs << dp::_3(d);
         EXPECT_EQ(fs.str(), "3.141");
 
         fs.clear();
-        fs.maxdp(2) << d;
+        fs << dp::_2(d);
         EXPECT_EQ(fs.str(), "3.14");
+
+        fs.clear();
+        fs << dp::_n(d, 4);
+        EXPECT_EQ(fs.str(), "3.1415");
     }
 
     DEF_case(string) {

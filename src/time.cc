@@ -4,14 +4,16 @@
 #include <time.h>
 #include <sys/time.h>
 
+namespace co {
 namespace now {
-namespace _Mono {
+namespace xx {
 
 #ifdef CLOCK_MONOTONIC
-inline int64 ms() {
+
+inline int64 ns() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
-    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
+    return static_cast<int64>(t.tv_sec) * 1000000000 + t.tv_nsec;
 }
 
 inline int64 us() {
@@ -20,24 +22,37 @@ inline int64 us() {
     return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
 }
 
-#else
 inline int64 ms() {
-    return epoch::ms();
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
 }
 
-inline int64 us() {
-    return epoch::us();
-}
+#else
+
+// WARNING:
+//   If you are from the year 2262 or later, DO NOT use this,
+//   as nanoseconds since epoth (1970/1/1) may overflow then.
+inline int64 ns() { return epoch::us() * 1000; }
+
+inline int64 us() { return epoch::us(); }
+
+inline int64 ms() { return epoch::ms(); }
+
 #endif
 
-} // _Mono
+} // xx
 
-int64 ms() {
-    return _Mono::ms();
+int64 ns() {
+    return xx::ns();
 }
 
 int64 us() {
-    return _Mono::us();
+    return xx::us();
+}
+
+int64 ms() {
+    return xx::ms();
 }
 
 fastring str(const char* fm) {
@@ -54,21 +69,22 @@ fastring str(const char* fm) {
 
 namespace epoch {
 
-int64 ms() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
-}
-
 int64 us() {
     struct timeval t;
     gettimeofday(&t, 0);
     return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
 }
 
-} // epoch
+int64 ms() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
+}
 
-namespace ___ {
+} // epoch
+} // co
+
+namespace _xx {
 namespace sleep {
 
 void ms(uint32 n) {
@@ -86,6 +102,6 @@ void sec(uint32 n) {
 }
 
 } // sleep
-} // ___
+} // _xx
 
 #endif

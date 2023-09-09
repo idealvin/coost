@@ -8,7 +8,6 @@
 #include "co/time.h"
 #include "co/fs.h"
 #include "co/path.h"
-#include "co/lru_map.h"
 
 #ifdef HAS_LIBCURL
 #include <curl/curl.h>
@@ -146,7 +145,7 @@ void Client::reset(const char* serv_url) {
             s.reserve(n + 8);
             s.append("http://").append(serv_url, n); // use http by default
         }
-        s.strip('/', 'r'); // remove '/' at the right side
+        s.trim('/', 'r'); // remove '/' at the right side
 
         init_easy_opts(_ctx->easy, _ctx);
     }
@@ -239,7 +238,7 @@ void* Client::easy_handle() const {
 }
 
 void Client::perform() {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     _ctx->clear();
     if (_ctx->header_updated) {
         curl_easy_setopt(_ctx->easy, CURLOPT_HTTPHEADER, _ctx->l);
@@ -278,7 +277,7 @@ const char* Client::header(const char* key) {
         p = strchr(b, ':');
         if (p) {
             s.clear();
-            s.append(b, p - b).strip(' ').toupper();
+            s.append(b, p - b).trim(' ').toupper();
             if (s == u) {
                 if (_ctx->arr[i + 1] == 0) {
                     b = p;
@@ -572,9 +571,9 @@ int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
         s.clear();
         s.append(m.data() + q, x - q).toupper();
         if (s.size() != 8) return 505;
-        if (god::byte_eq<uint64>(s.data(), "HTTP/1.1")) {
+        if (god::eq<uint64>(s.data(), "HTTP/1.1")) {
             req->version = kHTTP11;
-        } else if (god::byte_eq<uint64>(s.data(), "HTTP/1.0")) {
+        } else if (god::eq<uint64>(s.data(), "HTTP/1.0")) {
             req->version = kHTTP10;
         } else {
             return 505; // HTTP Version Not Supported
@@ -799,7 +798,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         s.resize(s.size() + r);
                     }
 
-                    if (x == 0) { s.lshift(2); continue; }
+                    if (x == 0) { s.trim(2, 'l'); continue; }
 
                     // chunked data:  1a[;xxx]\r\ndata\r\n
                     if ((o = s.find(';', 0, x)) == s.npos) o = x;
@@ -822,14 +821,14 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                             s.clear();
                         } else {
                             buf.append(s.data() + x + 2, n);
-                            s.lshift(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n);
+                            s.trim(s.size() >= x + 4 + n ? x + 4 + n : x + 2 + n, 'l');
                         }
 
                         if (buf.size() - hlen > FLG_http_max_body_size) goto body_too_long_err;
 
                     } else { /* n == 0, end of chunked data */
                         preq->body_size = (uint32)(buf.size() - hlen);
-                        s.lshift(x);
+                        s.trim(x, 'l');
                         while ((x = s.find("\r\n\r\n")) == s.npos) {
                             s.reserve(s.size() + 32);
                             r = conn.recv((void*)(s.data() + s.size()), 32, FLG_http_recv_timeout);
@@ -886,7 +885,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
         if (buf.size() == total_len) {
             buf.clear();
         } else {
-            buf.lshift(total_len);
+            buf.trim(total_len, 'l');
         }
 
         preq->clear();
@@ -938,8 +937,8 @@ void easy(const char* root_dir, const char* ip, int port) {
 
 void easy(const char* root_dir, const char* ip, int port, const char* key, const char* ca) {
     http::Server serv;
-    typedef LruMap<fastring, std::pair<fastring, int64>> Map;
-    co::vector<Map> contents(co::scheduler_num());
+    typedef co::lru_map<fastring, std::pair<fastring, int64>> Map;
+    co::vector<Map> contents(co::sched_num(), 0);
     fastring root(path::clean(root_dir));
 
     serv.on_req(
@@ -958,7 +957,7 @@ void easy(const char* root_dir, const char* ip, int port, const char* key, const
             fastring path = path::join(root, url);
             if (fs::isdir(path)) path = path::join(path, "index.html");
 
-            auto& map = contents[co::scheduler_id()];
+            auto& map = contents[co::sched_id()];
             auto it = map.find(path);
             if (it != map.end()) {
                 if (now::ms() < it->second.second + 300 * 1000) {

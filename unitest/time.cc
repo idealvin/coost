@@ -31,7 +31,7 @@ DEF_test(time) {
     }
 
     DEF_case(timer) {
-        Timer timer;
+        co::Timer timer;
         sleep::ms(1);
         int64 t = timer.us();
         EXPECT_GE(t, 1000);

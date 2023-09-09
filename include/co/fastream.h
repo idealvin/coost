@@ -1,21 +1,16 @@
 #pragma once
 
-#include "god.h"
 #include "fast.h"
 #include "fastring.h"
 
 class __coapi fastream : public fast::stream {
   public:
-    fastream() noexcept
+    constexpr fastream() noexcept
         : fast::stream() {
     }
     
     explicit fastream(size_t cap)
         : fast::stream(cap) {
-    }
-
-    fastream(void* p, size_t size, size_t cap) noexcept
-        : fast::stream(p, size, cap) {
     }
 
     ~fastream() = default;
@@ -27,11 +22,10 @@ class __coapi fastream : public fast::stream {
         : fast::stream(std::move(fs)) {
     }
 
-    fastream& operator=(fastream&& fs) noexcept {
+    fastream& operator=(fastream&& fs) {
         return (fastream&) fast::stream::operator=(std::move(fs));
     }
 
-    // copy data in fastream as a fastring
     fastring str() const {
         return fastring(_p, _size);
     }
@@ -40,20 +34,30 @@ class __coapi fastream : public fast::stream {
         return (fastream&) fast::stream::append(p, n);
     }
 
+    // like append(), but will not check if p overlaps with the internal memory
+    fastream& append_nomchk(const void* p, size_t n) {
+        return (fastream&) fast::stream::append_nomchk(p, n);
+    }
+
     fastream& append(const char* s) {
         return this->append(s, strlen(s));
     }
 
+    // like append(), but will not check if s overlaps with the internal memory
+    fastream& append_nomchk(const char* s) {
+        return this->append_nomchk(s, strlen(s));
+    }
+
     fastream& append(const fastring& s) {
-        return this->append(s.data(), s.size());
+        return this->append_nomchk(s.data(), s.size());
     }
 
     fastream& append(const std::string& s) {
-        return this->append(s.data(), s.size());
+        return this->append_nomchk(s.data(), s.size());
     }
 
     fastream& append(const fastream& s) {
-        if (&s != this) return this->append(s.data(), s.size());
+        if (&s != this) return this->append_nomchk(s.data(), s.size());
         this->reserve(_size << 1);
         memcpy(_p + _size, _p, _size); // append itself
         _size <<= 1;
@@ -69,7 +73,6 @@ class __coapi fastream : public fast::stream {
         return this->append(n, c);
     }
 
-    // append a single character
     fastream& append(char c) {
         return (fastream&) fast::stream::append(c);
     }
@@ -82,110 +85,123 @@ class __coapi fastream : public fast::stream {
         return this->append((char)c);
     }
 
-    // append binary data of integer types
-    fastream& append(short v) {
-        return this->append(&v, sizeof(v));
+    // append binary data of uint16 (2 bytes)
+    fastream& append(uint16 v) {
+        return this->append_nomchk(&v, sizeof(v));
     }
 
-    fastream& append(unsigned short v) {
-        return this->append(&v, sizeof(v));
+    // append binary data of uint32 (4 bytes)
+    fastream& append(uint32 v) {
+        return this->append_nomchk(&v, sizeof(v));
     }
 
-    fastream& append(int v) {
-        return this->append(&v, sizeof(v));
+    // append binary data of uint64 (8 bytes)
+    fastream& append(uint64 v) {
+        return this->append_nomchk(&v, sizeof(v));
     }
 
-    fastream& append(unsigned int v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(unsigned long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(long long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& append(unsigned long long v) {
-        return this->append(&v, sizeof(v));
-    }
-
-    fastream& cat() { return *this; }
+    fastream& cat() noexcept { return *this; }
 
     // concatenate fastream to any number of elements
     //   - fastream s("hello");
     //     s.cat(' ', 123);  // s -> "hello 123"
     template<typename X, typename ...V>
     fastream& cat(X&& x, V&& ... v) {
-        this->operator<<(std::forward<X>(x));
+        (*this) << std::forward<X>(x);
         return this->cat(std::forward<V>(v)...);
     }
 
-    // set max decimal places as mdp.n
-    fast::stream::fpstream operator<<(co::maxdp mdp) {
-        return fast::stream::operator<<(mdp);
+    fastream& operator<<(bool v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(char v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(signed char v) {
+        return this->operator<<((char)v);
+    }
+
+    fastream& operator<<(unsigned char v) {
+        return this->operator<<((char)v);
+    }
+
+    fastream& operator<<(short v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned short v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(int v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned int v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(long long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(unsigned long long v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(double v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(float v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    // float point number with max decimal places set
+    //   - fastream() << dp::_2(3.1415);  // -> 3.14
+    fastream& operator<<(const dp::_fpt& v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(const void* v) {
+        return (fastream&) fast::stream::operator<<(v);
+    }
+
+    fastream& operator<<(std::nullptr_t) {
+        return (fastream&) fast::stream::operator<<(nullptr);
+    }
+
+    fastream& operator<<(const char* s) {
+        return this->append(s, strlen(s));
     }
 
     fastream& operator<<(const signed char* s) {
-        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+        return this->operator<<((const char*)s);
     }
 
     fastream& operator<<(const unsigned char* s) {
-        return (fastream&) fast::stream::append(s, strlen((const char*)s));
+        return this->operator<<((const char*)s);
     }
 
-    template<typename T>
-    using _is_supported_type = god::enable_if_t<
-        god::is_basic<T>() || god::is_pointer<T>() ||
-        god::is_literal_string<T>() || god::is_c_str<T>() ||
-        god::is_same<god::remove_cv_t<T>, fastring, fastream, std::string>(), int
-    >;
-
-    // Special optimization for string literal like "hello". The length of a string 
-    // literal can be get at compile-time, no need to call strlen().
-    template<typename T, _is_supported_type<god::remove_ref_t<T>> = 0>
-    fastream& operator<<(T&& t) {
-        using X = god::remove_ref_t<T>; // remove & or &&
-        using C = god::remove_cv_t<X>;  // remove const, volatile
-
-        constexpr int N =
-            god::is_literal_string<X>() ? 1 :
-            god::is_c_str<X>() ? 2 :
-            god::is_same<C, fastring, fastream, std::string>() ? 3 :
-            0;
-
-        return this->_out(std::forward<T>(t), I<N>());
+    fastream& operator<<(const fastring& s) {
+        return this->append_nomchk(s.data(), s.size());
     }
 
-  private:
-    template<int N> struct I {};
-
-    // built-in types or pointer types
-    template<typename T>
-    fastream& _out(T&& t, I<0>) {
-        return (fastream&) fast::stream::operator<<(std::forward<T>(t));
+    fastream& operator<<(const std::string& s) {
+        return this->append_nomchk(s.data(), s.size());
     }
 
-    // string literal like "hello"
-    template<typename T>
-    fastream& _out(T&& t, I<1>) {
-        return this->append(t, sizeof(t) - 1);
-    }
-
-    // const char* or char*
-    template<typename T>
-    fastream& _out(T&& t, I<2>) {
-        return this->append(t);
-    }
-
-    // fastring, fastream, std::string
-    template<typename T>
-    fastream& _out(T&& t, I<3>) {
-        return this->append((god::const_ref_t<T>)t);
+    fastream& operator<<(const fastream& s) {
+        return this->append(s);
     }
 };

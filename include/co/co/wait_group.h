@@ -1,42 +1,41 @@
 #pragma once
 
 #include "../def.h"
-#include "../atomic.h"
 
 namespace co {
 
-class __coapi WaitGroup {
+class __coapi wait_group {
   public:
     // initialize the counter as @n
-    explicit WaitGroup(uint32 n);
+    explicit wait_group(uint32 n);
 
     // the counter is 0 by default
-    WaitGroup() : WaitGroup(0) {}
+    wait_group() : wait_group(0) {}
 
-    ~WaitGroup();
+    ~wait_group();
 
-    WaitGroup(WaitGroup&& wg) : _p(wg._p) {
+    wait_group(wait_group&& wg) noexcept : _p(wg._p) {
         wg._p = 0;
     }
 
-    // copy constructor, allow WaitGroup to be captured by value in lambda.
-    WaitGroup(const WaitGroup& wg) : _p(wg._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    // copy constructor, just increment the reference count
+    wait_group(const wait_group& wg);
 
-    void operator=(const WaitGroup&) = delete;
+    void operator=(const wait_group&) = delete;
 
-    // increase WaitGroup counter by n (1 by default)
+    // increase the counter by n (1 by default)
     void add(uint32 n=1) const;
 
-    // decrease WaitGroup counter by 1
+    // decrease the counter by 1
     void done() const;
 
     // blocks until the counter becomes 0
     void wait() const;
 
   private:
-    uint32* _p;
+    void* _p;
 };
+
+typedef wait_group WaitGroup;
 
 } // co

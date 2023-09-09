@@ -46,14 +46,13 @@ fastring cwd() {
         GetCurrentDirectoryA(r, (char*)s.data());
         s.resize(r - 1);
     }
-
     if (!(s.size() > 1 && s[0] == '\\' && s[1] == '\\')) backslash_to_slash(s);
     return s;
 }
 
 static fastring _get_module_path() {
     DWORD n = 128, r = 0;
-    fastring s(n);
+    fastring s(128);
     while (true) {
         r = GetModuleFileNameA(NULL, (char*)s.data(), n);
         if (r < n) { s.resize(r); break; }
@@ -74,8 +73,8 @@ fastring exedir() {
     size_t n = s.rfind('\\');
     if (n != s.npos && n != 0) {
         if (s[n - 1] != ':') {
-            s.resize(n);
             s[n] = '\0';
+            s.resize(n);
         } else {
             s.resize(n + 1);
             if (s.capacity() > n + 1) s[n + 1] = '\0';
@@ -102,6 +101,15 @@ int cpunum() {
         return (int) info.dwNumberOfProcessors;
     }();
     return ncpu;
+}
+
+size_t pagesize() {
+    static size_t ps = []() {
+        SYSTEM_INFO info;
+        GetSystemInfo(&info);
+        return (size_t) info.dwPageSize;
+    }();
+    return ps;
 }
 
 void daemon() {}

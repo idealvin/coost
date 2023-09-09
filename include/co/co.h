@@ -5,6 +5,7 @@
 #include "flag.h"
 #include "log.h"
 #include "stl.h"
+#include "./co/thread.h"
 #include "./co/sock.h"
 #include "./co/event.h"
 #include "./co/mutex.h"
@@ -85,16 +86,14 @@ inline void go(F&& f, T* t, P&& p) {
     go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
 }
 
-/**
- * define main function
- *   - DEF_main can be used to ensure code in main function also runs in coroutine. 
- */
+// define main function
+//   - make code in main function also runs in coroutine
 #define DEF_main(argc, argv) \
 int _co_main(int argc, char** argv); \
 int main(int argc, char** argv) { \
-    flag::init(argc, argv); \
+    flag::parse(argc, argv); \
     int r; \
-    co::WaitGroup wg(1); \
+    co::wait_group wg(1); \
     go([&](){ \
         r = _co_main(argc, argv); \
         wg.done(); \
@@ -105,8 +104,11 @@ int main(int argc, char** argv) { \
 int _co_main(int argc, char** argv)
 
 
-class __coapi Scheduler {
+class __coapi Sched {
   public:
+    Sched() = delete;
+    ~Sched() = delete;
+
     void go(Closure* cb);
 
     template<typename F>
@@ -123,151 +125,104 @@ class __coapi Scheduler {
     inline void go(F&& f, T* t, P&& p) {
         this->go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
     }
-
-  protected:
-    Scheduler() = default;
-    ~Scheduler() = default;
 };
 
-/**
- * get all schedulers 
- *   
- * @return  a reference of an array, which stores pointers to all the Schedulers
- */
-__coapi const co::vector<Scheduler*>& schedulers();
+class __coapi MainSched {
+  public:
+    MainSched() = delete;
+    ~MainSched() = delete;
 
-/**
- * get the current scheduler
- * 
- * @return a pointer to the current scheduler, or NULL if called from a non-scheduler thread.
- */
-__coapi Scheduler* scheduler();
+    void loop();
+};
 
-/**
- * get the current coroutine
- * 
- * @return a pointer to the current coroutine
- */
+// get all the schedulers
+__coapi const co::vector<Sched*>& scheds();
+
+// get number of the schedulers
+__coapi int sched_num();
+
+// get the current scheduler
+__coapi Sched* sched();
+
+// get next scheduler
+//   - It is useful when users want to create coroutines in the same scheduler.
+//   - eg. 
+//     auto s = co::next_sched();
+//     s->go(f);     // void f();
+//     s->go(g, 7);  // void g(int);
+__coapi Sched* next_sched();
+
+// mark the main thread as a scheduler
+//   - It is useful when users want to run the main thread as a scheduler.
+//   - Call this function in the main function before any coroutine starts, 
+//     and then call MainSched::loop() with the returned result.
+//   - e.g. 
+//     auto s = co::main_sched();
+//     go(xx);    /* start coroutines here */
+//     s->loop(); /* loop in main thread */
+__coapi MainSched* main_sched();
+
+// return a pointer to the current coroutine
 __coapi void* coroutine();
 
-/**
- * get next scheduler 
- *   - It is useful when users want to create coroutines in the same scheduler. 
- *   - eg. 
- *     auto s = co::next_scheduler();
- *     s->go(f);     // void f();
- *     s->go(g, 7);  // void g(int);
- * 
- * @return a non-null pointer.
- */
-__coapi Scheduler* next_scheduler();
+// return id of the current scheduler, or -1 if called from non-scheduler thread
+__coapi int sched_id();
 
-/**
- * get number of schedulers 
- *   - scheduler id is from 0 to scheduler_num() - 1. 
- *   - This function may be used to implement scheduler-local storage:  
- *                co::vector<T> xx(co::scheduler_num());  
- *     xx[co::scheduler_id()] can be used in a coroutine to access the storage for 
- *     the current scheduler thread.
- * 
- * @return  total number of the schedulers.
- */
-__coapi int scheduler_num();
-
-/**
- * get id of the current scheduler 
- *   - It is EXPECTED to be called in a coroutine. 
- * 
- * @return  a non-negative id of the current scheduler, or -1 if the current thread 
- *          is not a scheduler thread.
- */
-__coapi int scheduler_id();
-
-/**
- * get id of the current coroutine 
- *   - It is EXPECTED to be called in a coroutine. 
- *   - Each cocoutine has a unique id. 
- * 
- * @return  a non-negative id of the current coroutine, or -1 if the current thread 
- *          is not a scheduler thread.
- */
+// return id of the current coroutine, or -1 if called from non-coroutine
 __coapi int coroutine_id();
 
-/**
- * add a timer for the current coroutine 
- *   - It MUST be called in a coroutine.
- *   - Users MUST call yield() to suspend the coroutine after a timer was added.
- *     When the timer expires, the scheduler will resume the coroutine.
- *
- * @param ms  timeout in milliseconds.
- */
+// add a timer for the current coroutine 
+//   - It MUST be called in coroutine.
+//   - Users MUST call yield() to suspend the coroutine after a timer was added.
+//     When the timer expires, the scheduler will resume the coroutine.
 __coapi void add_timer(uint32 ms);
 
-/**
- * add an IO event on a socket to the epoll 
- *   - It MUST be called in a coroutine.
- *   - Users MUST call yield() to suspend the coroutine after an event was added.
- *     When the event is present, the scheduler will resume the coroutine.
- *
- * @param fd  the socket.
- * @param ev  an IO event, either ev_read or ev_write.
- *
- * @return    true on success, false on error.
- */
-__coapi bool add_io_event(sock_t fd, io_event_t ev);
+// add an IO event on a socket to the epoll 
+//   - It MUST be called in coroutine.
+//   - Users MUST call yield() to suspend the coroutine after an event was added.
+//     When the event is present, the scheduler will resume the coroutine.
+// 
+//   - @fd: the socket.
+//   - @ev: either ev_read or ev_write.
+//   - @return: true on success, false on error.
+__coapi bool add_io_event(sock_t fd, _ev_t ev);
 
-/**
- * delete an IO event from epoll
- *   - It MUST be called in a coroutine.
- */
-__coapi void del_io_event(sock_t fd, io_event_t ev);
+// remove an IO event from epoll
+//   - It MUST be called in coroutine.
+__coapi void del_io_event(sock_t fd, _ev_t ev);
 
-/**
- * remove all events on the socket 
- *   - It MUST be called in a coroutine.
- */
+// remove all IO events on the socket 
+//   - It MUST be called in coroutine.
 __coapi void del_io_event(sock_t fd);
 
-/**
- * suspend the current coroutine 
- *   - It MUST be called in a coroutine. 
- *   - Usually, users should add an IO event, or a timer, or both in a coroutine, 
- *     and then call yield() to suspend the coroutine. When the event is present 
- *     or the timer expires, the scheduler will resume the coroutine. 
- */
+// suspend the current coroutine 
+//   - It MUST be called in coroutine. 
+//   - Usually, users should add an IO event, or a timer, or both in a coroutine, 
+//     and then call yield() to suspend the coroutine. When the event is present 
+//     or the timer expires, the scheduler will resume the coroutine. 
 __coapi void yield();
 
-/**
- * resume the coroutine
- *   - It is thread safe and can be called anywhere.
- * 
- * @param co  a pointer to the coroutine (result of co::coroutine())
- */
+// resume the coroutine
+//   - It is thread safe and can be called anywhere.
+//   - @co: a pointer to the coroutine (result of co::coroutine())
 __coapi void resume(void* co);
 
-/**
- * sleep for milliseconds 
- *   - It is EXPECTED to be called in a coroutine. 
- * 
- * @param ms  time in milliseconds
- */
+// sleep for milliseconds
+//   - It is equal to sleep::ms() if called from non-coroutines.
 __coapi void sleep(uint32 ms);
 
-/**
- * check whether the current coroutine has timed out 
- *   - It MUST be called in a coroutine.
- *   - When a coroutine returns from an API with a timeout like co::recv, users may 
- *     call co::timeout() to check whether the API call has timed out. 
- * 
- * @return  true if timed out, otherwise false.
- */
+// check whether the current coroutine has timed out 
+//   - It MUST be called in coroutine.
+//   - When a coroutine returns from an API with a timeout like co::recv, users may 
+//     call co::timeout() to check whether the API call has timed out. 
 __coapi bool timeout();
 
-/**
- * check whether a pointer is on the stack of the current coroutine 
- *   - It MUST be called in a coroutine. 
- */
+// check whether a pointer is on the stack of the current coroutine 
+//   - It MUST be called in coroutine. 
 __coapi bool on_stack(const void* p);
+
+// stop all schedulers
+__coapi void stop_scheds();
 
 } // namespace co
 

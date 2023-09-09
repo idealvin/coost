@@ -83,7 +83,7 @@ class Alloc {
 
 inline Alloc& jalloc() {
     static __thread Alloc* a = 0;
-    return a ? *a : *(a = co::static_new<Alloc>()); 
+    return a ? *a : *(a = co::_make_static<Alloc>()); 
 }
 
 void* alloc() {
@@ -580,7 +580,7 @@ S Parser::parse_number(S b, S e, void_ptr_t& v) {
     {
         // compare with MAX_UINT64, MIN_INT64
         // if value > MAX_UINT64 or value < MIN_INT64, we parse it as a double
-        int m = memcmp(b, (*b != '-' ? "18446744073709551615" : "-9223372036854775808"), 20);
+        int m = ::memcmp(b, (*b != '-' ? "18446744073709551615" : "-9223372036854775808"), 20);
         if (m < 0) goto to_int;
         if (m > 0) goto to_dbl;
         v = make_int(_a, *b != '-' ? MAX_UINT64 : MIN_INT64);
@@ -717,7 +717,7 @@ fastream& Json::_json2str(fastream& fs, bool debug, int mdp) const {
         fs << _h->b;
         break;
       case t_double:
-        fs.maxdp(mdp) << _h->d;
+        fs << dp::_n(_h->d, mdp);
         break;
     }
 

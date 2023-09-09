@@ -1,24 +1,25 @@
 #include "co/co.h"
+#include "co/cout.h"
 
 void f0() {
-    LOG << "f0()";
+    co::print("f0()");
 }
 
 void f1(int v) {
-    LOG << "f1(" << v << ")";
+    co::print("f1(", v, ")");
 }
 
 void f2(const std::string& s) {
-    LOG << "f2(" << s << ")";
+    co::print("f2(", s, ")");
 }
 
 void f3(void* s) {
     std::unique_ptr<std::string> p((std::string*)s);
-    LOG << "f3(" << *p << ")";
+    co::print("f3(", *p, ")");
 }
 
 void f4(int a, int b) {
-    LOG << "f4(" << a << ',' << b << ")";
+    co::print("f4(", a, ',', b, ")");
 }
 
 class T {
@@ -27,30 +28,29 @@ class T {
     ~T() = default;
 
     void m0() {
-        LOG << "m0()";
+        co::print("m0()");
     }
 
     void m1(int v) {
-        LOG << "m1(" << v << ")";
+        co::print("m1(", v, ")");
     }
 
     void m2(const std::string& s) {
-        LOG << "m2(" << s << ")";
+        co::print("m2(", s, ")");
     }
 
     void m3(void* s) {
         std::unique_ptr<std::string> p((std::string*)s);
-        LOG << "m3(" << *p << ")";
+        co::print("m3(", *p, ")");
     }
 
     void m4(int a, int b) {
-        LOG << "m4(" << a << ',' << b << ")";
+        co::print("m4(", a, ',', b, ")");
     }
 };
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    FLG_cout = true;
+    flag::parse(argc, argv);
 
     std::string s("s222");
     const std::string cs("cs222");
@@ -79,12 +79,12 @@ int main(int argc, char** argv) {
     go(std::bind(&T::m4, &o, 500, 511));
 
     auto x = [](int v) {
-        LOG << "[](" << v << ")";
+        co::print("[](", v, ")");
     };
 
     go(&x, 888);
     go(x, 888);
-    go([]() { LOG << "[]()"; });
+    go([]() { co::print("[]()"); });
 
     co::sleep(100);
     return 0;

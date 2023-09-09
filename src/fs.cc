@@ -34,8 +34,6 @@ int64 fsize(const char* path) {
     return ::lstat(path, &attr) == 0 ? attr.st_size : -1;
 }
 
-// p = false  ->  mkdir
-// p = true   ->  mkdir -p
 bool mkdir(const char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
@@ -43,12 +41,8 @@ bool mkdir(const char* path, bool p) {
     if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
 
     fastring parent(path, s - path);
-    
-    if (fs::exists(parent.c_str())) {
-        return ::mkdir(path, 0755) == 0;
-    } else {
-        return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
-    }
+    if (fs::exists(parent.c_str())) return ::mkdir(path, 0755) == 0;
+    return fs::mkdir(parent.c_str(), true) && ::mkdir(path, 0755) == 0;
 }
 
 bool mkdir(char* path, bool p) {
@@ -68,8 +62,6 @@ bool mkdir(char* path, bool p) {
     }
 }
 
-// rf = false  ->  rm or rmdir
-// rf = true   ->  rm -rf
 bool remove(const char* path, bool rf) {
     if (!fs::exists(path)) return true;
 
@@ -77,11 +69,10 @@ bool remove(const char* path, bool rf) {
         if (fs::isdir(path)) return ::rmdir(path) == 0;
         return ::unlink(path) == 0;
     } else {
-        fastring cmd(strlen(path) + 9);
+        fastring cmd(strlen(path) + 10);
         cmd.append("rm -rf \"").append(path).append('"');
         FILE* f = popen(cmd.c_str(), "w");
-        if (f == NULL) return false;
-        return pclose(f) != -1;
+        return f ? pclose(f) != -1 : false;
     }
 }
 
@@ -148,13 +139,7 @@ const char* file::path() const {
 
 bool file::open(const char* path, char mode) {
     // make sure __sys_api(close, read, write) are not NULL
-    static bool kx = []() {
-        if (__sys_api(close) == 0) ::close(-1);
-        if (__sys_api(read) == 0)  { auto r = ::read(-1, 0, 0);  (void)r; }
-        if (__sys_api(write) == 0) { auto r = ::write(-1, 0, 0); (void)r; }
-        return true;
-    }();
-    (void) kx;
+    static bool _ = []() { co::init_hook(); return true; }(); (void)_;
 
     this->close();
     if (!path || !*path) return false;
@@ -188,8 +173,7 @@ void file::seek(int64 off, int whence) {
     static int seekfrom[3] = { SEEK_SET, SEEK_CUR, SEEK_END };
     fctx* p = (fctx*)_p;
     if (p && p->fd != nullfd) {
-        whence = seekfrom[whence];
-        ::lseek(p->fd, off, whence);
+        ::lseek(p->fd, off, seekfrom[whence]);
     }
 }
 
@@ -297,9 +281,7 @@ co::vector<fastring> dir::all() const {
     dctx* d = (dctx*)_p;
     if (!d || !d->d) return co::vector<fastring>();
 
-    co::vector<fastring> r;
-    r.reserve(8);
-
+    co::vector<fastring> r(8);
     while ((d->e = ::readdir(d->d))) {
         char* const p = d->e->d_name;
         // ignore . and ..

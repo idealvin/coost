@@ -1,9 +1,10 @@
-#include "test.h"
 #include "co/def.h"
-#include "co/cout.h"
+#include "co/flag.h"
 #include "co/str.h"
 #include "co/fastream.h"
 #include "co/time.h"
+#include "co/cout.h"
+#include "co/benchmark.h"
 #include <algorithm>
 
 #ifndef _WIN32
@@ -280,45 +281,84 @@ inline int64 rtw(const char* s, const char* x) {
     return tw_rfind(s, x);
 }
 
-int main(int argc, char** argv) {
-    CLOG << "hello world";
+DEF_int32(n, 256, "");
+DEF_string(s, "llo", "");
 
-    def_test(100000);
-    std::string ss = "hello world" + std::string(256, 'x');
-    const char* s = ss.c_str();
-    const char* p = "llo";
+std::string ss;
+const char* s;
+const char* p;
 
-    CLOG << QS(s, "llo");
-    CLOG << QS(s, "world");
-    CLOG << QS(s, "xxxxx");
-    CLOG << RQS(s, "llo");
-    CLOG << RQS(s, "world");
-    CLOG << RQS(s, "xxxxx");
-
-    CLOG << tw(s, "llo");
-    CLOG << tw(s, "world");
-    CLOG << tw(s, "xxxxx");
-    CLOG << rtw(s, "llo");
-    CLOG << rtw(s, "world");
-    CLOG << rtw(s, "xxxxx");
-    CLOG << ss.rfind("xxxxx");
-
+BM_group(string_search) {
     int64 v;
     size_t r;
     const char* t;
-    (void)v;
 
-    def_case(v = QS(s, p));
-    def_case(v = tw(s, p));
-    def_case(r = ss.find(p));
-    def_case(t = strstr(s, p));
-    def_case(v = RQS(s, p));
-    def_case(v = rtw(s, p));
-    def_case(r = ss.rfind(p));
+    BM_add(QS)(
+        v = QS(s, p);
+    )
+    BM_use(v);
 
-    int64 x, y, ls = strlen(s), lp = strlen(p);
-    tw_rinit(p, strlen(p), &x, &y);
-    def_case(v = tw_rfind(s, ls, p, lp, x, y));
+    BM_add(tw)(
+        v = tw(s, p);
+    )
+    BM_use(v);
+
+    BM_add(std::string::find)(
+        r = ss.find(p);
+    )
+    BM_use(r);
+
+    BM_add(strstr)(
+        t = strstr(s, p);
+    )
+    BM_use(t);
+}
+
+BM_group(reverse_search) {
+    int64 v;
+    size_t r;
+
+    BM_add(RQS)(
+        v = RQS(s, p);
+    )
+    BM_use(v);
+    
+
+    BM_add(rtw)(
+        v = rtw(s, p);
+    )
+    BM_use(v);
+
+    BM_add(std::string::rfind)(
+        r = ss.rfind(p);
+    )
+    BM_use(r);
+}
+
+
+int main(int argc, char** argv) {
+    flag::parse(argc, argv);
+
+    ss = "hello world" + std::string(FLG_n, 'x');
+    s = ss.c_str();
+    p = FLG_s.c_str();
+
+    co::print(QS(s, "llo"));
+    co::print(QS(s, "world"));
+    co::print(QS(s, "xxxxx"));
+    co::print(RQS(s, "llo"));
+    co::print(RQS(s, "world"));
+    co::print(RQS(s, "xxxxx"));
+
+    co::print(tw(s, "llo"));
+    co::print(tw(s, "world"));
+    co::print(tw(s, "xxxxx"));
+    co::print(rtw(s, "llo"));
+    co::print(rtw(s, "world"));
+    co::print(rtw(s, "xxxxx"));
+    co::print(ss.rfind("xxxxx"));
+
+    bm::run_benchmarks();
 
     return 0;
 }

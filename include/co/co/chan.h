@@ -1,69 +1,104 @@
 #pragma once
 
 #include "../def.h"
-#include "../god.h"
-#include "../atomic.h"
+#include <functional>
 
 namespace co {
 namespace xx {
 
-class __coapi Pipe {
+class __coapi pipe {
   public:
-    Pipe(uint32 buf_size, uint32 blk_size, uint32 ms);
-    ~Pipe();
+    typedef std::function<void(void*, void*, int)> C;
+    typedef std::function<void(void*)> D;
 
-    Pipe(Pipe&& p) : _p(p._p) {
+    pipe(uint32 buf_size, uint32 blk_size, uint32 ms, C&& c, D&& d);
+    ~pipe();
+
+    pipe(pipe&& p) noexcept : _p(p._p) {
         p._p = 0;
     }
 
-    // copy constructor, allow co::Pipe to be captured by value in lambda.
-    Pipe(const Pipe& p) : _p(p._p) {
-        atomic_inc(_p, mo_relaxed);
-    }
+    pipe(const pipe& p);
 
-    void operator=(const Pipe&) = delete;
+    void operator=(const pipe&) = delete;
 
-    // read a block
     void read(void* p) const;
-
-    // write a block
-    void write(const void* p) const;
+    void write(void* p, int o) const;
+    void close() const;
+    bool is_closed() const;
+    bool done() const;
   
   private:
-    uint32* _p;
+    void* _p;
 };
 
 } // xx
 
-template <typename T, god::enable_if_t<god::is_trivially_copyable<T>(), int> = 0>
-class Chan {
+// Implement of channel in golang, it was improved a lot since v3.0.1:
+//   - `T` can be non-POD types (std::string, e.g.).
+//   - It can be used in coroutines and/or non-coroutines.
+//   - Channel can be closed (write disabled, read ok if not empty).
+template<typename T>
+class chan {
   public:
-    /**
-     * @param cap  max capacity of the queue, 1 by default.
-     * @param ms   default timeout in milliseconds, -1 by default.
-     */
-    explicit Chan(uint32 cap=1, uint32 ms=(uint32)-1)
-        : _p(cap * sizeof(T), sizeof(T), ms) {
+    // @cap  max capacity of the queue, 1 by default.
+    // @ms   timeout in milliseconds, -1 by default.
+    explicit chan(uint32 cap=1, uint32 ms=(uint32)-1)
+        : _p(cap * sizeof(T), sizeof(T), ms,
+          [](void* dst, void* src, int o) {
+              switch (o) {
+                case 0:
+                  new (dst) T(*static_cast<const T*>(src));
+                  break;
+                case 1:
+                  new (dst) T(std::move(*static_cast<T*>(src)));
+                  break;
+              }
+          },
+          [](void* p){
+              static_cast<T*>(p)->~T();
+          }) {
     }
 
-    ~Chan() = default;
+    ~chan() = default;
 
-    Chan(Chan&& c) : _p(std::move(c._p)) {}
+    chan(chan&& c) : _p(std::move(c._p)) {}
+    chan(const chan& c) : _p(c._p) {}
+    void operator=(const chan&) = delete;
 
-    Chan(const Chan& c) : _p(c._p) {}
-
-    void operator=(const Chan&) = delete;
-
-    void operator<<(const T& x) const {
-        _p.write(&x);
+    // read an element from the channel to @x
+    chan& operator>>(T& x) const {
+        _p.read((void*)&x);
+        return (chan&)*this;
     }
 
-    void operator>>(T& x) const {
-        _p.read(&x);
+    // write an element to the channel (copy constructor will be used)
+    chan& operator<<(const T& x) const {
+        _p.write((void*)&x, 0);
+        return (chan&)*this;
     }
+
+    // write an element to the channel (move constructor will be used)
+    chan& operator<<(T&& x) const {
+        _p.write((void*)&x, 1);
+        return (chan&)*this;
+    }
+
+    // return true if the read or write operation was done successfully
+    bool done() const { return _p.done(); }
+
+    // close the channel.
+    // write was disabled then, but we can still read from the channel.
+    void close() const { _p.close(); }
+
+    // check if the channel was closed (false for closed)
+    explicit operator bool() const { return !_p.is_closed(); }
 
   private:
-    xx::Pipe _p;
+    xx::pipe _p;
 };
+
+template<typename T>
+using Chan = chan<T>;
 
 } // co

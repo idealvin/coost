@@ -1,7 +1,7 @@
 #include "co/all.h"
 
-DEF_string(ip, "127.0.0.1", "ip");
-DEF_int32(port, 9988, "port");
+DEF_string(ip, "127.0.0.1", "server ip");
+DEF_int32(port, 9988, "server port");
 DEF_int32(client_num, 1, "client num");
 DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
@@ -62,11 +62,11 @@ void client_fun() {
 }
 
 
-co::Pool* gPool = NULL;
+co::pool* gPool = NULL;
 
 // we don't need to close the connection manually with co::Pool.
 void client_with_pool() {
-    co::PoolGuard<tcp::Client> c(*gPool);
+    co::pool_guard<tcp::Client> c(*gPool);
     if (!c->connect(3000)) return;
 
     char buf[8] = { 0 };
@@ -94,7 +94,7 @@ void client_with_pool() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     gPool = new co::Pool(
         []() {
             bool use_ssl = !FLG_key.empty() && !FLG_ca.empty();
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
     );
 
     tcp::Server().on_connection(conn_cb).start(
-        FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str()
+        "0.0.0.0", FLG_port, FLG_key.c_str(), FLG_ca.c_str()
     );
 
     sleep::ms(32);

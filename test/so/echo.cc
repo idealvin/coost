@@ -1,28 +1,29 @@
 #include "co/all.h"
 
-DEF_string(ip, "127.0.0.1", "ip");
-DEF_int32(port, 9988, "port");
-DEF_int32(c, 0, "client num");
-DEF_int32(l, 4096, "message length");
-DEF_int32(t, 60, "test time in seconds");
+DEF_string(h, "127.0.0.1", "server ip");
+DEF_int32(p, 9988, "server port");
+DEF_int32(c, 128, "connection number");
+DEF_int32(l, 1024, "message length");
+DEF_int32(t, 10, "test time in seconds");
+DEF_bool(s, false, "run as server if true");
 
 void conn_cb(tcp::Connection conn) {
     fastream buf(FLG_l);
 
     while (true) {
         int r = conn.recvn(&buf[0], FLG_l);
-        if (r == 0) {         /* client close the connection */
-            conn.close();
-            break;
-        } else if (r < 0) { /* error */
-            conn.reset(3000);
-            break;
-        } else {
+        if (r > 0) {
             r = conn.send(buf.data(), FLG_l);
             if (r <= 0) {
                 conn.reset(3000);
                 break;
             }
+        } else if (r == 0) { /* client close the connection */
+            conn.close();
+            break;
+        } else { /* error */
+            conn.reset(3000);
+            break;
         }
     }
 }
@@ -31,14 +32,23 @@ bool g_stop = false;
 struct Count {
     uint32 r;
     uint32 s;
+    char x[56];
 };
 Count* g_count;
+co::wait_group g_wg;
 
 void client_fun(int i) {
-    tcp::Client c(FLG_ip.c_str(), FLG_port, false);
-    if (!c.connect(3000)) return;
+    tcp::Client c(FLG_h.c_str(), FLG_p, false);
+    defer(
+        c.close();
+        g_wg.done();
+    );
+    if (!c.connect(3000)) {
+        co::print("connect to server failed..");
+        return;
+    }
 
-    fastring buf(FLG_l, 'x');
+    fastring buf(FLG_l, '\0');
     auto& count = g_count[i];
 
     while (!g_stop) {
@@ -52,32 +62,34 @@ void client_fun(int i) {
         if (r < 0) {
             break;
         } else if (r == 0) {
-            LOG << "server close the connection";
+            co::print("server close the connection");
             break;
         } 
         ++count.r;
     }
-
-    c.close();
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::set_value("co_sched_num", "1");
+    FLG_help << "usage: \n"
+             << "\techo -s            # run echo server\n"
+             << "\techo -c 128 -t 20  # run echo client, 128 connection, 20 seconds\n";
+    flag::parse(argc, argv);
 
-    if (FLG_c <= 0) {
-        tcp::Server().on_connection(conn_cb).start(
-            FLG_ip.c_str(), FLG_port 
-        );
-        while (true) sleep::sec(102400);
+    if (FLG_s) {
+        tcp::Server().on_connection(conn_cb).start("0.0.0.0", FLG_p);
+        while (true) sleep::sec(1024);
     } else {
         g_count = (Count*) co::zalloc(sizeof(Count) * FLG_c);
+        g_wg.add(FLG_c);
+        go([]() {
+            co::sleep(FLG_t * 1000);
+            atomic_store(&g_stop, true);
+        });
         for (int i = 0; i < FLG_c; ++i) {
             go(client_fun, i);
         }
-
-        sleep::sec(FLG_t);
-        atomic_store(&g_stop, true);
-        sleep::sec(3);
+        g_wg.wait();
 
         size_t rsum = 0;
         size_t ssum = 0;
@@ -86,11 +98,14 @@ int main(int argc, char** argv) {
             ssum += g_count[i].s;
         }
 
-        COUT << "Speed: "
-             << (ssum / FLG_t) << " request/sec, "
-             << (rsum / FLG_t) << " response/sec";
-        COUT << "Requests: " << ssum;
-        COUT << "Responses: " << rsum;
+        co::print("server: ", FLG_h, ":", FLG_p);
+        co::print("connection num: ", FLG_c, ", msg len: ", FLG_l, ", time: ", FLG_t, " seconds");
+        co::print("speed: ",
+            (ssum / FLG_t), " request/sec, ",
+            (rsum / FLG_t), " response/sec"
+        );
+        co::print("requests: ", ssum);
+        co::print("responses: ", rsum);
     }
 
     return 0;

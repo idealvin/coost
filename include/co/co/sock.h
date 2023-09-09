@@ -243,7 +243,7 @@ __coapi int sendto(sock_t fd, const void* buf, int n, const void* dst_addr, int 
 inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
     int r = ::getsockopt(fd, lv, opt, (char*)optval, optlen);
     if (r == 0) return r;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
@@ -251,7 +251,7 @@ inline int getsockopt(sock_t fd, int lv, int opt, void* optval, int* optlen) {
 inline int setsockopt(sock_t fd, int lv, int opt, const void* optval, int optlen) {
     int r = ::setsockopt(fd, lv, opt, (const char*)optval, optlen);
     if (r == 0) return r;
-    co::error() = WSAGetLastError();
+    co::error(WSAGetLastError());
     return r;
 }
 
@@ -331,7 +331,7 @@ __coapi void set_cloexec(sock_t fd);
 #endif
 
 /**
- * fill in an ipv4 address with ip & port 
+ * fill in ipv4 address with ip & port 
  * 
  * @param addr  a pointer to an ipv4 address.
  * @param ip    string like: "127.0.0.1".
@@ -339,7 +339,7 @@ __coapi void set_cloexec(sock_t fd);
  * 
  * @return      true on success, otherwise false.
  */
-inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
+inline bool init_addr(struct sockaddr_in* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin_family = AF_INET;
     addr->sin_port = hton16((uint16)port);
@@ -347,7 +347,7 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
 }
 
 /**
- * fill in an ipv6 address with ip & port
+ * fill in ipv6 address with ip & port
  * 
  * @param addr  a pointer to an ipv6 address.
  * @param ip    string like: "::1".
@@ -355,33 +355,29 @@ inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
  * 
  * @return      true on success, otherwise false.
  */
-inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
+inline bool init_addr(struct sockaddr_in6* addr, const char* ip, int port) {
     memset(addr, 0, sizeof(*addr));
     addr->sin6_family = AF_INET6;
     addr->sin6_port = hton16((uint16)port);
     return inet_pton(AF_INET6, ip, &addr->sin6_addr) == 1;
 }
 
-// get ip string of an ipv4 address 
-inline fastring ip_str(const struct sockaddr_in* addr) {
-    char s[INET_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
-    return fastring(s);
+// deprecated, use init_addr instead
+inline bool init_ip_addr(struct sockaddr_in* addr, const char* ip, int port) {
+    return init_addr(addr, ip, port);
 }
 
-// get ip string of an ipv6 address
-inline fastring ip_str(const struct sockaddr_in6* addr) {
-    char s[INET6_ADDRSTRLEN] = { 0 };
-    inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
-    return fastring(s);
+// deprecated, use init_addr instead
+inline bool init_ip_addr(struct sockaddr_in6* addr, const char* ip, int port) {
+    return init_addr(addr, ip, port);
 }
 
 /**
- * convert an ipv4 address to a string 
+ * convert ipv4 address to string 
  *
- * @return  a string in format "ip:port"
+ * @return  a string in format: "ip:port"
  */
-inline fastring to_string(const struct sockaddr_in* addr) {
+inline fastring addr2str(const struct sockaddr_in* addr) {
     char s[INET_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     const size_t n = strlen(s);
@@ -391,11 +387,11 @@ inline fastring to_string(const struct sockaddr_in* addr) {
 }
 
 /**
- * convert an ipv6 address to a string 
+ * convert ipv6 address to string 
  *
  * @return  a string in format: "ip:port"
  */
-inline fastring to_string(const struct sockaddr_in6* addr) {
+inline fastring addr2str(const struct sockaddr_in6* addr) {
     char s[INET6_ADDRSTRLEN] = { 0 };
     inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     const size_t n = strlen(s);
@@ -405,14 +401,15 @@ inline fastring to_string(const struct sockaddr_in6* addr) {
 }
 
 /**
- * convert an ip address to a string 
+ * convert ip address to string 
  * 
  * @param addr  a pointer to struct sockaddr.
  * @param len   length of the addr, sizeof(sockaddr_in) or sizeof(sockaddr_in6).
  */
-inline fastring to_string(const void* addr, int len) {
-    if (len == sizeof(sockaddr_in)) return to_string((const sockaddr_in*)addr);
-    return to_string((const struct sockaddr_in6*)addr);
+inline fastring addr2str(const void* addr, int len) {
+    if (len == sizeof(sockaddr_in)) return addr2str((sockaddr_in*)addr);
+    if (len == sizeof(sockaddr_in6)) return addr2str((sockaddr_in6*)addr);
+    return fastring();
 }
 
 /**
@@ -427,11 +424,7 @@ inline fastring peer(sock_t fd) {
     } addr;
     int addrlen = sizeof(addr);
     const int r = getpeername(fd, (sockaddr*)&addr, (socklen_t*)&addrlen);
-    if (r == 0) {
-        if (addrlen == sizeof(addr.v4)) return co::to_string(&addr.v4);
-        if (addrlen == sizeof(addr.v6)) return co::to_string(&addr.v6);
-    }
-    return fastring();
+    return r == 0 ? co::addr2str(&addr, addrlen) : fastring();
 }
 
 } // co

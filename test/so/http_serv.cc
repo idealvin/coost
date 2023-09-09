@@ -24,7 +24,7 @@ DEF_string(key, "", "private key file");
 DEF_string(ca, "", "certificate file");
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     if (!FLG_key.empty() && !FLG_ca.empty()) {

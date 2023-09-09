@@ -1,10 +1,9 @@
 # coost
 
 [English](readme.md) | 简体中文
-
-[![Linux Build](https://img.shields.io/github/workflow/status/idealvin/coost/Linux/master.svg?logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
-[![Windows Build](https://img.shields.io/github/workflow/status/idealvin/coost/Windows/master.svg?logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
-[![Mac Build](https://img.shields.io/github/workflow/status/idealvin/coost/macOS/master.svg?logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Linux Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
+[![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![Mac Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -17,17 +16,17 @@
 
 **[coost](https://github.com/idealvin/coost)** 是一个**兼具性能与易用性**的跨平台 C++ 基础库，其目标是打造一把 C++ 开发神器，让 C++ 编程变得简单、轻松、愉快。
 
-coost 原名为 co，后改为 cocoyaxi，前者过短，后者过长，取中庸之道，又改为 coost。它曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了不少强大的功能：
+coost 简称为 co，曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了不少强大的功能：
 
 <table>
 <tr><td width=33% valign=top>
 
 - 命令行与配置文件解析(flag)
 - **高性能日志库(log)**
-- 单元测试框架(unitest)
+- 单元测试框架
+- 基准测试框架
 - **go-style 协程**
 - 基于协程的网络编程框架
-- 高效 JSON 库
 - **基于 JSON 的 RPC 框架**
 
 </td><td width=34% valign=top>
@@ -43,7 +42,7 @@ coost 原名为 co，后改为 cocoyaxi，前者过短，后者过长，取中�
 </td><td valign=top>
 
 - **面向玄学编程**
-- LruMap
+- 高效 JSON 库
 - hash 库
 - path 库
 - 文件系统操作(fs)
@@ -77,14 +76,13 @@ coost 的发展离不开大家的帮助，如果您在使用或者喜欢 coost�
 
 ### 3.0 面向玄学编程
 
-[co/god.h](https://github.com/idealvin/coost/blob/master/include/co/god.h) 提供模板相关的一些功能。模板用到深处，代码深奥难懂，有些 C++ 程序员称之为面向玄学编程。
+[co/god.h](https://github.com/idealvin/coost/blob/master/include/co/god.h) 提供模板相关的一些功能。模板用到深处有点玄，有些 C++ 程序员称之为面向玄学编程。
 
 ```cpp
 #include "co/god.h"
 
 void f() {
     god::bless_no_bugs();
-    god::align_up<8>(31); // -> 32
     god::is_same<T, int, bool>(); // T is int or bool?
 }
 ```
@@ -110,12 +108,12 @@ DEF_uint32(u, 0, "xxx");
 DEF_string(s, "", "xx");
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    COUT << "x: " << FLG_x;
-    COUT << "y: " << FLG_y;
-    COUT << "debug: " << FLG_debug;
-    COUT << "u: " << FLG_u;
-    COUT << FLG_s << "|" << FLG_s.size();
+    flag::parse(argc, argv);
+    cout << "x: " << FLG_x << '\n';
+    cout << "y: " << FLG_y << '\n';
+    cout << "debug: " << FLG_debug << '\n';
+    cout << "u: " << FLG_u << '\n';
+    cout << FLG_s << "|" << FLG_s.size() << '\n';
     return 0;
 }
 ```
@@ -146,7 +144,7 @@ log 支持两种类型的日志：一种是 level log，分为 debug, info, warn
 #include "co/log.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     TLOG("xx") << "s" << 23; // topic log
     DLOG << "hello " << 23;  // debug
@@ -197,8 +195,6 @@ log 速度非常快，下面是一些测试结果：
 #include "co/unitest.h"
 #include "co/os.h"
 
-namespace test {
-    
 DEF_test(os) {
     DEF_case(homedir) {
         EXPECT_NE(os::homedir(), "");
@@ -208,21 +204,15 @@ DEF_test(os) {
         EXPECT_GT(os::cpunum(), 0);
     }
 }
-    
-} // namespace test
-```
-
-上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。main 函数一般只需要下面几行：
-
-```cpp
-#include "co/unitest.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
-    unitest::run_all_tests();
+    flag::parse(argc, argv);
+    unitest::run_tests();
     return 0;
 }
 ```
+
+上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。
 
 [unitest](https://github.com/idealvin/coost/tree/master/unitest) 目录下面是 coost 中的单元测试代码，编译后可执行下述命令运行：
 
@@ -239,7 +229,7 @@ coost v3.0 中，**[Json](https://github.com/idealvin/coost/blob/master/include/
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
-Json x = {
+co::Json x = {
     { "a", 23 },
     { "b", false },
     { "s", "123" },
@@ -250,7 +240,7 @@ Json x = {
 };
 
 // equal to x
-Json y = Json()
+co::Json y = Json()
     .add_member("a", 23)
     .add_member("b", false)
     .add_member("s", "123")
@@ -294,9 +284,9 @@ coost 实现了类似 golang 中 goroutine 的协程机制，它有如下特性�
 #include "co/co.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
-    co::WaitGroup wg;
+    co::wait_group wg;
     wg.add(2);
 
     go([wg](){
@@ -314,16 +304,16 @@ int main(int argc, char** argv) {
 }
 ```
 
-上面的代码中，`go()` 创建的协程会均匀的分配到不同的调度线程中。用户也可以自行控制协程的调度：
+上面的代码中，`go()` 创建的协程会分配到不同的调度线程中。用户也可以自行控制协程的调度：
 
 ```cpp
 // run f1 and f2 in the same scheduler
-auto s = co::next_scheduler();
+auto s = co::next_sched();
 s->go(f1);
 s->go(f2);
 
 // run f in all schedulers
-for (auto& s : co::schedulers()) {
+for (auto& s : co::scheds()) {
     s->go(f);
 }
 ```
@@ -332,11 +322,10 @@ for (auto& s : co::schedulers()) {
 
 ### 3.6 网络编程
 
-coost 提供了一套基于协程的网络编程框架，大致可以分为三个部分：
+coost 提供了一套基于协程的网络编程框架:
 
-- **[协程化的 socket API](https://coostdocs.github.io/cn/co/coroutine/#%e5%8d%8f%e7%a8%8b%e5%8c%96%e7%9a%84-socket-api)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
+- **[协程化的 socket API](https://coostdocs.github.io/cn/co/net/sock/)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
 - [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[HTTP](https://coostdocs.github.io/cn/co/net/http/)、[RPC](https://coostdocs.github.io/cn/co/net/rpc/) 等高层网络编程组件，兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。
-- **[系统 API hook](https://coostdocs.github.io/cn/co/coroutine/#%E7%B3%BB%E7%BB%9F-api-hook)**，支持在协程中使用一般的三方网络库。
 
 
 **RPC server**
@@ -347,7 +336,7 @@ coost 提供了一套基于协程的网络编程框架，大致可以分为三�
 #include "co/time.h"
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     rpc::Server()
         .add_service(new xx::HelloWorldImpl)
@@ -374,7 +363,7 @@ curl http://127.0.0.1:7788/xx --request POST --data '{"api":"ping"}'
 DEF_string(d, ".", "root dir"); // docroot for the web server
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     so::easy(FLG_d.c_str()); // mum never have to worry again
     return 0;
 }
@@ -441,15 +430,15 @@ go(f);
 
 - [test](https://github.com/idealvin/coost/tree/master/test)  
 
-  一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
+  测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
 
 - [unitest](https://github.com/idealvin/coost/tree/master/unitest)  
 
-  一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
+  单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
 - [gen](https://github.com/idealvin/coost/tree/master/gen)  
 
-  代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
+  代码生成工具。
 
 
 

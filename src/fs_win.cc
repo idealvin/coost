@@ -17,7 +17,7 @@ bool exists(const char* path) {
 }
 
 bool isdir(const char* path) {
-    DWORD x = GetFileAttributesA(path);
+    const DWORD x = GetFileAttributesA(path);
     return x != INVALID_FILE_ATTRIBUTES && (x & FILE_ATTRIBUTE_DIRECTORY);
 }
 
@@ -26,19 +26,17 @@ int64 mtime(const char* path) {
     BOOL r = GetFileAttributesExA(path, GetFileExInfoStandard, &info);
     if (!r) return -1;
 
-    FILETIME& wt = info.ftLastWriteTime;
-    return ((int64) wt.dwHighDateTime << 32) | wt.dwLowDateTime;
+    const FILETIME& wt = info.ftLastWriteTime;
+    return ((int64)wt.dwHighDateTime << 32) | wt.dwLowDateTime;
 }
 
 int64 fsize(const char* path) {
     WIN32_FILE_ATTRIBUTE_DATA info;
     BOOL r = GetFileAttributesExA(path, GetFileExInfoStandard, &info);
     if (!r) return -1;
-    return ((int64) info.nFileSizeHigh << 32) | info.nFileSizeLow;
+    return ((int64)info.nFileSizeHigh << 32) | info.nFileSizeLow;
 }
 
-// p = false  ->  mkdir
-// p = true   ->  mkdir -p
 bool mkdir(const char* path, bool p) {
     if (!p) return CreateDirectoryA(path, 0);
 
@@ -47,12 +45,8 @@ bool mkdir(const char* path, bool p) {
     if (s == 0) return CreateDirectoryA(path, 0);
 
     fastring parent(path, s - path);
-
-    if (fs::exists(parent.c_str())) {
-        return CreateDirectoryA(path, 0);
-    } else {
-        return fs::mkdir(parent.c_str(), true) && CreateDirectoryA(path, 0);
-    }
+    if (fs::exists(parent.c_str())) return CreateDirectoryA(path, 0);
+    return fs::mkdir(parent.c_str(), true) && CreateDirectoryA(path, 0);
 }
 
 bool mkdir(char* path, bool p) {
@@ -62,7 +56,7 @@ bool mkdir(char* path, bool p) {
     if (s == 0) s = (char*) strrchr(path, '\\');
     if (s == 0) return CreateDirectoryA(path, 0);
 
-    char c = *s;
+    const char c = *s;
     *s = '\0';
 
     if (fs::exists(path)) {
@@ -75,8 +69,6 @@ bool mkdir(char* path, bool p) {
     }
 }
 
-// rf = false  ->  rm or rmdir
-// rf = true   ->  rm -rf
 bool remove(const char* path, bool rf) {
     if (!fs::exists(path)) return true;
 
@@ -187,13 +179,12 @@ void file::seek(int64 off, int whence) {
     static int seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
     fctx* p = (fctx*)_p;
     if (p && p->fd != nullfd) {
-        whence = seekfrom[whence];
         if (off < (1LL << 31)) {
-            SetFilePointer(p->fd, (LONG)off, 0, whence);
+            SetFilePointer(p->fd, (LONG)off, 0, seekfrom[whence]);
         } else {
             LARGE_INTEGER li;
             li.QuadPart = off;
-            SetFilePointer(p->fd, li.LowPart, &li.HighPart, whence);
+            SetFilePointer(p->fd, li.LowPart, &li.HighPart, seekfrom[whence]);
         }
     }
 }
@@ -310,8 +301,7 @@ co::vector<fastring> dir::all() const {
     dctx* d = (dctx*)_p;
     if (!d || d->d == INVALID_HANDLE_VALUE) return co::vector<fastring>();
 
-    co::vector<fastring> r;
-    r.reserve(8);
+    co::vector<fastring> r(8);
     do {
         char* const p = d->e.cFileName;
         if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) {

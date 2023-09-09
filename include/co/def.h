@@ -7,7 +7,6 @@ typedef int8_t  int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
-
 typedef uint8_t  uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -17,12 +16,10 @@ typedef uint64_t uint64;
 #define MAX_UINT16 ((uint16) ~((uint16)0))
 #define MAX_UINT32 ((uint32) ~((uint32)0))
 #define MAX_UINT64 ((uint64) ~((uint64)0))
-
 #define MAX_INT8   ((int8)  (MAX_UINT8  >> 1))
 #define MAX_INT16  ((int16) (MAX_UINT16 >> 1))
 #define MAX_INT32  ((int32) (MAX_UINT32 >> 1))
 #define MAX_INT64  ((int64) (MAX_UINT64 >> 1))
-
 #define MIN_INT8   ((int8)  ~MAX_INT8)
 #define MIN_INT16  ((int16) ~MAX_INT16)
 #define MIN_INT32  ((int32) ~MAX_INT32)
@@ -56,17 +53,20 @@ typedef uint64_t uint64;
 #endif
 #endif
 
-#define _CO_CONCAT(x, y) x##y
-#define _CO_STRINGIFY(x) #x
-#define CO_CONCAT(x, y) _CO_CONCAT(x, y)
-#define CO_STRINGIFY(x) _CO_STRINGIFY(x)
-#define CO_ANONYMOUS_VAR(x) CO_CONCAT(x, __LINE__)
+#ifndef PP_STRIFY
+#define _PP_STRIFY(x) #x
+#define PP_STRIFY(x) _PP_STRIFY(x)
+#endif
+
+#ifndef PP_CONCAT
+#define _PP_CONCAT(x, y) x##y
+#define PP_CONCAT(x, y) _PP_CONCAT(x, y)
+#endif
 
 // generated from config.h.in
 #include "config.h"
 
-// __coapi: used to export symbols in shared library
-// Do not use (or reuse outside of coost) this definiton  yourself
+// __coapi: export symbols in shared library (libco.so or co.dll)
 #if COOST_SHARED > 0
   #ifdef _WIN32
     #ifdef BUILDING_CO_SHARED

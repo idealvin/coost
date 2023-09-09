@@ -3,25 +3,25 @@
 #include "co/time.h"
 
 void* gco = 0;
-co::WaitGroup wg;
+co::wait_group wg;
 
 void f() {
-    COUT << "coroutine starts: " << co::coroutine_id();
-    COUT << "yield coroutine..";
+    co::print("coroutine starts: ", co::coroutine_id());
     gco = co::coroutine();
+    co::print("yield coroutine: ", gco);
     co::yield();
-    COUT << "coroutine ends: " << co::coroutine_id();
+    co::print("coroutine ends: ", co::coroutine_id());
     wg.done();
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     wg.add(1);
     go(f);
     sleep::ms(10);
     if (gco) {
-        COUT << "resume co: " << gco;
+        co::print("resume coroutine: ", gco);
         co::resume(gco);
     }
 

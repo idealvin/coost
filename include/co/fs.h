@@ -301,15 +301,12 @@ class __coapi dir {
     void operator=(const dir&) = delete;
     void operator=(dir&&) = delete;
 
-    // open the dir
     bool open(const char* path);
     bool open(const fastring& path) { return this->open(path.c_str()); }
     bool open(const std::string& path) { return this->open(path.c_str()); }
 
-    // close the dir
     void close();
 
-    // return path of the dir
     const char* path() const;
 
     // return all entries

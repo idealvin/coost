@@ -1,4 +1,5 @@
 #include "co/co.h"
+#include "co/cout.h"
 
 class S {
   public:
@@ -6,7 +7,7 @@ class S {
     ~S() = default;
 
     void run() {
-        LOG << "S: " << _v;
+        co::print("S: ", _v);
     }
 
   private:
@@ -20,50 +21,49 @@ class S {
 
 // use DEF_main to make code in main() also run in coroutine.
 DEF_main(argc, argv) {
-    FLG_cout = true;
-    co::Pool p(
-        []() { return (void*) new S; },  // ccb
-        [](void* p) { delete (S*)p; },   // dcb
-        1024                             // max capacity
+    co::pool p(
+        []() { return (void*) co::make<S>(); }, // ccb
+        [](void* p) { co::del((S*)p); },        // dcb
+        1024                                    // max capacity
     );
 
-    co::WaitGroup wg;
+    co::wait_group wg;
 
     do {
-        LOG << "test pop/push begin: ";
+        co::print("test pop/push begin: ");
         wg.add(8);
         for (int i = 0; i < 8; ++i) {
-            LOG << "go: " << i;
+            co::print("go: ", i);
             go([p, wg]() { /* capture p and wg by value here, as they are on stack */
                 S* s = (S*)p.pop();
                 s->run();
                 p.push(s);
-                LOG << "size: " << p.size();
+                co::print("size: ", p.size());
                 wg.done();
             });
         }
         wg.wait();
-        LOG << "test pop/push end.. \n";
+        co::print("test pop/push end.. \n");
     } while (0);
 
     do {
-        LOG << "test PoolGuard begin: ";
+        co::print("test co::pool_guard begin: ");
         wg.add(8);
         for (int i = 0; i < 8; ++i) {
             go([p, wg]() { /* capture p and wg by value here, as they are on stack */
                 {
-                    co::PoolGuard<S> s(p);
+                    co::pool_guard<S> s(p);
                     s->run();
                 }
-                LOG << "size: " << p.size();
+                co::print("size: ", p.size());
                 wg.done();
             });
         }
         wg.wait();
-        LOG << "test PoolGuard end.. \n";
+        co::print("test co::pool_guard end..\n");
     } while (0);
 
     p.clear();
-    LOG << "size: " << p.size();
+    co::print("size: ", p.size());
     return 0;
 }

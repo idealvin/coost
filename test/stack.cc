@@ -1,5 +1,4 @@
 #include "co/log.h"
-#include "co/thread.h"
 #include "co/time.h"
 #include "co/co.h"
 
@@ -25,12 +24,12 @@ void c() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     if (FLG_m) {
         c();
     } else if (FLG_t) {
-        Thread(c).detach();
+        std::thread(c).detach();
     } else {
         go(c);
     }

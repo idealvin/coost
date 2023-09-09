@@ -3,7 +3,6 @@
 #include "co/co.h"
 #include "co/log.h"
 #include "co/fastream.h"
-#include "co/thread.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
@@ -16,12 +15,12 @@ static int errcb(const char* p, size_t n, void* u) {
 }
 
 const char* strerror(S* s) {
-    static thread_ptr<fastream> fs;
-    if (fs == NULL) fs.reset(new fastream(256));
+    static __thread fastream* fs = 0;
+    if (!fs) fs = co::_make_static<fastream>(256);
     fs->clear();
 
     if (ERR_peek_error() != 0) {
-        ERR_print_errors_cb(errcb, fs.get());
+        ERR_print_errors_cb(errcb, fs);
     } else if (co::error() != 0) {
         fs->append(co::strerror());
     } else if (s) {
@@ -78,7 +77,7 @@ int check_private_key(const C* c) {
 }
 
 int shutdown(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -100,10 +99,10 @@ int shutdown(S* s, int ms) {
 
         e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::ev_read);
+            co::io_event ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::ev_write);
+            co::io_event ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
             DLOG << "SSL_shutdown return " << r << ", error: " << e;
@@ -113,7 +112,7 @@ int shutdown(S* s, int ms) {
 }
 
 int accept(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -129,10 +128,10 @@ int accept(S* s, int ms) {
 
         e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::ev_read);
+            co::io_event ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::ev_write);
+            co::io_event ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
             //DLOG << "SSL_accept return " << r << ", error: " << e;
@@ -142,7 +141,7 @@ int accept(S* s, int ms) {
 }
 
 int connect(S* s, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -158,10 +157,10 @@ int connect(S* s, int ms) {
 
         e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::ev_read);
+            co::io_event ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::ev_write);
+            co::io_event ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
             //DLOG << "SSL_connect return " << r << ", error: " << e;
@@ -171,7 +170,7 @@ int connect(S* s, int ms) {
 }
 
 int recv(S* s, void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -187,10 +186,10 @@ int recv(S* s, void* buf, int n, int ms) {
  
         e = SSL_get_error((SSL*)s, r);
         if (e == SSL_ERROR_WANT_READ) {
-            co::IoEvent ev(fd, co::ev_read);
+            co::io_event ev(fd, co::ev_read);
             if (!ev.wait(ms)) return -1;
         } else if (e == SSL_ERROR_WANT_WRITE) {
-            co::IoEvent ev(fd, co::ev_write);
+            co::io_event ev(fd, co::ev_write);
             if (!ev.wait(ms)) return -1;
         } else {
             //DLOG << "SSL_read return " << r << ", error: " << e;
@@ -200,7 +199,7 @@ int recv(S* s, void* buf, int n, int ms) {
 }
 
 int recvn(S* s, void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -220,10 +219,10 @@ int recvn(S* s, void* buf, int n, int ms) {
         if (r < 0) {
             e = SSL_get_error((SSL*)s, r);
             if (e == SSL_ERROR_WANT_READ) {
-                co::IoEvent ev(fd, co::ev_read);
+                co::io_event ev(fd, co::ev_read);
                 if (!ev.wait(ms)) return -1;
             } else if (e == SSL_ERROR_WANT_WRITE) {
-                co::IoEvent ev(fd, co::ev_write);
+                co::io_event ev(fd, co::ev_write);
                 if (!ev.wait(ms)) return -1;
             } else {
                 //DLOG << "SSL_read return " << r << ", error: " << e;
@@ -237,7 +236,7 @@ int recvn(S* s, void* buf, int n, int ms) {
 }
 
 int send(S* s, const void* buf, int n, int ms) {
-    CHECK(co::scheduler()) << "must be called in coroutine..";
+    CHECK(co::sched()) << "must be called in coroutine..";
     int r, e;
     int fd = SSL_get_fd((SSL*)s);
     if (fd < 0) return -1;
@@ -257,10 +256,10 @@ int send(S* s, const void* buf, int n, int ms) {
         if (r < 0) {
             e = SSL_get_error((SSL*)s, r);
             if (e == SSL_ERROR_WANT_READ) {
-                co::IoEvent ev(fd, co::ev_read);
+                co::io_event ev(fd, co::ev_read);
                 if (!ev.wait(ms)) return -1;
             } else if (e == SSL_ERROR_WANT_WRITE) {
-                co::IoEvent ev(fd, co::ev_write);
+                co::io_event ev(fd, co::ev_write);
                 if (!ev.wait(ms)) return -1;
             } else {
                 //DLOG << "SSL_write return " << r << ", error: " << e;

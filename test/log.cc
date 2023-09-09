@@ -18,13 +18,13 @@ int nested_log() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
 
     if (FLG_perf) {
         // test performance by writting 100W logs
-        COUT << "print 100W logs, every log is about 50 bytes";
+        co::print("print 100W logs, every log is about 50 bytes");
 
-        Timer t;
+        co::Timer t;
         for (int k = 0; k < 1000000; k++) {
             LOG << "hello world " << 3;
         }
@@ -33,8 +33,8 @@ int main(int argc, char** argv) {
         log::exit();
         int64 write_to_file = t.us();
 
-        COUT << "All logs written to cache in " << write_to_cache << " us";
-        COUT << "All logs written to file in " << write_to_file << " us";
+        co::print("All logs written to cache in ", write_to_cache, " us");
+        co::print("All logs written to file in ", write_to_file, " us");
 
     } else {
         // usage of other logs

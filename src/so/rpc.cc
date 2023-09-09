@@ -39,7 +39,7 @@ inline void set_header(const void* header, uint32 msg_len) {
 
 class ServerImpl {
   public:
-    static void ping(Json&, Json& res) {
+    static void ping(json::Json&, json::Json& res) {
         res.add_member("res", "pong");
     }
 
@@ -80,7 +80,7 @@ class ServerImpl {
         _tcp_serv.exit();
     }
 
-    void process(Json& req, Json& res);
+    void process(json::Json& req, json::Json& res);
 
   private:
     tcp::Server _tcp_serv;
@@ -116,7 +116,7 @@ void Server::exit() {
     ((ServerImpl*)_p)->exit();
 }
 
-void ServerImpl::process(Json& req, Json& res) {
+void ServerImpl::process(json::Json& req, json::Json& res) {
     auto& x = req.get("api");
     if (x.is_string()) {
         auto m = this->find_method(x.as_c_str());
@@ -141,7 +141,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
         char c;
     };
     fastring buf;
-    Json req, res;
+    json::Json req, res;
 
     size_t pos = 0, total_len = 0;
     http_req_t* preq = 0; 
@@ -336,7 +336,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             if (buf.size() == total_len) {
                 buf.clear();
             } else {
-                buf.lshift(total_len);
+                buf.trim(total_len, 'l');
             }
 
             preq->clear();
@@ -396,7 +396,7 @@ class ClientImpl {
 
     ~ClientImpl() = default;
 
-    void call(const Json& req, Json& res);
+    void call(const json::Json& req, json::Json& res);
 
     void close() {
         _tcp_cli.disconnect();
@@ -421,7 +421,7 @@ Client::~Client() {
     co::del((ClientImpl*)_p);
 }
 
-void Client::call(const Json& req, Json& res) {
+void Client::call(const json::Json& req, json::Json& res) {
     return ((ClientImpl*)_p)->call(req, res);
 }
 
@@ -430,7 +430,7 @@ void Client::close() {
 }
 
 void Client::ping() {
-    Json req({{"api", "ping"}}), res;
+    json::Json req({{"api", "ping"}}), res;
     this->call(req, res);
 }
 
@@ -438,7 +438,7 @@ bool ClientImpl::connect() {
     return _tcp_cli.connect(FLG_rpc_conn_timeout);
 }
 
-void ClientImpl::call(const Json& req, Json& res) {
+void ClientImpl::call(const json::Json& req, json::Json& res) {
     int r = 0, len = 0;
     Header header;
     if (!_tcp_cli.connected() && !this->connect()) return;

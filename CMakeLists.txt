@@ -33,17 +33,25 @@ else()
 endif()
 
 
+# build with openssl 1.1.0+
+option(WITH_OPENSSL "build with openssl" OFF)
+
 # build with libcurl (openssl & zlib also required)
 option(WITH_LIBCURL "build with libcurl" OFF)
 
-# build with openssl 1.1.0+
-option(WITH_OPENSSL "build with openssl" OFF)
+# build with libbacktrace
+option(WITH_BACKTRACE "build with libbacktrace" OFF)
 
 # build with -fPIC
 option(FPIC "build with -fPIC" OFF)
 
 # build all projects (libco, gen, test, unitest)
 option(BUILD_ALL "Build all projects" OFF)
+
+option(DISABLE_HOOK "disable hooks for system APIs" OFF)
+
+# specify the value of L1 cache line size, 64 by default
+set(CACHE_LINE_SIZE "64" CACHE STRING "set value of L1 cache line size")
 
 # vs runtime, use MT
 if(MSVC)

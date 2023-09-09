@@ -8,7 +8,7 @@ namespace xx {
 
 class HelloAgain : public rpc::Service {
   public:
-    typedef std::function<void(Json&, Json&)> Fun;
+    typedef std::function<void(co::Json&, co::Json&)> Fun;
 
     HelloAgain() {
         using std::placeholders::_1;
@@ -27,9 +27,9 @@ class HelloAgain : public rpc::Service {
         return _methods;
     }
 
-    virtual void hello(Json& req, Json& res) = 0;
+    virtual void hello(co::Json& req, co::Json& res) = 0;
 
-    virtual void again(Json& req, Json& res) = 0;
+    virtual void again(co::Json& req, co::Json& res) = 0;
 
   private:
     co::map<const char*, Fun> _methods;

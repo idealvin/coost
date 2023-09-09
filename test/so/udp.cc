@@ -7,7 +7,7 @@ void udp_server_fun() {
     sock_t fd = co::udp_socket();
 
     struct sockaddr_in addr;
-    co::init_ip_addr(&addr, FLG_ip.c_str(), FLG_port);
+    co::init_addr(&addr, FLG_ip.c_str(), FLG_port);
     co::bind(fd, &addr, sizeof(addr));
 
     struct sockaddr_in cli;
@@ -21,7 +21,7 @@ void udp_server_fun() {
         int r = co::recvfrom(fd, buf, 4, &cli, &len);
         if (r >= 0) {
             LOG << "server recv " << fastring(buf, r) << " from "
-                 << co::ip_str(&cli) << ':' << ntoh16(cli.sin_port);
+                << co::addr2str(&cli);
 
             //r = co::sendto(fd, "pong", 4, &cli, len);
             r = co::sendto(fd, pong, 4, &cli, len);
@@ -44,7 +44,7 @@ void udp_client_fun() {
     sock_t fd = co::udp_socket();
 
     struct sockaddr_in addr;
-    co::init_ip_addr(&addr, FLG_ip.c_str(), FLG_port);
+    co::init_addr(&addr, FLG_ip.c_str(), FLG_port);
 
     char buf[4];
     char ping[4]; memcpy(ping, "ping", 4);
@@ -72,7 +72,7 @@ void udp_client_fun() {
 }
 
 int main(int argc, char** argv) {
-    flag::init(argc, argv);
+    flag::parse(argc, argv);
     FLG_cout = true;
 
     go(udp_server_fun);

@@ -25,9 +25,15 @@ fastring homedir() {
 }
 
 fastring cwd() {
-    char buf[4096];
-    char* s = getcwd(buf, 4096);
-    return s ? fastring(s) : fastring(1, '.');
+    fastring s(128);
+    while (true) {
+        if (::getcwd((char*)s.data(), s.capacity())) {
+            s.resize(strlen(s.data()));
+            return s;
+        }
+        if (errno != ERANGE) return fastring();
+        s.reserve(s.capacity() << 1);
+    }
 }
 
 fastring exedir() {
@@ -59,23 +65,43 @@ int cpunum() {
     return ncpu;
 }
 
+size_t pagesize() {
+    static size_t ps = sysconf(_SC_PAGESIZE);
+    return ps;
+}
+
 #ifdef __linux__
 fastring exepath() {
-    char buf[4096] = { 0 };
-    int r = (int) readlink("/proc/self/exe", buf, 4096);
-    return r > 0 ? fastring(buf, r) : fastring();
+    fastring s(128);
+    while (true) {
+        auto r = readlink("/proc/self/exe", (char*)s.data(), s.capacity());
+        if (r < 0) return fastring();
+        if ((size_t)r != s.capacity()) {
+            s.resize(r);
+            return s;
+        }
+        s.reserve(s.capacity() << 1);
+    }
 }
 
 void daemon() {
-    int r = ::daemon(1, 0); (void) r;
+    const int r = ::daemon(1, 0); (void)r;
 }
 
 #else
 fastring exepath() {
-    char buf[4096] = { 0 };
-    uint32_t size = sizeof(buf);
-    int r = _NSGetExecutablePath(buf, &size);
-    return r == 0 ? fastring(buf) : fastring();
+    fastring s(128);
+    uint32_t n = 128;
+    while (true) {
+        if (_NSGetExecutablePath((char*)s.data(), &n) == 0) {
+            s.resize(strlen(s.data()));
+            return s;
+        }
+
+        // this is not likely to happen
+        if (unlikely((size_t)n <= s.capacity())) return fastring();
+        s.reserve(n);
+    }
 }
 
 void daemon() {}
@@ -93,8 +119,7 @@ sig_handler_t signal(int sig, sig_handler_t handler, int flag) {
 
 bool system(const char* cmd) {
     FILE* f = popen(cmd, "w");
-    if (f == NULL) return false;
-    return pclose(f) != -1;
+    return f ? pclose(f) != -1 : false;
 }
 
 } // os
