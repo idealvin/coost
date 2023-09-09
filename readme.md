@@ -16,7 +16,7 @@ English | [简体中文](readme_cn.md)
 
 **[coost](https://github.com/idealvin/coost)** is an elegant and efficient cross-platform C++ base library. Its goal is to create a sword of C++ to make C++ programming easy and enjoyable.
 
-The original name of coost is **co** or cocoyaxi. It is like [boost](https://www.boost.org/), but more lightweight, **the static library built on linux or mac is only about 1MB in size**. However, it still provides enough powerful features:
+Coost, **co** for short, is like [boost](https://www.boost.org/), but more lightweight, **the static library built on linux or mac is only about 1MB in size**. However, it still provides enough powerful features:
 
 <table>
 <tr><td width=33% valign=top>
@@ -321,11 +321,10 @@ for (auto& s : co::scheds()) {
 
 ### 3.6 network programming
 
-coost provides a coroutine-based network programming framework, which can be roughly divided into 3 parts:
+coost provides a coroutine-based network programming framework:
 
-- **[coroutineized socket API](https://coostdocs.github.io/en/co/coroutine/#coroutineized-socket-api)**, similar in form to the system socket API, users familiar with socket programming can easily write high-performance network programs in a synchronous manner.
+- **[coroutineized socket API](https://coostdocs.github.io/en/co/net/sock/)**, similar in form to the system socket API, users familiar with socket programming can easily write high-performance network programs in a synchronous manner.
 - [TCP](https://coostdocs.github.io/en/co/net/tcp/), [HTTP](https://coostdocs.github.io/en/co/net/http/), [RPC](https://coostdocs.github.io/en/co/net/rpc/) and other high-level network programming components, compatible with IPv6, also support SSL, it is more convenient to use than socket API.
-- **[System API hook](https://coostdocs.github.io/en/co/coroutine/#system-api-hook)**, with which, third-party network libraries can be used directly in coroutines.
 
 
 **RPC server**
@@ -430,11 +429,11 @@ go(f);
 
 - [test](https://github.com/idealvin/coost/tree/master/test)
 
-  Some test code, each `.cc` file will be compiled into a separate test program.
+  Test code, each `.cc` file will be compiled into a separate test program.
 
 - [unitest](https://github.com/idealvin/coost/tree/master/unitest)
 
-  Some unit test code, each `.cc` file corresponds to a different test unit, and all code will be compiled into a single test program.
+  Unit test code, each `.cc` file corresponds to a different test unit, and all code will be compiled into a single test program.
 
 - [gen](https://github.com/idealvin/coost/tree/master/gen)
 

@@ -16,15 +16,15 @@
 
 **[coost](https://github.com/idealvin/coost)** 是一个**兼具性能与易用性**的跨平台 C++ 基础库，其目标是打造一把 C++ 开发神器，让 C++ 编程变得简单、轻松、愉快。
 
-coost 原名为 co，后改为 cocoyaxi，前者过短，后者过长，取中庸之道，又改为 coost。它曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了不少强大的功能：
+coost 简称为 co，曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了不少强大的功能：
 
 <table>
 <tr><td width=33% valign=top>
 
 - 命令行与配置文件解析(flag)
 - **高性能日志库(log)**
-- 单元测试框架(unitest)
-- benchmark测试框架
+- 单元测试框架
+- 基准测试框架
 - **go-style 协程**
 - 基于协程的网络编程框架
 - **基于 JSON 的 RPC 框架**
@@ -76,7 +76,7 @@ coost 的发展离不开大家的帮助，如果您在使用或者喜欢 coost�
 
 ### 3.0 面向玄学编程
 
-[co/god.h](https://github.com/idealvin/coost/blob/master/include/co/god.h) 提供模板相关的一些功能。模板用到深处，代码深奥难懂，有些 C++ 程序员称之为面向玄学编程。
+[co/god.h](https://github.com/idealvin/coost/blob/master/include/co/god.h) 提供模板相关的一些功能。模板用到深处有点玄，有些 C++ 程序员称之为面向玄学编程。
 
 ```cpp
 #include "co/god.h"
@@ -322,11 +322,10 @@ for (auto& s : co::scheds()) {
 
 ### 3.6 网络编程
 
-coost 提供了一套基于协程的网络编程框架，大致可以分为三个部分：
+coost 提供了一套基于协程的网络编程框架:
 
-- **[协程化的 socket API](https://coostdocs.github.io/cn/co/coroutine/#%e5%8d%8f%e7%a8%8b%e5%8c%96%e7%9a%84-socket-api)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
+- **[协程化的 socket API](https://coostdocs.github.io/cn/co/net/sock/)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
 - [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[HTTP](https://coostdocs.github.io/cn/co/net/http/)、[RPC](https://coostdocs.github.io/cn/co/net/rpc/) 等高层网络编程组件，兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。
-- **[系统 API hook](https://coostdocs.github.io/cn/co/coroutine/#%E7%B3%BB%E7%BB%9F-api-hook)**，支持在协程中使用一般的三方网络库。
 
 
 **RPC server**
@@ -431,15 +430,15 @@ go(f);
 
 - [test](https://github.com/idealvin/coost/tree/master/test)  
 
-  一些测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
+  测试代码，每个 `.cc` 文件都会编译成一个单独的测试程序。
 
 - [unitest](https://github.com/idealvin/coost/tree/master/unitest)  
 
-  一些单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
+  单元测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
 - [gen](https://github.com/idealvin/coost/tree/master/gen)  
 
-  代码生成工具，根据 proto 文件，自动生成 RPC 框架代码。
+  代码生成工具。
 
 
 
