@@ -56,25 +56,25 @@ co::vector<fastring> split(const char* s, size_t n, const char* c, size_t m, siz
 
 // co::error() is equal to errno on linux/mac, that's not the fact on windows.
 #ifdef _WIN32
-#define _co_set_error(e) co::error() = e
-#define _co_reset_error() do { errno = 0; co::error() = 0; } while (0)
+#define _co_set_error(e) co::error(e)
+#define _co_reset_error() do { errno = 0; co::error(0); } while (0)
 #else
 #define _co_set_error(e)
 #define _co_reset_error() errno = 0
 #endif
 
 bool to_bool(const char* s) {
-    co::error() = 0;
+    co::error(0);
     if (strcmp(s, "false") == 0 || strcmp(s, "0") == 0) return false;
     if (strcmp(s, "true") == 0 || strcmp(s, "1") == 0) return true;
-    co::error() = EINVAL;
+    co::error(EINVAL);
     return false;
 }
 
 int32 to_int32(const char* s) {
     int64 x = to_int64(s);
     if (unlikely(x > MAX_INT32 || x < MIN_INT32)) {
-        co::error() = ERANGE;
+        co::error(ERANGE);
         return 0;
     }
     return (int32)x;
@@ -84,7 +84,7 @@ uint32 to_uint32(const char* s) {
     int64 x = (int64) to_uint64(s);
     int64 absx = x < 0 ? -x : x;
     if (unlikely(absx > MAX_UINT32)) {
-        co::error() = ERANGE;
+        co::error(ERANGE);
         return 0;
     }
     return (uint32)x;
@@ -131,14 +131,14 @@ int64 to_int64(const char* s) {
         if (shift != 0) {
             if (x == 0) return 0;
             if (x < (MIN_INT64 >> shift) || x > (MAX_INT64 >> shift)) {
-                co::error() = ERANGE;
+                co::error(ERANGE);
                 return 0;
             }
             return x << shift;
         }
     }
 
-    co::error() = EINVAL;
+    co::error(EINVAL);
     return 0;
 }
 
@@ -163,14 +163,14 @@ uint64 to_uint64(const char* s) {
             int64 absx = (int64)x;
             if (absx < 0) absx = -absx;
             if (absx > static_cast<int64>(MAX_UINT64 >> shift)) {
-                co::error() = ERANGE;
+                co::error(ERANGE);
                 return 0;
             }
             return x << shift;
         }
     }
 
-    co::error() = EINVAL;
+    co::error(EINVAL);
     return 0;
 }
 
@@ -184,7 +184,7 @@ double to_double(const char* s) {
     }
 
     if (end == s + strlen(s)) return x;
-    co::error() = EINVAL;
+    co::error(EINVAL);
     return 0;
 }
 

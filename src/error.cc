@@ -7,13 +7,13 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#endif
 
 namespace co {
 namespace xx {
 
 struct Error {
-    Error() : e(0), s(4096) {}
-    int e;
+    Error() : s(4096) {}
     fastream s;
     co::hash_map<int, uint32> pos;
 };
@@ -22,9 +22,12 @@ inline Error& error() {
     static __thread Error* e = 0;
     return e ? *e : *(e = co::_make_static<Error>());
 }
+
 } // xx
 
-int& error() { return xx::error().e; }
+#ifdef _WIN32
+int error() { return ::GetLastError(); }
+void error(int e) { ::SetLastError(e); }
 
 const char* strerror(int e) {
     if (e == ETIMEDOUT || e == WSAETIMEDOUT) return "Timed out.";
@@ -33,7 +36,7 @@ const char* strerror(int e) {
     auto it = err.pos.find(e);
     if (it != err.pos.end()) return err.s.data() + it->second;
 
-    uint32 pos = (uint32) err.s.size();
+    const uint32 pos = (uint32) err.s.size();
     char* s = 0;
     FormatMessageA(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -56,28 +59,8 @@ const char* strerror(int e) {
     err.pos[e] = pos;
     return err.s.data() + pos;
 }
-} // co
 
 #else
-#include <errno.h>
-#include <mutex>
-
-namespace co {
-namespace xx {
-
-struct Error {
-    Error() : s(4096) {}
-    fastream s;
-    co::hash_map<int, uint32> pos;
-};
-
-inline Error& error() {
-    static __thread Error* e = 0;
-    return e ? *e : *(e = co::_make_static<Error>());
-}
-
-} // xx
-
 const char* strerror(int e) {
     if (e == ETIMEDOUT) return "Timed out";
 
@@ -85,16 +68,20 @@ const char* strerror(int e) {
     auto it = err.pos.find(e);
     if (it != err.pos.end()) return err.s.data() + it->second;
 
-    uint32 pos = (uint32) err.s.size();
-    static auto m = co::_make_static<std::mutex>();
-    {
-        std::lock_guard<std::mutex> g(*m);
-        err.s << ::strerror(e) << '\0';
+    const uint32 pos = (uint32) err.s.size();
+
+    char buf[256] = { 0 };
+    auto r = ::strerror_r(e, buf, sizeof(buf));
+    if (buf[0]) {
+        err.s << buf << '\0';
+    } else {
+        err.s << r << '\0';
     }
 
     err.pos[e] = pos;
     return err.s.data() + pos;
 }
+
 } // co
 
 #endif
