@@ -82,6 +82,6 @@ const char* strerror(int e) {
     return err.s.data() + pos;
 }
 
-} // co
-
 #endif
+
+} // co
