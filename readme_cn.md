@@ -103,6 +103,7 @@ void f() {
 #include "co/cout.h"
 
 DEF_bool(x, false, "x");
+DEF_bool(y, true, "y");
 DEF_bool(debug, false, "dbg", d);
 DEF_uint32(u, 0, "xxx");
 DEF_string(s, "", "xx");
