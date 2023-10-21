@@ -25,11 +25,6 @@ typedef uint64_t uint64;
 #define MIN_INT32  ((int32) ~MAX_INT32)
 #define MIN_INT64  ((int64) ~MAX_INT64)
 
-struct __none {
-    constexpr __none() = default;
-    ~__none() = default;
-};
-
 #define DISALLOW_COPY_AND_ASSIGN(T) \
     T(const T&) = delete; \
     void operator=(const T&) = delete
