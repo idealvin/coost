@@ -175,16 +175,17 @@ void file::close() {
     }
 }
 
+static int g_seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
+
 void file::seek(int64 off, int whence) {
-    static int seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
     fctx* p = (fctx*)_p;
     if (p && p->fd != nullfd) {
         if (off < (1LL << 31)) {
-            SetFilePointer(p->fd, (LONG)off, 0, seekfrom[whence]);
+            SetFilePointer(p->fd, (LONG)off, 0, g_seekfrom[whence]);
         } else {
             LARGE_INTEGER li;
             li.QuadPart = off;
-            SetFilePointer(p->fd, li.LowPart, &li.HighPart, seekfrom[whence]);
+            SetFilePointer(p->fd, li.LowPart, &li.HighPart, g_seekfrom[whence]);
         }
     }
 }

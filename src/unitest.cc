@@ -4,9 +4,10 @@
 namespace unitest {
 namespace xx {
 
+static co::vector<Test>* g_t;
+
 inline co::vector<Test>& tests() {
-    static auto t = co::_make_static<co::vector<Test>>(32);
-    return *t;
+    return g_t ? *g_t : *(g_t = co::_make_static<co::vector<Test>>());
 }
 
 bool add_test(const char* name, bool& e, void(*f)(Test&)) {
@@ -56,7 +57,6 @@ int run_tests() {
         }
 
     } else {
-        // print message of failed test cases
         cout << color::red << "\nAha! " << fc << " case" << (fc > 1 ? "s" : "");
         cout << " from " << ft << " test" << (ft > 1 ? "s" : "");
         cout << " failed. See details below:\n" << color::deflt << endl;

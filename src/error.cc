@@ -18,9 +18,10 @@ struct Error {
     co::hash_map<int, uint32> pos;
 };
 
+static __thread Error* g_err = 0;
+
 inline Error& error() {
-    static __thread Error* e = 0;
-    return e ? *e : *(e = co::_make_static<Error>());
+    return g_err ? *g_err : *(g_err = co::_make_static<Error>());
 }
 
 } // xx
@@ -69,7 +70,6 @@ const char* strerror(int e) {
     if (it != err.pos.end()) return err.s.data() + it->second;
 
     const uint32 pos = (uint32) err.s.size();
-
     char buf[256] = { 0 };
     auto r = ::strerror_r(e, buf, sizeof(buf));
     if (buf[0]) {

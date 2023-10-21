@@ -12,37 +12,36 @@ namespace co {
 namespace now {
 namespace xx {
 
+static int g_nifty_counter;
+static int64 g_freq;
+
+Initializer::Initializer() {
+    if (g_nifty_counter++ == 0) {
+        LARGE_INTEGER x;
+        QueryPerformanceFrequency(&x);
+        g_freq = x.QuadPart;
+    }
+}
+
 inline int64 _query_counts() {
     LARGE_INTEGER x;
     QueryPerformanceCounter(&x);
     return x.QuadPart;
 }
 
-inline const int64& _counts_per_sec() {
-    static const int64 freq = [](){
-        LARGE_INTEGER x;
-        QueryPerformanceFrequency(&x);
-        return x.QuadPart;
-    }();
-    return freq;
-}
-
 inline int64 ns() {
     const int64 count = _query_counts();
-    const int64& freq = _counts_per_sec();
-    return (int64)(static_cast<double>(count) * 1000000000 / freq);
+    return (int64)(static_cast<double>(count) * 1000000000 / g_freq);
 }
 
 inline int64 us() {
     const int64 count = _query_counts();
-    const int64& freq = _counts_per_sec();
-    return (int64)(static_cast<double>(count) * 1000000 / freq);
+    return (int64)(static_cast<double>(count) * 1000000 / g_freq);
 }
 
 inline int64 ms() {
     const int64 count = _query_counts();
-    const int64& freq = _counts_per_sec();
-    return (int64)(static_cast<double>(count) * 1000 / freq);
+    return (int64)(static_cast<double>(count) * 1000 / g_freq);
 }
 
 } // xx

@@ -14,6 +14,8 @@
 namespace co {
 namespace xx {
 
+__thread uint32 g_tid;
+
 #ifdef _WIN32
 typedef CRITICAL_SECTION mutex_t;
 typedef CONDITION_VARIABLE cv_t;

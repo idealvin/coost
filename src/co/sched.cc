@@ -1,6 +1,7 @@
 #include "sched.h"
 #include "co/os.h"
 #include "co/rand.h"
+#include <mutex>
 
 DEF_uint32(co_sched_num, os::cpunum(), ">>#1 number of coroutine schedulers");
 DEF_uint32(co_stack_num, 8, ">>#1 number of stacks per scheduler, must be power of 2");
@@ -20,6 +21,8 @@ extern void cleanup_sock();
 inline void init_sock() {}
 inline void cleanup_sock() {}
 #endif
+
+co::table<SockCtx>* g_ctx_tb;
 
 namespace xx {
 
@@ -260,27 +263,23 @@ uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
     return _timer.empty() ? (uint32)-1 : (uint32)(_timer.begin()->first - now_ms);
 }
 
-inline bool& main_thread_as_sched() {
-    static bool x = false;
-    return x;
-}
-
 struct SchedInfo {
     SchedInfo() : cputime(co::sched_num(), 0), seed(co::rand()) {}
     co::vector<int64> cputime;
     uint32 seed;
 };
 
+static __thread SchedInfo* g_si;
+
 inline SchedInfo& sched_info() {
-    static __thread SchedInfo* s = 0;
-    return s ? *s : *(s = co::_make_static<SchedInfo>());
+    return g_si ? *g_si : *(g_si = co::_make_static<SchedInfo>());
 }
 
 static uint32 g_nco = 0;
+static bool g_main_thread_as_sched;
 
 SchedManager::SchedManager() {
     co::init_sock();
-    co::init_hook();
 
     const uint32 ncpu = os::cpunum();
     auto& n = FLG_co_sched_num;
@@ -326,7 +325,7 @@ SchedManager::SchedManager() {
 
     for (uint32 i = 0; i < n; ++i) {
         Sched* sched = co::_make_static<Sched>(i, n, m, s);
-        if (i != 0 || !main_thread_as_sched()) sched->start();
+        if (i != 0 || !g_main_thread_as_sched) sched->start();
         _scheds.push_back(sched);
     }
 
@@ -338,9 +337,24 @@ SchedManager::~SchedManager() {
     co::cleanup_sock();
 }
 
+std::once_flag g_sched_man_flag;
+static SchedManager* g_sched_man;
+
 inline SchedManager* sched_man() {
-    static auto s = co::_make_static<SchedManager>();
-    return s;
+    std::call_once(g_sched_man_flag, []() {
+        g_sched_man = co::_make_static<SchedManager>();
+    });
+    return g_sched_man;
+}
+
+static int g_sched_nifty;
+SchedInitializer::SchedInitializer() {
+    if (g_sched_nifty++ == 0) {
+        g_ctx_tb = co::_make_static<co::table<SockCtx>>(15, 16);
+    }
+}
+
+SchedInitializer::~SchedInitializer() {
 }
 
 void SchedManager::stop(uint32 ms) {
@@ -379,7 +393,7 @@ co::Sched* next_sched() {
 }
 
 co::MainSched* main_sched() {
-    xx::main_thread_as_sched() = true;
+    xx::g_main_thread_as_sched = true;
     return (co::MainSched*) xx::sched_man()->scheds()[0];
 }
 

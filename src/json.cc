@@ -81,9 +81,10 @@ class Alloc {
     Json _null;
 };
 
+static __thread Alloc* g_a;
+
 inline Alloc& jalloc() {
-    static __thread Alloc* a = 0;
-    return a ? *a : *(a = co::_make_static<Alloc>()); 
+    return g_a ? *g_a : *(g_a = co::_make_static<Alloc>()); 
 }
 
 void* alloc() {
@@ -397,19 +398,41 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
     return false;
 }
 
-static inline const char* init_s2e_table() {
-    static char tb[256] = { 0 };
-    tb[(unsigned char)'r'] = '\r';
-    tb[(unsigned char)'n'] = '\n';
-    tb[(unsigned char)'t'] = '\t';
-    tb[(unsigned char)'b'] = '\b';
-    tb[(unsigned char)'f'] = '\f';
-    tb[(unsigned char)'"'] = '"';
-    tb[(unsigned char)'\\'] = '\\';
-    tb[(unsigned char)'/'] = '/';
-    tb[(unsigned char)'u'] = 'u';
-    return tb;
+static int g_nifty_counter;
+static char g_s2e_tb[256];
+static char g_e2s_tb[256];
+static char g_hex_tb[256];
+
+namespace xx {
+
+Initializer::Initializer() {
+    if (g_nifty_counter++ == 0) {
+        g_s2e_tb[(uint8)'r'] = '\r';
+        g_s2e_tb[(uint8)'n'] = '\n';
+        g_s2e_tb[(uint8)'t'] = '\t';
+        g_s2e_tb[(uint8)'b'] = '\b';
+        g_s2e_tb[(uint8)'f'] = '\f';
+        g_s2e_tb[(uint8)'"'] = '"';
+        g_s2e_tb[(uint8)'\\'] = '\\';
+        g_s2e_tb[(uint8)'/'] = '/';
+        g_s2e_tb[(uint8)'u'] = 'u';
+
+        g_e2s_tb[(uint8)'\r'] = 'r';
+        g_e2s_tb[(uint8)'\n'] = 'n';
+        g_e2s_tb[(uint8)'\t'] = 't';
+        g_e2s_tb[(uint8)'\b'] = 'b';
+        g_e2s_tb[(uint8)'\f'] = 'f';
+        g_e2s_tb[(uint8)'\"'] = '"';
+        g_e2s_tb[(uint8)'\\'] = '\\';
+
+        memset(g_hex_tb, 16, 256);
+        for (char c = '0'; c <= '9'; ++c) g_hex_tb[(uint8)c] = c - '0';
+        for (char c = 'A'; c <= 'F'; ++c) g_hex_tb[(uint8)c] = c - 'A' + 10;
+        for (char c = 'a'; c <= 'f'; ++c) g_hex_tb[(uint8)c] = c - 'a' + 10;
+    }
 }
+
+} // xx
 
 S Parser::parse_string(S b, S e, void_ptr_t& v) {
     S p, q;
@@ -425,8 +448,7 @@ S Parser::parse_string(S b, S e, void_ptr_t& v) {
         s.append(b, q - b);
         if (++q == e) return 0;
 
-        static S tb = init_s2e_table();
-        char c = tb[(uint8)*q];
+        char c = g_s2e_tb[(uint8)*q];
         if (c == 0) return 0; // invalid escape
 
         if (*q != 'u') {
@@ -451,23 +473,13 @@ S Parser::parse_string(S b, S e, void_ptr_t& v) {
     } while (true);
 }
 
-inline const char* init_hex_table() {
-    static char tb[256];
-    memset(tb, 16, 256);
-    for (char c = '0'; c <= '9'; ++c) tb[(uint8)c] = c - '0';
-    for (char c = 'A'; c <= 'F'; ++c) tb[(uint8)c] = c - 'A' + 10;
-    for (char c = 'a'; c <= 'f'; ++c) tb[(uint8)c] = c - 'a' + 10;
-    return tb;
-}
-
 inline const char* parse_hex(const char* b, const char* e, uint32& u) {
-    static const char* const tb = init_hex_table();
     uint32 u0, u1, u2, u3;
     if (b + 4 <= e) {
-        u0 = tb[(uint8)b[0]];
-        u1 = tb[(uint8)b[1]];
-        u2 = tb[(uint8)b[2]];
-        u3 = tb[(uint8)b[3]];
+        u0 = g_hex_tb[(uint8)b[0]];
+        u1 = g_hex_tb[(uint8)b[1]];
+        u2 = g_hex_tb[(uint8)b[2]];
+        u3 = g_hex_tb[(uint8)b[3]];
         if (u0 == 16 || u1 == 16 || u2 == 16 || u3 == 16) return 0;
         u = (u0 << 12) | (u1 << 8) | (u2 << 4) | u3;
         return b + 3;
@@ -613,50 +625,37 @@ bool Json::parse_from(const char* s, size_t n) {
     return r;
 }
 
-static inline const char* init_e2s_table() {
-    static char tb[256] = { 0 };
-    tb[(unsigned char)'\r'] = 'r';
-    tb[(unsigned char)'\n'] = 'n';
-    tb[(unsigned char)'\t'] = 't';
-    tb[(unsigned char)'\b'] = 'b';
-    tb[(unsigned char)'\f'] = 'f';
-    tb[(unsigned char)'\"'] = '"';
-    tb[(unsigned char)'\\'] = '\\';
-    return tb;
-}
-
 inline const char* find_escapse(const char* b, const char* e, char& c) {
-    static const char* tb = init_e2s_table();
   #if 1
     char c0, c1, c2, c3, c4, c5, c6, c7;
     for (;;) {
         if (b + 8 <= e) {
-            if ((c0 = tb[(uint8)b[0]])) { c = c0; return b; }
-            if ((c1 = tb[(uint8)b[1]])) { c = c1; return b + 1; }
-            if ((c2 = tb[(uint8)b[2]])) { c = c2; return b + 2; }
-            if ((c3 = tb[(uint8)b[3]])) { c = c3; return b + 3; }
-            if ((c4 = tb[(uint8)b[4]])) { c = c4; return b + 4; }
-            if ((c5 = tb[(uint8)b[5]])) { c = c5; return b + 5; }
-            if ((c6 = tb[(uint8)b[6]])) { c = c6; return b + 6; }
-            if ((c7 = tb[(uint8)b[7]])) { c = c7; return b + 7; }
+            if ((c0 = g_e2s_tb[(uint8)b[0]])) { c = c0; return b; }
+            if ((c1 = g_e2s_tb[(uint8)b[1]])) { c = c1; return b + 1; }
+            if ((c2 = g_e2s_tb[(uint8)b[2]])) { c = c2; return b + 2; }
+            if ((c3 = g_e2s_tb[(uint8)b[3]])) { c = c3; return b + 3; }
+            if ((c4 = g_e2s_tb[(uint8)b[4]])) { c = c4; return b + 4; }
+            if ((c5 = g_e2s_tb[(uint8)b[5]])) { c = c5; return b + 5; }
+            if ((c6 = g_e2s_tb[(uint8)b[6]])) { c = c6; return b + 6; }
+            if ((c7 = g_e2s_tb[(uint8)b[7]])) { c = c7; return b + 7; }
             b += 8;
         } else {
             if (b + 4 <= e) {
-                if ((c0 = tb[(uint8)b[0]])) { c = c0; return b; }
-                if ((c1 = tb[(uint8)b[1]])) { c = c1; return b + 1; }
-                if ((c2 = tb[(uint8)b[2]])) { c = c2; return b + 2; }
-                if ((c3 = tb[(uint8)b[3]])) { c = c3; return b + 3; }
+                if ((c0 = g_e2s_tb[(uint8)b[0]])) { c = c0; return b; }
+                if ((c1 = g_e2s_tb[(uint8)b[1]])) { c = c1; return b + 1; }
+                if ((c2 = g_e2s_tb[(uint8)b[2]])) { c = c2; return b + 2; }
+                if ((c3 = g_e2s_tb[(uint8)b[3]])) { c = c3; return b + 3; }
                 b += 4;
             }
             for (; b < e; ++b) {
-                if ((c = tb[(uint8)*b])) return b;
+                if ((c = g_e2s_tb[(uint8)*b])) return b;
             }
             return e;
         }
     }
   #else
     for (const char* p = b; p < e; ++p) {
-        if ((c = tb[(uint8)*p])) return p;
+        if ((c = g_e2s_tb[(uint8)*p])) return p;
     }
     return e;
   #endif

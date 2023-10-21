@@ -95,21 +95,15 @@ int pid() {
 }
 
 int cpunum() {
-    static int ncpu = []() {
-        SYSTEM_INFO info;
-        GetSystemInfo(&info);
-        return (int) info.dwNumberOfProcessors;
-    }();
-    return ncpu;
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return (int) info.dwNumberOfProcessors;
 }
 
 size_t pagesize() {
-    static size_t ps = []() {
-        SYSTEM_INFO info;
-        GetSystemInfo(&info);
-        return (size_t) info.dwPageSize;
-    }();
-    return ps;
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return (size_t) info.dwPageSize;
 }
 
 void daemon() {}

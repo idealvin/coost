@@ -1,5 +1,4 @@
 #include "co/cout.h"
-#include <mutex>
 
 static const char* fg[16] = {
     "\033[0m",   // default
@@ -34,15 +33,17 @@ static const char* fg[16] = {
 namespace co {
 namespace color {
 
+std::once_flag g_h_flag;
+static HANDLE g_h;
+
 inline HANDLE cout_handle() {
-    static HANDLE h = []() {
-        HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-        return (h != INVALID_HANDLE_VALUE && h != NULL) ? h : (HANDLE)NULL;
-    }();
-    return h;
+    std::call_once(g_h_flag, []() {
+        g_h = GetStdHandle(STD_OUTPUT_HANDLE);
+    });
+    return g_h;
 }
 
-static bool check_vterm() {
+static bool has_vterm() {
     if (!os::env("TERM").empty()) return true;
   #ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
     auto h = cout_handle();
@@ -57,9 +58,16 @@ static bool check_vterm() {
   #endif
 }
 
+std::once_flag g_vterm_flag;
+static int g_vterm;
+
 inline bool ansi_esc_seq_enabled() {
-    static const bool x = check_vterm();
-    return x;
+    if (g_vterm == 0) {
+        std::call_once(g_vterm_flag, []() {
+            g_vterm = has_vterm() ? 1 : -1;
+        });
+    }
+    return g_vterm > 0;
 }
 
 inline int get_default_color() {
@@ -120,14 +128,20 @@ fastream& operator<<(fastream& s, color::Color c) {
 namespace co {
 namespace xx {
 
+std::once_flag g_m_flag;
+static std::mutex* g_m;
+
 inline std::mutex& cmutex() {
-    static auto m = co::_make_rootic<std::mutex>();
-    return *m;
+    std::call_once(g_m_flag, []() {
+        g_m = co::_make_rootic<std::mutex>();
+    });
+    return *g_m;
 }
 
+static __thread fastream* g_s;
+
 inline fastream& cstream() {
-    static __thread fastream* s = 0;
-    return s ? *s : *(s = co::_make_rootic<fastream>(256));
+    return g_s ? *g_s : *(g_s = co::_make_rootic<fastream>(256));
 }
 
 Cout::Cout() : s(cstream()) {

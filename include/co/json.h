@@ -11,6 +11,13 @@
 namespace json {
 namespace xx {
 
+struct Initializer {
+    Initializer();
+    ~Initializer() = default;
+};
+
+static Initializer g_initializer;
+
 class Array {
   public:
     typedef void* T;
@@ -424,8 +431,8 @@ class __coapi Json {
         typedef void* T;
         iterator(T* p, T* e, uint32 step) : _p(p), _e(e), _step(step) {}
 
-        struct End {}; // fake end
-        static const End& end() { static End kEnd; return kEnd; }
+        struct End { constexpr End() noexcept {} }; // fake end
+        static const End& end() { static const End kEnd; return kEnd; }
 
         bool operator!=(const End&) const { return _p != _e; }
         bool operator==(const End&) const { return _p == _e; }

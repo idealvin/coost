@@ -14,33 +14,34 @@ static int errcb(const char* p, size_t n, void* u) {
     return 0;
 }
 
+static __thread fastream* g_fs;
+
 const char* strerror(S* s) {
-    static __thread fastream* fs = 0;
-    if (!fs) fs = co::_make_static<fastream>(256);
-    fs->clear();
+    if (!g_fs) g_fs = co::_make_static<fastream>(256);
+    g_fs->clear();
 
     if (ERR_peek_error() != 0) {
-        ERR_print_errors_cb(errcb, fs);
+        ERR_print_errors_cb(errcb, g_fs);
     } else if (co::error() != 0) {
-        fs->append(co::strerror());
+        g_fs->append(co::strerror());
     } else if (s) {
         int e = SSL_get_error((SSL*)s, 0);
-        (*fs) << "ssl error: " << e;
+        (*g_fs) << "ssl error: " << e;
     } else {
-        fs->append("success");
+        g_fs->append("success");
     }
 
-    return fs->c_str();
+    return g_fs->c_str();
 }
 
+std::once_flag g_flag;
+
 C* new_ctx(char c) {
-    static bool x = []() {
+    std::call_once(g_flag, []() {
         (void) SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
-        return true;
-    }();
-    (void)x;
+    });
     return (C*) SSL_CTX_new(c == 's' ? TLS_server_method(): TLS_client_method());
 }
 

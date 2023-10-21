@@ -14,17 +14,8 @@ inline int _close_nocancel(int fd) {
 }
 
 #elif defined(__APPLE__)
-#include <dlfcn.h>
 
-inline int _close_nocancel(int fd) {
-    typedef int (*close_t)(int);
-    static close_t f = []() {
-        void* p = dlsym(RTLD_DEFAULT, "close$NOCANCEL");
-        if (!p) p = dlsym(RTLD_DEFAULT, "close$NOCANCEL$UNIX2003");
-        return (close_t)p;
-    }();
-    return f ? f(fd) : __sys_api(close)(fd);
-}
+int _close_nocancel(int fd);
 
 #elif defined(_hpux) || defined(__hpux)
 #include <errno.h>

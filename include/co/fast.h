@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <string.h>
 
-// decimal places
 namespace dp {
 
 struct _fpt {
@@ -38,9 +37,18 @@ constexpr _fpt _n(double v, int n) { return _fpt(v, n); }
 } // dp
 
 namespace fast {
+namespace xx {
+
+struct Initializer {
+    Initializer();
+    ~Initializer() = default;
+};
+
+static Initializer g_initializer;
+
+} // xx
 
 // double to ascii string, return length of the result
-// @mdp  max decimal places
 inline int dtoa(double v, char* buf, int mdp=324) {
     return milo::dtoa(v, buf, mdp);
 }

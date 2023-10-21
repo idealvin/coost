@@ -3,7 +3,6 @@
 #include "co/clist.h"
 #include "co/god.h"
 #include "co/log.h"
-#include <mutex>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -249,9 +248,6 @@ class Root {
     Dealloc _da;     // used to destruct GlobalAlloc and ThreadAlloc
     Dealloc _dx[4];  // 0: _rootic, 1: _static, 2: rootic, 3: static 
 };
-
-Root& root() { static Root r; return r; }
-
 
 #if __arch64
 static const uint32 B = 6;
@@ -631,12 +627,13 @@ GlobalAlloc::~GlobalAlloc() {
     }
 }
 
+static uint32 g_talloc_id = (uint32)-1;
+
 class alignas(co::cache_line_size) ThreadAlloc {
   public:
     ThreadAlloc(GlobalAlloc* ga)
         : _lb(0), _la(0), _sa(0), _ga(ga), _s(16 * 1024) {
-        static uint32 g_alloc_id = (uint32)-1;
-        _id = atomic_inc(&g_alloc_id, mo_relaxed);
+        _id = atomic_inc(&g_talloc_id, mo_relaxed);
     }
     ~ThreadAlloc() = default;
 
@@ -657,19 +654,25 @@ class alignas(co::cache_line_size) ThreadAlloc {
 };
 
 
-inline GlobalAlloc* galloc() {
-    static GlobalAlloc* ga = root().make<GlobalAlloc>();
-    return ga;
+static int g_nifty_counter;
+char g_root_buf[sizeof(Root)];
+Root& g_root = *(Root*)g_root_buf;
+static GlobalAlloc* g_ga;
+__thread ThreadAlloc* g_ta;
+
+Initializer::Initializer() {
+    if (g_nifty_counter++ == 0) {
+        new (&g_root) Root();
+        g_ga = g_root.make<GlobalAlloc>();
+    }
 }
 
-inline ThreadAlloc* make_thread_alloc() {
-    auto g = galloc();
-    return root().make<ThreadAlloc>(g);
+Initializer::~Initializer() {
+    if (--g_nifty_counter == 0) g_root.~Root();
 }
 
 inline ThreadAlloc* talloc() {
-    static __thread ThreadAlloc* ta = 0;
-    return ta ? ta : (ta = make_thread_alloc());
+    return g_ta ? g_ta : (g_ta = g_root.make<ThreadAlloc>(g_ga));
 }
 
 #define _try_alloc(l, n, k) \
@@ -938,7 +941,7 @@ void* _salloc(size_t n) {
 }
 
 void _dealloc(std::function<void()>&& f, int x) {
-    xx::root().add_destructor(std::forward<xx::F>(f), x);
+    xx::g_root.add_destructor(std::forward<xx::F>(f), x);
 }
 
 #ifndef CO_USE_SYS_MALLOC

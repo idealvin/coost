@@ -1,7 +1,23 @@
 #ifndef _WIN32
-
 #include "close.h"
 #include "sched.h"
+
+#ifdef __APPLE__
+#include <dlfcn.h>
+
+typedef int (*close_t)(int);
+static close_t g_close_nocancel;
+std::once_flag g_close_flag;
+
+int _close_nocancel(int fd) {
+    std::call_once(g_close_flag, []() {
+        void* p = dlsym(RTLD_DEFAULT, "close$NOCANCEL");
+        if (!p) p = dlsym(RTLD_DEFAULT, "close$NOCANCEL$UNIX2003");
+        g_close_nocancel = (close_t)p;
+    });
+    return g_close_nocancel ? g_close_nocancel(fd) : __sys_api(close)(fd);
+}
+#endif
 
 namespace co {
 

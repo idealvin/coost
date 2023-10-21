@@ -2,9 +2,6 @@
 
 namespace co {
 
-// initialization for hooks
-void init_hook();
-
 // hook sleep or not
 void hook_sleep(bool x);
 
@@ -23,6 +20,13 @@ void hook_sleep(bool x);
 // coroutine schedulers.
 #define __sys_api(x)        _sys_##x
 #define _CO_DEC_SYS_API(x)  extern x##_fp_t __sys_api(x)
+
+struct HookInitializer {
+    HookInitializer();
+    ~HookInitializer();
+};
+
+static HookInitializer g_hook_initializer;
 
 #ifdef _WIN32
 #include <WinSock2.h>

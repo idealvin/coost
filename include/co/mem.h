@@ -6,12 +6,23 @@
 #include <assert.h>
 #include <cstddef>
 #include <stdlib.h>
+#include <mutex>
 #include <new>
 #include <utility>
 #include <type_traits>
 #include <functional>
 
 namespace co {
+namespace xx {
+
+struct Initializer {
+    Initializer();
+    ~Initializer();
+};
+
+static Initializer g_initializer;
+
+} // xx
 
 constexpr size_t cache_line_size = L1_CACHE_LINE_SIZE;
 

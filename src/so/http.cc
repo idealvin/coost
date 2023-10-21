@@ -8,6 +8,7 @@
 #include "co/time.h"
 #include "co/fs.h"
 #include "co/path.h"
+#include <mutex>
 
 #ifdef HAS_LIBCURL
 #include <curl/curl.h>
@@ -27,14 +28,15 @@ DEF_bool(http_log, true, ">>#2 enable http server log if true");
 
 namespace http {
 
+static const char* g_empty = "";
+static __thread fastring* g_s;
+
 inline fastring& fastring_cache() {
-    static __thread fastring* kS = 0;
-    if (kS) return *kS;
-    return *(kS = new fastring(128));
+    return g_s ? *g_s : *(g_s = co::_make_static<fastring>(128));
 }
 
 inline fastream& fastream_cache() {
-    return *(fastream*) &fastring_cache();
+    return (fastream&) fastring_cache();
 }
 
 /**
@@ -106,13 +108,13 @@ void init_easy_opts(CURL* e, curl_ctx_t* ctx) {
     curl_easy_setopt(e, CURLOPT_ERRORBUFFER, ctx->err);
 }
 
-struct curl_global {
-    curl_global() {
+struct CurlInitializer {
+    CurlInitializer() {
         const bool x = curl_global_init(CURL_GLOBAL_ALL) == 0;
-        CHECK(x) << "curl global init failed..";
+        CHECK(x) << "curl init failed..";
     }
 
-    ~curl_global() {
+    ~CurlInitializer() {
         curl_global_cleanup();
     }
 };
@@ -129,11 +131,15 @@ void Client::close() {
     if (_ctx) { _ctx->~curl_ctx_t(); co::free(_ctx, sizeof(*_ctx)); _ctx = 0; }
 }
 
+std::once_flag g_curl_flag;
+
 void Client::reset(const char* serv_url) {
     if (_ctx) {
         _ctx->serv_url = serv_url;
     } else {
-        static curl_global g;
+        std::call_once(g_curl_flag, []() {
+            auto _ = co::_make_static<CurlInitializer>(); (void)_;
+        });
         _ctx = (curl_ctx_t*) co::zalloc(sizeof(curl_ctx_t));
         _ctx->easy = curl_easy_init();
 
@@ -260,8 +266,7 @@ const char* Client::strerror() const {
 }
 
 const char* Client::header(const char* key) {
-    static const char* e = "";
-    if (_ctx->arr_size == 0) return e;
+    if (_ctx->arr_size == 0) return g_empty;
 
     fastream& h = _ctx->header;
     fastream& m = _ctx->mutable_header;
@@ -292,7 +297,7 @@ const char* Client::header(const char* key) {
             }
         }
     }
-    return e;
+    return g_empty;
 }
 
 const fastring& Client::header() const {
@@ -357,8 +362,9 @@ void Client::perform() {}
 int Client::response_code() const { return 0; }
 const char* Client::strerror() const { return ""; }
 const char* Client::header(const char*) { return ""; }
-const fastring& Client::header() const { static fastring s; return s; }
-const fastring& Client::body() const { static fastring s; return s; }
+static fastring g_es;
+const fastring& Client::header() const { return g_es; }
+const fastring& Client::body() const { return g_es; }
 void Client::close() {}
 
 #endif // http::Client
@@ -371,29 +377,34 @@ void Client::close() {}
  * ===========================================================================
  */
 
+static const char* g_v[] = { "HTTP/1.0", "HTTP/1.1", "HTTP/2.0" };
 inline const char* version_str(int v) {
-    static const char* s[] = { "HTTP/1.0", "HTTP/1.1", "HTTP/2.0" };
-    return s[v];
+    return g_v[v];
 }
 
+static const char* g_m[] = { "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS" };
 inline const char* method_str(int m) {
-    static const char* s[] = { "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS" };
-    return s[m];
+    return g_m[m];
 }
 
-static co::hash_map<fastring, int>* create_method_map() {
-    static co::hash_map<fastring, int> m;
-    m["GET"]     = kGet;
-    m["POST"]    = kPost;
-    m["HEAD"]    = kHead;
-    m["PUT"]     = kPut;
-    m["DELETE"]  = kDelete;
-    m["OPTIONS"] = kOptions;
-    return &m;
+std::once_flag g_method_flag;
+static co::hash_map<fastring, int>* g_method_map;
+
+static const co::hash_map<fastring, int>& method_map() {
+    std::call_once(g_method_flag, []() {
+        auto& m = *co::_make_static<co::hash_map<fastring, int>>();
+        m["GET"]     = kGet;
+        m["POST"]    = kPost;
+        m["HEAD"]    = kHead;
+        m["PUT"]     = kPut;
+        m["DELETE"]  = kDelete;
+        m["OPTIONS"] = kOptions;
+        g_method_map = &m;
+    });
+    return *g_method_map;
 }
 
-const char** create_status_table() {
-    static const char* s[512];
+static void init_status_table(const char* s[512]) {
     for (int i = 0; i < 512; ++i) s[i] = "";
     s[100] = "Continue";
     s[101] = "Switching Protocols";
@@ -435,12 +446,16 @@ const char** create_status_table() {
     s[503] = "Service Unavailable";
     s[504] = "Gateway Timeout";
     s[505] = "HTTP Version Not Supported";
-    return s;
 }
 
+std::once_flag g_status_flag;
+static const char* g_status_tb[512];
+
 inline const char* status_str(int n) {
-    static const char** s = create_status_table();
-    return (100 <= n && n <= 511) ? s[n] : s[500];
+    std::call_once(g_status_flag, []() {
+        init_status_table(g_status_tb);
+    });
+    return (100 <= n && n <= 511) ? g_status_tb[n] : g_status_tb[500];
 }
 
 
@@ -465,8 +480,7 @@ const char* http_req_t::header(const char* key) const {
         if (s == x) return buf->data() + arr[i + 1];
     }
 
-    static const char* e = "";
-    return e;
+    return g_empty;
 }
 
 
@@ -540,7 +554,7 @@ int parse_http_headers(fastring* buf, size_t size, size_t x, http_req_t* req) {
 }
 
 int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
-    static co::hash_map<fastring, int>* mm = create_method_map();
+    const auto& mm = method_map();
     fastring& m = *buf;
     req->buf = buf;
 
@@ -554,8 +568,8 @@ int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
 
         auto& s = fastring_cache(); s.clear();
         s.append(m.data(), p).toupper();
-        auto it = mm->find(s);
-        if (it != mm->end()) {
+        auto it = mm.find(s);
+        if (it != mm.end()) {
             req->method = it->second;
         } else {
             return 405; // Method Not Allowed
