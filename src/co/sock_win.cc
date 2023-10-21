@@ -371,6 +371,8 @@ bool _can_skip_iocp_on_success() {
     return true;
 }
 
+// call init_sock() first, then init_hook()
+extern void init_hook();
 void init_sock() {
     WSADATA x;
     WSAStartup(MAKEWORD(2, 2), &x);
@@ -411,11 +413,11 @@ void init_sock() {
 
     ::closesocket(fd);
     can_skip_iocp_on_success = _can_skip_iocp_on_success();
+
+    init_hook();
 }
 
-void cleanup_sock() {
-    WSACleanup();
-}
+void cleanup_sock() { WSACleanup(); }
 
 } // co
 

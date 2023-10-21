@@ -3,6 +3,7 @@
 
 #ifdef _CO_DISABLE_HOOK
 namespace co {
+void init_hook() {}
 void hook_sleep(bool) {}
 } // co
 
@@ -1327,7 +1328,7 @@ WSARecvMsg_fp_t get_WSARecvMsg_fp() {
     CHECK_EQ(r, 0) << "get WSARecvMsg failed: " << co::strerror();
     CHECK(fp != NULL) << "pointer to WSARecvMsg is NULL..";
 
-    __sys_api(closesocket)(fd);
+    ::closesocket(fd);
     return fp;
 }
 
@@ -1351,7 +1352,7 @@ WSASendMsg_fp_t get_WSASendMsg_fp() {
     CHECK_EQ(r, 0) << "get WSASendMsg failed: " << co::strerror();
     CHECK(fp != NULL) << "pointer to WSASendMsg is NULL..";
 
-    __sys_api(closesocket)(fd);
+    ::closesocket(fd);
     return fp;
 }
 
@@ -1372,7 +1373,12 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 #define attach_hook(x)  detour_attach(&(PVOID&)__sys_api(x), (PVOID)hook_##x, #x)
 #define detach_hook(x)  detour_detach(&(PVOID&)__sys_api(x), (PVOID)hook_##x, #x)
 
+// it will be called at initialization of coroutine schedulers
 void init_hook() {
+    g_hook = co::_make_static<co::Hook>();
+    __sys_api(WSARecvMsg) = get_WSARecvMsg_fp();
+    __sys_api(WSASendMsg) = get_WSASendMsg_fp();
+
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     attach_hook(Sleep);
@@ -1451,19 +1457,6 @@ void hook_sleep(bool x) {
 }
 
 } // co
-
-static int g_nifty_counter;
-HookInitializer::HookInitializer() {
-    if (g_nifty_counter++ == 0) {
-        __sys_api(WSARecvMsg) = get_WSARecvMsg_fp();
-        __sys_api(WSASendMsg) = get_WSASendMsg_fp();
-        g_hook = co::_make_static<co::Hook>();
-        co::init_hook();
-    }
-}
-
-HookInitializer::~HookInitializer() {}
-
 
 #undef attach_hook
 #undef detach_hook
