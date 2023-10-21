@@ -54,7 +54,7 @@ __coapi void set_write_cb(const std::function<void(const char*, const void*, siz
 
 namespace xx {
 
-struct Initializer {
+struct __coapi Initializer {
     Initializer();
     ~Initializer() = default;
 };

@@ -15,7 +15,7 @@
 namespace co {
 namespace xx {
 
-struct Initializer {
+struct __coapi Initializer {
     Initializer();
     ~Initializer();
 };

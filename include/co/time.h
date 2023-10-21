@@ -9,7 +9,7 @@ namespace now {
 #ifdef _WIN32
 namespace xx {
 
-struct Initializer {
+struct __coapi Initializer {
     Initializer();
     ~Initializer() = default;
 };

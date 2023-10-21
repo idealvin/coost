@@ -39,7 +39,7 @@ constexpr _fpt _n(double v, int n) { return _fpt(v, n); }
 namespace fast {
 namespace xx {
 
-struct Initializer {
+struct __coapi Initializer {
     Initializer();
     ~Initializer() = default;
 };
