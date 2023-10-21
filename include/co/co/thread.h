@@ -22,7 +22,7 @@ typedef std::lock_guard<std::mutex> mutex_guard;
 namespace co {
 namespace xx {
 
-extern __thread uint32 g_tid;
+__coapi extern __thread uint32 g_tid;
 __coapi uint32 thread_id();
 
 #ifdef _WIN32
