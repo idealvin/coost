@@ -14,9 +14,10 @@ int calc_iters(int64 ns) {
     return 1;
 }
 
+static co::vector<Group>* g_g;
+
 inline co::vector<Group>& groups() {
-    static auto g = co::_make_static<co::vector<Group>>();
-    return *g;
+    return g_g ? *g_g : *(g_g = co::_make_static<co::vector<Group>>());
 }
 
 bool add_group(const char* name, void (*f)(Group&)) {

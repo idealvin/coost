@@ -105,10 +105,7 @@ class Hook {
 
 } // co
 
-inline co::Hook& gHook() {
-    static auto h = co::_make_static<co::Hook>();
-    return *h;
-}
+static co::Hook* g_hook;
 
 extern "C" {
 
@@ -141,10 +138,8 @@ _CO_DEF_SYS_API(WSAWaitForMultipleEvents);
 _CO_DEF_SYS_API(GetQueuedCompletionStatus);
 _CO_DEF_SYS_API(GetQueuedCompletionStatusEx);
 
-static WSARecvMsg_fp_t get_WSARecvMsg_fp();
-static WSASendMsg_fp_t get_WSASendMsg_fp();
-WSARecvMsg_fp_t __sys_api(WSARecvMsg) = get_WSARecvMsg_fp();
-WSASendMsg_fp_t __sys_api(WSASendMsg) = get_WSASendMsg_fp();
+WSARecvMsg_fp_t __sys_api(WSARecvMsg);
+WSASendMsg_fp_t __sys_api(WSASendMsg);
 
 
 inline void set_non_blocking(SOCKET s, u_long m) {
@@ -163,7 +158,7 @@ void WINAPI hook_Sleep(
 ) {
     HOOKLOG << "hook_Sleep: " << a0;
     const auto sched = co::xx::gSched;
-    if (!sched || !gHook().hook_sleep) return __sys_api(Sleep)(a0);
+    if (!sched || !g_hook->hook_sleep) return __sys_api(Sleep)(a0);
     sched->sleep(a0);
 }
 
@@ -173,7 +168,7 @@ SOCKET WINAPI hook_socket(
     int a2
 ) {
     SOCKET s = __sys_api(socket)(a0, a1, a2);
-    auto ctx = gHook().get_hook_ctx(s);
+    auto ctx = g_hook->get_hook_ctx(s);
     if (ctx && a1 != SOCK_STREAM) ctx->set_non_sock_stream();
     HOOKLOG << "hook_socket, sock: " << (int)s;
     return s;
@@ -189,7 +184,7 @@ SOCKET WINAPI hook_WSASocketA(
 ) {
     const bool ol = !!(a5 & WSA_FLAG_OVERLAPPED);
     SOCKET s = __sys_api(WSASocketA)(a0, a1, a2, a3, a4, a5);
-    auto ctx = gHook().get_hook_ctx(s);
+    auto ctx = g_hook->get_hook_ctx(s);
     if (ctx) {
         if (!ol) ctx->set_non_overlapped();
         if (a1 != SOCK_STREAM) ctx->set_non_sock_stream();
@@ -208,7 +203,7 @@ SOCKET WINAPI hook_WSASocketW(
 ) {
     const bool ol = !!(a5 & WSA_FLAG_OVERLAPPED);
     SOCKET s = __sys_api(WSASocketW)(a0, a1, a2, a3, a4, a5);
-    auto ctx = gHook().get_hook_ctx(s);
+    auto ctx = g_hook->get_hook_ctx(s);
     if (ctx) {
         if (!ol) ctx->set_non_overlapped();
         if (a1 != SOCK_STREAM) ctx->set_non_sock_stream();
@@ -221,7 +216,7 @@ int WINAPI hook_closesocket(
     SOCKET s
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(s);
+    auto ctx = g_hook->get_hook_ctx(s);
     if (ctx) {
         ctx->clear();
         r = co::close(s);
@@ -243,7 +238,7 @@ int WINAPI hook_shutdown(
     }
 
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     switch (a1) {
       case SD_RECEIVE:
         ctx->set_shut_read();
@@ -275,7 +270,7 @@ int WINAPI hook_setsockopt(
 ) {
     int r = __sys_api(setsockopt)(a0, a1, a2, a3, a4);
     if (r == 0 && a1 == SOL_SOCKET && (a2 == SO_RCVTIMEO || a2 == SO_SNDTIMEO)) {
-        auto ctx = gHook().get_hook_ctx(a0);
+        auto ctx = g_hook->get_hook_ctx(a0);
         const DWORD ms = *(DWORD*)a3;
         if (a2 == SO_RCVTIMEO) {
             HOOKLOG << "hook_setsockopt, sock: " << a0 << " recv timeout: " << ms;
@@ -295,7 +290,7 @@ int WINAPI hook_ioctlsocket(
 ) {
     int r = __sys_api(ioctlsocket)(a0, a1, a2);
     if (r == 0 && a1 == FIONBIO) {
-        gHook().get_hook_ctx(a0)->set_non_blocking((int)*a2);
+        g_hook->get_hook_ctx(a0)->set_non_blocking((int)*a2);
         HOOKLOG << "hook_ioctlsocket, sock: " << a0 << " non_block: " << !!(*a2);
     }
     return r;
@@ -318,13 +313,13 @@ int WINAPI hook_WSAIoctl(
         int r = __sys_api(WSAIoctl)(a0, a1, a2, a3, a4, a5, a6, a7, a8);
         if (r == 0) {
             const int nb = (int)(*(u_long*)a2);
-            gHook().get_hook_ctx(a0)->set_non_blocking(nb);
+            g_hook->get_hook_ctx(a0)->set_non_blocking(nb);
             HOOKLOG << "hook_WSAIoctl FIONBIO, sock: " << a0 << " non_block: " << !!nb;
         }
         return r;
     }
 
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() || (ctx->is_overlapped() && a7) ||
         a1 == FIONREAD || a1 == SIOCATMARK) {
@@ -353,7 +348,7 @@ int WINAPI hook_WSAAsyncSelect(
     long   a3
 ) {
     int r = __sys_api(WSAAsyncSelect)(a0, a1, a2, a3);
-    if (r == 0) gHook().get_hook_ctx(a0)->set_non_blocking(1);
+    if (r == 0) g_hook->get_hook_ctx(a0)->set_non_blocking(1);
     HOOKLOG << "hook_WSAAsyncSelect, sock: " << a0 << " r: " << r;
     return r;
 }
@@ -364,7 +359,7 @@ int WINAPI hook_WSAEventSelect(
     long     a2
 ) {
     int r = __sys_api(WSAEventSelect)(a0, a1, a2);
-    if (r == 0) gHook().get_hook_ctx(a0)->set_non_blocking(1);
+    if (r == 0) g_hook->get_hook_ctx(a0)->set_non_blocking(1);
     HOOKLOG << "hook_WSAEventSelect, sock: " << a0 << " r: " << r;
     return r;
 }
@@ -375,7 +370,7 @@ SOCKET WINAPI hook_accept(
     int* a2
 ) {
     SOCKET r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(accept)(a0, a1, a2);
@@ -413,7 +408,7 @@ SOCKET WINAPI hook_WSAAccept(
     DWORD_PTR a4
 ) {
     SOCKET r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(WSAAccept)(a0, a1, a2, a3, a4);
@@ -454,7 +449,7 @@ int WINAPI hook_connect(
     int a2
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(connect)(a0, a1, a2);
@@ -505,7 +500,7 @@ int WINAPI hook_WSAConnect(
     LPQOS a6
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(WSAConnect)(a0, a1, a2, a3, a4, a5, a6);
@@ -611,7 +606,7 @@ int WINAPI hook_recv(
     int a3
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() || a2 < 0) {
         r = __sys_api(recv)(a0, a1, a2, a3);
@@ -655,7 +650,7 @@ int WINAPI hook_WSARecv(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a6
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a5 || !a3))) {
@@ -706,7 +701,7 @@ int WINAPI hook_recvfrom(
     int* a5
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() || a2 < 0) {
         r = __sys_api(recvfrom)(a0, a1, a2, a3, a4, a5);
@@ -767,7 +762,7 @@ int WINAPI hook_WSARecvFrom(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a8
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a7 || !a3))) {
@@ -830,7 +825,7 @@ int WINAPI hook_send(
     int a3
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() || a2 < 0) {
         r = __sys_api(send)(a0, a1, a2, a3);
@@ -873,7 +868,7 @@ int WINAPI hook_WSASend(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a6
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a5 || !a3))) {
@@ -916,7 +911,7 @@ int WINAPI hook_sendto(
     int a5
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() || a2 < 0) {
         r = __sys_api(sendto)(a0, a1, a2, a3, a4, a5);
@@ -961,7 +956,7 @@ int WINAPI hook_WSASendTo(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a8
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a7 || !a3))) {
@@ -1049,7 +1044,7 @@ int WINAPI hook_WSARecvMsg(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a4
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a3 || !a2)) || !a1 ||
@@ -1100,7 +1095,7 @@ int WINAPI hook_WSASendMsg(
     LPWSAOVERLAPPED_COMPLETION_ROUTINE a5
 ) {
     int r;
-    auto ctx = gHook().get_hook_ctx(a0);
+    auto ctx = g_hook->get_hook_ctx(a0);
     const auto sched = co::xx::gSched;
     if (!sched || !ctx || ctx->is_non_blocking() ||
         (ctx->is_overlapped() && (a4 || !a3)) || !a1 ||
@@ -1333,7 +1328,7 @@ WSARecvMsg_fp_t get_WSARecvMsg_fp() {
     CHECK_EQ(r, 0) << "get WSARecvMsg failed: " << co::strerror();
     CHECK(fp != NULL) << "pointer to WSARecvMsg is NULL..";
 
-    __sys_api(closesocket)(fd);
+    ::closesocket(fd);
     return fp;
 }
 
@@ -1357,7 +1352,7 @@ WSASendMsg_fp_t get_WSASendMsg_fp() {
     CHECK_EQ(r, 0) << "get WSASendMsg failed: " << co::strerror();
     CHECK(fp != NULL) << "pointer to WSASendMsg is NULL..";
 
-    __sys_api(closesocket)(fd);
+    ::closesocket(fd);
     return fp;
 }
 
@@ -1378,44 +1373,45 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 #define attach_hook(x)  detour_attach(&(PVOID&)__sys_api(x), (PVOID)hook_##x, #x)
 #define detach_hook(x)  detour_detach(&(PVOID&)__sys_api(x), (PVOID)hook_##x, #x)
 
+// it will be called at initialization of coroutine schedulers
 void init_hook() {
-    static bool x = []() {
-        DetourTransactionBegin();
-        DetourUpdateThread(GetCurrentThread());
-        attach_hook(Sleep);
-        attach_hook(socket);
-        attach_hook(WSASocketA);
-        attach_hook(WSASocketW);
-        attach_hook(closesocket);
-        attach_hook(shutdown);
-        attach_hook(setsockopt);
-        attach_hook(ioctlsocket);
-        attach_hook(WSAIoctl);
-        attach_hook(WSAAsyncSelect);
-        attach_hook(WSAEventSelect);
-        attach_hook(accept);
-        attach_hook(WSAAccept);
-        attach_hook(connect);
-        attach_hook(WSAConnect);
-        attach_hook(recv);
-        attach_hook(WSARecv);
-        attach_hook(recvfrom);
-        attach_hook(WSARecvFrom);
-        attach_hook(send);
-        attach_hook(WSASend);
-        attach_hook(sendto);
-        attach_hook(WSASendTo);
-        attach_hook(WSARecvMsg);
-        attach_hook(WSASendMsg);
-        attach_hook(select);
-        attach_hook(WSAPoll);
-        attach_hook(WSAWaitForMultipleEvents);
-        attach_hook(GetQueuedCompletionStatus);
-        attach_hook(GetQueuedCompletionStatusEx);
-        DetourTransactionCommit();
-        return true;
-    }();
-    (void)x;
+    g_hook = co::_make_static<co::Hook>();
+    __sys_api(WSARecvMsg) = get_WSARecvMsg_fp();
+    __sys_api(WSASendMsg) = get_WSASendMsg_fp();
+
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    attach_hook(Sleep);
+    attach_hook(socket);
+    attach_hook(WSASocketA);
+    attach_hook(WSASocketW);
+    attach_hook(closesocket);
+    attach_hook(shutdown);
+    attach_hook(setsockopt);
+    attach_hook(ioctlsocket);
+    attach_hook(WSAIoctl);
+    attach_hook(WSAAsyncSelect);
+    attach_hook(WSAEventSelect);
+    attach_hook(accept);
+    attach_hook(WSAAccept);
+    attach_hook(connect);
+    attach_hook(WSAConnect);
+    attach_hook(recv);
+    attach_hook(WSARecv);
+    attach_hook(recvfrom);
+    attach_hook(WSARecvFrom);
+    attach_hook(send);
+    attach_hook(WSASend);
+    attach_hook(sendto);
+    attach_hook(WSASendTo);
+    attach_hook(WSARecvMsg);
+    attach_hook(WSASendMsg);
+    attach_hook(select);
+    attach_hook(WSAPoll);
+    attach_hook(WSAWaitForMultipleEvents);
+    attach_hook(GetQueuedCompletionStatus);
+    attach_hook(GetQueuedCompletionStatusEx);
+    DetourTransactionCommit();
 }
 
 #if 0
@@ -1457,7 +1453,7 @@ void cleanup_hook() {
 #endif
 
 void hook_sleep(bool x) {
-    atomic_store(&gHook().hook_sleep, x, mo_release);
+    atomic_store(&g_hook->hook_sleep, x, mo_relaxed);
 }
 
 } // co

@@ -33,6 +33,13 @@ DEC_bool(co_sched_log);
 namespace co {
 namespace xx {
 
+struct SchedInitializer {
+    SchedInitializer();
+    ~SchedInitializer();
+};
+
+static SchedInitializer g_sched_initializer;
+
 class Sched;
 struct Coroutine;
 typedef co::multimap<int64, Coroutine*>::iterator timer_id_t;
@@ -476,10 +483,8 @@ class SchedManager {
     co::vector<Sched*> _scheds;
 };
 
-inline bool& is_active() {
-    static bool ka = false;
-    return ka;
-}
+static bool g_is_active;
+inline bool& is_active() { return g_is_active; }
 
 extern __thread Sched* gSched;
 

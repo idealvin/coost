@@ -2,9 +2,6 @@
 
 namespace co {
 
-// initialization for hooks
-void init_hook();
-
 // hook sleep or not
 void hook_sleep(bool x);
 
@@ -118,6 +115,13 @@ _CO_DEC_SYS_API(GetQueuedCompletionStatusEx);
 #endif
 
 #define _CO_DEF_SYS_API(x)  x##_fp_t __sys_api(x) = 0
+
+struct HookInitializer {
+    HookInitializer();
+    ~HookInitializer();
+};
+
+static HookInitializer g_hook_initializer;
 
 namespace co {
 

@@ -122,9 +122,10 @@ class SockCtx {
 
 #endif
 
+extern co::table<SockCtx>* g_ctx_tb;
+
 inline SockCtx& get_sock_ctx(size_t sock) {
-    static auto& tb = *co::_make_static<co::table<SockCtx>>(15, 16);
-    return tb[sock];
+    return (*g_ctx_tb)[sock];
 }
 
 } // co

@@ -61,13 +61,11 @@ int pid() {
 }
 
 int cpunum() {
-    static int ncpu = (int) sysconf(_SC_NPROCESSORS_ONLN);
-    return ncpu;
+    return (int) sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 size_t pagesize() {
-    static size_t ps = sysconf(_SC_PAGESIZE);
-    return ps;
+    return (size_t) sysconf(_SC_PAGESIZE);
 }
 
 #ifdef __linux__

@@ -46,9 +46,10 @@ struct Mod {
     co::map<const char*, Flag*> flags;
 };
 
+static Mod* g_mod;
+
 inline Mod& mod() {
-    static auto m = co::_make_static<Mod>();
-    return *m;
+    return g_mod ? *g_mod : *(g_mod = co::_make_static<Mod>());
 }
 
 struct Flag {
@@ -359,7 +360,7 @@ void Mod::make_config(const fastring& exe) {
         return;
     }
 
-    static const int COMMENT_LINE_LEN = 72;
+    const int COMMENT_LINE_LEN = 72;
     f << fastring(COMMENT_LINE_LEN, '#') << '\n'
       << "###  > # or // for comments\n"
       << "###  > k,m,g,t,p (case insensitive, 1k for 1024, etc.)\n"

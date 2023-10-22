@@ -54,6 +54,13 @@ __coapi void set_write_cb(const std::function<void(const char*, const void*, siz
 
 namespace xx {
 
+struct __coapi Initializer {
+    Initializer();
+    ~Initializer() = default;
+};
+
+static Initializer g_initializer;
+
 enum LogLevel {
     debug = 0,
     info = 1,

@@ -1,6 +1,8 @@
 #include "co/co.h"
 #include "co/cout.h"
 
+static int g_id;
+
 class S {
   public:
     S() { _v = this->get_id(); }
@@ -14,8 +16,7 @@ class S {
     int _v;
 
     int get_id() {
-        static int kId = 0;
-        return atomic_inc(&kId);
+        return atomic_inc(&g_id);
     }
 };
 

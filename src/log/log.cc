@@ -23,8 +23,8 @@
 #pragma warning (disable:4722)
 #endif
 
-static fastring* g_log_dir = 0;
-static fastring* g_log_file_name = 0;
+static fastring* g_log_dir;
+static fastring* g_log_file_name;
 static void _at_mod_init() {
     DEF_string(log_dir, "logs", ">>#0 log dir, will be created if not exists");
     DEF_string(log_file_name, "", ">>#0 name of log file, use exename if empty");
@@ -43,7 +43,7 @@ DEF_bool(log_compress, false, ">>#0 if true, compress rotated log files with xz"
 
 // When this value is true, the above flags should have been initialized, 
 // and we are safe to start the logging thread.
-static bool g_init_done = false;
+static bool g_init_done;
 static bool g_dummy = []() {
     atomic_store(&g_init_done, true, mo_release);
     return *co::_make_static<bool>(false);
@@ -71,12 +71,8 @@ struct Mod {
     bool check_failed;
 };
 
-inline Mod& mod() {
-    static auto m = co::_make_static<Mod>();
-    return *m;
-}
-
-Mod* _mod = &mod();
+static Mod* g_mod;
+inline Mod& mod() { return *g_mod; }
 
 inline void log2stderr(const char* s, size_t n) {
   #ifdef _WIN32
@@ -528,8 +524,16 @@ void Logger::stop(bool signal_safe) {
     }
 }
 
+std::once_flag g_flag;
+static bool g_thread_started;
+
 void Logger::push_level_log(char* s, size_t n) {
-    static bool _ = this->start(); (void)_;
+    if (unlikely(!g_thread_started)) {
+        std::call_once(g_flag, [this]() {
+            this->start();
+            atomic_store(&g_thread_started, true);
+        });
+    }
     if (unlikely(n > FLG_max_log_size)) {
         n = FLG_max_log_size;
         char* const p = s + n - 4;
@@ -559,7 +563,12 @@ void Logger::push_level_log(char* s, size_t n) {
 }
 
 void Logger::push_topic_log(const char* topic, char* s, size_t n) {
-    static bool _ = this->start(); (void)_;
+    if (unlikely(!g_thread_started)) {
+        std::call_once(g_flag, [this]() {
+            this->start();
+            atomic_store(&g_thread_started, true);
+        });
+    }
     if (unlikely(n > FLG_max_log_size)) {
         n = FLG_max_log_size;
         char* const p = s + n - 4;
@@ -1043,14 +1052,19 @@ Mod::Mod() {
     logger = co::_make_static<Logger>(log_time, log_file);
     except_handler = co::_make_static<ExceptHandler>();
     check_failed = false;
-  #ifndef _WIN32
-    co::init_hook();
-  #endif
 }
 
+static int g_nifty_counter;
+Initializer::Initializer() {
+    if (g_nifty_counter++ == 0) {
+        g_mod = co::_make_static<Mod>();
+    }
+}
+
+static __thread fastream* g_s;
+
 inline fastream& log_stream() {
-    static __thread fastream* s = 0;
-    return s ? *s : *(s = co::_make_static<fastream>(256));
+    return g_s ? *g_s : *(g_s = co::_make_static<fastream>(256));
 }
 
 LevelLogSaver::LevelLogSaver(const char* fname, unsigned fnlen, unsigned line, int level)

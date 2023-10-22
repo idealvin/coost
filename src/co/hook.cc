@@ -3,7 +3,6 @@
 
 #ifdef _CO_DISABLE_HOOK
 namespace co {
-void init_hook() {}
 void hook_sleep(bool) {}
 } // co
 
@@ -99,26 +98,40 @@ class Hook {
 
 } // co
 
-inline co::Hook& gHook() {
-    static auto h = co::_make_static<co::Hook>();
-    return *h;
+static co::Hook* g_hook;
+
+std::once_flag g_hents_flag;
+static co::vector<hostent>* g_hents;
+
+// hostent for the current scheduler
+inline hostent* hent() {
+    std::call_once(g_hents_flag, []() {
+        g_hents = co::_make_static<co::vector<hostent>>(co::sched_num(), 0);
+    });
+    return &(*g_hents)[co::xx::gSched->id()];
 }
 
-inline struct hostent* gHostEnt() {
-    static auto& e = *co::_make_static<co::vector<struct hostent>>(co::sched_num(), 0);
-    return &e[co::xx::gSched->id()];
+std::once_flag g_smtxs_flag;
+static co::vector<co::mutex>* g_smtxs;
+
+// mutex for the current scheduler
+inline co::mutex& smtx() {
+    std::call_once(g_smtxs_flag, []() {
+        g_smtxs = co::_make_static<co::vector<co::mutex>>(co::sched_num(), 0);
+    });
+    return (*g_smtxs)[co::xx::gSched->id()];
 }
 
-inline co::mutex& gDnsMutex_t() {
-    static auto& m = *co::_make_static<co::vector<co::mutex>>(co::sched_num(), 0);
-    return m[co::xx::gSched->id()];
-}
+std::once_flag g_gmtx_flag;
+static co::mutex* g_gmtx;
 
-inline co::mutex& gDnsMutex_g() {
-    static auto m = co::_make_static<co::mutex>();
-    return *m;
+// global mutex
+inline co::mutex& gmtx() {
+    std::call_once(g_gmtx_flag, []() {
+        g_gmtx = co::_make_static<co::mutex>();
+    });
+    return *g_gmtx;
 }
-
 
 extern "C" {
 
@@ -192,7 +205,6 @@ _CO_DEF_SYS_API(kevent);
         } \
     } while (true)
 
-
 inline void set_non_blocking(int fd, int x) {
     __sys_api(ioctl)(fd, FIONBIO, (char*)&x);
 }
@@ -200,7 +212,7 @@ inline void set_non_blocking(int fd, int x) {
 int _hook(socket)(int domain, int type, int protocol) {
     _hook_api(socket);
     int s = __sys_api(socket)(domain, type, protocol);
-    auto ctx = gHook().get_hook_ctx(s);
+    auto ctx = g_hook->get_hook_ctx(s);
     if (ctx) {
         ctx->set_sock_or_pipe();
       #ifdef SOCK_NONBLOCK
@@ -215,8 +227,8 @@ int _hook(socketpair)(int domain, int type, int protocol, int sv[2]) {
     _hook_api(socketpair);
     int r = __sys_api(socketpair)(domain, type, protocol, sv);
     if (r == 0) {
-        auto ctx0 = gHook().get_hook_ctx(sv[0]);
-        auto ctx1 = gHook().get_hook_ctx(sv[1]);
+        auto ctx0 = g_hook->get_hook_ctx(sv[0]);
+        auto ctx1 = g_hook->get_hook_ctx(sv[1]);
         ctx0->set_sock_or_pipe();
         ctx1->set_sock_or_pipe();
       #ifdef SOCK_NONBLOCK
@@ -234,8 +246,8 @@ int _hook(pipe)(int fds[2]) {
     _hook_api(pipe);
     int r = __sys_api(pipe)(fds);
     if (r == 0) {
-        gHook().get_hook_ctx(fds[0])->set_sock_or_pipe();
-        gHook().get_hook_ctx(fds[1])->set_sock_or_pipe();
+        g_hook->get_hook_ctx(fds[0])->set_sock_or_pipe();
+        g_hook->get_hook_ctx(fds[1])->set_sock_or_pipe();
         HOOKLOG << "hook pipe, fd: " << fds[0] << ", " << fds[1];
     }
     return r;
@@ -245,8 +257,8 @@ int _hook(pipe2)(int fds[2], int flags) {
     _hook_api(pipe2);
     int r = __sys_api(pipe2)(fds, flags);
     if (r == 0) {
-        auto ctx0 = gHook().get_hook_ctx(fds[0]);
-        auto ctx1 = gHook().get_hook_ctx(fds[1]);
+        auto ctx0 = g_hook->get_hook_ctx(fds[0]);
+        auto ctx1 = g_hook->get_hook_ctx(fds[1]);
         const int nb = !!(flags & O_NONBLOCK);
         ctx0->set_sock_or_pipe();
         ctx1->set_sock_or_pipe();
@@ -268,7 +280,7 @@ int _hook(fcntl)(int fd, int cmd, ... /* arg */) {
 
     int r;
     union { int v; void* arg; };
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
 
     va_list args;
     va_start(args, cmd);
@@ -282,7 +294,7 @@ int _hook(fcntl)(int fd, int cmd, ... /* arg */) {
             ctx->set_non_blocking(nb);
             HOOKLOG << "hook fcntl F_SETFL, fd: " << fd << ", non_block: " << nb;
         } else if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
-            *gHook().get_hook_ctx(r) = *ctx;
+            *g_hook->get_hook_ctx(r) = *ctx;
             HOOKLOG << "hook fcntl F_DUPFD, fd: " << fd << ", r: " << r;
         }
     }
@@ -309,7 +321,7 @@ int _hook(ioctl)(int fd, co::ioctl_param<ioctl_fp_t>::type request, ...) {
     _hook_api(ioctl);
 
     int r;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     va_list args;
     va_start(args, request);
    
@@ -339,9 +351,9 @@ int _hook(dup)(int oldfd) {
 
     int r = __sys_api(dup)(oldfd);
     if (r != -1) {
-        auto ctx = gHook().get_hook_ctx(oldfd);
+        auto ctx = g_hook->get_hook_ctx(oldfd);
         if (ctx->is_sock_or_pipe()) {
-            *gHook().get_hook_ctx(r) = *ctx;
+            *g_hook->get_hook_ctx(r) = *ctx;
         }
     }
 
@@ -355,7 +367,7 @@ int _hook(dup2)(int oldfd, int newfd) {
 
     int r = __sys_api(dup2)(oldfd, newfd);
     if (r != -1 && oldfd != newfd) {
-        *gHook().get_hook_ctx(newfd) = *gHook().get_hook_ctx(oldfd);
+        *g_hook->get_hook_ctx(newfd) = *g_hook->get_hook_ctx(oldfd);
     }
 
     HOOKLOG << "hook dup2, oldfd: " << oldfd << ", newfd: " << newfd << ", r: " << r;
@@ -369,7 +381,7 @@ int _hook(dup3)(int oldfd, int newfd, int flags) {
 
     int r = __sys_api(dup3)(oldfd, newfd, flags);
     if (r != -1) {
-        *gHook().get_hook_ctx(newfd) = *gHook().get_hook_ctx(oldfd);
+        *g_hook->get_hook_ctx(newfd) = *g_hook->get_hook_ctx(oldfd);
     }
 
     HOOKLOG << "hook dup3, oldfd: " << oldfd << ", newfd: " << newfd << ", flags: " << flags << ", r: " << r;
@@ -386,10 +398,10 @@ int _hook(setsockopt)(int fd, int level, int optname, const void* optval, sockle
         const int ms = (us <= 0 ? 0 : (us > 1000 ? (int)(us / 1000) : 1));
         if (optname == SO_RCVTIMEO) {
             HOOKLOG << "hook setsockopt, sock: " << fd << ", recv timeout: " << ms;
-            gHook().get_hook_ctx(fd)->set_recv_timeout(ms);
+            g_hook->get_hook_ctx(fd)->set_recv_timeout(ms);
         } else {
             HOOKLOG << "hook setsockopt, sock: " << fd << ", send timeout: " << ms;
-            gHook().get_hook_ctx(fd)->set_send_timeout(ms);
+            g_hook->get_hook_ctx(fd)->set_send_timeout(ms);
         }
     }
     return r;
@@ -400,7 +412,7 @@ int _hook(close)(int fd) {
     if (fd < 0) { errno = EBADF; return -1; }
 
     int r;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (ctx->is_sock_or_pipe()) {
         ctx->clear();
         r = co::close(fd);
@@ -417,7 +429,7 @@ int _hook(shutdown)(int fd, int how) {
     if (fd < 0) { errno = EBADF; return -1; }
 
     int r;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     switch (how) {
       case SHUT_RD:
         ctx->set_shut_read();
@@ -456,7 +468,7 @@ int _hook(connect)(int fd, const struct sockaddr* addr, socklen_t addrlen) {
 
     int r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(connect)(fd, addr, addrlen);
         goto end;
@@ -477,7 +489,7 @@ int _hook(accept)(int fd, struct sockaddr* addr, socklen_t* addrlen) {
 
     int r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(accept)(fd, addr, addrlen);
         goto end;
@@ -499,7 +511,7 @@ int _hook(accept)(int fd, struct sockaddr* addr, socklen_t* addrlen) {
     }
 
   end:
-    if (r != -1) gHook().get_hook_ctx(r)->set_sock_or_pipe();
+    if (r != -1) g_hook->get_hook_ctx(r)->set_sock_or_pipe();
     HOOKLOG << "hook accept, fd: " << fd << ", r: " << r;
     return r;
 }
@@ -509,7 +521,7 @@ ssize_t _hook(read)(int fd, void* buf, size_t count) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
         return __sys_api(read)(fd, buf, count);
     }
@@ -530,7 +542,7 @@ ssize_t _hook(readv)(int fd, const struct iovec* iov, int iovcnt) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
         return __sys_api(readv)(fd, iov, iovcnt);
     }
@@ -551,7 +563,7 @@ ssize_t _hook(recv)(int fd, void* buf, size_t len, int flags) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(recv)(fd, buf, len, flags);
         goto end;
@@ -573,7 +585,7 @@ ssize_t _hook(recvfrom)(int fd, void* buf, size_t len, int flags, struct sockadd
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(recvfrom)(fd, buf, len, flags, addr, addrlen);
         goto end;
@@ -595,7 +607,7 @@ ssize_t _hook(recvmsg)(int fd, struct msghdr* msg, int flags) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(recvmsg)(fd, msg, flags);
         goto end;
@@ -617,7 +629,7 @@ ssize_t _hook(write)(int fd, const void* buf, size_t count) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
         return __sys_api(write)(fd, buf, count);
     }
@@ -638,7 +650,7 @@ ssize_t _hook(writev)(int fd, const struct iovec* iov, int iovcnt) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || !ctx->is_sock_or_pipe() || ctx->is_non_blocking()) {
         return __sys_api(writev)(fd, iov, iovcnt);
     }
@@ -659,7 +671,7 @@ ssize_t _hook(send)(int fd, const void* buf, size_t len, int flags) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(send)(fd, buf, len, flags);
         goto end;
@@ -681,7 +693,7 @@ ssize_t _hook(sendto)(int fd, const void* buf, size_t len, int flags, const stru
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(sendto)(fd, buf, len, flags, addr, addrlen);
         goto end;
@@ -703,7 +715,7 @@ ssize_t _hook(sendmsg)(int fd, const struct msghdr* msg, int flags) {
 
     ssize_t r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(sendmsg)(fd, msg, flags);
         goto end;
@@ -733,7 +745,7 @@ int _hook(poll)(struct pollfd* fds, nfds_t nfds, int ms) {
 
     do {
         if (nfds == 1) {
-            auto ctx = gHook().get_hook_ctx(fd);
+            auto ctx = g_hook->get_hook_ctx(fd);
             if (!ctx || !ctx->is_sock_or_pipe() || !ctx->is_non_blocking()) break;
 
             if (fds[0].events == POLLIN) {
@@ -839,7 +851,7 @@ unsigned int _hook(sleep)(unsigned int n) {
 
     unsigned int r;
     const auto sched = co::xx::gSched;
-    if (!sched || !gHook().hook_sleep) {
+    if (!sched || !g_hook->hook_sleep) {
         r = __sys_api(sleep)(n);
         goto end;
     }
@@ -859,7 +871,7 @@ int _hook(usleep)(useconds_t us) {
     const auto sched = co::xx::gSched;
     if (us >= 1000000) { r = -1; errno = EINVAL; goto end; }
 
-    if (!sched || !gHook().hook_sleep) {
+    if (!sched || !g_hook->hook_sleep) {
         r = __sys_api(usleep)(us);
         goto end;
     }
@@ -894,7 +906,7 @@ int _hook(nanosleep)(const struct timespec* req, struct timespec* rem) {
         }
     }
 
-    if (!sched || !gHook().hook_sleep || !req) {
+    if (!sched || !g_hook->hook_sleep || !req) {
         r = __sys_api(nanosleep)(req, rem);
         goto end;
     }
@@ -935,7 +947,7 @@ int _hook(accept4)(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags)
 
     int r;
     const auto sched = co::xx::gSched;
-    auto ctx = gHook().get_hook_ctx(fd);
+    auto ctx = g_hook->get_hook_ctx(fd);
     if (!sched || !ctx || ctx->is_non_blocking()) {
         r = __sys_api(accept4)(fd, addr, addrlen, flags);
         goto end;
@@ -958,7 +970,7 @@ int _hook(accept4)(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags)
 
   end:
     if (r != -1) {
-        auto c = gHook().get_hook_ctx(r);
+        auto c = g_hook->get_hook_ctx(r);
         c->set_sock_or_pipe();
         c->set_non_blocking(flags & SOCK_NONBLOCK);
     }
@@ -978,7 +990,7 @@ int _hook(gethostbyname_r)(
     const auto sched = co::xx::gSched;
     if (!sched) return __sys_api(gethostbyname_r)(name, ret, buf, len, res, err);
 
-    co::mutex_guard g(gDnsMutex_t());
+    co::mutex_guard g(smtx());
     return __sys_api(gethostbyname_r)(name, ret, buf, len, res, err);
 }
 
@@ -993,7 +1005,7 @@ int _hook(gethostbyname2_r)(
     const auto sched = co::xx::gSched;
     if (!sched) return __sys_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
 
-    co::mutex_guard g(gDnsMutex_t());
+    co::mutex_guard g(smtx());
     return __sys_api(gethostbyname2_r)(name, af, ret, buf, len, res, err);
 }
 
@@ -1008,7 +1020,7 @@ int _hook(gethostbyaddr_r)(
     const auto sched = co::xx::gSched;
     if (!sched) return __sys_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
 
-    co::mutex_guard g(gDnsMutex_t());
+    co::mutex_guard g(smtx());
     return __sys_api(gethostbyaddr_r)(addr, addrlen, type, ret, buf, len, res, err);
 }
 
@@ -1021,7 +1033,7 @@ struct hostent* _hook(gethostbyname2)(const char* name, int af) {
     if (!sched || !name) return __sys_api(gethostbyname2)(name, af);
 
     fastream fs(1024);
-    struct hostent* ent = gHostEnt();
+    struct hostent* ent = hent();
     struct hostent* res = 0;
     int* err = (int*) fs.data();
 
@@ -1095,11 +1107,11 @@ struct hostent* _hook(gethostbyname)(const char* name) {
     const auto sched = co::xx::gSched;
     if (!sched) return __sys_api(gethostbyname)(name);
 
-    co::mutex_guard g(gDnsMutex_g());
+    co::mutex_guard g(gmtx());
     struct hostent* r = __sys_api(gethostbyname)(name);
     if (!r) return 0;
 
-    struct hostent* ent = gHostEnt();
+    struct hostent* ent = hent();
     *ent = *r;
     return ent;
 }
@@ -1111,11 +1123,11 @@ struct hostent* _hook(gethostbyaddr)(const void* addr, socklen_t len, int type) 
     const auto sched = co::xx::gSched;
     if (!sched) return __sys_api(gethostbyaddr)(addr, len, type);
 
-    co::mutex_guard g(gDnsMutex_g());
+    co::mutex_guard g(gmtx());
     struct hostent* r = __sys_api(gethostbyaddr)(addr, len, type);
     if (!r) return 0;
 
-    struct hostent* ent = gHostEnt();
+    struct hostent* ent = hent();
     *ent = *r;
     return ent;
 }
@@ -1223,40 +1235,47 @@ static bool _init_hook() {
 static bool _dummy = _init_hook();
 
 void init_hook() {
-    static bool x = []() {
-      #ifdef __APPLE__
-        _init_hook();
-      #else
-        // ensure the following APIs are hooked
-        if (!__sys_api(close)) { auto r = ::close(-1); (void)r; }
-        if (!__sys_api(read))  { auto r = ::read(-1, 0, 0); (void)r; }
-        if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
-        if (!__sys_api(pipe))  { auto r = ::pipe((int*)0); (void)r; }
-        if (!__sys_api(fcntl)) { auto r = ::fcntl(-1, 0); (void)r;}
-        if (!__sys_api(select)) { auto r = ::select(-1, 0, 0, 0, 0); (void)r; }
-        assert(__sys_api(close) != 0);
-        assert(__sys_api(read) != 0);
-        assert(__sys_api(write) != 0);
-        assert(__sys_api(pipe) != 0);
-        assert(__sys_api(fcntl) != 0);
-        assert(__sys_api(select) != 0);
-      #endif
-
-      #ifdef __linux__
-        if (__sys_api(epoll_wait) == 0) ::epoll_wait(-1, 0, 0, 0);
-        assert(__sys_api(epoll_wait) != 0);
-      #endif
-        return true;
-    }();
-    (void)x;
-    (void)_dummy;
+  #ifdef __APPLE__
+    _init_hook(); (void)_dummy;
+  #else
+    // ensure the following APIs are hooked
+    if (!__sys_api(close)) { auto r = ::close(-1); (void)r; }
+    if (!__sys_api(read))  { auto r = ::read(-1, 0, 0); (void)r; }
+    if (!__sys_api(write)) { auto r = ::write(-1, 0, 0); (void)r; }
+    if (!__sys_api(pipe))  { auto r = ::pipe((int*)0); (void)r; }
+    if (!__sys_api(fcntl)) { auto r = ::fcntl(-1, 0); (void)r;}
+    if (!__sys_api(select)) { auto r = ::select(-1, 0, 0, 0, 0); (void)r; }
+    assert(__sys_api(close));
+    assert(__sys_api(read));
+    assert(__sys_api(write));
+    assert(__sys_api(pipe));
+    assert(__sys_api(fcntl));
+    assert(__sys_api(select));
+  #ifdef __linux__
+    if (!__sys_api(epoll_wait)) { auto r = ::epoll_wait(-1, 0, 0, 0); (void)r; }
+    assert(__sys_api(epoll_wait));
+  #else
+    if (!__sys_api(kevent)) { auto r = ::kevent(-1, 0, 0, 0, 0, 0); (void)r; }
+    assert(__sys_api(kevent));
+  #endif
+  #endif
 }
 
 void hook_sleep(bool x) {
-    atomic_store(&gHook().hook_sleep, x, mo_release);
+    atomic_store(&g_hook->hook_sleep, x, mo_relaxed);
 }
 
 } // co
+
+static int g_nifty_counter;
+HookInitializer::HookInitializer() {
+    if (g_nifty_counter++ == 0) {
+        g_hook = co::_make_static<co::Hook>();
+        co::init_hook();
+    }
+}
+
+HookInitializer::~HookInitializer() {}
 
 #undef do_hook
 #undef _hook

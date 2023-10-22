@@ -21,6 +21,8 @@ typedef std::lock_guard<std::mutex> mutex_guard;
 
 namespace co {
 namespace xx {
+
+__coapi extern __thread uint32 g_tid;
 __coapi uint32 thread_id();
 
 #ifdef _WIN32
@@ -41,8 +43,7 @@ inline void tls_set(tls_key_t k, void* v) { int r = pthread_setspecific(k, v); (
 
 // get id of the current thread
 inline uint32 thread_id() {
-    static __thread uint32 id = 0;
-    return id != 0 ? id : (id = xx::thread_id());
+    return xx::g_tid != 0 ? xx::g_tid : (xx::g_tid = xx::thread_id());
 }
 
 template<typename T>

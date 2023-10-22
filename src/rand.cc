@@ -39,7 +39,7 @@ class Rand {
     std::mt19937& mt19937() { return _mt; }
 
     struct Cache {
-        Cache() : s(), p(0) {}
+        constexpr Cache() : s(), p(0) {}
         fastring s;
         const char* p;
     };
@@ -52,17 +52,14 @@ class Rand {
     Cache _cache;
 };
 
-inline Rand& _rand() {
-    static thread_local Rand r;
-    return r;
-}
+static thread_local Rand g_rand;
 
 uint32 rand() {
-    return _rand().next();
+    return g_rand.next();
 }
 
 inline void _gen_random_bytes(uint8* p, uint32 n) {
-    auto& r = _rand().mt19937();
+    auto& r = g_rand.mt19937();
     const uint32 x = (n >> 2) << 2;
     uint32 i = 0;
     for (; i < x; i += 4) *(uint32*)(p + i) = r();
@@ -100,7 +97,7 @@ fastring randstr(int n) {
 }
 
 const char* _expand(const char* p, uint32& len) {
-    auto& cache = _rand().cache();
+    auto& cache = g_rand.cache();
     auto& s = cache.s;
     if (p == cache.p) {
         len = (uint32) s.size();
