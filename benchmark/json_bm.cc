@@ -18,53 +18,53 @@ int main(int argc, char** argv) {
 
     fs::file f(FLG_s.c_str(), 'r');
     if (!f) {
-        COUT << "open file failed: " << FLG_s;
+        cout << "open file failed: " << FLG_s << '\n';
         return 0;
     }
 
     fastring s = f.read(f.size());
-    COUT << "json file size: " << s.size();
+    cout << "json file size: " << s.size() << '\n';
     if (FLG_minimal) {
-        Json x = json::parse(s);
+        co::Json x = json::parse(s);
         s = x.str();
-        COUT << "minimal json file size: " << s.size();
+        cout << "minimal json file size: " << s.size() << '\n';
     }
 
     int64 us;
     double tco, tsimd, trap;
-    Timer timer;
+    co::Timer timer;
     {
         {
-            Json v = json::parse(s);
-            COUT << v["search_metadata"]["count"].as_int() << " results.";
-            COUT << v["statuses"][0]["metadata"]["result_type"].as_string();
+            co::Json v = json::parse(s);
+            cout << v["search_metadata"]["count"].as_int() << " results.\n";
+            cout << v["statuses"][0]["metadata"]["result_type"].as_string() << '\n';
             { fastring xx = v.str(); }
             timer.restart();
             fastring s = v.str();
             us = timer.us();
-            COUT << "co/json str() time:" << us << " us";
-            COUT << "str() size: " << s.size();
+            cout << "co/json str() time:" << us << " us\n";
+            cout << "str() size: " << s.size() << '\n';
         }
         timer.restart();
         for (int i = 0; i < FLG_n; ++i) {
-            Json v = json::parse(s);
+            co::Json v = json::parse(s);
         }
         us = timer.us();
-        COUT << "co/json parse time: " << (tco = us * 1.0 / FLG_n) << " us";
+        cout << "co/json parse time: " << (tco = us * 1.0 / FLG_n) << " us\n";
     }
 
     {
         {
             rapidjson::Document v;
             rapidjson::parse(s.c_str(), v);
-            COUT << v["search_metadata"]["count"].GetInt() << " results.";
-            COUT << v["statuses"][0]["metadata"]["result_type"].GetString();
+            cout << v["search_metadata"]["count"].GetInt() << " results.\n";
+            cout << v["statuses"][0]["metadata"]["result_type"].GetString() << '\n';
             { fastring xx = rapidjson::str(v); }
             timer.restart();
             std::string s = rapidjson::str(v);
             us = timer.us();
-            COUT << "rapidjson str() time:" << us << " us";
-            COUT << "str() size: " << s.size();
+            cout << "rapidjson str() time:" << us << " us\n";
+            cout << "str() size: " << s.size() << '\n';
         }
         timer.restart();
         for (int i = 0; i < FLG_n; ++i) {
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
             rapidjson::parse(s.c_str(), v);
         }
         us = timer.us();
-        COUT << "rapidjson parse time: " << (us * 1.0 / FLG_n) << " us";
+        cout << "rapidjson parse time: " << (us * 1.0 / FLG_n) << " us\n";
     }
 
     {
@@ -96,8 +96,8 @@ int main(int argc, char** argv) {
             oss << v;
             std::string s = oss.str();
             us = timer.us();
-            COUT << "simdjson str() time:" << us << " us";
-            COUT << "simdjson str() size: " << s.size();
+            cout << "simdjson str() time:" << us << " us\n";
+            cout << "simdjson str() size: " << s.size() << '\n';
         }
         timer.restart();
         for (int i = 0; i < FLG_n; ++i) {
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
         std::cout << "simdjson parse time: " << (tsimd = us * 1.0 / FLG_n) << " us" << std::endl;
     }
 
-    COUT << ">>> " << (tco / tsimd);
+    cout << ">>> " << (tco / tsimd) << '\n';
 
     return 0;
 }

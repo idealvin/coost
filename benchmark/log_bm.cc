@@ -6,7 +6,7 @@ DEF_int32(n, 1000000, "amount of logs");
 DEF_int32(s, 32, "length of string");
 DEF_int32(t, 1, "thread num");
 
-SyncEvent gEv;
+co::sync_event gEv;
 fastring gCo;
 fastring gSpd;
 int gCoCount;
@@ -44,27 +44,27 @@ int main(int argc, char** argv) {
     int64 write_to_cache;
     int64 write_to_file;
 
-    Timer t;
+    co::Timer t;
     {
         t.restart();
-        for (int i = 0; i < FLG_t; ++i) Thread(co_run, N).detach();
+        for (int i = 0; i < FLG_t; ++i) std::thread(co_run, N).detach();
         gEv.wait();
         write_to_cache = t.us();
-	log::exit();
+	    log::exit();
         write_to_file = t.us();
-        COUT << "co/log: all logs written to cache in " << write_to_cache << " us";
-        COUT << "co/log: all logs written to file in " << write_to_file << " us";
+        cout << "co/log: all logs written to cache in " << write_to_cache << " us\n";
+        cout << "co/log: all logs written to file in " << write_to_file << " us\n";
     }
 
     {
         t.restart();
-        for (int i = 0; i < FLG_t; ++i) Thread(spd_run, N).detach();
+        for (int i = 0; i < FLG_t; ++i) std::thread(spd_run, N).detach();
         gEv.wait();
         write_to_cache = t.us();
         logger->flush();
         write_to_file = t.us();
-        COUT << "spdlog: all logs written to cache in " << write_to_cache << " us";
-        COUT << "spdlog: all logs written to file in " << write_to_file << " us";
+        cout << "spdlog: all logs written to cache in " << write_to_cache << " us\n";
+        cout << "spdlog: all logs written to file in " << write_to_file << " us\n";
     }
 
     return 0;
