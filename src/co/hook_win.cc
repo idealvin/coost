@@ -1375,7 +1375,6 @@ inline void detour_detach(PVOID* ppbReal, PVOID pbMine, PCHAR psz) {
 
 // it will be called at initialization of coroutine schedulers
 void init_hook() {
-    g_hook = co::_make_static<co::Hook>();
     __sys_api(WSARecvMsg) = get_WSARecvMsg_fp();
     __sys_api(WSASendMsg) = get_WSASendMsg_fp();
 
@@ -1457,6 +1456,15 @@ void hook_sleep(bool x) {
 }
 
 } // co
+
+static int g_nifty_counter;
+HookInitializer::HookInitializer() {
+    if (g_nifty_counter++ == 0) {
+        g_hook = co::_make_static<co::Hook>();
+    }
+}
+
+HookInitializer::~HookInitializer() {}
 
 #undef attach_hook
 #undef detach_hook

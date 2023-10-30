@@ -21,6 +21,13 @@ void hook_sleep(bool x);
 #define __sys_api(x)        _sys_##x
 #define _CO_DEC_SYS_API(x)  extern x##_fp_t __sys_api(x)
 
+struct HookInitializer {
+    HookInitializer();
+    ~HookInitializer();
+};
+
+static HookInitializer g_hook_initializer;
+
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <ws2tcpip.h> // for inet_ntop...
@@ -115,13 +122,6 @@ _CO_DEC_SYS_API(GetQueuedCompletionStatusEx);
 #endif
 
 #define _CO_DEF_SYS_API(x)  x##_fp_t __sys_api(x) = 0
-
-struct HookInitializer {
-    HookInitializer();
-    ~HookInitializer();
-};
-
-static HookInitializer g_hook_initializer;
 
 namespace co {
 
