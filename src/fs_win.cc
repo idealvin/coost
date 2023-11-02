@@ -141,7 +141,8 @@ bool mkdir(char* path, bool p) {
 
 inline void pathcat(fastring& s, wchar_t c, const wchar_t* p) {
     const wchar_t z = L'\0';
-    s.append(&c, sizeof(c)).append((char*)p).append(&z, sizeof(z));
+    const size_t n = wcslen(p) * sizeof(wchar_t);
+    s.append(&c, sizeof(c)).append((char*)p, n).append(&z, sizeof(z));
     s.resize(s.size() - sizeof(z));
 }
 
@@ -152,7 +153,7 @@ inline bool is_dot_or_dotdot(const wchar_t* p) {
 static bool _rmdir(fastring& s, wchar_t c) {
     const wchar_t* t = L"*";
     const size_t n = s.size();
-    pathcat(s, c, t)
+    pathcat(s, c, t);
 
     WIN32_FIND_DATAW e;
     HANDLE h = FindFirstFileW((PWC)s.data(), &e);
