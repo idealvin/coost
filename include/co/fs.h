@@ -24,9 +24,9 @@ __coapi bool mkdir(const char* path, bool p = false);
 // async-signal-safe version
 __coapi bool mkdir(char* path, bool p);
 
-// rf = false  ->  rm or rmdir
-// rf = true   ->  rm -rf
-__coapi bool remove(const char* path, bool rf = false);
+// r = false  ->  rm or rmdir
+// r = true   ->  rm -r
+__coapi bool remove(const char* path, bool r = false);
 
 __coapi bool rename(const char* from, const char* to);
 
