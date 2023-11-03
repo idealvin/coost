@@ -155,7 +155,7 @@ fastring& fastring::trim(char c, char d) {
       case 'R':
         e = _size;
         while (e > 0 && _p[e - 1] == c) --e;
-        e != _size ? (void)(_size = e) : (void)0;
+        if (e != _size) _size = e;
         break;
       case 'l':
       case 'L':
@@ -166,7 +166,7 @@ fastring& fastring::trim(char c, char d) {
       default:
         b = 0, e = _size;
         while (e > 0 && _p[e - 1] == c) --e;
-        e != _size ? (void)(_size = e) : (void)0;
+        if (e != _size) _size = e;
         while (b < _size && _p[b] == c) ++b;
         if (b != 0 && (_size -= b) != 0) memmove(_p, _p + b, _size);
         break;
@@ -190,7 +190,7 @@ fastring& fastring::trim(const char* x, char d) {
       case 'R':
         e = _size;
         while (e > 0 && bs[p[e - 1]]) --e;
-        e != _size ? (void)(_size = e) : (void)0;
+        if (e != _size) _size = e;
         break;
       case 'l':
       case 'L':
@@ -201,7 +201,7 @@ fastring& fastring::trim(const char* x, char d) {
       default:
         b = 0, e = _size;
         while (e > 0 && bs[p[e - 1]]) --e;
-        e != _size ? (void)(_size = e) : (void)0;
+        if (e != _size) _size = e;
         while (b < _size && bs[p[b]]) ++b;
         if (b != 0 && (_size -= b) != 0) memmove(_p, _p + b, _size);
         break;

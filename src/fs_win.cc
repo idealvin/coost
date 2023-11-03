@@ -151,9 +151,8 @@ inline bool is_dot_or_dotdot(const wchar_t* p) {
 }
 
 static bool _rmdir(fastring& s, wchar_t c) {
-    const wchar_t* t = L"*";
     const size_t n = s.size();
-    pathcat(s, c, t);
+    pathcat(s, c, L"*");
 
     WIN32_FIND_DATAW e;
     HANDLE h = FindFirstFileW((PWC)s.data(), &e);

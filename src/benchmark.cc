@@ -102,7 +102,7 @@ void print_results(Group& g) {
         p = t.size() <= 7 ? 9 - t.size() : 2;
         cout << "|  " << text::yellow(t) << fastring(p, ' ') << "|\n";
     }
-} 
+}
 
 } // xx
 
