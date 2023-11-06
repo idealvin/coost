@@ -123,6 +123,7 @@ DEF_test(fs) {
         o.open("xxd/xxs", 'w');
         o.close();
         EXPECT_EQ(fs::mv("xxs", "xxd"), false);
+        EXPECT_EQ(fs::mv("xxs", "xxd/xxs"), false);
     }
 
   #ifndef _WIN32

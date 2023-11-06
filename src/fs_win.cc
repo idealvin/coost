@@ -208,7 +208,9 @@ bool mv(const char* from, const char* to) {
         return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
     }
     if (!(b & g_attr_dir)) {
-        return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+        DWORD f = MOVEFILE_COPY_ALLOWED;
+        if (!(a & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
+        return MoveFileExW(x, y, f);
     }
 
     const char* p = strrchr(from, '/');
@@ -223,12 +225,15 @@ bool mv(const char* from, const char* to) {
     if (w == g_bad_attr) {
         return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
     }
+
     if (!(w & g_attr_dir)) {
-        return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+        DWORD f = MOVEFILE_COPY_ALLOWED;
+        if (!(a & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
+        return MoveFileExW(x, y, f);
     }
 
     if (a & g_attr_dir) RemoveDirectoryW(y); // remove dir y if it is empty
-    return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+    return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
 }
 
 bool rename(const char* from, const char* to) {
