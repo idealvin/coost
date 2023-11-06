@@ -71,10 +71,11 @@ inline uint32 _pow2_align(uint32 n) {
 #include <sys/mman.h>
 
 inline void* _vm_reserve(size_t n) {
-    return ::mmap(
+    void* const p = ::mmap(
         NULL, n, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0
     );
+    return p != MAP_FAILED ? p : NULL;
 }
 
 inline void _vm_commit(void* p, size_t n) {
