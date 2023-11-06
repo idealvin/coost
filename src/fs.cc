@@ -102,11 +102,28 @@ bool remove(const char* path, bool r) {
     return _rmdir(s);
 }
 
+bool mv(const char* from, const char* to) {
+    struct stat attr;
+    if (::lstat(to, &attr) != 0 || !S_ISDIR(attr.st_mode)) {
+        return ::rename(from, to) == 0;
+    }
+
+    const char* p = strrchr(from, '/');
+    fastring s(to);
+    if (!s.ends_with('/')) s.append('/');
+    s.append(p ? p + 1 : from);
+    return ::rename(from, s.c_str()) == 0;
+}
+
 bool rename(const char* from, const char* to) {
     return ::rename(from, to) == 0;
 }
 
 bool symlink(const char* dst, const char* lnk) {
+    struct stat attr;
+    if (::lstat(lnk, &attr) == 0 && S_ISLNK(attr.st_mode)) {
+        ::unlink(lnk);
+    }
     return ::symlink(dst, lnk) == 0;
 }
 

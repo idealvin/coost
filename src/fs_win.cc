@@ -70,6 +70,7 @@ static fastring narrow(const wchar_t* p) {
 
 const DWORD g_bad_attr = INVALID_FILE_ATTRIBUTES;
 const DWORD g_attr_dir = FILE_ATTRIBUTE_DIRECTORY;
+const DWORD g_attr_lnk = FILE_ATTRIBUTE_REPARSE_POINT;
 
 inline DWORD _getattr(const wchar_t* path) {
     return GetFileAttributesW(path);
@@ -197,6 +198,39 @@ bool remove(const char* path, bool r) {
     return _rmdir(cache(), c);
 }
 
+bool mv(const char* from, const char* to) {
+    PWC x, y;
+    widen(from, to, &x, &y);
+
+    const DWORD a = _getattr(x);
+    const DWORD b = _getattr(y);
+    if (a == g_bad_attr || b == g_bad_attr) {
+        return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
+    }
+    if (!(b & g_attr_dir)) {
+        return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+    }
+
+    const char* p = strrchr(from, '/');
+    if (!p) p = strrchr(from, '\\');
+    const char c = strrchr(to, '/') ? '/' : '\\';
+    fastring s(to);
+    if (!s.ends_with(c)) s.append(c);
+    s.append(p ? p + 1 : from);
+
+    widen(from, s.c_str(), &x, &y);
+    const DWORD w = _getattr(y);
+    if (w == g_bad_attr) {
+        return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
+    }
+    if (!(w & g_attr_dir)) {
+        return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+    }
+
+    if (a & g_attr_dir) RemoveDirectoryW(y); // remove dir y if it is empty
+    return MoveFileExW(x, y, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+}
+
 bool rename(const char* from, const char* to) {
     PWC x, y;
     widen(from, to, &x, &y);
@@ -206,6 +240,10 @@ bool rename(const char* from, const char* to) {
 bool symlink(const char* dst, const char* lnk) {
     PWC x, y;
     widen(dst, lnk, &x, &y);
+    const DWORD a = _getattr(y);
+    if (a != g_bad_attr && (a & g_attr_lnk)) {
+        (a & g_attr_dir) ? RemoveDirectoryW(y) : DeleteFileW(y);
+    }
     const DWORD d = _isdir(x) ? 1 : 0;
     return CreateSymbolicLinkW(y, x, d);
 }

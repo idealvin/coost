@@ -28,6 +28,10 @@ __coapi bool mkdir(char* path, bool p);
 // r = true   ->  rm -r
 __coapi bool remove(const char* path, bool r = false);
 
+// rename or move a file or directory
+__coapi bool mv(const char* from, const char* to);
+
+// deprecated, use mv instead
 __coapi bool rename(const char* from, const char* to);
 
 // administrator privileges required on windows
@@ -73,12 +77,20 @@ inline bool mkdir(const std::string& path, bool p=false) {
     return fs::mkdir(path.c_str(), p);
 }
 
-inline bool remove(const fastring& path, bool rf=false) {
-    return fs::remove(path.c_str(), rf);
+inline bool remove(const fastring& path, bool r=false) {
+    return fs::remove(path.c_str(), r);
 }
 
-inline bool remove(const std::string& path, bool rf=false) {
-    return fs::remove(path.c_str(), rf);
+inline bool remove(const std::string& path, bool r=false) {
+    return fs::remove(path.c_str(), r);
+}
+
+inline bool mv(const fastring& from, const fastring& to) {
+    return fs::mv(from.c_str(), to.c_str());
+}
+
+inline bool mv(const std::string& from, const std::string& to) {
+    return fs::mv(from.c_str(), to.c_str());
 }
 
 inline bool rename(const fastring& from, const fastring& to) {
