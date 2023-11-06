@@ -286,7 +286,7 @@ fs::file& LogFile::open(const char* topic, int level) {
                 auto& path = _old_paths.back();
                 if (fs::fsize(_path) >= FLG_max_log_file_size || (
                     FLG_log_daily && get_day_from_path(path) != _day)) {
-                    fs::rename(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
+                    fs::mv(_path, path); // rename xx.log to xx_0808_15_30_08.123.log
                     if (FLG_log_compress) compress_file(path);
                     new_file = true;
                 }
