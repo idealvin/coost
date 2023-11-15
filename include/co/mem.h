@@ -44,6 +44,11 @@ __coapi void free(void* p, size_t size);
 //   - @new_size must be greater than @old_size
 __coapi void* realloc(void* p, size_t old_size, size_t new_size);
 
+// Like realloc, but will not create a new allocation if there is not 
+// enough room to enlarge the memory allocation pointed to by p.
+// The return value is p or NULL.
+__coapi void* try_realloc(void* p, size_t old_size, size_t new_size);
+
 __coapi char* strdup(const char* s);
 
 // alloc memory and construct an object on it
