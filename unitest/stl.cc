@@ -274,6 +274,30 @@ DEF_test(vector){
         EXPECT_EQ(a.back(), "8888");
     }
 
+    DEF_case(sso) {
+        co::vector<std::string> v;
+        for (int i = 0; i < 4; ++i) {
+            v.push_back("aaa");
+        }
+        void* p = co::alloc(32);
+        for (int i = 0; i < 4; ++i) {
+            v.push_back("bbb");
+        }
+        EXPECT_EQ(v.size(), 8);
+        EXPECT_EQ(v[0], "aaa");
+        EXPECT_EQ(v[7], "bbb");
+
+        v.remove(3);
+        EXPECT_EQ(v.size(), 7);
+        EXPECT_EQ(v[3], "bbb");
+
+        v.append(v);
+        EXPECT_EQ(v.size(), 14);
+        EXPECT_EQ(v[3], "bbb");
+
+        co::free(p, 32);
+    }
+
     static int gc = 0;
     static int gd = 0;
 
