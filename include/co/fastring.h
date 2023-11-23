@@ -41,6 +41,10 @@ class __coapi fastring : public fast::stream {
         memset(_p, c, n);
     }
 
+    fastring(char* p, size_t cap, size_t size)
+        : fast::stream(p, cap, size) {
+    }
+
     fastring(const void* s, size_t n)
         : fast::stream(n + !!n, n) {
         memcpy(_p, s, n);
