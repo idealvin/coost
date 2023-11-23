@@ -56,24 +56,63 @@ bool mkdir(char* path, bool p) {
         *s = '/';
         return ::mkdir(path, 0755) == 0;
     } else {
-        bool x = fs::mkdir(path, true);
+        const bool x = fs::mkdir(path, true);
         *s = '/';
         return x ? ::mkdir(path, 0755) == 0 : false;
     }
 }
 
-bool remove(const char* path, bool rf) {
-    if (!fs::exists(path)) return true;
+inline bool is_dot_or_dotdot(const char* p) {
+    return p[0] == '.' && (!p[1] || (p[1] == '.' && !p[2]));
+}
 
-    if (!rf) {
-        if (fs::isdir(path)) return ::rmdir(path) == 0;
-        return ::unlink(path) == 0;
-    } else {
-        fastring cmd(strlen(path) + 10);
-        cmd.append("rm -rf \"").append(path).append('"');
-        FILE* f = popen(cmd.c_str(), "w");
-        return f ? pclose(f) != -1 : false;
+bool _rmdir(fastring& s) {
+    DIR* d = ::opendir(s.c_str());
+    if (!d) return errno == ENOENT;
+
+    const size_t n = s.size();
+    struct dirent* e;
+    while ((e = ::readdir(d))) {
+        if (is_dot_or_dotdot(e->d_name)) continue; // ignore . and ..
+        s.resize(n);
+        s.append('/').append(e->d_name);
+        if (fs::isdir(s.c_str())) {
+            if (!_rmdir(s)) goto err;
+        } else {
+            if (::unlink(s.c_str()) != 0 && errno != ENOENT) goto err;
+        }
     }
+
+    ::closedir(d);
+    s.resize(n);
+    return ::rmdir(s.c_str()) == 0;
+
+  err:
+    ::closedir(d);
+    return false;
+}
+
+bool remove(const char* path, bool r) {
+    struct stat attr;
+    if (::lstat(path, &attr) != 0) return true; // not exists
+    if (!S_ISDIR(attr.st_mode)) return ::unlink(path) == 0;
+    if (!r) return ::rmdir(path) == 0;
+
+    fastring s(path);
+    return _rmdir(s);
+}
+
+bool mv(const char* from, const char* to) {
+    struct stat attr;
+    if (::lstat(to, &attr) != 0 || !S_ISDIR(attr.st_mode)) {
+        return ::rename(from, to) == 0;
+    }
+
+    const char* p = strrchr(from, '/');
+    fastring s(to);
+    if (!s.ends_with('/')) s.append('/');
+    s.append(p ? p + 1 : from);
+    return ::rename(from, s.c_str()) == 0;
 }
 
 bool rename(const char* from, const char* to) {
@@ -81,7 +120,10 @@ bool rename(const char* from, const char* to) {
 }
 
 bool symlink(const char* dst, const char* lnk) {
-    fs::remove(lnk);
+    struct stat attr;
+    if (::lstat(lnk, &attr) == 0 && S_ISLNK(attr.st_mode)) {
+        ::unlink(lnk);
+    }
     return ::symlink(dst, lnk) == 0;
 }
 
@@ -282,10 +324,7 @@ co::vector<fastring> dir::all() const {
     co::vector<fastring> r(8);
     while ((d->e = ::readdir(d->d))) {
         char* const p = d->e->d_name;
-        // ignore . and ..
-        if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) {
-            r.push_back(p);
-        }
+        if (!is_dot_or_dotdot(p)) r.push_back(p);
     }
     return r;
 }
@@ -301,7 +340,7 @@ dir::iterator& dir::iterator::operator++() {
         assert(d->d);
         while ((d->e = ::readdir(d->d))) {
             char* const p = d->e->d_name;
-            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+            if (!is_dot_or_dotdot(p)) break;
         }
         if (!d->e) _p = NULL;
     }
@@ -313,7 +352,7 @@ dir::iterator dir::begin() const {
     if (d && d->d) {
         while ((d->e = ::readdir(d->d))) {
             char* const p = d->e->d_name;
-            if (p[0] != '.' || (p[1] && (p[1] != '.' || p[2]))) break;
+            if (!is_dot_or_dotdot(p)) break;
         }
         if (d->e) return dir::iterator(_p);
     }

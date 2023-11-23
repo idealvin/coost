@@ -583,28 +583,23 @@ make -j8
 ```
 
 
-#### 5.3.5 Install libco from vcpkg
+#### 5.3.5 Find coost in Cmake
+
+```cmake
+find_package(coost REQUIRED CONFIG)
+target_link_libraries(userTarget coost::co)
+```
+
+
+#### 5.3.6 vcpkg & conan
 
 ```sh
 vcpkg install coost:x64-windows
 
 # HTTP & SSL support
 vcpkg install coost[libcurl,openssl]:x64-windows
-```
 
-
-#### 5.3.6 Install libco from conan
-
-```sh
 conan install coost
-```
-
-
-#### 5.3.7 Find coost in Cmake
-
-```cmake
-find_package(coost REQUIRED CONFIG)
-target_link_libraries(userTarget coost::co)
 ```
 
 

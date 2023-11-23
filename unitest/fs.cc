@@ -86,20 +86,70 @@ DEF_test(fs) {
         fs::rename("yyy", "xxx");
     }
 
+    DEF_case(mv) {
+        fs::mv("xxx", "yyy");
+        EXPECT(!fs::exists("xxx"));
+        EXPECT(fs::exists("yyy"));
+        fs::mv("yyy", "xxx");
+
+        fs::mv("xxx", "xxd");
+        EXPECT(!fs::exists("xxx"));
+        EXPECT(fs::exists("xxd/xxx"));
+        fs::mv("xxd/xxx", "xxx");
+        EXPECT(!fs::exists("xxd/xxx"));
+
+        fs::file o("xxd/xxx", 'w');
+        o.close();
+        EXPECT_EQ(fs::mv("xxx", "xxd"), true);
+        EXPECT_NE(fs::fsize("xxd/xxx"), 0);
+        fs::mv("xxd/xxx", "xxx");
+
+        fs::mkdir("xxd/xxx");
+        EXPECT_EQ(fs::mv("xxx", "xxd"), false);
+        fs::remove("xxd/xxx");
+
+        EXPECT_EQ(fs::mkdir("xxs"), true);
+        EXPECT_EQ(fs::mkdir("xxd/xxs"), true);
+        EXPECT_EQ(fs::mv("xxs", "xxd"), true);
+        EXPECT(!fs::exists("xxs"));
+
+        EXPECT_EQ(fs::mkdir("xxd/xxs/xx"), true);
+        EXPECT_EQ(fs::mkdir("xxs"), true);
+        EXPECT_EQ(fs::mv("xxs", "xxd"), false);
+
+        fs::remove("xxd/xxs", true);
+        EXPECT(!fs::exists("xxd/xxs"));
+
+        o.open("xxd/xxs", 'w');
+        o.close();
+        EXPECT_EQ(fs::mv("xxs", "xxd"), false);
+        EXPECT_EQ(fs::mv("xxs", "xxd/xxs"), false);
+    }
+
+  #ifndef _WIN32
     DEF_case(symlink) {
         fs::symlink("xxx", "xxx.lnk");
-        //EXPECT(fs::exists("xxx.lnk"));
+        fs::symlink("xxd", "xxd.lnk");
+        EXPECT(fs::exists("xxx.lnk"));
+        EXPECT(fs::exists("xxd.lnk"));
+        EXPECT_EQ(fs::symlink("xxx", "xxx.lnk"), true);
+        EXPECT_EQ(fs::symlink("xxd", "xxd.lnk"), true);
     }
+  #endif
 
     DEF_case(remove) {
         EXPECT(fs::remove("xxx"));
         EXPECT(fs::remove("xxx.lnk"));
+        EXPECT(fs::remove("xxd.lnk"));
         EXPECT(fs::remove("xxplus"));
         EXPECT(!fs::remove("xxd"));
         EXPECT(fs::remove("xxd", true));
+        EXPECT(fs::remove("xxs"));
         EXPECT(!fs::exists("xxx"));
         EXPECT(!fs::exists("xxx.lnk"));
+        EXPECT(!fs::exists("xxd.lnk"));
         EXPECT(!fs::exists("xxplus"));
+        EXPECT(!fs::exists("xxs"));
         EXPECT(!fs::exists("xxd"));
     }
 }

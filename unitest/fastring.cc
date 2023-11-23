@@ -18,6 +18,7 @@ DEF_test(fastring) {
         {
             fastring s(4, 'x');
             EXPECT_EQ(s.size(), 4);
+            EXPECT_EQ(s.capacity(), 5);
             EXPECT_EQ(s, "xxxx");
         }
         {
@@ -29,11 +30,13 @@ DEF_test(fastring) {
             fastring s("helloworld", 5);
             EXPECT_EQ(s.size(), 5);
             EXPECT_EQ(s, "hello");
+            EXPECT_LT(s.size(), s.capacity());
         }
         {
             fastring s("helloworld");
             EXPECT_EQ(s.size(), 10);
             EXPECT_EQ(s, "helloworld");
+            EXPECT_LT(s.size(), s.capacity());
         }
     }
 
@@ -91,9 +94,10 @@ DEF_test(fastring) {
         s.append(s);
         EXPECT_EQ(s, "");
 
-        s.append('x', 3);
+        s.append(3, 'x');
         EXPECT_EQ(s.size(), 3);
         EXPECT_EQ(s, "xxx");
+        EXPECT_LT(s.size(), s.capacity());
 
         s.append(s); // append self
         EXPECT_EQ(s, "xxxxxx");
@@ -156,6 +160,12 @@ DEF_test(fastring) {
 
         s = s.c_str() + 1;
         EXPECT_EQ(s, "345");
+
+        s.assign(3, '0');
+        EXPECT_EQ(s, "000");
+
+        s.assign(31, '0');
+        EXPECT_EQ(s, fastring(31, '0'));
     }
 
     DEF_case(cat) {
@@ -163,6 +173,60 @@ DEF_test(fastring) {
         EXPECT_EQ(s.cat(), "");
         EXPECT_EQ(s.cat(1, 2, 3), "123");
         EXPECT_EQ(s.cat(' ', "hello ", false), "123 hello false");
+    }
+
+    DEF_case(c_str) {
+        {
+            fastring s;
+            EXPECT_EQ(fastring(s.c_str()), "");
+        }
+        {
+            fastring s("xxx", 3);
+            EXPECT_LT(s.size(), s.capacity());
+            const char* p = s.data();
+            EXPECT_EQ(p, s.c_str())
+
+            fastring x(7, 'x');
+            EXPECT_LT(x.size(), x.capacity());
+
+            s.assign(x.data(), x.size());
+            EXPECT_LT(s.size(), s.capacity());
+            EXPECT_EQ(s, "xxxxxxx");
+            EXPECT_EQ(s.capacity(), 8);
+
+            s.append('x');
+            EXPECT_LT(s.size(), s.capacity());
+            p = s.data();
+            EXPECT_EQ(p, s.c_str())
+
+            s.append(s.capacity() - s.size(), 'x');
+            EXPECT_LT(s.size(), s.capacity());
+            p = s.data();
+            EXPECT_EQ(p, s.c_str())
+
+            x.assign(s.capacity() - s.size() + 3, 'x');
+            s.append(x.data(), x.size());
+            EXPECT_LT(s.size(), s.capacity());
+            p = s.data();
+            EXPECT_EQ(p, s.c_str());
+        }
+        {
+            const char* p;
+            fastring s;
+            s << false;
+            EXPECT_LT(s.size(), s.capacity());
+
+            s.reset();
+            s << 1234567;
+            EXPECT_LT(s.size(), s.capacity());
+
+            s.reset();
+            s << 3.1415926;
+            EXPECT_LT(s.size(), s.capacity());
+
+            p = s.data();
+            EXPECT_EQ(p, s.c_str());
+        }
     }
 
     DEF_case(operator<<) {
@@ -543,6 +607,7 @@ DEF_test(fastring) {
         fastring s(256);
         (s = "hello world").shrink();
         EXPECT_LT(s.capacity(), 256);
+        EXPECT_EQ(s.capacity(), 12);
         EXPECT_EQ(s, "hello world");
     }
 

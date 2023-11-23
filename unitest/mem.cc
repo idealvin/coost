@@ -248,7 +248,7 @@ DEF_test(mem) {
         EXPECT_EQ(p, x);
         EXPECT_EQ(*(uint32*)p, 7);
 
-        p = co::realloc(p, 64, 128);
+        p = co::try_realloc(p, 64, 128);
         EXPECT_EQ(p, x);
 
         p = co::realloc(p, 128, 2048);

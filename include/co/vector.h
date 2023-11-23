@@ -8,7 +8,7 @@
 
 namespace co {
 
-template<typename T, typename Alloc=co::default_allocator>
+template<typename T>
 class vector {
   public:
     constexpr vector() noexcept
@@ -17,7 +17,7 @@ class vector {
 
     // create an empty vector with capacity: @cap
     explicit vector(size_t cap)
-        : _cap(cap), _size(0), _p((T*) Alloc::alloc(sizeof(T) * cap)) {
+        : _cap(cap), _size(0), _p((T*) co::alloc(sizeof(T) * cap)) {
     }
 
     // create an vector of n elements with value @x
@@ -30,7 +30,7 @@ class vector {
         god::is_same<god::rm_cv_t<T>, int>(), int
     > = 0>
     vector(size_t n, X&& x)
-        : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
+        : _cap(n), _size(n), _p((T*) co::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T(x);
     }
 
@@ -43,13 +43,13 @@ class vector {
         !god::is_same<god::rm_cv_t<T>, int>(), int
     > = 0>
     vector(size_t n, X&&)
-        : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
+        : _cap(n), _size(n), _p((T*) co::alloc(sizeof(T) * n)) {
         for (size_t i = 0; i < n; ++i) new (_p + i) T();
     }
 
     vector(const vector& x)
         : _cap(x.size()), _size(_cap) {
-        _p = (T*) Alloc::alloc(sizeof(T) * _cap);
+        _p = (T*) co::alloc(sizeof(T) * _cap);
         this->_copy_n(_p, x._p, _cap);
     }
 
@@ -61,7 +61,7 @@ class vector {
 
     // create vector from an initializer list
     vector(std::initializer_list<T> x)
-        : _cap(x.size()), _size(0), _p((T*) Alloc::alloc(sizeof(T) * _cap)) {
+        : _cap(x.size()), _size(0), _p((T*) co::alloc(sizeof(T) * _cap)) {
         for (const auto& e : x) new (_p + _size++) T(e);
     }
 
@@ -72,7 +72,7 @@ class vector {
 
     // create vector from an vector
     vector(T* p, size_t n)
-        : _cap(n), _size(n), _p((T*) Alloc::alloc(sizeof(T) * n)) {
+        : _cap(n), _size(n), _p((T*) co::alloc(sizeof(T) * n)) {
         this->_copy_n(_p, p, n);
     }
 
@@ -116,7 +116,7 @@ class vector {
 
     void reserve(size_t n) {
         if (_cap < n) {
-            _p = (T*) Alloc::realloc(_p, sizeof(T) * _cap, sizeof(T) * n); assert(_p);
+            _p = this->_realloc(_p, sizeof(T) * _cap, sizeof(T) * n); assert(_p);
             _cap = n;
         }
     }
@@ -132,7 +132,7 @@ class vector {
     void reset() {
         if (_p) {
             this->_destruct_range(_p, 0, _size);
-            Alloc::free(_p, sizeof(T) * _cap);
+            co::free(_p, sizeof(T) * _cap);
             _p = 0;
             _cap = _size = 0;
         }
@@ -144,20 +144,12 @@ class vector {
     }
 
     void append(const T& x) {
-        if (unlikely(_cap == _size)) {
-            const size_t cap = _cap;
-            _cap += (_cap >> 1) + 1;
-            _p = (T*) Alloc::realloc(_p, sizeof(T) * cap, sizeof(T) * _cap); assert(_p);
-        }
+        this->_realloc_if_no_more_memory();
         new (_p + _size++) T(x);
     }
 
     void append(T&& x) {
-        if (unlikely(_cap == _size)) {
-            const size_t cap = _cap;
-            _cap += (_cap >> 1) + 1;
-            _p = (T*) Alloc::realloc(_p, sizeof(T) * cap, sizeof(T) * _cap); assert(_p);
-        }
+        this->_realloc_if_no_more_memory();
         new (_p + _size++) T(std::move(x));
     }
 
@@ -217,7 +209,7 @@ class vector {
     //     co::vector<fastring> x; x.emplace_back(4, 'x'); // x.back() -> "xxxx"
     template<typename ... X>
     void emplace_back(X&& ... x) {
-        this->reserve(_size + 1);
+        this->_realloc_if_no_more_memory();
         new (_p + _size++) T(std::forward<X>(x)...);
     }
 
@@ -278,6 +270,31 @@ class vector {
     iterator end() const noexcept { return iterator(_p + _size); }
 
   private:
+    void _realloc_if_no_more_memory() {
+        if (unlikely(_cap == _size)) {
+            const size_t cap = _cap;
+            _cap += (_cap >> 1) + 1;
+            _p = this->_realloc(_p, sizeof(T) * cap, sizeof(T) * _cap); assert(_p);
+        }
+    }
+
+    template<typename X, god::if_t<god::is_trivially_copyable<X>(), int> = 0>
+    X* _realloc(X* p, size_t o, size_t n) {
+        return (X*) co::realloc(p, o, n);
+    }
+
+    template<typename X, god::if_t<!god::is_trivially_copyable<X>(), int> = 0>
+    X* _realloc(X* p, size_t o, size_t n) {
+        X* x = (X*) co::try_realloc(p, o, n);
+        if (!x) {
+            x = (X*) co::alloc(n);
+            this->_move_n(x, p, _size);
+            this->_destruct_range(p, 0, _size);
+            co::free(p, o);
+        }
+        return x;
+    }
+
     template<typename X, god::if_t<god::is_trivially_copyable<X>(), int> = 0>
     void _copy_n(X* dst, const X* src, size_t n) {
         memcpy(dst, src, sizeof(X) * n);
@@ -300,12 +317,12 @@ class vector {
 
     template<typename X, god::if_t<!god::is_class<X>(), int> = 0>
     void _construct_range(X* p, size_t beg, size_t end) {
-        if (beg < end) memset(p + beg, 0, (end - beg) * sizeof(T));
+        if (beg < end) memset(p + beg, 0, (end - beg) * sizeof(X));
     }
 
     template<typename X, god::if_t<god::is_class<X>(), int> = 0>
     void _construct_range(X* p, size_t beg, size_t end) {
-        for (; beg < end; ++beg) new (p + beg) T();
+        for (; beg < end; ++beg) new (p + beg) X();
     }
 
     template<typename X, god::if_t<god::is_trivially_destructible<X>(), int> = 0>

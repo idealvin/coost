@@ -71,10 +71,11 @@ inline uint32 _pow2_align(uint32 n) {
 #include <sys/mman.h>
 
 inline void* _vm_reserve(size_t n) {
-    return ::mmap(
+    void* const p = ::mmap(
         NULL, n, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0
     );
+    return p != MAP_FAILED ? p : NULL;
 }
 
 inline void _vm_commit(void* p, size_t n) {
@@ -642,6 +643,7 @@ class alignas(co::cache_line_size) ThreadAlloc {
     void* alloc(size_t n, size_t align);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
+    void* try_realloc(void* p, size_t o, size_t n);
     void* salloc(size_t n) { return _s.alloc(n); }
 
   private:
@@ -933,6 +935,34 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     return x;
 }
 
+inline void* ThreadAlloc::try_realloc(void* p, size_t o, size_t n) {
+    if (unlikely(!p || o > g_max_alloc_size)) return NULL;
+    CHECK_LT(o, n) << "realloc error, new size must be greater than old size..";
+
+    if (o <= 2048) {
+        const uint32 k = (o > 16 ? god::align_up<16>((uint32)o) : 16);
+        if (n <= (size_t)k) return p;
+
+        const auto sa = (SmallAlloc*) god::align_down<1u << g_sb_bits>(p);
+        if (sa == _sa && n <= 2048) {
+            const uint32 l = god::nb<16>((uint32)n);
+            return sa->realloc(p, k >> 4, l);
+        }
+
+    } else {
+        const uint32 k = god::align_up<4096>((uint32)o);
+        if (n <= (size_t)k) return p;
+
+        const auto la = (LargeAlloc*) god::align_down<1u << g_lb_bits>(p);
+        if (la == _la && n <= g_max_alloc_size) {
+            const uint32 l = god::nb<4096>((uint32)n);
+            return la->realloc(p, k >> 12, l);
+        }
+    }
+
+    return NULL;
+}
+
 } // xx
 
 void* _salloc(size_t n) {
@@ -961,11 +991,16 @@ void* realloc(void* p, size_t o, size_t n) {
     return xx::talloc()->realloc(p, o, n);
 }
 
+void* try_realloc(void* p, size_t o, size_t n) {
+    return xx::talloc()->try_realloc(p, o, n);
+}
+
 #else
 void* alloc(size_t n) { return ::malloc(n); }
 void* alloc(size_t n, size_t) { return ::malloc(n); }
 void free(void* p, size_t) { ::free(p); }
 void* realloc(void* p, size_t, size_t n) { return ::realloc(p, n); }
+void* try_realloc(void*, size_t, size_t) { return NULL; }
 #endif
 
 void* zalloc(size_t size) {

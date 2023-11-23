@@ -48,4 +48,7 @@ xmake b gen
 ```sh
 gen xx.proto
 gen  a.proto  b.proto
+
+# use std::vector, std::string instead of co::vector and fastring
+gen xx.proto -std
 ```
