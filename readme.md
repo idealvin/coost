@@ -559,8 +559,6 @@ target_link_libraries(userTarget coost::co)
 
 #### 5.3.6 vcpkg & conan
 
-The new version of coost currently does not support Vcpkg and Conan.
-
 ```sh
 vcpkg install coost:x64-windows
 
