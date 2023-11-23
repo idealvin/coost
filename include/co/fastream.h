@@ -56,9 +56,10 @@ class __coapi fastream : public fast::stream {
         return this->append_nomchk(s.data(), s.size());
     }
 
+    // append the fastream itself is ok
     fastream& append(const fastream& s) {
         if (&s != this) return this->append_nomchk(s.data(), s.size());
-        this->reserve(_size << 1);
+        this->reserve((_size << 1) + !!_size);
         memcpy(_p + _size, _p, _size); // append itself
         _size <<= 1;
         return *this;
@@ -67,10 +68,6 @@ class __coapi fastream : public fast::stream {
     // append n characters
     fastream& append(size_t n, char c) {
         return (fastream&) fast::stream::append(n, c);
-    }
-
-    fastream& append(char c, size_t n) {
-        return this->append(n, c);
     }
 
     fastream& append(char c) {

@@ -246,7 +246,7 @@ fastring& fastring::replace(const char* sub, size_t n, const char* to, size_t m,
     if (!p) return *this;
 
     const char* const e = _p + _size;
-    fastring s(_size);
+    fastring s(_size + 1);
 
     do {
         s.append(from, p - from).append(to, m);

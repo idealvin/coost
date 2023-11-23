@@ -123,10 +123,6 @@ class __coapi stream {
         _p = cap > 0 ? (char*)co::alloc(cap) : 0;
     }
 
-    stream(char* p, size_t cap, size_t size) noexcept
-        : _cap(cap), _size(size), _p(p) {
-    }
-
     ~stream() { this->reset(); }
 
     stream(const stream&) = delete;
@@ -146,6 +142,7 @@ class __coapi stream {
         return *this;
     }
 
+    char* data() noexcept { return _p; }
     const char* data() const noexcept { return _p; }
     size_t size() const noexcept { return _size; }
     bool empty() const noexcept { return _size == 0; }
@@ -159,30 +156,33 @@ class __coapi stream {
     }
 
     const char* c_str() const {
-        ((stream*)this)->reserve(_size + 1);
-        if (_p[_size] != '\0') _p[_size] = '\0';
-        return _p;
+        if (_p) {
+            assert(_size < _cap);
+            if (_p[_size] != '\0') _p[_size] = '\0';
+            return _p;
+        }
+        return "";
     }
 
     char& back() { return _p[_size - 1]; }
-    const char& back() const { return ((stream*)this)->back(); }
+    const char& back() const { return _p[_size - 1]; }
 
     char& front() { return _p[0]; }
-    const char& front() const { return ((stream*)this)->front(); }
+    const char& front() const { return _p[0]; }
 
     char& operator[](size_t i) { return _p[i]; }
-    const char& operator[](size_t i) const { return ((stream*)this)->operator[](i); }
+    const char& operator[](size_t i) const { return _p[i]; }
 
     // resize only, will not fill the expanded memory with zeros
     void resize(size_t n) {
-        this->reserve(n);
+        this->reserve(n + 1);
         _size = n;
     }
    
     // resize and fill the expanded memory with character @c
     void resize(size_t n, char c) {
         if (_size < n) {
-            this->reserve(n);
+            this->reserve(n + 1);
             memset(_p + _size, c, n - _size);
         }
         _size = n;
@@ -204,9 +204,9 @@ class __coapi stream {
     }
 
     void ensure(size_t n) {
-        if (_cap < _size + n) {
+        if (_cap < _size + n + 1) {
             const size_t cap = _cap;
-            _cap += ((_cap >> 1) + n);
+            _cap += ((_cap >> 1) + n + 1);
             _p = (char*) co::realloc(_p, cap, _cap); assert(_p);
         }
     }

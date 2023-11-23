@@ -51,6 +51,9 @@ DEF_test(fastream) {
         EXPECT_EQ(fs.size(), 1);
         fs.clear();
         EXPECT_EQ(fs.size(), 0);
+
+        fs.reset();
+        EXPECT_EQ(fs.capacity(), 0);
     }
 
     DEF_case(cat) {
@@ -157,9 +160,14 @@ DEF_test(fastream) {
         fs.clear();
         fs << fs;
         EXPECT_EQ(fs.str(), "");
-        fs << "x";
+
+        fs.reset();
+        fs << "xx";
+        EXPECT_EQ(fs.capacity(), 3);
+
         fs << fs;
-        EXPECT_EQ(fs.str(), "xx");
+        EXPECT_EQ(fs.str(), "xxxx");
+        EXPECT_EQ(fs.capacity(), 5);
     }
 
     DEF_case(ptr) {
