@@ -289,6 +289,7 @@ class vector {
         if (!x) {
             x = (X*) co::alloc(n);
             this->_move_n(x, p, _size);
+            this->_destruct_range(p, 0, _size);
             co::free(p, o);
         }
         return x;
@@ -316,12 +317,12 @@ class vector {
 
     template<typename X, god::if_t<!god::is_class<X>(), int> = 0>
     void _construct_range(X* p, size_t beg, size_t end) {
-        if (beg < end) memset(p + beg, 0, (end - beg) * sizeof(T));
+        if (beg < end) memset(p + beg, 0, (end - beg) * sizeof(X));
     }
 
     template<typename X, god::if_t<god::is_class<X>(), int> = 0>
     void _construct_range(X* p, size_t beg, size_t end) {
-        for (; beg < end; ++beg) new (p + beg) T();
+        for (; beg < end; ++beg) new (p + beg) X();
     }
 
     template<typename X, god::if_t<god::is_trivially_destructible<X>(), int> = 0>
