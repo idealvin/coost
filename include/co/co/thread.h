@@ -14,16 +14,12 @@
 #include <pthread.h>
 #endif
 
-// add std::mutex_guard
 namespace std {
 typedef std::lock_guard<std::mutex> mutex_guard;
 } // std
 
 namespace co {
 namespace xx {
-
-__coapi extern __thread uint32 g_tid;
-__coapi uint32 thread_id();
 
 #ifdef _WIN32
 typedef DWORD tls_key_t;
@@ -38,13 +34,18 @@ inline void tls_init(tls_key_t* k) { int r = pthread_key_create(k, 0); (void)r; 
 inline void tls_free(tls_key_t k) { int r = pthread_key_delete(k); (void)r; assert(r == 0); }
 inline void* tls_get(tls_key_t k) { return pthread_getspecific(k); }
 inline void tls_set(tls_key_t k, void* v) { int r = pthread_setspecific(k, v); (void)r; assert(r == 0); }
+__coapi extern __thread uint32 g_tid;
+__coapi uint32 thread_id();
 #endif
 } // xx
 
-// get id of the current thread
+#ifdef _WIN32
+inline uint32 thread_id() { return GetCurrentThreadId(); }
+#else
 inline uint32 thread_id() {
     return xx::g_tid != 0 ? xx::g_tid : (xx::g_tid = xx::thread_id());
 }
+#endif
 
 template<typename T>
 class tls {
@@ -75,7 +76,6 @@ class tls {
     DISALLOW_COPY_AND_ASSIGN(tls);
 };
 
-// for threads only
 class __coapi sync_event {
   public:
     explicit sync_event(bool manual_reset = false, bool signaled = false);
