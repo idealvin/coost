@@ -391,7 +391,7 @@ class Sched {
     void start() { std::thread(&Sched::loop, this).detach(); }
 
     // stop the scheduler thread
-    void stop(uint32 ms=-1);
+    void stop();
 
     // the thread function
     void loop();
@@ -476,7 +476,7 @@ class SchedManager {
         return _scheds;
     }
 
-    void stop(uint32 ms=(uint32)-1);
+    void stop();
 
   private:
     std::function<Sched*(const co::vector<Sched*>&)> _next;
