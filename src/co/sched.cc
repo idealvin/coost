@@ -41,7 +41,7 @@ Sched::Sched(uint32 id, uint32 sched_num, uint32 stack_num, uint32 stack_size)
 }
 
 Sched::~Sched() {
-    this->stop(128);
+    this->stop();
     co::del(_x.epoll);
     _x.ev.~sync_event();
     for (size_t i = 0; i < _bufs.size(); ++i) {
@@ -52,10 +52,21 @@ Sched::~Sched() {
     co::free(_stack, _stack_num * sizeof(Stack));
 }
 
-void Sched::stop(uint32 ms) {
+static int g_cnt = 0;
+
+void Sched::stop() {
+    const int n = atomic_inc(&g_cnt, mo_relaxed);
     if (atomic_swap(&_x.stopped, true, mo_acq_rel) == false) {
         _x.epoll->signal();
-        ms == (uint32)-1 ? _x.ev.wait() : (void)_x.ev.wait(ms);
+      #if defined(_WIN32) && defined(BUILDING_CO_SHARED)
+        if (n == 1) {
+            // the thread may not respond in dll, wait at most 64ms here
+            co::Timer t;
+            while (!_x.ev.wait(1) && t.ms() < 64);
+        }
+      #else
+        _x.ev.wait();
+      #endif
     }
 }
 
@@ -333,7 +344,7 @@ SchedManager::SchedManager() {
 }
 
 SchedManager::~SchedManager() {
-    this->stop(128);
+    this->stop();
     co::cleanup_sock();
 }
 
@@ -357,9 +368,9 @@ SchedInitializer::SchedInitializer() {
 SchedInitializer::~SchedInitializer() {
 }
 
-void SchedManager::stop(uint32 ms) {
+void SchedManager::stop() {
     for (size_t i = 0; i < _scheds.size(); ++i) {
-        _scheds[i]->stop(ms);
+        _scheds[i]->stop();
     }
     atomic_swap(&is_active(), false, mo_acq_rel);
 }
