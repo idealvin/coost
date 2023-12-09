@@ -598,7 +598,7 @@ class GlobalAlloc {
     GlobalAlloc() = default;
     ~GlobalAlloc();
 
-    struct alignas(64) X {
+    struct alignas(co::cache_line_size) X {
         X() : mtx(), hb(0) {}
         std::mutex mtx;
         union {
@@ -657,8 +657,8 @@ class alignas(co::cache_line_size) ThreadAlloc {
 
 
 static int g_nifty_counter;
-char g_root_buf[sizeof(Root)];
-Root& g_root = *(Root*)g_root_buf;
+struct alignas(Root) { char _[sizeof(Root)]; } g_root_buf;
+Root& g_root = *(Root*)&g_root_buf;
 static GlobalAlloc* g_ga;
 __thread ThreadAlloc* g_ta;
 

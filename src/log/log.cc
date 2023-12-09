@@ -487,7 +487,13 @@ void Logger::stop(bool signal_safe) {
     if (s < 0) return; // thread not started
     if (s == 0) {
         if (!signal_safe) _log_event.signal();
+      #if defined(_WIN32) && defined(BUILDING_CO_SHARED)
+        // the thread may not respond in dll, wait at most 64ms here
+        co::Timer t;
+        while (_stop != 2 && t.ms() < 64) signal_safe_sleep(1);
+      #else
         while (_stop != 2) signal_safe_sleep(1);
+      #endif
 
         do {
             // it may be not safe if logs are still being pushed to the buffer 

@@ -14,8 +14,6 @@
 namespace co {
 namespace xx {
 
-__thread uint32 g_tid;
-
 #ifdef _WIN32
 typedef CRITICAL_SECTION mutex_t;
 typedef CONDITION_VARIABLE cv_t;
@@ -26,8 +24,6 @@ inline void cv_wait(cv_t* c, mutex_t* m) { SleepConditionVariableCS(c, m, INFINI
 inline bool cv_wait(cv_t* c, mutex_t* m, uint32 ms) { return SleepConditionVariableCS(c, m, ms) == TRUE; }
 inline void cv_notify_one(cv_t* c) { WakeConditionVariable(c); }
 inline void cv_notify_all(cv_t* c) { WakeAllConditionVariable(c); }
-
-uint32 thread_id() { return GetCurrentThreadId(); }
 
 class mutex {
   public:
@@ -92,6 +88,8 @@ inline void cv_free(cv_t* c) { pthread_cond_destroy(c); }
 inline void cv_wait(cv_t* c, mutex_t* m) { pthread_cond_wait(c, m); }
 inline void cv_notify_one(cv_t* c) { pthread_cond_signal(c); }
 inline void cv_notify_all(cv_t* c) { pthread_cond_broadcast(c); }
+
+__thread uint32 g_tid;
 
 #ifdef __linux__
 #ifndef SYS_gettid
