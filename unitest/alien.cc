@@ -140,11 +140,11 @@ void parse_serv_url(const char* url, fastring& ip, int& port, bool& https) {
     port = 0;
     https = false;
 
-    if (memcmp(url, "https://", 8) == 0) {
+    if (strncmp(url, "https://", 8) == 0) {
         p += 8;
         https = true;
     } else {
-        if (memcmp(url, "http://", 7) == 0) p += 7;
+        if (strncmp(url, "http://", 7) == 0) p += 7;
     }
 
     const char* s = strchr(p, ':');
