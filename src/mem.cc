@@ -656,11 +656,11 @@ class alignas(co::cache_line_size) ThreadAlloc {
 };
 
 
-static int g_nifty_counter;
-struct alignas(Root) { char _[sizeof(Root)]; } g_root_buf;
+struct alignas(co::cache_line_size) { char _[sizeof(Root)]; } g_root_buf;
 Root& g_root = *(Root*)&g_root_buf;
 static GlobalAlloc* g_ga;
 __thread ThreadAlloc* g_ta;
+static int g_nifty_counter;
 
 Initializer::Initializer() {
     if (g_nifty_counter++ == 0) {
