@@ -273,10 +273,17 @@ class __coapi Res {
     /**
      * set body of the response
      *   - The body length will be zero if no body was set.
+     * @return success or not (If use 'send_body')
      */
-    void set_body(const void* s, size_t n);
-    void set_body(const char* s) { this->set_body(s, strlen(s)); }
-    void set_body(const fastring& s) { this->set_body(s.data(), s.size()); }
+    bool set_body(const void* s, size_t n);
+    bool set_body(const char* s) { return this->set_body(s, strlen(s)); }
+    bool set_body(const fastring& s) { return this->set_body(s.data(), s.size()); }
+
+    /**
+     * complete header generate and send http-body data
+     * @return  0: no error; -1: not support ; -2: IO error
+    */
+    int send_body(const void* data, size_t n);
 
   private:
     http_res_t* _p;
