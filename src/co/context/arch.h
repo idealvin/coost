@@ -53,6 +53,19 @@
       defined(__mips__)
   #define ARCH_MIPS
 
+#elif defined(loongarch) || \
+      defined(_loongarch) || \
+      defined(_loongarch64) || \
+      defined(__loongarch__)
+  #define ARCH_LOONGARCH
+
+#elif defined(riscv) || \
+      defined(_riscv) || \
+      defined(_riscv64) || \
+      defined(__riscv__)
+  #define ARCH_RISCV
+
+
 #else
   #error unknown arch
 #endif
@@ -115,6 +128,8 @@
     defined(__PPC64__) || \
     defined(__ppc64__) || \
     defined(__powerpc64__) || \
+    defined(__loongarch64) || \
+    defined(__riscv64) || \
     defined(_M_X64) || \
     defined(_M_AMD64) || \
     defined(_M_IA64) || \
