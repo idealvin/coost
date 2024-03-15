@@ -54,15 +54,13 @@
   #define ARCH_MIPS
 
 #elif defined(loongarch) || \
-      defined(_loongarch) || \
-      defined(_loongarch64) || \
+      defined(__loongarch64) || \
       defined(__loongarch__)
   #define ARCH_LOONGARCH
 
 #elif defined(riscv) || \
-      defined(_riscv) || \
-      defined(_riscv64) || \
-      defined(__riscv__)
+      defined(__riscv) || \
+      defined(__riscv_xlen)
   #define ARCH_RISCV
 
 
@@ -129,7 +127,7 @@
     defined(__ppc64__) || \
     defined(__powerpc64__) || \
     defined(__loongarch64) || \
-    defined(__riscv64) || \
+    defined(__riscv_xlen) || \
     defined(_M_X64) || \
     defined(_M_AMD64) || \
     defined(_M_IA64) || \
