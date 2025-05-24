@@ -82,7 +82,7 @@ function tb_context_make, export=1
     str x2, [x0, #96]
 
     // get the address of label __end
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     /* numeric offset since llvm still does not support labels in adr
      *
      * 0x0c = 3 instructions * size (4) before label '__end'
@@ -98,7 +98,7 @@ function tb_context_make, export=1
     str x1, [x0, #88]
 
     // return pointer to context-data (x0)
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     ret lr
 #else
     ret x30
@@ -137,14 +137,14 @@ function tb_context_jump, export=1
     stp x23, x24, [sp, #0x20]
     stp x25, x26, [sp, #0x30]
     stp x27, x28, [sp, #0x40]
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     stp fp,  lr,  [sp, #0x50]
 #else
     stp x29, x30, [sp, #0x50]
 #endif
 
     // save lr as pc
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     str lr, [sp, #0x60]
 #else
     str x30, [sp, #0x60]
@@ -162,7 +162,7 @@ function tb_context_jump, export=1
     ldp x23, x24, [sp, #0x20]
     ldp x25, x26, [sp, #0x30]
     ldp x27, x28, [sp, #0x40]
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     ldp fp,  lr,  [sp, #0x50]
 #else
     ldp x29, x30, [sp, #0x50]

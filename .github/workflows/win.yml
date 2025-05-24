@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        arch: [x64]
+        arch: [x64,arm64]
 
     runs-on: ${{ matrix.os }}
 

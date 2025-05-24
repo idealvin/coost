@@ -34,7 +34,7 @@
 /* //////////////////////////////////////////////////////////////////////////////////////
  * macros
  */
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
 #   define TB_CONTEXT_SJLJ_BYTES    4
 #else
 #   define TB_CONTEXT_SJLJ_BYTES    0
@@ -157,7 +157,7 @@ function tb_context_jump, export=1
     // save retval, r4 - r11, lr
     push {r0, r4 - r11, lr}
 
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     // load tls to save or restore sjlj handler
     mrc p15, 0, r5, c13, c0, #3
     bic r5, r5, #3
@@ -173,7 +173,7 @@ function tb_context_jump, export=1
     // switch to the new context(sp) and stack
     mov sp, r1
 
-#ifdef TB_CONFIG_OS_IOS
+#ifdef OS_IOS
     // restore sjlj handler
     pop {r4}
     str r4, [r5, #8]

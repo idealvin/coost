@@ -20,8 +20,12 @@ target("libco")
         if is_plat("windows") then
             if is_arch("x64") then
                 add_files("co/context/context_x64.asm")
-            else
+            elseif is_arch("x86") then
                 add_files("co/context/context_x86.asm")
+            elseif is_arch("arm64") then
+                add_files("co/context/context_arm64.asm")
+            else
+                print("arch not supported")
             end
         else
             add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
@@ -30,6 +34,9 @@ target("libco")
         end
     else
         add_cxflags("-Wno-strict-aliasing")
+        if is_os("ios") then
+            add_defines("OS_IOS")
+        end
         if not is_plat("android") then
             if is_plat("linux") then
                 if has_config("with_backtrace") then

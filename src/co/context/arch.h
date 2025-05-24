@@ -33,19 +33,21 @@
   #define ARCH_X86
 
 #elif defined(__x86_64) || \
-      defined(__amd64__) || \
-      defined(__amd64) || \
+      defined(__amd64__) || defined(__amd64) || \
+      defined(__ia64__) || defined(__IA64__) || defined(__ia64) || \
       defined(_M_IA64) || \
       defined(_M_X64)
   #define ARCH_X64
 
 #elif defined(__arm64) || \
       defined(__arm64__) || \
-      (defined(__aarch64__) && __aarch64__)
+      (defined(__aarch64__) && __aarch64__) || \
+      defined(_M_ARM64)
   #define ARCH_ARM
   #define ARCH_ARM64
 
-#elif defined(__arm__) 
+#elif defined(__arm__) || \
+      defined(_M_ARM)
   #define ARCH_ARM
 
 #elif defined(mips) || \
@@ -53,18 +55,11 @@
       defined(__mips__)
   #define ARCH_MIPS
 
-#elif defined(loongarch) || \
-      defined(_loongarch) || \
-      defined(_loongarch64) || \
-      defined(__loongarch__)
+#elif defined(__loongarch__)
   #define ARCH_LOONGARCH
 
-#elif defined(riscv) || \
-      defined(_riscv) || \
-      defined(_riscv64) || \
-      defined(__riscv__)
+#elif defined(__riscv)
   #define ARCH_RISCV
-
 
 #else
   #error unknown arch
@@ -72,7 +67,7 @@
 
 // ARM version
 #ifdef ARCH_ARM
-  #if defined(__ARM64_ARCH_8__)
+  #if defined(__ARM64_ARCH_8__) || defined(_M_ARM64)
     #define ARCH_ARM_v8
   #elif defined(__ARM_ARCH_7A__)
     #define ARCH_ARM_v7A
