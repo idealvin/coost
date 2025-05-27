@@ -24,6 +24,7 @@ jobs:
           xmake-version: latest
 
       - name: Build
+        run: |
           xmake f -vD -a ${{ matrix.arch }}
           xmake -a
           xmake -b unitest
