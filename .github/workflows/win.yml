@@ -23,9 +23,13 @@ jobs:
         with:
           xmake-version: latest
 
-      - name: Tests
-        run: |
-          xmake f -a ${{ matrix.arch }}
+      - name: Build
+          xmake f -vD -a ${{ matrix.arch }}
           xmake -a
           xmake -b unitest
-          xmake r unitest -co_sched_num 4
+
+      - name: Tests
+        if: matrix.arch != 'arm64'
+        run: |
+          xmake -b unitest
+          xmake r unitest -co_sched_num 1

@@ -1,14 +1,16 @@
     AREA |.text|, CODE, READONLY
+    EXPORT tb_context_make
+    EXPORT tb_context_jump
+    IMPORT ExitProcess
 
 tb_context_make PROC
-    EXPORT tb_context_make
     add x0, x0, x1
     and x0, x0, ~0xf
     sub x0, x0, #112
     str x2, [x0, #96]
     adr x1, __end
     str x1, [x0, #88]
-    ret
+    ret x30
 
 __end
     mov x0, #0
@@ -17,7 +19,6 @@ __end
     ENDP
 
 tb_context_jump PROC
-    EXPORT tb_context_jump
     sub sp, sp, #0x70
     stp x19, x20, [sp, #0x00]
     stp x21, x22, [sp, #0x10]
