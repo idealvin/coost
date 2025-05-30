@@ -2,6 +2,7 @@
 file(GLOB_RECURSE SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
 add_library(co ${SRC_FILES})
+add_library(coost::co ALIAS co)
 
 target_include_directories(co
     PUBLIC
