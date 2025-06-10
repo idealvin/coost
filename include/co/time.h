@@ -37,6 +37,8 @@ struct Mono {
 
 } // xx
 
+#undef unix
+
 extern xx::Mono mono;
 extern xx::Unix unix;
 
