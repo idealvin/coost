@@ -185,7 +185,10 @@ class ServerImpl {
         _exit_cb = std::move(cb);
     }
 
-    void start(const char* ip, int port, const char* key, const char* ca);
+    void set_config(const char *ip, int port, const char *key, const char *ca);
+    uint16 get_port() const { return _port; }
+    int listen(int end_port);
+    void start();
     void exit();
     bool started() const { return _started; }
 
@@ -224,7 +227,7 @@ class ServerImpl {
     } _addr;
 };
 
-void ServerImpl::start(const char* ip, int port, const char* key, const char* ca) {
+void ServerImpl::set_config(const char *ip, int port, const char *key, const char *ca) {
     CHECK(_conn_cb != NULL) << "connection callback not set..";
     _ip = (ip && *ip) ? ip : "0.0.0.0";
     _port = (uint16)port;
@@ -244,15 +247,16 @@ void ServerImpl::start(const char* ip, int port, const char* key, const char* ca
         CHECK_EQ(r, 1) << "ssl check private key error: " << ssl::strerror();
 
         _on_sock = std::bind(&ServerImpl::on_ssl_connection, this, std::placeholders::_1);
-        this->ref();
-        atomic_store(&_started, true, mo_relaxed);
-        go(&ServerImpl::loop, this);
     } else {
         _on_sock = std::bind(&ServerImpl::on_tcp_connection, this, std::placeholders::_1);
-        this->ref();
-        atomic_store(&_started, true, mo_relaxed);
-        go(&ServerImpl::loop, this);
     }
+}
+
+void ServerImpl::start() {
+    CHECK(_on_sock && _fd >= 0) << "must set_config and listen";
+    this->ref();
+    atomic_store(&_started, true, mo_relaxed);
+    go(&ServerImpl::loop, this);
 }
 
 void ServerImpl::exit() {
@@ -260,17 +264,98 @@ void ServerImpl::exit() {
     if (status == 2) return; // already stopped
 
     if (status == 0) {
-        sleep::ms(1);
-        if (status != 2) go(&ServerImpl::stop, this);
+        co::sleep(1);
+        go(&ServerImpl::stop, this);
     }
 
-    while (_status != 2) sleep::ms(1);
+    while (_status != 2) co::sleep(1);
 }
 
 void ServerImpl::stop() {
     const char* ip = (_ip == "0.0.0.0" || _ip == "::") ? "127.0.0.1" : _ip.c_str();
     tcp::Client c(ip, _port);
     c.connect(-1);
+}
+
+int ServerImpl::listen(int end_port) {
+    int r = EINVAL;
+    if (_fd >= 0) return r;
+    if (end_port < _port) end_port = _port;
+
+    auto start_time = now::ms();
+
+    for (uint16 port_num = _port; port_num <= (uint16) end_port;) {
+        fastring port = str::from(port_num);
+        struct addrinfo *info = nullptr;
+        r = ::getaddrinfo(_ip.c_str(), port.c_str(), nullptr, &info);
+        if (r) {
+            ELOG << "getaddrinfo " << _ip << ':' << port << " error: (" << r << ") " << ::gai_strerror(r);
+            break;
+        }
+        CHECK(info);
+
+        bool retry = false;
+
+        sock_t fd = co::tcp_socket(info->ai_family);
+        if (fd < 0) {
+            r = errno;
+            goto end;
+        }
+        co::set_reuseaddr(fd);
+
+        // turn off IPV6_V6ONLY
+        if (info->ai_family == AF_INET6) {
+            int on = 0;
+            co::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+        }
+
+        r = co::bind(fd, info->ai_addr, (int) info->ai_addrlen);
+        if (r < 0) {
+            r = errno;
+            if (r == EADDRNOTAVAIL) {
+                if (now::ms() - start_time <= 20000) {
+                    retry = true;
+                    DLOG << "bind " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+                    co::sleep(1000);
+                } else {
+                    ELOG << "bind " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+                }
+            } else if (r == EADDRINUSE && now::ms() - start_time <= 40000) {
+                retry = true;
+                DLOG << "bind " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+                co::sleep(20);
+                if (++port_num > (uint16) end_port) port_num = _port;
+            } else {
+                ELOG << "bind " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+            }
+            goto end;
+        }
+
+        r = co::listen(fd, 64 * 1024);
+        if (r < 0) {
+            r = errno;
+            if (r == EADDRINUSE && now::ms() - start_time <= 40000) {
+                retry = true;
+                DLOG << "listen " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+                co::sleep(20);
+                if (++port_num > (uint16) end_port) port_num = _port;
+            } else {
+                ELOG << "listen " << _ip << ':' << port << " error: (" << r << ") " << co::strerror(r);
+            }
+            goto end;
+        }
+
+        _port = port_num;
+        _fd = fd;
+        fd = -1;
+
+        end:
+        if (fd >= 0) co::close(fd);
+        if (info) ::freeaddrinfo(info);
+        if (!retry) break;
+    }
+
+    return r;
 }
 
 /**
@@ -280,32 +365,6 @@ void ServerImpl::stop() {
  *     the connection callback to handle the connection. 
  */
 void ServerImpl::loop() {
-    do {
-        fastring port = str::from(_port);
-        struct addrinfo* info = 0;
-        int r = getaddrinfo(_ip.c_str(), port.c_str(), NULL, &info);
-        CHECK_EQ(r, 0) << "invalid ip address: " << _ip << ':' << _port;
-        CHECK(info != NULL);
-
-        _fd = co::tcp_socket(info->ai_family);
-        CHECK_NE(_fd, (sock_t)-1) << "create socket error: " << co::strerror();
-        co::set_reuseaddr(_fd);
-
-        // turn off IPV6_V6ONLY
-        if (info->ai_family == AF_INET6) {
-            int on = 0;
-            co::setsockopt(_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
-        }
-
-        r = co::bind(_fd, info->ai_addr, (int)info->ai_addrlen);
-        CHECK_EQ(r, 0) << "bind " << _ip << ':' << _port << " failed: " << co::strerror();
-
-        r = co::listen(_fd, 64 * 1024);
-        CHECK_EQ(r, 0) << "listen error: " << co::strerror();
-
-        freeaddrinfo(info);
-    } while (0);
-
     LOG << "server start: " << _ip << ':' << _port;
     while (true) {
         _addrlen = sizeof(_addr);
@@ -395,9 +454,16 @@ uint32 Server::conn_num() const {
     return ((ServerImpl*)_p)->conn_num();
 }
 
-void Server::start(const char* ip, int port, const char* key, const char* ca) {
-    ((ServerImpl*)_p)->start(ip, port, key, ca);
+Server &Server::set_config(const char *ip, int port, const char *key, const char *ca) {
+    ((ServerImpl *) _p)->set_config(ip, port, key, ca);
+    return *this;
 }
+
+uint16 Server::get_port() const { return ((ServerImpl *) _p)->get_port(); }
+
+int Server::listen(int end_port) { return ((ServerImpl *) _p)->listen(end_port); }
+
+void Server::start() { ((ServerImpl *) _p)->start(); }
 
 void Server::exit() {
     ((ServerImpl*)_p)->exit();

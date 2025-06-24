@@ -77,7 +77,10 @@ int main(int argc, char** argv) {
     flag::parse(argc, argv);
 
     if (FLG_s) {
-        tcp::Server().on_connection(conn_cb).start("0.0.0.0", FLG_p);
+        tcp::Server serv;
+        serv.on_connection(conn_cb).set_config("0.0.0.0", FLG_p);
+        if (serv.listen() != 0) return 1;
+        serv.start();
         while (true) sleep::sec(1024);
     } else {
         g_count = (Count*) co::zalloc(sizeof(Count) * FLG_c);

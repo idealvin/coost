@@ -70,7 +70,9 @@ class ServerImpl {
         atomic_store(&_started, true, mo_relaxed);
         _tcp_serv.on_connection(&ServerImpl::on_connection, this);
         _tcp_serv.on_exit([this]() { co::del(this); });
-        _tcp_serv.start(ip, port, key, ca);
+        int r = _tcp_serv.set_config(ip, port, key, ca).listen();
+        CHECK(r == 0);
+        _tcp_serv.start();
     }
 
     bool started() const { return _started; }

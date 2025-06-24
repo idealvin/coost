@@ -115,10 +115,7 @@ class __coapi Server final {
     uint32 conn_num() const;
 
     /**
-     * start the server
-     *   - The server will loop in a coroutine, and it will not block the calling thread.
-     *   - The user MUST call on_connection() to set a connection callback before start()
-     *     was called.
+     * config the server
      *   - By default, key and ca are NULL, and ssl is disabled.
      *
      * @param ip    server ip, either an ipv4 or ipv6 address.
@@ -127,7 +124,19 @@ class __coapi Server final {
      * @param key   path of ssl private key file.
      * @param ca    path of ssl certificate file.
      */
-    void start(const char* ip, int port, const char* key=0, const char* ca=0);
+    Server &set_config(const char *ip, int port, const char *key = nullptr, const char *ca = nullptr);
+
+    uint16 get_port() const;
+
+    int listen(int end_port = 0);
+
+    /**
+     * start the server
+     *   - The server will loop in a coroutine, and it will not block the calling thread.
+     *   - The user MUST call on_connection() to set a connection callback before start()
+     *     was called.
+     */
+    void start();
 
     /**
      * exit the server gracefully

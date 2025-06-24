@@ -103,9 +103,15 @@ int main(int argc, char** argv) {
         [](void* p) { delete (tcp::Client*) p; }
     );
 
-    tcp::Server().on_connection(conn_cb).start(
+    tcp::Server serv;
+    serv.on_connection(conn_cb).set_config(
         "0.0.0.0", FLG_port, FLG_key.c_str(), FLG_ca.c_str()
     );
+    if (serv.listen() != 0) {
+        delete gPool;
+        return 1;
+    }
+    serv.start();
 
     sleep::ms(32);
 

@@ -117,9 +117,14 @@ int main(int argc, char** argv) {
     );
 
     tcp::Server serv;
-    serv.on_connection(conn_cb).start(
+    serv.on_connection(conn_cb).set_config(
         FLG_ip.c_str(), FLG_port, FLG_key.c_str(), FLG_ca.c_str()
     );
+    if (serv.listen() != 0) {
+        delete gPool;
+        return 1;
+    }
+    serv.start();
     sleep::ms(32);
 
     if (FLG_client_num > 1) {
