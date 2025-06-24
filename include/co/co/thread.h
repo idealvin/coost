@@ -95,4 +95,15 @@ class __coapi sync_event {
     DISALLOW_COPY_AND_ASSIGN(sync_event);
 };
 
+inline int set_thread_name(const char *name) {
+#ifdef _WIN32
+    return 0;
+#elif defined(__APPLE__)
+    ::pthread_setname_np(name);
+    return 0;
+#else
+    return ::pthread_setname_np(::pthread_self(), name);
+#endif
+}
+
 } // co

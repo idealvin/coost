@@ -80,6 +80,8 @@ void TaskedImpl::loop() {
     co::Timer timer;
     co::vector<Task> tmp(32);
 
+    co::set_thread_name("Co_Tasked");
+
     while (!_stop) {
         timer.restart();
         {

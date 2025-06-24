@@ -149,6 +149,8 @@ void Sched::loop() {
     co::vector<Coroutine*> ready_tasks(512);
     co::Timer timer;
 
+    co::set_thread_name("Co_Sched");
+
     while (!_x.stopped) {
         int n = _x.epoll->wait(_wait_ms);
         if (_x.stopped) break;

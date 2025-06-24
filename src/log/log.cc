@@ -636,6 +636,7 @@ void Logger::write_topic_logs(LogFile& f, const char* topic, const char* p, size
 void Logger::thread_fun() {
     bool signaled;
     int64 sec;
+    co::set_thread_name("Co_Logger");
     while (atomic_load(&g_init_done, mo_acquire) != true) _log_event.wait(8);
     while (!_stop) {
         signaled = _log_event.wait(FLG_log_flush_ms);
