@@ -217,7 +217,7 @@ constexpr bool is_scalar() {
     return std::is_scalar<T>::value;
 }
 
-#if defined(__GNUC__) && __GNUC__ < 5
+#if defined(__GNUC__) && __GNUC__ < 5 && !defined(__APPLE__)
 template<typename T>
 constexpr bool is_trivially_copyable() {
     return __has_trivial_copy(T);
