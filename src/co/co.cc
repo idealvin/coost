@@ -321,7 +321,12 @@ bool event_impl::wait(uint32 ms) {
                 _wc.pop_front();
                 !x ? (void)(x = w) : co::free(w, sizeof(*w));
             }
-            x ? (void)(x->state = st_wait) : (void)(x = make_waitx(co));
+            if (x) {
+                x->co = co;
+                x->state = st_wait;
+            } else {
+                x = make_waitx(co);
+            }
             co->waitx = x;
             _wc.push_back(x);
         }
