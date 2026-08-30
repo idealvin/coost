@@ -23,85 +23,108 @@ class __coapi fastream : public fast::stream {
     }
 
     fastream& operator=(fastream&& fs) {
-        return (fastream&) fast::stream::operator=(std::move(fs));
+        /* Member-wise for the same reason as fastring's: a base-scoped
+           operator call is not in the Crust C++ subset. */
+        if (&fs != this) {
+            if (_p) co::free(_p, _cap);
+            _cap = fs._cap; _size = fs._size; _p = fs._p;
+            fs._p = 0;
+            fs._cap = fs._size = 0;
+        }
+        return *this;
     }
 
     fastring str() const {
         return fastring(_p, _size);
     }
 
-    fastream& append(const void* p, size_t n) {
-        return (fastream&) fast::stream::append(p, n);
+    fastream* append(const void* p, size_t n) {
+        return (fastream*) fast::stream::append(p, n);
     }
 
     // like append(), but will not check if p overlaps with the internal memory
-    fastream& append_nomchk(const void* p, size_t n) {
-        return (fastream&) fast::stream::append_nomchk(p, n);
+    fastream* append_nomchk(const void* p, size_t n) {
+        return (fastream*) fast::stream::append_nomchk(p, n);
     }
 
-    fastream& append(const char* s) {
+    /* Named appends. One method per element type, because the Crust C++
+       subset resolves overloads by argument *count* -- ten one-argument
+       `append`s collapse to one symbol there. These carry the bodies and
+       are available to both builds; the type-overloaded spellings below
+       are C++-only and delegate here, so the ordinary API is unchanged.
+       They return `fastream*` for the same subset reason (a reference
+       return is not in it), which is why the delegations dereference. */
+    fastream* append_cstr(const char* s) {
         return this->append(s, strlen(s));
     }
 
-    // like append(), but will not check if s overlaps with the internal memory
-    fastream& append_nomchk(const char* s) {
+    fastream* append_nomchk_cstr(const char* s) {
         return this->append_nomchk(s, strlen(s));
     }
 
-    fastream& append(const fastring& s) {
+    fastream* append_str(const fastring& s) {
         return this->append_nomchk(s.data(), s.size());
     }
 
-    fastream& append(const std::string& s) {
+    fastream* append_stdstr(const std::string& s) {
         return this->append_nomchk(s.data(), s.size());
     }
 
-    // append the fastream itself is ok
-    fastream& append(const fastream& s) {
+    // appending the fastream itself is ok
+    fastream* append_stream(const fastream& s) {
         if (&s != this) return this->append_nomchk(s.data(), s.size());
         this->reserve((_size << 1) + !!_size);
         memcpy(_p + _size, _p, _size); // append itself
         _size <<= 1;
-        return *this;
+        return this;
     }
+
+    fastream* append_char(char c) {
+        return (fastream*) fast::stream::append(c);
+    }
+
+    fastream* append_i8(signed char c) { return this->append_char((char)c); }
+    fastream* append_u8(unsigned char c) { return this->append_char((char)c); }
+
+    // binary data, 2 / 4 / 8 bytes
+    fastream* append_u16(uint16 v) { return this->append_nomchk(&v, sizeof(v)); }
+    fastream* append_u32(uint32 v) { return this->append_nomchk(&v, sizeof(v)); }
+    fastream* append_u64(uint64 v) { return this->append_nomchk(&v, sizeof(v)); }
 
     // append n characters
-    fastream& append(size_t n, char c) {
-        return (fastream&) fast::stream::append(n, c);
+    fastream* append_chars(size_t n, char c) {
+        return (fastream*) fast::stream::append_chars(n, c);
     }
 
-    fastream& append(char c) {
-        return (fastream&) fast::stream::append(c);
+#ifndef CO_CRUST
+    /* The type-overloaded spellings: same arity, so absent under the
+       subset. Each delegates to its named counterpart above. */
+    fastream& append(const char* s) { return *this->append_cstr(s); }
+    fastream& append_nomchk(const char* s) {
+        return *this->append_nomchk_cstr(s);
     }
-
-    fastream& append(signed char c) {
-        return this->append((char)c);
-    }
-
-    fastream& append(unsigned char c) {
-        return this->append((char)c);
-    }
-
-    // append binary data of uint16 (2 bytes)
-    fastream& append(uint16 v) {
-        return this->append_nomchk(&v, sizeof(v));
-    }
-
-    // append binary data of uint32 (4 bytes)
-    fastream& append(uint32 v) {
-        return this->append_nomchk(&v, sizeof(v));
-    }
-
-    // append binary data of uint64 (8 bytes)
-    fastream& append(uint64 v) {
-        return this->append_nomchk(&v, sizeof(v));
-    }
+    fastream& append(const fastring& s) { return *this->append_str(s); }
+    fastream& append(const std::string& s) { return *this->append_stdstr(s); }
+    fastream& append(const fastream& s) { return *this->append_stream(s); }
+    fastream& append(char c) { return *this->append_char(c); }
+    fastream& append(signed char c) { return *this->append_i8(c); }
+    fastream& append(unsigned char c) { return *this->append_u8(c); }
+    fastream& append(uint16 v) { return *this->append_u16(v); }
+    fastream& append(uint32 v) { return *this->append_u32(v); }
+    fastream& append(uint64 v) { return *this->append_u64(v); }
+#endif /* CO_CRUST */
 
     fastream& cat() noexcept { return *this; }
 
     // concatenate fastream to any number of elements
     //   - fastream s("hello");
     //     s.cat(' ', 123);  // s -> "hello 123"
+/* The stream-insertion API. `operator<<` is permanently out of the
+   Crust C++ subset, and these are also same-arity overloads, which the
+   subset resolves by argument count -- so under `-D CO_CRUST` the whole
+   family is absent and callers use the named `append*` methods on
+   `fast::stream` instead. The ordinary C++ build is unchanged. */
+#ifndef CO_CRUST
     template<typename X, typename ...V>
     fastream& cat(X&& x, V&& ... v) {
         (*this) << std::forward<X>(x);
@@ -179,7 +202,7 @@ class __coapi fastream : public fast::stream {
     }
 
     fastream& operator<<(const char* s) {
-        return this->append(s, strlen(s));
+        return *this->append(s, strlen(s));
     }
 
     fastream& operator<<(const signed char* s) {
@@ -191,14 +214,15 @@ class __coapi fastream : public fast::stream {
     }
 
     fastream& operator<<(const fastring& s) {
-        return this->append_nomchk(s.data(), s.size());
+        return *this->append_nomchk(s.data(), s.size());
     }
 
     fastream& operator<<(const std::string& s) {
-        return this->append_nomchk(s.data(), s.size());
+        return *this->append_nomchk(s.data(), s.size());
     }
 
     fastream& operator<<(const fastream& s) {
         return this->append(s);
     }
+#endif /* CO_CRUST */
 };

@@ -142,7 +142,16 @@ struct DiyFp {
 
     void NormalizedBoundaries(DiyFp* minus, DiyFp* plus) const {
         DiyFp pl = DiyFp((f << 1) + 1, e - 1).NormalizeBoundary();
-        DiyFp mi = (f == kDpHiddenBit) ? DiyFp((f << 2) - 1, e - 2) : DiyFp((f << 1) - 1, e - 1);
+        /* An `if` rather than `?:`: a branch of a conditional may not
+           be evaluated, so a temporary built there cannot be hoisted to a
+           statement of its own, which is what the Crust C++ subset needs
+           to construct it. */
+        DiyFp mi;
+        if (f == kDpHiddenBit) {
+            mi = DiyFp((f << 2) - 1, e - 2);
+        } else {
+            mi = DiyFp((f << 1) - 1, e - 1);
+        }
         mi.f <<= mi.e - pl.e;
         mi.e = pl.e;
         *plus = pl;

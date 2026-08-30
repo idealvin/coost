@@ -54,7 +54,7 @@ fastring url_encode(const void* s, size_t n) {
             dst.append(c);
             continue;
         }
-        dst.append('%');
+        dst.append_char('%');
         dst.append("0123456789ABCDEF"[static_cast<uint8>(c) >> 4]);
         dst.append("0123456789ABCDEF"[static_cast<uint8>(c) & 0x0F]);
     }

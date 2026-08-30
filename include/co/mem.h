@@ -30,7 +30,11 @@ constexpr size_t cache_line_size = L1_CACHE_LINE_SIZE;
 __coapi void* alloc(size_t size);
 
 // alloc @size bytes, @align byte aligned (align <= 1024)
-__coapi void* alloc(size_t size, size_t align);
+//
+// Named `alloc_aligned`, not a second `alloc`: these are *free*
+// functions, and C has no overloading at all for them -- both lowered to
+// one `co_alloc` symbol with conflicting types.
+__coapi void* alloc_aligned(size_t size, size_t align);
 
 // alloc @size bytes, and zero-clear the memory
 __coapi void* zalloc(size_t size);
@@ -67,7 +71,11 @@ inline void del(T* p, size_t n=sizeof(T)) {
 
 // used internally by coost, do not call it
 __coapi void* _salloc(size_t n);
+#ifndef CO_CRUST
+/* Takes a `std::function`, which the Crust C++ subset cannot store, and
+   its only caller hands it a capturing lambda. C++-only. */
 __coapi void _dealloc(std::function<void()>&& f, int x);
+#endif /* CO_CRUST */
 
 // used internally by coost, do not call it
 template<typename T, int N, typename... Args>
@@ -195,7 +203,7 @@ inline unique<T> make_unique(Args&&... args) {
     struct S { uint32 o; uint32 n; T t; };
     static_assert(alignof(S) <= 1024, "");
     const size_t off = (size_t) &((S*)0)->t;
-    S* const s = (S*) co::alloc(sizeof(S), alignof(S));
+    S* const s = (S*) co::alloc_aligned(sizeof(S), alignof(S));
     T* const t = &s->t;
     if (s) {
         new(t) T(std::forward<Args>(args)...);
@@ -326,7 +334,7 @@ inline shared<T> make_shared(Args&&... args) {
     struct S { uint32 r; uint32 o; uint32 n; T t; };
     static_assert(alignof(S) <= 1024, "");
     const size_t off = (size_t) &((S*)0)->t;
-    S* const s = (S*) co::alloc(sizeof(S), alignof(S));
+    S* const s = (S*) co::alloc_aligned(sizeof(S), alignof(S));
     T* const t = &s->t;
     if (s) {
         new(t) T(std::forward<Args>(args)...);
@@ -367,6 +375,14 @@ struct system_allocator {
     }
 };
 
+/* STL-interop glue: this allocator exists to hand co::alloc to
+   std::map, std::set and friends through co/stl.h. Under the Crust C++
+   subset those *are* the supplied containers and an allocator parameter
+   is not a concept there, so the whole apparatus -- rebind, reference
+   typedefs, the converting constructor template, defaulted members in a
+   class template -- is absent under -D CO_CRUST rather than ported.
+   co/stl.h's aliases collapse to the plain containers there. */
+#ifndef CO_CRUST
 // allocator for STL, alternative to std::allocator
 template<class T>
 struct stl_allocator {
@@ -424,5 +440,6 @@ template<class T1, class T2>
 constexpr bool operator!=(const stl_allocator<T1>&, const stl_allocator<T2>&) noexcept {
     return false;
 }
+#endif /* CO_CRUST */
 
 } // co

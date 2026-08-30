@@ -146,8 +146,8 @@ bool match(const char* s, size_t n, const char* p, size_t m) {
 
 } // str
 
-fastring& fastring::trim(char c, char d) {
-    if (this->empty()) return *this;
+fastring* fastring::trim_char(char c, char d) {
+    if (this->empty()) return this;
 
     size_t b, e;
     switch (d) {
@@ -172,12 +172,12 @@ fastring& fastring::trim(char c, char d) {
         break;
     }
 
-    return *this;
+    return this;
 
 }
 
-fastring& fastring::trim(const char* x, char d) {
-    if (this->empty() || !x || !*x) return *this;
+fastring* fastring::trim_cstr(const char* x, char d) {
+    if (this->empty() || !x || !*x) return this;
 
     const unsigned char* s = (const unsigned char*)x;
     const unsigned char* const p = (const unsigned char*)_p;
@@ -207,10 +207,10 @@ fastring& fastring::trim(const char* x, char d) {
         break;
     }
 
-    return *this;
+    return this;
 }
 
-fastring& fastring::trim(size_t n, char d) {
+fastring* fastring::trim_n(size_t n, char d) {
     if (!this->empty()) {
         switch (d) {
           case 'r':
@@ -235,21 +235,21 @@ fastring& fastring::trim(size_t n, char d) {
             }
         }
     }
-    return *this;
+    return this;
 }
 
-fastring& fastring::replace(const char* sub, size_t n, const char* to, size_t m, size_t maxreplace) {
-    if (this->empty() || n == 0) return *this;
+fastring* fastring::replace(const char* sub, size_t n, const char* to, size_t m, size_t maxreplace) {
+    if (this->empty() || n == 0) return this;
 
     const char* from = _p;
     const char* p = str::memmem(_p, _size, sub, n);
-    if (!p) return *this;
+    if (!p) return this;
 
     const char* const e = _p + _size;
     fastring s(_size + 1);
 
     do {
-        s.append(from, p - from).append(to, m);
+        s.append(from, p - from)->append(to, m);
         from = p + n;
         if (maxreplace && --maxreplace == 0) break;
     } while ((p = str::memmem(from, e - from, sub, n)));
@@ -257,23 +257,23 @@ fastring& fastring::replace(const char* sub, size_t n, const char* to, size_t m,
     if (from < _p + _size) s.append(from, e - from);
 
     this->swap(s);
-    return *this;
+    return this;
 }
 
-fastring& fastring::toupper() {
+fastring* fastring::toupper() {
     for (size_t i = 0; i < _size; ++i) {
         char& c = _p[i];
         if ('a' <= c && c <= 'z') c ^= 32;
     }
-    return *this;
+    return this;
 }
 
-fastring& fastring::tolower() {
+fastring* fastring::tolower() {
     for (size_t i = 0; i < _size; ++i) {
         char& c = _p[i];
         if ('A' <= c && c <= 'Z') c ^= 32;
     }
-    return *this;
+    return this;
 }
 
 size_t fastring::find_first_of(const char* s, size_t pos, size_t n) const {
@@ -298,7 +298,7 @@ size_t fastring::find_first_not_of(const char* s, size_t pos, size_t n) const {
     return npos;
 }
 
-size_t fastring::find_first_not_of(char c, size_t pos) const {
+size_t fastring::find_first_not_of_char(char c, size_t pos) const {
     for (; pos < _size; ++pos) {
         if (_p[pos] != c) return pos;
     }
@@ -327,7 +327,7 @@ size_t fastring::find_last_not_of(const char* s, size_t pos, size_t n) const {
     return npos;
 }
 
-size_t fastring::find_last_not_of(char c, size_t pos) const {
+size_t fastring::find_last_not_of_char(char c, size_t pos) const {
     if (_size > 0) {
         for (size_t i = (pos >= _size ? _size : (pos + 1)); i > 0;) {
             if (_p[--i] != c) return i;

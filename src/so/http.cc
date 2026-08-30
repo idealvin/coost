@@ -149,7 +149,7 @@ void Client::reset(const char* serv_url) {
         } else {
             const size_t n = strlen(serv_url);
             s.reserve(n + 8);
-            s.append("http://").append(serv_url, n); // use http by default
+            s.append_cstr("http://")->append(serv_url, n); // use http by default
         }
         s.trim('/', 'r'); // remove '/' at the right side
 
@@ -172,9 +172,9 @@ void Client::add_header(const char* key, const char* val) {
     s.append(key);
     const size_t n = strlen(val);
     if (n > 0) {
-        s.append(": ").append(val, n);
+        s.append_cstr(": ")->append(val, n);
     } else {
-        s.append(";");
+        s.append_cstr(";");
     }
     this->append_header(s.c_str());
 }
@@ -187,13 +187,13 @@ void Client::add_header(const char* key, int val) {
 
 void Client::remove_header(const char* key) {
     auto& s = fastream_cache(); s.clear();
-    s.append(key).append(':');
+    s.append(key)->append_char(':');
     this->append_header(s.c_str());
 }
 
 inline const char* Client::make_url(const char* url) {
     auto& s = fastream_cache(); s.clear();
-    s.append(_ctx->serv_url).append(url);
+    s.append(_ctx->serv_url)->append(url);
     return s.c_str();
 }
 
@@ -282,7 +282,7 @@ const char* Client::header(const char* key) {
         p = strchr(b, ':');
         if (p) {
             s.clear();
-            s.append(b, p - b).trim(' ').toupper();
+            s.append(b, p - b).trim(' ')->toupper();
             if (s == u) {
                 if (_ctx->arr[i + 1] == 0) {
                     b = p;
@@ -476,7 +476,7 @@ const char* http_req_t::header(const char* key) const {
 
     for (uint32 i = 0; i < arr_size; i += 2) {
         s.clear();
-        s.append(buf->data() + arr[i]).toupper();
+        s.append_cstr(buf->data() + arr[i])->toupper();
         if (s == x) return buf->data() + arr[i + 1];
     }
 
@@ -567,7 +567,7 @@ int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
         if (p == m.npos) return 400;
 
         auto& s = fastring_cache(); s.clear();
-        s.append(m.data(), p).toupper();
+        s.append(m.data(), p)->toupper();
         auto it = mm.find(s);
         if (it != mm.end()) {
             req->method = it->second;
@@ -583,7 +583,7 @@ int parse_http_req(fastring* buf, size_t size, http_req_t* req) {
         while (m[++q] == ' ');
         if (m[q] == '\r') return 400;
         s.clear();
-        s.append(m.data() + q, x - q).toupper();
+        s.append(m.data() + q, x - q)->toupper();
         if (s.size() != 8) return 505;
         if (god::eq<uint64>(s.data(), "HTTP/1.1")) {
             req->version = kHTTP11;
@@ -880,7 +880,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             if (preq->version != kHTTP10) {
                 if (!s.empty() && s == "close") need_close = true;
             } else {
-                if (s.empty() || s.tolower() != "keep-alive") need_close = true;
+                if (s.empty() || *s.tolower() != "keep-alive") need_close = true;
             }
 
             s.clear();

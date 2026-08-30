@@ -10,7 +10,7 @@ namespace ssl {
 
 static int errcb(const char* p, size_t n, void* u) {
     fastream* s = (fastream*) u;
-    s->append(p, n).append(". ");
+    s->append(p, n).append_cstr(". ");
     return 0;
 }
 
@@ -28,7 +28,7 @@ const char* strerror(S* s) {
         int e = SSL_get_error((SSL*)s, 0);
         (*g_fs) << "ssl error: " << e;
     } else {
-        g_fs->append("success");
+        g_fs->append_cstr("success");
     }
 
     return g_fs->c_str();

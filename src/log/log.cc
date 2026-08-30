@@ -229,7 +229,7 @@ bool LogFile::check_config(const char* topic, int level) {
     // read paths of old log files
     if (level != xx::fatal) {
         s.clear();
-        s.append(_path_base).append("_old.log");
+        s.append_str(_path_base)->append_cstr("_old.log");
         fs::file f(s.c_str(), 'r');
         if (f) {
             auto v = str::split(f.read(f.size()), '\n');
@@ -252,7 +252,7 @@ inline uint32 get_day_from_path(const fastring& path) {
 // compress log file with the xz command
 inline void compress_file(const fastring& path) {
     fastring cmd(path.size() + 8);
-    cmd.append("xz ").append(path);
+    cmd.append_cstr("xz ")->append(path);
     os::system(cmd);
 }
 
@@ -278,7 +278,7 @@ fs::file& LogFile::open(const char* topic, int level) {
 
     _path.clear();
     if (level != xx::fatal) {
-        _path.append(_path_base).append(".log");
+        _path.append_str(_path_base)->append_cstr(".log");
 
         bool new_file = !fs::exists(_path);
         if (!new_file) {
@@ -307,13 +307,13 @@ fs::file& LogFile::open(const char* topic, int level) {
             _old_paths.push_back(s);
 
             while (!_old_paths.empty() && _old_paths.size() > FLG_max_log_file_num) {
-                if (FLG_log_compress) _old_paths.front().append(".xz");
+                if (FLG_log_compress) _old_paths.front().append_cstr(".xz");
                 fs::remove(_old_paths.front());
                 _old_paths.pop_front();
             }
 
             s.resize(_path_base.size());
-            s.append("_old.log");
+            s.append_cstr("_old.log");
             fs::file f(s.c_str(), 'w');
             if (f) {
                 s.clear();
@@ -323,7 +323,7 @@ fs::file& LogFile::open(const char* topic, int level) {
         }
 
     } else {
-        _path.append(_path_base).append(".fatal");
+        _path.append_str(_path_base)->append_cstr(".fatal");
         _file.open(_path.c_str(), 'a');
     }
 
@@ -1078,7 +1078,7 @@ LevelLogSaver::LevelLogSaver(const char* fname, unsigned fnlen, unsigned line, i
     _n = _s.size();
     _s.resize(_n + (LogTime::t_len + 1)); // make room for: "I0523 17:00:00.123"
     _s[_n] = "DIWE"[level];
-    (_s << ' ' << co::thread_id() << ' ').append(fname, fnlen) << ':' << line << "] ";
+    (*(_s << ' ' << co::thread_id() << ' ').append(fname, fnlen)) << ':' << line << "] ";
 }
 
 LevelLogSaver::~LevelLogSaver() {
@@ -1091,7 +1091,7 @@ FatalLogSaver::FatalLogSaver(const char* fname, unsigned fnlen, unsigned line)
     : _s(log_stream()) {
     _s.resize(LogTime::t_len + 1);
     _s.front() = 'F';
-    (_s << ' ' << co::thread_id() << ' ').append(fname, fnlen) << ':' << line << "] ";
+    (*(_s << ' ' << co::thread_id() << ' ').append(fname, fnlen)) << ':' << line << "] ";
 }
 
 FatalLogSaver::~FatalLogSaver() {
@@ -1103,7 +1103,7 @@ TLogSaver::TLogSaver(const char* fname, unsigned fnlen, unsigned line, const cha
     : _s(log_stream()), _topic(topic) {
     _n = _s.size();
     _s.resize(_n + (LogTime::t_len)); // make room for: "0523 17:00:00.123"
-    (_s << ' ' << co::thread_id() << ' ').append(fname, fnlen) << ':' << line << "] ";
+    (*(_s << ' ' << co::thread_id() << ' ').append(fname, fnlen)) << ':' << line << "] ";
 }
 
 TLogSaver::~TLogSaver() {

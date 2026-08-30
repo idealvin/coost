@@ -141,13 +141,24 @@ class __coapi stream {
     stream& operator=(stream&& s) {
         if (&s != this) {
             if (_p) co::free(_p, _cap);
-            new (this) stream(std::move(s));
+            /* Member-wise steal rather than placement-new over `this`
+               from the moved source: placement new is not in the Crust
+               C++ subset, and this is exactly what the move constructor
+               does -- take the buffer, zero the source. */
+            _cap = s._cap; _size = s._size; _p = s._p;
+            s._p = 0;
+            s._cap = s._size = 0;
         }
         return *this;
     }
 
     char* data() noexcept { return _p; }
+#ifndef CO_CRUST
+    /* The const twin lowers to the same `fast_stream_data` symbol -- this
+       pass tracks no constness, so the pair is one function to it. The
+       non-const one serves both uses. */
     const char* data() const noexcept { return _p; }
+#endif /* CO_CRUST */
     size_t size() const noexcept { return _size; }
     bool empty() const noexcept { return _size == 0; }
     size_t capacity() const noexcept { return _cap; }
@@ -168,14 +179,28 @@ class __coapi stream {
         return "";
     }
 
+    /* Under -D CO_CRUST the reference-returning accessors are absent:
+       a `char&` return is not in the subset, and a const/non-const pair
+       lowers to one symbol there (no constness is tracked). The pointer
+       accessors below are the subset spelling -- `*s.back_ptr() = c`
+       writes the element -- and are available to both builds. The
+       non-const `operator[]` stays: the subset's index lowering wants
+       exactly a reference return and rewrites `s[i]` to the element. */
+#ifndef CO_CRUST
     char& back() { return _p[_size - 1]; }
     const char& back() const { return _p[_size - 1]; }
 
     char& front() { return _p[0]; }
     const char& front() const { return _p[0]; }
+#endif /* CO_CRUST */
+
+    char* back_ptr() { return &_p[_size - 1]; }
+    char* front_ptr() { return &_p[0]; }
 
     char& operator[](size_t i) { return _p[i]; }
+#ifndef CO_CRUST
     const char& operator[](size_t i) const { return _p[i]; }
+#endif /* CO_CRUST */
 
     // resize only, will not fill the expanded memory with zeros
     void resize(size_t n) {
@@ -221,23 +246,28 @@ class __coapi stream {
         std::swap(s._p, _p);
     }
 
+#ifndef CO_CRUST
+    /* Same arity as `swap(stream&)`, which the subset resolves by
+       argument count. The lvalue overload does the work; a caller with a
+       temporary names it first. */
     void swap(stream&& s) noexcept { s.swap(*this); }
+#endif /* CO_CRUST */
 
   protected:
-    stream& append(size_t n, char c) {
+    stream* append_chars(size_t n, char c) {
         this->ensure(n);
         memset(_p + _size, c, n);
         _size += n;
-        return *this;
+        return this;
     }
 
-    stream& append(char c) {
+    stream* append(char c) {
         this->ensure(1);
         _p[_size++] = c;
-        return *this;
+        return this;
     }
 
-    stream& append(const void* s, size_t n) {
+    stream* append(const void* s, size_t n) {
         const char* const p = (const char*) s;
         if (p < _p || p >= _p + _size) return this->append_nomchk(p, n);
 
@@ -246,22 +276,25 @@ class __coapi stream {
         this->ensure(n);
         memcpy(_p + _size, _p + pos, n);
         _size += n;
-        return *this;
+        return this;
     }
 
-    stream& append_nomchk(const void* p, size_t n) {
+    stream* append_nomchk(const void* p, size_t n) {
         this->ensure(n);
         memcpy(_p + _size, p, n);
         _size += n;
-        return *this;
+        return this;
     }
 
+/* See fastream.h: absent under `-D CO_CRUST`; use the named
+   `append*` methods. */
+#ifndef CO_CRUST
     stream& operator<<(bool v) {
-        return v ? this->append_nomchk("true", 4) : this->append_nomchk("false", 5);
+        return v ? *this->append_nomchk("true", 4) : *this->append_nomchk("false", 5);
     }
 
     stream& operator<<(char v) {
-        return this->append(v);
+        return *this->append(v);
     }
 
     stream& operator<<(short v) {
@@ -337,8 +370,9 @@ class __coapi stream {
     }
 
     stream& operator<<(std::nullptr_t) {
-        return this->append_nomchk("0x0", 3);
+        return *this->append_nomchk("0x0", 3);
     }
+#endif /* CO_CRUST */
 
     size_t _cap;
     size_t _size;

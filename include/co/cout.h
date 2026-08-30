@@ -97,11 +97,11 @@ inline std::ostream& operator<<(std::ostream& os, const text::Bold& x) {
 }
 
 inline fastream& operator<<(fastream& os, const text::Text& x) {
-    return (os << x.c).append(x.s, x.n) << color::deflt;
+    return *(os << x.c).append(x.s, x.n) << color::deflt;
 }
 
 inline fastream& operator<<(fastream& os, const text::Bold& x) {
-    return (os << x.c).append(x.s, x.n) << color::deflt;
+    return *(os << x.c).append(x.s, x.n) << color::deflt;
 }
 
 

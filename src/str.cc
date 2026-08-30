@@ -12,7 +12,7 @@ fastring replace(const char* s, size_t n, const char* sub, size_t m, const char*
     fastring x(n);
 
     while ((p = str::memmem(s, end - s, sub, m))) {
-        x.append(s, p - s).append(to, l);
+        x.append(s, p - s)->append(to, l);
         s = p + m;
         if (t && --t == 0) break;
     }

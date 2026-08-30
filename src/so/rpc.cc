@@ -308,7 +308,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (preq->version != http::kHTTP10) {
                     if (!s.empty() && s == "close") need_close = true;
                 } else {
-                    if (s.empty() || s.tolower() != "keep-alive") need_close = true;
+                    if (s.empty() || *s.tolower() != "keep-alive") need_close = true;
                 }
 
                 s.clear();

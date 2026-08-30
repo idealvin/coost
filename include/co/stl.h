@@ -197,7 +197,7 @@ namespace xx {
 
 struct Fmt {
     fastream& fmt(fastream& fs, const char* s, size_t n) {
-        fs.append('"');
+        fs.append_char('"');
         for (size_t i = 0; i < n; ++i) {
             const char c = s[i];
             switch (c) {
@@ -227,7 +227,7 @@ struct Fmt {
                 break;
             }
         }
-        return fs.append('"');
+        return *fs.append_char('"');
     }
 
     fastream& fmt(fastream& fs, const char* s) {

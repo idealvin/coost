@@ -150,7 +150,7 @@ class mutex_impl {
         };
 
         _memb* _make_memb() {
-            _memb* m = (_memb*) co::alloc(sizeof(_memb) + N * sizeof(void*), co::cache_line_size);
+            _memb* m = (_memb*) co::alloc_aligned(sizeof(_memb) + N * sizeof(void*), co::cache_line_size);
             m->size = 0;
             m->rx = 0;
             m->wx = 0;
@@ -795,7 +795,7 @@ void pipe_impl::close() {
 }
 
 pipe::pipe(uint32 buf_size, uint32 blk_size, uint32 ms, pipe::C&& c, pipe::D&& d) {
-    _p = co::alloc(sizeof(pipe_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(pipe_impl), co::cache_line_size);
     new (_p) pipe_impl(buf_size, blk_size, ms, std::move(c), std::move(d));
 }
 
@@ -927,7 +927,7 @@ inline size_t pool_impl::size() const {
 } // xx
 
 mutex::mutex() {
-    _p = co::alloc(sizeof(xx::mutex_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(xx::mutex_impl), co::cache_line_size);
     new (_p) xx::mutex_impl();
 }
 
@@ -958,7 +958,7 @@ bool mutex::try_lock() const {
 
 
 event::event(bool manual_reset, bool signaled) {
-    _p = co::alloc(sizeof(xx::event_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(xx::event_impl), co::cache_line_size);
     new (_p) xx::event_impl(manual_reset, signaled);
 }
 
@@ -989,7 +989,7 @@ void event::reset() const {
 
 
 sync_event::sync_event(bool manual_reset, bool signaled) {
-    _p = co::alloc(sizeof(xx::sync_event_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(xx::sync_event_impl), co::cache_line_size);
     new (_p) xx::sync_event_impl(manual_reset, signaled);
 }
 
@@ -1019,7 +1019,7 @@ bool sync_event::wait(uint32 ms) {
 
 
 wait_group::wait_group(uint32 n) {
-    _p = co::alloc(sizeof(xx::event_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(xx::event_impl), co::cache_line_size);
     new (_p) xx::event_impl(false, false, n);
 }
 
@@ -1053,7 +1053,7 @@ void wait_group::wait() const {
 
 
 pool::pool() {
-    _p = co::alloc(sizeof(xx::pool_impl), co::cache_line_size);
+    _p = co::alloc_aligned(sizeof(xx::pool_impl), co::cache_line_size);
     new (_p) xx::pool_impl();
 }
 

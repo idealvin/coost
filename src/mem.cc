@@ -979,7 +979,7 @@ void* alloc(size_t n) {
     return xx::talloc()->alloc(n);
 }
 
-void* alloc(size_t n, size_t align) {
+void* alloc_aligned(size_t n, size_t align) {
     return xx::talloc()->alloc(n, align);
 }
 

@@ -143,7 +143,7 @@ bool mkdir(char* path, bool p) {
 inline void pathcat(fastring& s, wchar_t c, const wchar_t* p) {
     const wchar_t z = L'\0';
     const size_t n = wcslen(p) * sizeof(wchar_t);
-    s.append(&c, sizeof(c)).append((char*)p, n).append(&z, sizeof(z));
+    s.append(&c, sizeof(c))->append((char*)p, n)->append(&z, sizeof(z));
     s.resize(s.size() - sizeof(z));
 }
 

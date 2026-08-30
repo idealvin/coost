@@ -150,6 +150,14 @@ inline T fetch_xor(T* p, V v) {
     return x;
 }
 
+/* Type-trait alias templates. These exist to drive SFINAE -- every
+   use is a `god::if_t<..>` in a template head -- and SFINAE is not in
+   the Crust C++ subset, so the members that use them are already absent
+   under -D CO_CRUST. The aliases go with them: an alias over
+   `std::enable_if<C,T>::type` is type-level computation with nothing
+   for C to hold, and passed through it reached the C front end as
+   `typedef typename std::enable_if<C, T>type if_t;`. */
+#ifndef CO_CRUST
 template<bool C, typename T=void>
 using if_t = typename std::enable_if<C, T>::type;
 
@@ -178,24 +186,22 @@ using _const_t = typename std::add_const<T>::type;
 //   - T, T&, T&&, const T, const T&  =>  const T&
 template<typename T>
 using const_ref_t = typename std::add_lvalue_reference<_const_t<rm_ref_t<T>>>::type;
+#endif /* CO_CRUST */
 
-namespace xx {
-template<typename ...T>
-struct is_same {
-    static constexpr bool value = false;
-};
-
-template<typename T, typename U, typename ...X>
-struct is_same<T, U, X...> {
-    static constexpr bool value = std::is_same<T, U>::value || is_same<T, X...>::value;
-};
-} // xx
-
-// check if T is same as U or one of X...
-template<typename T, typename U, typename ...X>
+// check if T is the same type as U
+//
+// This was variadic upstream -- "same as U or one of X..." -- through a
+// recursive struct with a parameter pack and a partial specialisation,
+// neither of which is in the Crust C++ subset for class templates.
+// Nothing in this tree ever passed more than two arguments (vector.h
+// holds all four call sites), so the fork fixes the arity instead of
+// waiting on the feature. A caller that needs "one of" writes
+// `is_same<T,A>() || is_same<T,B>()`, which is what the recursion
+// computed anyway.
+template<typename T, typename U>
 constexpr bool is_same() {
-    return xx::is_same<T, U, X...>::value;
-};
+    return std::is_same<T, U>::value;
+}
 
 template<typename T>
 constexpr bool is_ref() {

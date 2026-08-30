@@ -75,7 +75,7 @@ bool _rmdir(fastring& s) {
     while ((e = ::readdir(d))) {
         if (is_dot_or_dotdot(e->d_name)) continue; // ignore . and ..
         s.resize(n);
-        s.append('/').append(e->d_name);
+        s.append_char('/')->append(e->d_name);
         if (fs::isdir(s.c_str())) {
             if (!_rmdir(s)) goto err;
         } else {
@@ -110,7 +110,7 @@ bool mv(const char* from, const char* to) {
 
     const char* p = strrchr(from, '/');
     fastring s(to);
-    if (!s.ends_with('/')) s.append('/');
+    if (!s.ends_with('/')) s.append_char('/');
     s.append(p ? p + 1 : from);
     return ::rename(from, s.c_str()) == 0;
 }

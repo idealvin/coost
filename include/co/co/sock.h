@@ -382,7 +382,7 @@ inline fastring addr2str(const struct sockaddr_in* addr) {
     inet_ntop(AF_INET, (void*)&addr->sin_addr, s, sizeof(s));
     const size_t n = strlen(s);
     fastring r(n + 8);
-    r.append(s, n).append(':') << ntoh16(addr->sin_port);
+    *r.append(s, n)->append_char(':') << ntoh16(addr->sin_port);
     return r;
 }
 
@@ -396,7 +396,7 @@ inline fastring addr2str(const struct sockaddr_in6* addr) {
     inet_ntop(AF_INET6, (void*)&addr->sin6_addr, s, sizeof(s));
     const size_t n = strlen(s);
     fastring r(n + 8);
-    r.append(s, n).append(':') << ntoh16(addr->sin6_port);
+    *r.append(s, n)->append_char(':') << ntoh16(addr->sin6_port);
     return r;
 }
 
