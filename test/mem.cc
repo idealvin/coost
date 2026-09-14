@@ -14,7 +14,7 @@ void test_fun(int id) {
     v.reserve(N);
 
     co::string s(1024);
-    time::timer t;
+    co::timer t;
     int64 us;
     double avg;
     double vavg;
@@ -76,7 +76,7 @@ void test_fun(int id) {
 void test_string() {
     int N = FLG_n;
     co::string s(1024);
-    time::timer t;
+    co::timer t;
     int64 us;
     double avg = 0;
 
@@ -107,7 +107,7 @@ void test_string() {
 void test_vector() {
     int N = 10000;
     co::string s(1024);
-    time::timer t;
+    co::timer t;
     int64 us;
     double avg = 0;
 
@@ -135,7 +135,7 @@ void test_vector() {
 void test_map() {
     int N = FLG_n;
     co::string s(1024);
-    time::timer t;
+    co::timer t;
     int64 us;
     double avg = 0;
 
@@ -163,7 +163,7 @@ void test_map() {
 void test_unordered_map() {
     int N = FLG_n;
     co::string s(1024);
-    time::timer t;
+    co::timer t;
     int64 us;
     double avg = 0;
 
@@ -192,7 +192,7 @@ auto& gA = *co::make_static<co::vector<void*>>();
 
 void test_xalloc() {
     gA.reserve(50 * 1024);
-    time::timer t;
+    co::timer t;
     for (int i = 0; i < FLG_n; ++i) {
         gA.push_back(co::alloc(32));
     }
@@ -202,7 +202,7 @@ void test_xalloc() {
 }
 
 void test_xfree() {
-    time::timer t;
+    co::timer t;
     for (auto& x : gA) { co::free(x, 32); }
     auto us = t.us();
     co::println(co::sched_id(), " xfree done in ", us, "us, avg: ", us * 1000.0 / FLG_n, "ns");

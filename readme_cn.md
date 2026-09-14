@@ -4,7 +4,7 @@
 [![Linux Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
 [![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
 [![FreeBSD Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master&logo=freebsd)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)
-[![Windows ARM64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win-arm64.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindowsARM64)
+[![Windows ARM64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win_arm64.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindowsARM64)
 [![Mac Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

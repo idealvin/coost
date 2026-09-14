@@ -62,7 +62,7 @@ struct Group {
     bool& enabled;
     int c;
     int iters;
-    time::timer timer;
+    co::timer timer;
     co::vector<Result> res;
 };
 

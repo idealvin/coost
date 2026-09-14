@@ -82,29 +82,29 @@ int main(int argc, char** argv) {
     int n = 10000;
     co::println("s.size(): ", s.size());
 
-    int64 beg = time::mono.us();
+    int64 beg = co::mono_time.us();
     for (int i = 0; i < n; ++i) {
         json::any xx = json::parse(s.data(), s.size());
     }
-    int64 end = time::mono.us();
+    int64 end = co::mono_time.us();
 
     co::println("parse average time used: ", (end - beg) * 1.0 / n, "us");
 
     json::any xx = json::parse(s.data(), s.size());
     co::string xs;
-    beg = time::mono.us();
+    beg = co::mono_time.us();
     for (int i = 0; i < n; ++i) {
         xs = xx.str(256 + FLG_n);
     }
-    end = time::mono.us();
+    end = co::mono_time.us();
 
     co::println("stringify average time used: ", (end - beg) * 1.0 / n, "us");
 
-    beg = time::mono.us();
+    beg = co::mono_time.us();
     for (int i = 0; i < n; ++i) {
         xs = xx.pretty(256 + FLG_n);
     }
-    end = time::mono.us();
+    end = co::mono_time.us();
 
     co::println("pretty average time used: ", (end - beg) * 1.0 / n, "us");
 

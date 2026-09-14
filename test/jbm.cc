@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 
     int64 us;
     double tco;
-    time::timer timer;
+    co::timer timer;
     {
         {
             json::any v = json::parse(s);

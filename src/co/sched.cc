@@ -192,7 +192,7 @@ void Sched::loop() {
 uint32 TimerManager::check_timeout(co::vector<Coroutine*>& res) {
     if (_timer.empty()) return (uint32)-1;
 
-    int64 now_ms = time::mono.ms();
+    int64 now_ms = co::mono_time.ms();
     auto it = _timer.begin();
     for (; it != _timer.end(); ++it) {
         if (it->first > now_ms) break;

@@ -130,7 +130,7 @@ struct TimerManager {
     ~TimerManager() = default;
 
     timer_id_t add_timer(uint32 ms, Coroutine* co) {
-        return _it = _timer.emplace_hint(_it, time::mono.ms() + ms, co);
+        return _it = _timer.emplace_hint(_it, co::mono_time.ms() + ms, co);
     }
 
     void del_timer(const timer_id_t& it) {

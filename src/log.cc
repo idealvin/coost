@@ -132,7 +132,7 @@ struct __cacheline_aligned LogTime {
 };
 
 void LogTime::update() {
-    const int64 now_ms = time::unix.ms();
+    const int64 now_ms = co::now.ms();
     const time_t now_sec = now_ms / 1000;
     const int dt = (int) (now_sec - _start);
     if (dt == 0) goto set_ms;
@@ -654,6 +654,50 @@ Mod::Mod() {
 
 static int g_nifty_counter;
 
+// Use a named function instead of a lambda.
+// MSVC 19.44 hits an internal compiler error (C1001 in constexpr.cpp:10363)
+// when a capture-less lambda is converted to a function pointer here.
+static void after_parse_cb() {
+    {
+        auto& b = FLG_max_log_buffer_size; // >= 1M
+        auto& l = FLG_max_log_size;        // >= 256
+        auto& f = FLG_max_log_file_size;   // > 0
+        if (b < (1 << 20)) b = 1 << 20;
+        if (l < 256) l = 256;
+        if (l > (b >> 2)) l = b >> 2;
+        if (f <= 0) f = 256 << 20;
+    }
+
+    // log_dir & log_path_prefix
+    if (FLG_log_dir != "logs") {
+        if (FLG_log_dir.contains('\\')) FLG_log_dir.replace("\\", "/");
+        g_mod->log_dir->assign(FLG_log_dir);
+
+        auto& x = *g_mod->log_path_prefix;
+        x.clear();
+        x.cat(FLG_log_dir);
+        if (!x.empty() && x.back() != '/') x.cat('/');
+        x.cat(g_mod->exename);
+    }
+
+    // old log paths
+    {
+        auto& s = *g_cache;
+        s.clear();
+        s.append(*g_mod->log_path_prefix).append(".log.list");
+        fs::file f(s.c_str(), 'r');
+        if (f) {
+            auto v = co::split(f.read((size_t)f.size()), '\n');
+            for (auto& x : v) {
+                g_mod->log_file->_old_paths.emplace_back(std::move(x));
+            }
+        }
+    }
+
+    // start the logging thread
+    g_mod->logger->start();
+}
+
 LogInit::LogInit() {
     const int n = ++g_nifty_counter;
     if (n == 1) {
@@ -680,46 +724,7 @@ LogInit::LogInit() {
             flag::unhide("log_daily");
         });
 
-        flag::run_after_parse([]() {
-            {
-                auto& b = FLG_max_log_buffer_size; // >= 1M
-                auto& l = FLG_max_log_size;        // >= 256
-                auto& f = FLG_max_log_file_size;   // > 0
-                if (b < (1 << 20)) b = 1 << 20;
-                if (l < 256) l = 256;
-                if (l > (b >> 2)) l = b >> 2;
-                if (f <= 0) f = 256 << 20;
-            }
-
-            // log_dir & log_path_prefix
-            if (FLG_log_dir != "logs") {
-                if (FLG_log_dir.contains('\\')) FLG_log_dir.replace("\\", "/");
-                g_mod->log_dir->assign(FLG_log_dir);
-
-                auto& x = *g_mod->log_path_prefix;
-                x.clear();
-                x.cat(FLG_log_dir);
-                if (!x.empty() && x.back() != '/') x.cat('/');
-                x.cat(g_mod->exename);
-            }
-
-            // old log paths
-            {
-                auto& s = *g_cache;
-                s.clear();
-                s.append(*g_mod->log_path_prefix).append(".log.list");
-                fs::file f(s.c_str(), 'r');
-                if (f) {
-                    auto v = co::split(f.read((size_t)f.size()), '\n');
-                    for (auto& x : v) {
-                        g_mod->log_file->_old_paths.emplace_back(std::move(x));
-                    }
-                }
-            }
-
-            // start the logging thread
-            g_mod->logger->start();
-        });
+        flag::run_after_parse(after_parse_cb);
     }
 }
 

@@ -21,7 +21,7 @@ int run_unitests() {
     // ft: number of failed tests
     // fc: number of failed cases
     size_t n = 0, ft = 0, fc = 0;
-    time::timer timer;
+    co::timer timer;
     auto& tests = ut::tests();
 
     co::vector<ut::Test*> enabled;

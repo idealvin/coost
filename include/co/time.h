@@ -2,8 +2,7 @@
 
 #include "string.h"
 
-namespace _xx {
-namespace time {
+namespace co {
 namespace xx {
 
 #ifdef _WIN32
@@ -15,8 +14,8 @@ struct TimeInit {
 static TimeInit g_time_init;
 #endif
 
-// unix time
-struct Unix {
+// time since epoch (the unix time)
+struct Now {
     // nanoseconds since epoch, may overflow at the year 2262
     static int64 ns();
 
@@ -25,31 +24,34 @@ struct Unix {
 
     // milliseconds since epoch
     static int64 ms();
+
+    // formatted time string
+    static co::string str(const char* fmt="%Y-%m-%d %H:%M:%S");
 };
 
 // monotonic timestamp
-struct Mono {
+struct MonoTime {
     static int64 ns();
-    static int64 us();
-    static int64 ms();
+    static int64 us() { return ns() / 1000; }
+    static int64 ms() { return ns() / 1000000; }
 };
 
 } // xx
 
-extern xx::Mono mono;
-extern xx::Unix unix;
+inline constexpr xx::Now now{};
+inline constexpr xx::MonoTime mono_time{};
 
 struct timer {
     timer() {
-        _start = mono.ns();
+        _start = mono_time.ns();
     }
 
     void restart() {
-        _start = mono.ns();
+        _start = mono_time.ns();
     }
 
     int64 ns() const {
-        return mono.ns() - _start;
+        return mono_time.ns() - _start;
     }
 
     int64 us() const {
@@ -63,12 +65,15 @@ struct timer {
     int64 _start;
 };
 
+} // co
+
+namespace __co {
+namespace time {
+
 // sleep for @ms milliseconds
 void sleep(uint32 ms);
 
-co::string str(const char* fmt="%Y-%m-%d %H:%M:%S");
-
 } // time
-} // _xx
+} // __co
 
-using namespace _xx;
+using namespace __co;

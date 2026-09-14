@@ -7,14 +7,14 @@
 
 // speed testing
 // mac: 
-//   gettimeofday > mono.ms(), mono.us() > clock_gettime > time(0) > time::str()
+//   gettimeofday > mono.ms(), mono.us() > clock_gettime > time(0) > co::now.str()
 // linux:
-//   time(0) > gettimeofday, mono.ms(), mono.us(), clock_gettime > time::str()
+//   time(0) > gettimeofday, mono.ms(), mono.us(), clock_gettime > co::now.str()
 BM_group(time) {
     int64 v;
     co::string s;
-    BM_add(time::str()) {
-        s = time::str("%Y");
+    BM_add(co::now.str()) {
+        s = co::now.str("%Y");
     }
     BM_use(s);
 
@@ -24,13 +24,13 @@ BM_group(time) {
     }
     BM_use(v);
 
-    BM_add(time::mono.us()) {
-        v = time::mono.us();
+    BM_add(co::mono_time.us()) {
+        v = co::mono_time.us();
     }
     BM_use(v);
 
-    BM_add(time::mono.ms()) {
-        v = time::mono.ms();
+    BM_add(co::mono_time.ms()) {
+        v = co::mono_time.ms();
     }
     BM_use(v);
 

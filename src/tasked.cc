@@ -56,7 +56,7 @@ void tasked_impl::run_at(closure&& c, int hour, int minute, int second, bool dai
     runtime_assert(0 <= minute && minute <= 59);
     runtime_assert(0 <= second && second <= 59);
 
-    co::string t = time::str("%H%M%S");
+    co::string t = co::now.str("%H%M%S");
     int now_hour = (t[0] - '0') * 10 + (t[1] - '0');
     int now_min  = (t[2] - '0') * 10 + (t[3] - '0');
     int now_sec  = (t[4] - '0') * 10 + (t[5] - '0');
@@ -73,7 +73,7 @@ void tasked_impl::run_at(closure&& c, int hour, int minute, int second, bool dai
 void tasked_impl::loop() {
     int64 ms = 0;
     int sec = 0;
-    time::timer timer;
+    co::timer timer;
     co::vector<task> tmp;
 
     while (!_stop) {

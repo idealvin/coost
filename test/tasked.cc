@@ -3,15 +3,15 @@
 #include "co/time.h"
 
 void f() {
-    co::println("f(): ", time::str());
+    co::println("f(): ", co::now.str());
 }
 
 void g() {
-    co::println("g(): ", time::str());
+    co::println("g(): ", co::now.str());
 }
 
 int main(int argc, char** argv) {
-    co::println("now: ", time::str());
+    co::println("now: ", co::now.str());
 
     co::tasked s;
     s.run_in(f, 0);

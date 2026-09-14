@@ -18,7 +18,7 @@ DEF_test(hash) {
         EXPECT_EQ(co::base64_decode("aGVs\nbG8gd29ybGQ="), "");
         EXPECT_EQ(co::base64_decode("aGVs\r\nbG8gd29ybGQ="), "hello world");
 
-        auto s = co::to_string(time::mono.us());
+        auto s = co::to_string(co::mono_time.us());
         EXPECT_EQ(base64_decode(base64_encode(s)), s);
     }
 

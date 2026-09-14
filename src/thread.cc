@@ -110,7 +110,7 @@ struct __cacheline_aligned sync_event_impl {
         _wq.push_back((clink*)&w);
 
         uint32 t = 0;
-        time::timer timer;
+        co::timer timer;
 
         while (true) {
             bool r = cv->wait(_m.native_handle(), ms - t);

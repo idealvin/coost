@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
         // test performance by writting 100W logs
         co::println("print 100W logs, every log is about 50 bytes");
 
-        time::timer t;
+        co::timer t;
         for (int k = 0; k < 1000000; k++) {
             log::info("hello world ", 3);
         }
