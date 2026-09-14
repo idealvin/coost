@@ -54,7 +54,7 @@ struct HelloAgainImpl : HelloAgain {
 } // xx
 
 // proto client
-std::unique_ptr<rpc::client> proto;
+co::unique<rpc::client> proto;
 
 // perform RPC request with rpc::Client
 void test_rpc_client() {
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
     flag::set_value("rpc_log", "true");
 
     // initialize the proto client, other client can simply copy from it.
-    proto.reset(new rpc::client(FLG_serv_ip.c_str(), FLG_serv_port));
+    proto = co::make_unique<rpc::client>(FLG_serv_ip.c_str(), FLG_serv_port);
 
     co::unique<co::rpc_server> s;
     if (!FLG_c) {

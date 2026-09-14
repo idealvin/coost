@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.15)
 
 if(POLICY CMP0090)
     cmake_policy(SET CMP0090 NEW)
@@ -30,7 +30,10 @@ option(FPIC "build with -fPIC" OFF)
 option(BUILD_ALL "Build all projects" OFF)
 
 if(MSVC)
-    add_compile_options(/fp:fast /EHsc)
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C,CXX>:/fp:fast>
+        $<$<COMPILE_LANGUAGE:C,CXX>:/EHsc>
+    )
     add_link_options(/SAFESEH:NO)
     if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
         string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
