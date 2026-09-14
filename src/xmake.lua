@@ -3,6 +3,10 @@ target("libco")
     set_basename("co")
     add_files("**.cc")
 
+    if not is_plat("windows") then
+        add_options("fpic")
+    end
+
     add_options("debug_coroutine")
     if has_config("debug_coroutine") then
         add_defines("CO_DEBUG_COROUTINE")

@@ -36,6 +36,14 @@ option("debug_coroutine")
     set_description("print debug log for coroutine schedulers")
 option_end()
 
+-- build with -fPIC
+option("fpic")
+    set_default(false)
+    set_showmenu(true)
+    set_description("build with -fPIC")
+    add_cxflags("-fPIC")
+option_end()
+
 -- include dir
 add_includedirs("include")
 if is_plat("macosx") then
