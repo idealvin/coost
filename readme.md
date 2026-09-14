@@ -1,11 +1,11 @@
 # coost
 
 English | [简体中文](readme_cn.md)  
-[![Linux](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
-[![Mac](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
-[![Windows](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
-[![Windows-arm64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win_arm64.yml?branch=master)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows-arm64)
-[![FreeBSD](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)
+[![Linux](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&label=Linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
+[![Mac](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&label=Mac)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Windows](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&label=Windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![Windows-arm64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win_arm64.yml?branch=master&label=Windows-arm64)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows-arm64)
+[![FreeBSD](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master&label=FreeBSD)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
