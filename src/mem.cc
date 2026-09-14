@@ -49,6 +49,11 @@ inline void* _vm_alloc(size_t n) {
     return p != MAP_FAILED ? p : NULL;
 }
 
+// freebsd has no MAP_NORESERVE, define it as 0
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
+
 inline void* _vm_reserve(size_t n) {
     void* const p = ::mmap(
         NULL, n, PROT_READ | PROT_WRITE,
