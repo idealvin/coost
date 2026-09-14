@@ -2,6 +2,7 @@
 #include "co/align.h"
 #include "co/clist.h"
 #include "bitops.h"
+#include <stdlib.h>
 #include <cstddef>
 #include <mutex>
 
