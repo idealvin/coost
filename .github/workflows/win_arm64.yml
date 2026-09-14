@@ -30,3 +30,4 @@ jobs:
         run: |
           cd cmakebuild\bin\Release
           .\unitest.exe
+          .\co.exe

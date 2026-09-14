@@ -1,11 +1,10 @@
 # coost
 
-[English](readme.md) | 简体中文
+[English](readme.md) | 简体中文  
 [![Linux Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
-[![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
-[![FreeBSD Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master&logo=freebsd)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)
-[![Windows ARM64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win_arm64.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindowsARM64)
 [![Mac Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
+[![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![FreeBSD Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master&logo=freebsd)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)  
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -28,7 +27,7 @@ coost 简称为 co，网上有人称之为C++中的瑞士军刀，也曾被称�
 coost 持续维护需要成本。如果它帮到了您，欢迎赞助；如果您需要定制开发、架构适配（Windows ARM64 / RISC-V / MIPS）、协程 hook、性能优化等深度支持，作者也提供如下付费服务，包括但不限于：
 - coost 定制功能开发；
 - coost 使用培训；
-- coost 适配适配 Windows ARM64、RISC-V、MIPS 等架构；
+- coost 适配 Windows ARM64、RISC-V、MIPS 等架构；
 - 针对特定平台的协程 hook 功能，以支持在协程中直接使用三方网络库；
 - 技术咨询与技术培训；
 - 性能优化；
@@ -134,7 +133,7 @@ int main(int argc, char** argv) {
 ```sh
 xmake b unitest
 xmake r unitest      # 运行所有单元测试用例
-xmake r unitest -os  # 仅运行 os 单元中的测试用例, os 即测试单元名
+xmake r unitest -os  # 仅运行 os 单元中的测试用例, os 即单元测试名
 ```
 
 
@@ -222,7 +221,7 @@ int main(int argc, char** argv) {
 
 coost 提供了一套基于协程的网络编程框架:
 
-- **[协程化的 socket API](https://coostdocs.github.io/cn/co/net/sock/)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
+- **[协程化的 socket API](https://coostdocs.github.io/cn/co/net/sock/)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松用同步方式写出高性能的网络程序。
 - [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[RPC](https://coostdocs.github.io/cn/co/net/rpc/) 等高层网络编程组件，兼容 IPv6，用起来比 socket API 更方便。
 
 

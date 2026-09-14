@@ -28,5 +28,5 @@ jobs:
       - name: Tests
         run: |
           xmake -a
-          xmake -b unitest
-          xmake r unitest -co_sched_num=4
+          xmake r unitest
+          xmake r co

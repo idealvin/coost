@@ -28,3 +28,4 @@ jobs:
             cmake .. -DBUILD_ALL=ON
             make -j8
             ./bin/unitest
+            ./bin/co
