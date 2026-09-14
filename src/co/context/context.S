@@ -16,9 +16,20 @@ extern "C" {
 #elif defined(ARCH_ARM)
   #include "prefix_arm.S"
   #include "context_arm.S"
+#elif defined(ARCH_MIPS64)
+  #error "context not implemented on this architecture"
+  #include "prefix_mips.S"
+  #include "context_mips64.S"
 #elif defined(ARCH_MIPS)
   #include "prefix_mips.S"
   #include "context_mips.S"
+#elif defined(ARCH_RISCV64)
+  #error "context not implemented on this architecture"
+  #include "context_riscv64.S"
+#elif defined(ARCH_RISCV)
+  #include "context_riscv.S"
+#else
+  #error "context not implemented on this architecture"
 #endif
 
 #ifdef __cplusplus

@@ -1,191 +1,216 @@
 #include "co/unitest.h"
+#include "co/align.h"
+#include "co/clist.h"
 #include "co/mem.h"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifdef _MSC_VER
+#pragma warning (disable:4200)
+#endif
 #include <windows.h>
 #include <intrin.h>
 #endif
 
-
-namespace test {
-namespace mem {
-
 #ifdef _WIN32
-#if __arch64
-inline int _find_msb(size_t x) { /* x != 0 */
-    unsigned long i;
-    _BitScanReverse64(&i, x);
-    return (int)i;
+inline int _find_msb(size_t x) {
+    unsigned long r;
+    _BitScanReverse64(&r, x);
+    return (int)r;
 }
 
-inline uint32 _find_lsb(size_t x) { /* x != 0 */
+inline uint32 _find_lsb(size_t x) {
     unsigned long r;
-    _BitScanForward64(&r, x);
+    _BitScanForward64(&r, x); // x != 0
     return r;
 }
 
 #else
-inline int _find_msb(size_t x) { /* x != 0 */
-    unsigned long i;
-    _BitScanReverse(&i, x);
-    return (int)i;
+inline int _find_msb(size_t x) {
+    return 63 - __builtin_clzll(x); // x != 0
 }
 
-inline uint32 _find_lsb(size_t x) { /* x != 0 */
-    unsigned long r;
-    _BitScanForward(&r, x);
-    return r;
-}
-#endif
-
-inline uint32 _pow2_align(uint32 n) {
-    unsigned long r;
-    _BitScanReverse(&r, n - 1);
-    return 2u << r;
-}
-
-#else
-#if __arch64
-inline int _find_msb(size_t x) { /* x != 0 */
-    return 63 - __builtin_clzll(x);
-}
-
-inline uint32 _find_lsb(size_t x) { /* x != 0 */
+inline uint32 _find_lsb(size_t x) {
     return __builtin_ffsll(x) - 1;
 }
-
-#else
-inline int _find_msb(size_t v) { /* x != 0 */
-    return 31 - __builtin_clz(v);
-}
-
-inline uint32 _find_lsb(size_t x) { /* x != 0 */
-    return __builtin_ffs(x) - 1;
-}
 #endif
 
-inline uint32 _pow2_align(uint32 n) {
-    return 1u << (32 - __builtin_clz(n - 1));
-}
 
-#endif
+namespace test {
 
-class MemBlocks {
-  public:
-    explicit MemBlocks(uint32 blk_size)
-        : _m(0), _p(0), _blk_size(blk_size) {
-    }
+struct Destruct {
+    using _D = co::_D;
+    struct _Memb : co::clink {
+        _D p[];
+    };
 
-    ~MemBlocks() {
-        if (_u) {
-            for (uint32 i = 0; i < _u[-2]; ++i) ::free(_m[i]);
-            ::free(_u - 2);
+    static_assert(alignof(_D) == sizeof(void*), "");
+    static const size_t BLK_SIZE = 8192;
+    static const size_t MAX_POS = (BLK_SIZE - sizeof(_Memb)) / (sizeof(_D));
+
+    Destruct() : _h(0), _pos(0) {}
+    ~Destruct() {
+        _Memb* const h = _h;
+        for (_Memb* b = h; b; b = (_Memb*)b->next) {
+            _D* const d = b->p;
+            const size_t n = (b != h ? MAX_POS : _pos);
+            for (size_t x = n; x > 0; --x) d[x - 1]();
         }
     }
 
-    void* alloc(uint32 n, uint32 align=sizeof(void*));
-    uint32 size() const { return _u ? _u[-2] : 0; }
-    uint32 blk_size() const { return _blk_size; }
-    uint32 pos() const { return _p; }
+    void add_destructor(_D&& d) {
+        if (!_l.empty() && _pos < MAX_POS) goto _end;
+        _l.push_front((_Memb*)::malloc(BLK_SIZE));
+        _pos = 0;
+    _end:
+        new(_h->p + _pos++) _D(std::forward<_D>(d));
+    }
 
-  private:
     union {
-        char** _m;
-        uint32* _u;
+        _Memb* _h;
+        co::clist _l;
     };
-    uint32 _p;
-    const uint32 _blk_size;
+    size_t _pos;
 };
 
-void* MemBlocks::alloc(uint32 n, uint32 align) {
-    if (unlikely(_m == 0)) {
-        _u = (uint32*)::malloc(sizeof(char*) * 7 + 8) + 2;
-        _m[0] = (char*)::malloc(_blk_size);
-        _u[-1] = 7; // cap
-        _u[-2] = 1; // size
+struct StaticAlloc {
+    struct _Memb : co::clink {
+        size_t blk_size;
+        char p[];
+    };
+    static_assert(alignof(_Memb) == sizeof(void*), "");
+
+    StaticAlloc() : _h(0), _pos(0) {}
+
+    ~StaticAlloc() {
+        _l.for_each([](co::clink* c) { ::free(c); });
+        _l.clear();
     }
 
-    char* x = _m[_u[-2] - 1];
-    char* p = align != sizeof(void*) ? god::align_up(x + _p, align) : x + _p;
-    n = god::align_up(n, align);
-    if (unlikely(p + n > x + _blk_size)) {
-        if (_u[-2] == _u[-1]) {
-            _u = (uint32*)::realloc(_u - 2, sizeof(char*) * _u[-1] * 2 + 8) + 2;
-            _u[-1] *= 2;
-        }
-        x = (char*)::malloc(_blk_size);
-        _m[_u[-2]] = x;
-        _u[-2] += 1;
-        _p = 0;
-        p = align != sizeof(void*) ? god::align_up(x, align) : x;
+    void* alloc(size_t n, size_t align);
+
+    union {
+        _Memb* _h;
+        co::clist _l;
+    };
+    size_t _pos;
+};
+
+void* StaticAlloc::alloc(size_t n, size_t align) {
+    if (align < sizeof(void*)) align = sizeof(void*);
+    n = co::align_up(n, align);
+
+    if (_l.empty()) goto new_block;
+    {
+        char* p = _h->p + _pos;
+        if (align != sizeof(void*)) p = co::align_up(p, align);
+        if ((char*)_h + _h->blk_size < p + n) goto new_block;
+        _pos = (size_t)(p - _h->p + n);
+        return p;
     }
 
-    _p = god::cast<uint32>(p - x) + n;
-    return p;
+new_block:
+    if (n <= 8192) {
+        const size_t blk_size = n <= 4096 ? 8192 : 16 * 1024;
+        _Memb* m = (_Memb*) ::malloc(blk_size);
+        runtime_assert(m);
+        _l.push_front(m);
+        m->blk_size = blk_size;
+        char* p = align != sizeof(void*) ? co::align_up(m->p, align) : m->p;
+        _pos = (size_t)(p - _h->p + n);
+        return p;
+    }
+
+    {
+        const size_t blk_size = n + align + sizeof(_Memb);
+        _Memb* m = (_Memb*) ::malloc(blk_size);
+        runtime_assert(m);
+        _l.push_back(m);
+        m->blk_size = blk_size;
+        _pos = n + align;
+        return align != sizeof(void*) ? co::align_up(m->p, align) : m->p;
+    }
 }
 
-} // mem
+static int g_mem_v = 0;
+
+struct M {
+    M() = default;
+    ~M() { ++g_mem_v; }
+};
+
+struct K {
+    K() = default;
+    ~K() { g_mem_v = 123; }
+};
 
 DEF_test(mem) {
     DEF_case(bitops) {
-        EXPECT_EQ(mem::_find_lsb(1), 0);
-        EXPECT_EQ(mem::_find_lsb(12), 2);
-        EXPECT_EQ(mem::_find_lsb(3u << 20), 20);
-      #if __arch64
-        EXPECT_EQ(mem::_find_msb(1), 0);
-        EXPECT_EQ(mem::_find_msb(12), 3);
-        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
-        EXPECT_EQ(mem::_find_msb(1ull << 63), 63);
-        EXPECT_EQ(mem::_find_msb(~0ull), 63);
-        EXPECT_EQ(mem::_find_lsb(~0ull), 0);
-      #else
-        EXPECT_EQ(mem::_find_msb(1), 0);
-        EXPECT_EQ(mem::_find_msb(12), 3);
-        EXPECT_EQ(mem::_find_msb(3u << 20), 21);
-        EXPECT_EQ(mem::_find_msb(1ull << 31), 31);
-        EXPECT_EQ(mem::_find_msb(~0u), 31);
-        EXPECT_EQ(mem::_find_lsb(~0u), 0);
-      #endif
+        EXPECT_EQ(_find_lsb(1), 0);
+        EXPECT_EQ(_find_lsb(12), 2);
+        EXPECT_EQ(_find_lsb(3u << 20), 20);
+        EXPECT_EQ(_find_msb(1), 0);
+        EXPECT_EQ(_find_msb(12), 3);
+        EXPECT_EQ(_find_msb(3u << 20), 21);
+        EXPECT_EQ(_find_msb(1ull << 63), 63);
+        EXPECT_EQ(_find_msb(~0ull), 63);
+        EXPECT_EQ(_find_lsb(~0ull), 0);
     }
 
-    DEF_case(mb) {
-        mem::MemBlocks mb(8 * 1024);
-        char* p = (char*) mb.alloc(15);
-        EXPECT(p);
-        EXPECT_EQ(mb.pos(), 16);
+    DEF_case(StaticAlloc) {
+        StaticAlloc m;
+        char* p = (char*) m.alloc(15, 8);
+        EXPECT(p == m._h->p);
+        EXPECT_EQ(m._pos, 16);
 
-        char* q = (char*) mb.alloc(63, 64);
+        char* q = (char*) m.alloc(63, 64);
         EXPECT_EQ((size_t)q & 63, 0);
-        EXPECT_EQ(mb.pos(), god::cast<uint32>(q - p) + 64);
+        EXPECT_EQ(m._pos, static_cast<uint32>(q - p) + 64);
 
-        char* r = (char*) mb.alloc(63, 64);
+        char* r = (char*) m.alloc(63, 64);
         EXPECT(((size_t)r & 63) == 0);
         EXPECT(r == q + 64);
 
-        q = (char*) mb.alloc(31);
+        q = (char*) m.alloc(31, 8);
         EXPECT(q == r + 64);
 
-        r = (char*) mb.alloc(63, 64);
+        r = (char*) m.alloc(63, 64);
         EXPECT(r == q + 64);
 
-        uint32 x = god::cast<uint32>(r - p) + 64;
-        uint32 k = mb.blk_size() - x;
-        if ((k & 63) == 0) {
-            q = (char*) mb.alloc(k, 64);
-            EXPECT(q == r + 64);
-            EXPECT(p + mb.blk_size() == q + k);
-            EXPECT_EQ(mb.size(), 1);
-        } else {
-            q = (char*) mb.alloc(k, 64);
-            EXPECT(p + mb.blk_size() != q + k);
-            EXPECT_EQ(mb.size(), 2);
-        }
+        uint32 x = static_cast<uint32>(r - p) + 64;
+        EXPECT_EQ(x, m._pos);
 
-        q = (char*) mb.alloc(63, 64);
-        EXPECT(q < p || q >= p + mb.blk_size());
+        uint32 k = (uint32)(m._h->blk_size - x - sizeof(StaticAlloc::_Memb));
+        q = (char*) m.alloc(k, 8);
+        EXPECT(q == r + 64);
+        EXPECT((char*)m._h + m._h->blk_size == q + k);
+        EXPECT(m._h && !m._h->next);
+
+        q = (char*) m.alloc(63, 64);
+        EXPECT(m._h && m._h->next && !m._h->next->next);
+        EXPECT(q < p || q >= (p + m._h->blk_size - sizeof(StaticAlloc::_Memb)));
+    }
+
+    DEF_case(Destruct) {
+        M m;
+        K k;
+        {
+            Destruct da;
+            da.add_destructor(co::_D(&m));
+            da.add_destructor(co::_D(&m));
+            EXPECT(da._h && !da._h->next);
+
+            for (int i = 0; i < 8192 / sizeof(co::_D); ++i) {
+                da.add_destructor(co::_D(&m));
+            }
+            EXPECT(da._h && da._h->next && !da._h->next->next);
+
+            da.add_destructor(co::_D(&k));
+        }
+        EXPECT_NE(g_mem_v, 123);
+        EXPECT_EQ(g_mem_v, 8192 / sizeof(co::_D) + 2 + 123);
     }
 
     DEF_case(small) {
@@ -218,22 +243,22 @@ DEF_test(mem) {
 
         void* b = co::alloc(31, 64);
         EXPECT(((size_t)b & 63) == 0);
-        EXPECT_EQ(god::align_up((size_t)p + 32, 64), (size_t)b);
+        EXPECT_EQ(co::align_up((size_t)p + 32, 64), (size_t)b);
 
         void* c = co::alloc(223, 128);
         EXPECT(((size_t)c & 127) == 0);
 
-        void* d = co::alloc(31, 1024);
-        EXPECT(((size_t)d & 1023) == 0);
+        void* d = co::alloc(31, 256);
+        EXPECT(((size_t)d & 255) == 0);
 
         co::free(d, 31);
         co::free(c, 223);
         co::free(b, 31);
         co::free(p, 15);
 
-        int* v = co::make<int>(7);
+        int* v = co::_new<int>(7);
         EXPECT_EQ(*v, 7);
-        co::del(v);
+        co::_delete(v);
     }
 
     DEF_case(realloc) {

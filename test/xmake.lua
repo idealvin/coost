@@ -14,8 +14,13 @@ for _, test in ipairs(all_tests()) do
 target(test[1])
     if test[1] == "stack" then
         set_symbols("debug")    -- dbg symbols
-        set_strip("none")
         set_optimize("none")
+        if is_plat("macosx") then
+            after_build(function (target)
+                local binary = target:targetfile()
+                os.execv("dsymutil", {binary, "-o", binary .. ".dSYM"})
+            end)
+        end
     end
     set_kind("binary")
     set_default(false)

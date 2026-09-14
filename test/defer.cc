@@ -1,22 +1,22 @@
 #include "co/defer.h"
-#include "co/cout.h"
+#include "co/print.h"
 #include "co/time.h"
 
 void f(int sn, int x, int y) {
-    co::print(sn, ": ", x + y);
+    co::println(sn, ": ", x + y);
 }
 
 void f() {
-    co::Timer t;
+    time::timer t;
     defer(
-        co::print("time elapse: ", t.us(), "us")
+        co::println("time elapse: ", t.us(), "us")
     );
-    co::print("hello f()");
+    co::println("hello f()");
 }
 
 int main(int argc, char** argv) {
-    defer(co::print("hello world"));
-    defer(co::print("hello again"));
+    defer(co::println("hello world"));
+    defer(co::println("hello again"));
     defer(
         f(1, 1, 1);
         f(2, 1, 3);

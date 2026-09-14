@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fastring.h"
+#include "string.h"
 
 // This library is ported from golang's path package.
 // Assume the path separator is '/'.
@@ -13,38 +13,38 @@ namespace path {
 //   - path::clean("./x/../..");  ->  ".."
 //   - path::clean("/x/../..");   ->  "/"
 //   - path::clean("x//y//z");    ->  "x/y/z"
-__coapi fastring clean(const char* s, size_t n);
+co::string clean(const char* s, size_t n);
 
-inline fastring clean(const char* s) {
+inline co::string clean(const char* s) {
     return clean(s, strlen(s));
 }
 
-inline fastring clean(const fastring& s) {
+inline co::string clean(const co::string& s) {
     return clean(s.data(), s.size());
 }
 
 namespace xx {
-inline void join(fastring&) {}
+inline void join(co::string&) {}
 
-template<typename S, typename ...X>
-inline void join(fastring& f, S&& s, X&&... x) {
-    const size_t n = f.size();
-    f << std::forward<S>(s);
-    if (f.size() != n) f << '/';
-    join(f, std::forward<X>(x)...);
+template<typename V, typename ...X>
+inline void join(co::string& s, V&& v, X&&... x) {
+    const size_t n = s.size();
+    s << std::forward<V>(v);
+    if (s.size() != n) s << '/';
+    join(s, std::forward<X>(x)...);
 }
 } // namespace xx
 
-// Join any number of path elements into a single path. The result is cleaned. 
+// Join any number of path elements into a single path. The result is cleaned.
 // All empty elements are ignored.
 //   - path::json("", "");      ->  ""
 //   - path::json("/x", "y");   ->  "/x/y"
 //   - path::json("/x/", "y");  ->  "/x/y"
-template<typename ...S>
-inline fastring join(S&&... s) {
-    fastring v(64);
-    xx::join(v, std::forward<S>(s)...);
-    return !v.empty() ? clean(v) : v;
+template<typename ...X>
+inline co::string join(X&&... x) {
+    co::string s(64);
+    xx::join(s, std::forward<X>(x)...);
+    return !s.empty() ? clean(s) : s;
 }
 
 // Split path by the final slash, separating it into a dir and file name.
@@ -52,13 +52,13 @@ inline fastring join(S&&... s) {
 // The returned values have the property that path = dir+file.
 //   - path::split("/a/");   ->  <"/a/", "">
 //   - path::split("/a/b");  ->  <"/a/", "b">
-__coapi std::pair<fastring, fastring> split(const char* s, size_t n);
+std::pair<co::string, co::string> split(const char* s, size_t n);
 
-inline std::pair<fastring, fastring> split(const char* s) {
+inline std::pair<co::string, co::string> split(const char* s) {
     return split(s, strlen(s));
 }
 
-inline std::pair<fastring, fastring> split(const fastring& s) {
+inline std::pair<co::string, co::string> split(const co::string& s) {
     return split(s.data(), s.size());
 };
 
@@ -68,13 +68,13 @@ inline std::pair<fastring, fastring> split(const fastring& s) {
 //   - path::dir("a");    -> "."
 //   - path::dir("/a");   -> "/"
 //   - path::dir("/a/");  -> "/a"
-__coapi fastring dir(const char* s, size_t n);
+co::string dir(const char* s, size_t n);
 
-inline fastring dir(const char* s) {
+inline co::string dir(const char* s) {
     return dir(s, strlen(s));
 }
 
-inline fastring dir(const fastring& s) {
+inline co::string dir(const co::string& s) {
     return dir(s.data(), s.size());
 }
 
@@ -86,13 +86,13 @@ inline fastring dir(const fastring& s) {
 //   - path::base("");       ->  "."
 //   - path::base("/a/b");   ->  "b"
 //   - path::base("/a/b/");  ->  "b"
-__coapi fastring base(const char* s, size_t n);
+co::string base(const char* s, size_t n);
 
-inline fastring base(const char* s) {
+inline co::string base(const char* s) {
     return base(s, strlen(s));
 }
 
-inline fastring base(const fastring& s) {
+inline co::string base(const co::string& s) {
     return base(s.data(), s.size());
 }
 
@@ -101,13 +101,13 @@ inline fastring base(const fastring& s) {
 //   - path::ext("a/b")    ->  ""
 //   - path::ext("/b.c/")  ->  ""
 //   - path::ext("a.")     ->  "."
-__coapi fastring ext(const char* s, size_t n);
+co::string ext(const char* s, size_t n);
 
-inline fastring ext(const char* s) {
+inline co::string ext(const char* s) {
     return ext(s, strlen(s));
 }
 
-inline fastring ext(const fastring& s) {
+inline co::string ext(const co::string& s) {
     return ext(s.data(), s.size());
 }
 

@@ -1,26 +1,25 @@
 ﻿#include "co/unitest.h"
 #include "co/json.h"
-#include "co/str.h"
 
 namespace test {
 
 DEF_test(json) {
     DEF_case(null) {
-        co::Json n;
+        json::any n;
         EXPECT(n.is_null());
         EXPECT_EQ(n.str(), "null");
         EXPECT_EQ(n.pretty(), "null");
         EXPECT_EQ(n.as_bool(), false);
         EXPECT_EQ(n.as_int(), 0);
         EXPECT_EQ(n.as_double(), 0);
-        EXPECT_EQ(n.as_string(), "null");
+        EXPECT_EQ(n.as_string(), "");
         EXPECT_EQ(n.string_size(), 0);
         EXPECT_EQ(n.array_size(), 0);
         EXPECT_EQ(n.object_size(), 0);
     }
 
     DEF_case(bool) {
-        co::Json b = true;
+        json::any b = true;
         EXPECT(b.is_bool());
         EXPECT(b == true);
         EXPECT(b != false);
@@ -44,7 +43,7 @@ DEF_test(json) {
     }
 
     DEF_case(int) {
-        co::Json i = 0;
+        json::any i = 0;
         EXPECT(i.is_int());
         EXPECT(i == 0);
         EXPECT(i != 1);
@@ -63,7 +62,7 @@ DEF_test(json) {
         EXPECT_EQ(i.str(), "123");
         EXPECT_EQ(i.pretty(), "123");
 
-        co::Json x = (int64)12345;
+        json::any x = (int64)12345;
         EXPECT(x.is_int());
         EXPECT(x == (int64)12345);
         EXPECT_EQ(x.as_int64(), 12345);
@@ -76,7 +75,7 @@ DEF_test(json) {
     }
 
     DEF_case(double) {
-        co::Json d = 3.14;
+        json::any d = 3.14;
         EXPECT(d.is_double());
         EXPECT(d == 3.14);
         EXPECT_EQ(d.as_double(), 3.14);
@@ -98,27 +97,27 @@ DEF_test(json) {
     }
 
     DEF_case(string) {
-        co::Json s = "hello world";
+        json::any s = "hello world";
         EXPECT(s.is_string());
         EXPECT(s == "hello world");
-        EXPECT(s == fastring("hello world"));
+        EXPECT(s == co::string("hello world"));
         EXPECT_EQ(s.size(), 11);
         EXPECT_EQ(s.string_size(), 11);
         EXPECT_EQ(s.as_string(), "hello world");
         EXPECT_EQ(s.str(), "\"hello world\"");
         EXPECT_EQ(s.pretty(), "\"hello world\"");
 
-        s = fastring(30, 'x').append('\n').append(500, 'x');
+        s = co::string(30, 'x').append('\n').append(500, 'x');
         EXPECT(s.is_string());
         EXPECT_EQ(s.size(), 531);
-        EXPECT_EQ(s.str(), fastring("\"").append(30, 'x').append("\\n").append(500, 'x').append('"'));
-        EXPECT_EQ(s.dbg(), fastring("\"").append(30, 'x').append("\\n").append(1, 'x').append(3, '.').append('"'));
+        EXPECT_EQ(s.str(), co::string("\"").append(30, 'x').append("\\n").append(500, 'x').append('"'));
+        EXPECT_EQ(s.dbg(), co::string("\"").append(30, 'x').append("\\n").append(1, 'x').append(3, '.').append('"'));
 
-        s = fastring(600, 'x');
-        EXPECT_EQ(s.str(), fastring("\"").append(600, 'x').append('"'));
-        EXPECT_EQ(s.dbg(), fastring("\"").append(32, 'x').append(3, '.').append('"'));
+        s = co::string(600, 'x');
+        EXPECT_EQ(s.str(), co::string("\"").append(600, 'x').append('"'));
+        EXPECT_EQ(s.dbg(), co::string("\"").append(32, 'x').append(3, '.').append('"'));
 
-        s = fastring("hello world");
+        s = co::string("hello world");
         EXPECT(s.is_string());
         EXPECT_EQ(s.size(), 11);
         EXPECT_EQ(s.str(), "\"hello world\"");
@@ -140,7 +139,7 @@ DEF_test(json) {
     }
 
     DEF_case(operator=) {
-        co::Json s = "hello world";
+        json::any s = "hello world";
         EXPECT(s.is_string());
         
         s = 1;
@@ -161,17 +160,17 @@ DEF_test(json) {
     }
 
     DEF_case(copy) {
-        co::Json x = 1;
-        co::Json y = x;
+        json::any x = 1;
+        json::any y = x;
         EXPECT(x.is_null());
         EXPECT_EQ(y.as_int(), 1);
 
-        co::Json o;
+        json::any o;
         o.add_member("y", y);
         EXPECT(y.is_null());
         EXPECT_EQ(o["y"].as_int(), 1);
 
-        co::Json a;
+        json::any a;
         a.push_back(o);
         EXPECT(o.is_null());
         EXPECT_EQ(a[0]["y"].as_int(), 1);
@@ -182,11 +181,11 @@ DEF_test(json) {
     }
 
     DEF_case(initializer_list) {
-        co::Json a = { 1, 2, 3 };
+        json::any a = { 1, 2, 3 };
         EXPECT(a.is_array());
         EXPECT_EQ(a.size(), 3);
 
-        co::Json o = {
+        json::any o = {
             { "x", 3 },
             { "y", 7 },
             { "z", { 1, 2, 3 } },
@@ -210,28 +209,28 @@ DEF_test(json) {
     }
  
     DEF_case(dup) {
-        co::Json x = {
+        json::any x = {
             1, "xxx", 3.14
         };
-        co::Json y = x.dup();
+        json::any y = x.dup();
 
         EXPECT(!x.is_null());
         EXPECT(!y.is_null());
         EXPECT_EQ(x.str(), y.str());
 
-        co::Json o = {
+        json::any o = {
             { "x", 3 },
             { "y", "888" },
             { "z", { 1, 2, 3 } },
         };
 
-        co::Json v = o.dup();
+        json::any v = o.dup();
         EXPECT(!o.is_null());
         EXPECT_EQ(o.str(), v.str());
     }
    
     DEF_case(array) {
-        co::Json a = json::array();
+        json::any a = json::array();
         EXPECT(a.is_array());
         EXPECT_EQ(a.str(), "[]");
         EXPECT_EQ(a.pretty(), "[]");
@@ -241,7 +240,7 @@ DEF_test(json) {
         EXPECT_EQ(a[0].as_int(), 0);
         EXPECT_EQ(a[9].as_int(), 9);
 
-        co::Json v;
+        json::any v;
         v.push_back(1);
         v.push_back("hello");
         v.push_back(1.23);
@@ -256,12 +255,12 @@ DEF_test(json) {
     }
 
     DEF_case(object) {
-        co::Json o = json::object();
+        json::any o = json::object();
         EXPECT(o.is_object());
         EXPECT_EQ(o.str(), "{}");
         EXPECT_EQ(o.pretty(), "{}");
 
-        co::Json v;
+        json::any v;
         v.add_member("name", "vin");
         v.add_member("age", 29);
         v.add_member("phone", "1234567");
@@ -271,13 +270,13 @@ DEF_test(json) {
         EXPECT_EQ(v["name"].as_string(), "vin");
         EXPECT_EQ(v["age"].as_int(), 29);
 
-        co::Json u = json::parse(v.str());
+        json::any u = json::parse(v.str());
         EXPECT(u.is_object());
         EXPECT_EQ(u.size(), 3);
         EXPECT_EQ(u["name"].as_string(), "vin");
         EXPECT_EQ(u["age"].as_int(), 29);
 
-        co::Json x = json::parse(v.pretty());
+        json::any x = json::parse(v.pretty());
         EXPECT(x.is_object());
         EXPECT_EQ(x.size(), 3);
         EXPECT_EQ(x["name"].as_string(), "vin");
@@ -297,7 +296,7 @@ DEF_test(json) {
         EXPECT_EQ(o.object_size(), 10);
         EXPECT_EQ(o["9"].as_int(), 9);
 
-        co::Json a = { 1, 2, 3 };
+        json::any a = { 1, 2, 3 };
         o.add_member("a", a);
         EXPECT(o["a"].is_array());
         EXPECT_EQ(o["a"][0].as_int(), 1);
@@ -309,7 +308,7 @@ DEF_test(json) {
     }
 
     DEF_case(has_member) {
-        co::Json v;
+        json::any v;
         v.add_member("apple", "666");
         EXPECT(v.has_member("apple"));
         EXPECT(!v.has_member("666"));
@@ -317,7 +316,15 @@ DEF_test(json) {
     }
 
     DEF_case(get) {
-        co::Json o = {
+        json::any x;
+        EXPECT(x.get(0).is_null());
+        EXPECT(x.get("xx").is_null());
+
+        json::any v = json::array();
+        EXPECT(x.get(0).is_null());
+        EXPECT(x.get("xx").is_null());
+
+        json::any o = {
             { "x", 3 },
             { "y", 7 },
             { "z", { 1, 2, 3 } },
@@ -335,9 +342,9 @@ DEF_test(json) {
 
     DEF_case(set) {
         // {"a":1,"b":[0,1,2],"c":{"d":["oo"]}}
-        co::Json x;
+        json::any x;
         x.set("a", 1);
-        x.set("b", co::Json({ 0,1,2 }));
+        x.set("b", json::any({ 0,1,2 }));
         x.set("c", "d", 0, "oo");
         EXPECT_EQ(x.get("a").as_int(), 1);
         EXPECT_EQ(x.get("b", 0).as_int(), 0);
@@ -359,10 +366,17 @@ DEF_test(json) {
         x.set("a", 3, 88);
         EXPECT(x.get("a", 2).is_null());
         EXPECT_EQ(x.get("a", 3).as_int(), 88);
+
+        json::any v = json::array();
+        v.set(1, "hello");
+        EXPECT_EQ(v.size(), 2);
+        EXPECT(v.get(0).is_null());
+        EXPECT(v.get(1).is_string());
+        EXPECT_EQ(v.get(1).as_string(), "hello");
     }
 
     DEF_case(remove) {
-        co::Json x = {
+        json::any x = {
             { "a", 1 },
             { "b", 2 },
             { "c", {1,2,3} },
@@ -390,7 +404,7 @@ DEF_test(json) {
     }
 
     DEF_case(erase) {
-        co::Json x = {
+        json::any x = {
             { "a", 1 },
             { "b", 2 },
             { "c", {1,2,3} },
@@ -418,7 +432,7 @@ DEF_test(json) {
     }
 
     DEF_case(iterator) {
-        co::Json v;
+        json::any v;
         EXPECT(v.begin() == v.end());
         v = 3;
         EXPECT(v.begin() == v.end());
@@ -429,7 +443,7 @@ DEF_test(json) {
         v = "hello";
         EXPECT(v.begin() == v.end());
 
-        co::Json a;
+        json::any a;
         a.push_back(1);
         a.push_back(2);
         a.push_back(3);
@@ -445,13 +459,13 @@ DEF_test(json) {
     }
 
     DEF_case(parse_null) {
-        co::Json v;
+        json::any v;
         EXPECT(v.parse_from("null"));
         EXPECT(v.is_null());
     }
 
     DEF_case(parse_bool) {
-        co::Json v = json::parse("false");
+        json::any v = json::parse("false");
         EXPECT(v.is_bool());
         EXPECT_EQ(v.as_bool(), false);
 
@@ -461,26 +475,26 @@ DEF_test(json) {
     }
 
     DEF_case(parse_int) {
-        co::Json v = json::parse("32");
+        json::any v = json::parse("32");
         EXPECT(v.is_int());
         EXPECT_EQ(v.as_int(), 32);
 
         v = json::parse("-32");
         EXPECT_EQ(v.as_int(), -32);
 
-        v = json::parse(str::from(MAX_UINT64));
+        v = json::parse(co::to_string(co::max_uint64));
         EXPECT(v.is_int());
-        EXPECT_EQ(v.as_int64(), MAX_UINT64);
+        EXPECT_EQ(v.as_int64(), co::max_uint64);
 
-        v = json::parse(str::from(MIN_INT64));
+        v = json::parse(co::to_string(co::min_int64));
         EXPECT(v.is_int());
-        EXPECT_EQ(v.as_int64(), MIN_INT64);
+        EXPECT_EQ(v.as_int64(), co::min_int64);
 
-        EXPECT_EQ(json::parse("18446744073709551614").as_int64(), MAX_UINT64 - 1);
+        EXPECT_EQ(json::parse("18446744073709551614").as_int64(), co::max_uint64 - 1);
         EXPECT_EQ(json::parse("1844674407370955161").as_int64(), 1844674407370955161ULL);
-        EXPECT_EQ(json::parse("-9223372036854775807").as_int64(), MIN_INT64 + 1);
+        EXPECT_EQ(json::parse("-9223372036854775807").as_int64(), co::min_int64 + 1);
 
-        fastring s("12345678901234567890888");
+        co::string s("12345678901234567890888");
         s.resize(3);
         EXPECT_EQ(json::parse(s).as_int(), 123);
 
@@ -491,7 +505,7 @@ DEF_test(json) {
     }
 
     DEF_case(parse_double) {
-        co::Json v = json::parse("0.3");
+        json::any v = json::parse("0.3");
         EXPECT(v.is_double());
         EXPECT_EQ(v.as_double(), 0.3);
 
@@ -509,7 +523,7 @@ DEF_test(json) {
         EXPECT(json::parse("18446744073709551616").is_double()); // MAX_UINT64 + 1
         EXPECT(json::parse("-9223372036854775809").is_double()); // MIN_INT64 - 1
 
-        fastring s("1234.567");
+        co::string s("1234.567");
         s.resize(6);
         EXPECT_EQ(json::parse(s).as_double(), 1234.5);
 
@@ -529,7 +543,7 @@ DEF_test(json) {
     }
 
     DEF_case(parse_string) {
-        co::Json v = json::parse("\"\"");
+        json::any v = json::parse("\"\"");
         EXPECT(v.is_string());
         EXPECT_EQ(v.str(), "\"\"");
 
@@ -537,13 +551,13 @@ DEF_test(json) {
         EXPECT(v.is_string());
         EXPECT_EQ(v.str(), "\"hello world\"");
 
-        v = json::parse(fastring().append('"').append(300, 'x').append('"'));
+        v = json::parse(co::string().append('"').append(300, 'x').append('"'));
         EXPECT(v.is_string());
-        EXPECT_EQ(v.str(), fastring().append('"').append(300, 'x').append('"'));
+        EXPECT_EQ(v.str(), co::string().append('"').append(300, 'x').append('"'));
     }
 
     DEF_case(parse_array) {
-        co::Json v = json::parse("[]");
+        json::any v = json::parse("[]");
         EXPECT(v.is_array());
         EXPECT_EQ(v.str(), "[]");
 
@@ -556,13 +570,13 @@ DEF_test(json) {
         EXPECT(v[3].is_array());
         EXPECT_EQ(v[3][0].as_int(), 3);
 
-        fastring s("[]");
+        co::string s("[]");
         s.resize(1);
         EXPECT(json::parse(s).is_null());
     }
 
     DEF_case(parse_object) {
-        co::Json v = json::parse("{}");
+        json::any v = json::parse("{}");
         EXPECT(v.is_object());
         EXPECT_EQ(v.str(), "{}");
 
@@ -580,21 +594,21 @@ DEF_test(json) {
         EXPECT(v.is_object());
         EXPECT(v["key"].is_null());
 
-        fastring ss = "{ \"hello\":23, \"world\": { \"xxx\": 99 } }";
+        co::string ss = "{ \"hello\":23, \"world\": { \"xxx\": 99 } }";
         v = json::parse(ss.data(), ss.size());
         EXPECT(v.is_object());
         EXPECT_EQ(v["hello"].as_int(), 23);
 
-        co::Json& u = v["world"];
+        json::any& u = v["world"];
         EXPECT_EQ(u["xxx"].str(), "99");
 
-        fastring s("{}");
+        co::string s("{}");
         s.resize(1);
         EXPECT(json::parse(s).is_null());
     }
 
     DEF_case(parse_escape) {
-        co::Json v;
+        json::any v;
         v.parse_from("{ \"a\":23, \n \r \t  \"b\":\"str\", \r\n }");
         EXPECT_EQ(v.str(), "{\"a\":23,\"b\":\"str\"}");
 
@@ -608,12 +622,12 @@ DEF_test(json) {
         EXPECT_EQ(v["key"].as_string(), "/\r\n\t\b\f");
 
         v = json::parse("{ \"key\": \"\u4e2d\u56fd\u4eba\" }");
-        fastring s("中国人");
+        co::string s("中国人");
         EXPECT_EQ(v["key"].as_string(), s);
     }
 
     DEF_case(parse_error) {
-        co::Json v;
+        json::any v;
         v.parse_from("");
         EXPECT(v.is_null());
 

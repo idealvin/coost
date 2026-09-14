@@ -1,0 +1,32 @@
+name: Windows-arm64
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-windows-arm64:
+    runs-on: windows-11-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify arch
+        run: |
+          echo "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+
+      - name: Configure (ARM64)
+        run: cmake -S . -B cmakebuild -G "Visual Studio 17 2022" -A ARM64 -DBUILD_ALL=ON
+
+      - name: Build
+        run: cmake --build cmakebuild --config Release --parallel 8
+
+      - name: Run unitest
+        run: |
+          cd cmakebuild\Release\bin
+          .\unitest.exe

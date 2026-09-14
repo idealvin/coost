@@ -1182,8 +1182,8 @@ case 10:
 #line 84 "geny.yy"
 	{
         if (g_prog->service()) {
-            cout << "error: found multiple service" << endl;
-            co::del(yystack.l_mark[-1].tservice);
+            co::println("error: found multiple service");
+            co::_delete(yystack.l_mark[-1].tservice);
             exit(0);
         }
         yystack.l_mark[-1].tservice->set_name(S(yystack.l_mark[-3].iden));
@@ -1195,9 +1195,9 @@ case 11:
 #line 96 "geny.yy"
 	{
         yyval.tservice = yystack.l_mark[-1].tservice;
-        fastring m = S(yystack.l_mark[0].iden);
+        co::string m = S(yystack.l_mark[0].iden);
         if (!yyval.tservice->add_method(m)) {
-            cout << "error: method name " << m << " duplicated" << endl;
+            co::println("error: method name ", m, " duplicated");
             exit(0);
         }
     }
@@ -1206,7 +1206,7 @@ break;
 case 12:
 #line 104 "geny.yy"
 	{
-        yyval.tservice = co::make<Service>();
+        yyval.tservice = co::_new<Service>();
     }
 #line 1212 "geny.cc"
 break;
@@ -1223,8 +1223,8 @@ case 14:
         yyval.tobject = yystack.l_mark[-1].tobject;
         yyval.tobject->set_name(S(yystack.l_mark[-3].iden));
         if (!g_prog->add_object(yyval.tobject)) {
-            cout << "error: object type " << yyval.tobject->name() << " duplicated" << endl;
-            co::del(yyval.tobject);
+            co::println("error: object type ", yyval.tobject->name(), " duplicated");
+            co::_delete(yyval.tobject);
             exit(0);
         }
     }
@@ -1235,7 +1235,7 @@ case 15:
 	{
         yyval.tobject = yystack.l_mark[-1].tobject;
         if (!(yyval.tobject->add_field(yystack.l_mark[0].tfield))) {
-            cout << "error: field " << yystack.l_mark[0].tfield->name() << " duplicated in object " << yyval.tobject->name() << endl;
+            co::println("error: field ", yystack.l_mark[0].tfield->name(), " duplicated in object ", yyval.tobject->name());
             exit(0);
         }
     }
@@ -1244,14 +1244,14 @@ break;
 case 16:
 #line 135 "geny.yy"
 	{
-        yyval.tobject = co::make<Object>();
+        yyval.tobject = co::_new<Object>();
     }
 #line 1250 "geny.cc"
 break;
 case 17:
 #line 141 "geny.yy"
 	{
-        yyval.tfield = co::make<Field>();
+        yyval.tfield = co::_new<Field>();
         yyval.tfield->set_type(yystack.l_mark[-2].ttype);
         yyval.tfield->set_name(S(yystack.l_mark[-1].iden));
         yyval.tfield->set_value(yystack.l_mark[0].tvalue);
@@ -1261,8 +1261,8 @@ break;
 case 18:
 #line 148 "geny.yy"
 	{
-        yyval.tfield = co::make<Field>();
-        auto a = co::make<Array>();
+        yyval.tfield = co::_new<Field>();
+        auto a = co::_new<Array>();
         a->set_element_type(yystack.l_mark[-1].ttype);
         yyval.tfield->set_type(a);
         yyval.tfield->set_name(S(yystack.l_mark[-3].iden));
@@ -1273,7 +1273,7 @@ case 19:
 #line 156 "geny.yy"
 	{
         g_prog->add_anony_object(yystack.l_mark[-1].tobject);
-        yyval.tfield = co::make<Field>();
+        yyval.tfield = co::_new<Field>();
         yyval.tfield->set_type(yystack.l_mark[-1].tobject);
         yyval.tfield->set_name(S(yystack.l_mark[-3].iden));
     }
@@ -1282,10 +1282,10 @@ break;
 case 20:
 #line 165 "geny.yy"
 	{
-        fastring s = S(yystack.l_mark[0].iden);
+        co::string s = S(yystack.l_mark[0].iden);
         yyval.ttype = g_prog->find_object(s);
         if (!yyval.ttype) {
-            cout << "unknown type " << s << " at line " << yylineno << endl;
+            co::println("unknown type ", s, " at line ", yylineno);
             exit(0);
         }
     }
@@ -1301,7 +1301,7 @@ break;
 case 22:
 #line 178 "geny.yy"
 	{
-        auto a = co::make<Array>();
+        auto a = co::_new<Array>();
         a->set_element_type(yystack.l_mark[-1].ttype);
         yyval.ttype = a;
     }
@@ -1318,7 +1318,7 @@ break;
 case 24:
 #line 191 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("bool");
         yyval.ttype->set_type(type_bool);
     }
@@ -1327,7 +1327,7 @@ break;
 case 25:
 #line 197 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("int");
         yyval.ttype->set_type(type_int);
     }
@@ -1336,7 +1336,7 @@ break;
 case 26:
 #line 203 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("int32");
         yyval.ttype->set_type(type_int32);
     }
@@ -1345,7 +1345,7 @@ break;
 case 27:
 #line 209 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("int64");
         yyval.ttype->set_type(type_int64);
     }
@@ -1354,7 +1354,7 @@ break;
 case 28:
 #line 215 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("uint32");
         yyval.ttype->set_type(type_uint32);
     }
@@ -1363,7 +1363,7 @@ break;
 case 29:
 #line 221 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("uint64");
         yyval.ttype->set_type(type_uint64);
     }
@@ -1372,7 +1372,7 @@ break;
 case 30:
 #line 227 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("double");
         yyval.ttype->set_type(type_double);
     }
@@ -1381,7 +1381,7 @@ break;
 case 31:
 #line 233 "geny.yy"
 	{
-        yyval.ttype = co::make<Type>();
+        yyval.ttype = co::_new<Type>();
         yyval.ttype->set_name("string");
         yyval.ttype->set_type(type_string);
     }
@@ -1411,7 +1411,7 @@ break;
 case 35:
 #line 256 "geny.yy"
 	{
-        yyval.tvalue = co::make<Value>();
+        yyval.tvalue = co::_new<Value>();
         yyval.tvalue->set_bool(yystack.l_mark[0].bconst);
     }
 #line 1418 "geny.cc"
@@ -1419,7 +1419,7 @@ break;
 case 36:
 #line 261 "geny.yy"
 	{
-        yyval.tvalue = co::make<Value>();
+        yyval.tvalue = co::_new<Value>();
         yyval.tvalue->set_integer(yystack.l_mark[0].iconst);
     }
 #line 1426 "geny.cc"
@@ -1427,7 +1427,7 @@ break;
 case 37:
 #line 266 "geny.yy"
 	{
-        yyval.tvalue = co::make<Value>();
+        yyval.tvalue = co::_new<Value>();
         yyval.tvalue->set_double(yystack.l_mark[0].dconst);
     }
 #line 1434 "geny.cc"
@@ -1435,7 +1435,7 @@ break;
 case 38:
 #line 271 "geny.yy"
 	{
-        yyval.tvalue = co::make<Value>();
+        yyval.tvalue = co::_new<Value>();
         yyval.tvalue->set_string(yystack.l_mark[0].iden);
     }
 #line 1442 "geny.cc"

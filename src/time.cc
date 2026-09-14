@@ -1,28 +1,46 @@
-#ifndef _WIN32
-
 #include "co/time.h"
 #include <time.h>
+
+#ifndef _WIN32
 #include <sys/time.h>
 
-namespace co {
-namespace now {
+namespace _xx {
+namespace time {
 namespace xx {
+
+int64 Unix::ns() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000000000 + t.tv_usec * 1000;
+}
+
+int64 Unix::us() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
+}
+
+int64 Unix::ms() {
+    struct timeval t;
+    gettimeofday(&t, 0);
+    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
+}
 
 #ifdef CLOCK_MONOTONIC
 
-inline int64 ns() {
+int64 Mono::ns() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return static_cast<int64>(t.tv_sec) * 1000000000 + t.tv_nsec;
 }
 
-inline int64 us() {
+int64 Mono::us() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
 }
 
-inline int64 ms() {
+int64 Mono::ms() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return static_cast<int64>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
@@ -30,78 +48,122 @@ inline int64 ms() {
 
 #else
 
-// WARNING:
-//   If you are from the year 2262 or later, DO NOT use this,
-//   as nanoseconds since epoth (1970/1/1) may overflow then.
-inline int64 ns() { return epoch::us() * 1000; }
+int64 Mono::ns() {
+    return Unix::ns();
+}
 
-inline int64 us() { return epoch::us(); }
+int64 Mono::us() {
+    return Unix::us();
+}
 
-inline int64 ms() { return epoch::ms(); }
+int64 Mono::ms() {
+    return Unix::ms();
+}
 
 #endif
 
 } // xx
 
-int64 ns() {
-    return xx::ns();
+void sleep(uint32 ms) {
+    struct timespec ts;
+    ts.tv_sec = ms / 1000;
+    ts.tv_nsec = ms % 1000 * 1000000;
+    while (nanosleep(&ts, &ts) == -1 && errno == EINTR);
 }
 
-int64 us() {
-    return xx::us();
-}
-
-int64 ms() {
-    return xx::ms();
-}
-
-fastring str(const char* fm) {
-    time_t x = time(0);
+co::string str(const char* fmt) {
+    time_t x = ::time(0);
     struct tm t;
     localtime_r(&x, &t);
 
     char buf[256];
-    const size_t r = strftime(buf, sizeof(buf), fm, &t);
-    return fastring(buf, r);
+    const size_t r = strftime(buf, sizeof(buf), fmt, &t);
+    return co::string(buf, r);
 }
 
-} // now
+} // time
+} // _xx
 
-namespace epoch {
-
-int64 us() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return static_cast<int64>(t.tv_sec) * 1000000 + t.tv_usec;
-}
-
-int64 ms() {
-    struct timeval t;
-    gettimeofday(&t, 0);
-    return static_cast<int64>(t.tv_sec) * 1000 + t.tv_usec / 1000;
-}
-
-} // epoch
-} // co
+#else
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 
 namespace _xx {
-namespace sleep {
+namespace time {
+namespace xx {
 
-void ms(uint32 n) {
-    struct timespec ts;
-    ts.tv_sec = n / 1000;
-    ts.tv_nsec = n % 1000 * 1000000;
-    while (nanosleep(&ts, &ts) == -1 && errno == EINTR);
+static int g_nifty_counter;
+static int64 g_freq;
+
+TimeInit::TimeInit() {
+    if (g_nifty_counter++ == 0) {
+        LARGE_INTEGER x;
+        QueryPerformanceFrequency(&x);
+        g_freq = x.QuadPart;
+    }
 }
 
-void sec(uint32 n) {
-    struct timespec ts;
-    ts.tv_sec = n;
-    ts.tv_nsec = 0;
-    while (nanosleep(&ts, &ts) == -1 && errno == EINTR);
+inline int64 _filetime() {
+    FILETIME ft;
+    LARGE_INTEGER x;
+    GetSystemTimeAsFileTime(&ft);
+    x.LowPart = ft.dwLowDateTime;
+    x.HighPart = ft.dwHighDateTime;
+    return x.QuadPart - 116444736000000000ULL;
 }
 
-} // sleep
+int64 Unix::ns() {
+    return _filetime() * 100;
+}
+
+int64 Unix::us() {
+    return _filetime() / 10;
+}
+
+int64 Unix::ms() {
+    return _filetime() / 10000;
+}
+
+inline int64 _query_counts() {
+    LARGE_INTEGER x;
+    QueryPerformanceCounter(&x);
+    return x.QuadPart;
+}
+
+int64 Mono::ns() {
+    const int64 count = _query_counts();
+    return (int64)(static_cast<double>(count) * 1000000000 / g_freq);
+}
+
+int64 Mono::us() {
+    const int64 count = _query_counts();
+    return (int64)(static_cast<double>(count) * 1000000 / g_freq);
+}
+
+int64 Mono::ms() {
+    const int64 count = _query_counts();
+    return (int64)(static_cast<double>(count) * 1000 / g_freq);
+}
+
+} // xx
+
+void sleep(uint32 ms) {
+    ::Sleep(ms);
+}
+
+co::string str(const char* fmt) {
+    int64 x = ::time(0);
+    struct tm t;
+    _localtime64_s(&t, &x);
+
+    char buf[256];
+    const size_t r = strftime(buf, sizeof(buf), fmt, &t);
+    return co::string(buf, r);
+}
+
+} // time
 } // _xx
 
 #endif

@@ -1,6 +1,7 @@
 #include "co/co.h"
 #include "co/stl.h"
-#include "co/cout.h"
+#include "co/print.h"
+#include "co/flag.h"
 
 DEF_int32(n, 32, "n coroutines");
 
@@ -22,6 +23,6 @@ int main(int argc, char** argv) {
     g_wg.add(FLG_n);
     for (int i = 0; i < FLG_n; ++i) go(f);
     g_wg.wait();
-    co::print(g_c);
+    co::println(g_c);
     return 0;
 }

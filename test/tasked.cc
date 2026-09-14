@@ -1,19 +1,19 @@
 #include "co/tasked.h"
-#include "co/cout.h"
+#include "co/print.h"
 #include "co/time.h"
 
 void f() {
-    co::print("f(): ", now::str());
+    co::println("f(): ", time::str());
 }
 
 void g() {
-    co::print("g(): ", now::str());
+    co::println("g(): ", time::str());
 }
 
 int main(int argc, char** argv) {
-    co::print("now: ", now::str());
+    co::println("now: ", time::str());
 
-    co::Tasked s;
+    co::tasked s;
     s.run_in(f, 0);
     s.run_in(f, 1);
     s.run_in(f, 2);
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     s.run_at(f, 17, 12, 59);
     s.run_daily(f, 5, 18, 0);
 
-    sleep::sec(7);
+    time::sleep(7000);
     s.stop();
 
     return 0;

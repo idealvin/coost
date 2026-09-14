@@ -22,6 +22,8 @@ jobs:
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
+          build-cache: true
+          build-cache-key: ${{ matrix.cross }}
 
       - name: Installation
         run: |

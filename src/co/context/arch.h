@@ -33,46 +33,51 @@
   #define ARCH_X86
 
 #elif defined(__x86_64) || \
-      defined(__amd64__) || \
-      defined(__amd64) || \
+      defined(__amd64__) || defined(__amd64) || \
+      defined(__ia64__) || defined(__IA64__) || defined(__ia64) || \
       defined(_M_IA64) || \
       defined(_M_X64)
   #define ARCH_X64
 
 #elif defined(__arm64) || \
       defined(__arm64__) || \
-      (defined(__aarch64__) && __aarch64__)
+      (defined(__aarch64__) && __aarch64__) || \
+      defined(_M_ARM64)
   #define ARCH_ARM
   #define ARCH_ARM64
 
-#elif defined(__arm__) 
+#elif defined(__arm__) || \
+      defined(_M_ARM)
   #define ARCH_ARM
 
 #elif defined(mips) || \
       defined(_mips) || \
       defined(__mips__)
   #define ARCH_MIPS
+  #if defined(_MIPS_SZPTR) && (_MIPS_SZPTR == 64)
+    #define ARCH_MIPS64
+  #elif defined(_MIPS_SIM) && (_MIPS_SIM == _ABI64)
+    #define ARCH_MIPS64
+  #endif
 
-#elif defined(loongarch) || \
-      defined(_loongarch) || \
-      defined(_loongarch64) || \
-      defined(__loongarch__)
-  #define ARCH_LOONGARCH
-
-#elif defined(riscv) || \
-      defined(_riscv) || \
-      defined(_riscv64) || \
-      defined(__riscv__)
+#elif defined(__riscv)
   #define ARCH_RISCV
+  #if __riscv_xlen == 64
+    #define ARCH_RISCV64
+  #endif
 
-
+#elif defined(__loongarch__)
+  #define ARCH_LOONGARCH
+  #if defined(__loongarch64) || (defined(__loongarch_grlen) && (__loongarch_grlen == 64))
+    #define ARCH_LOONGARCH64
+  #endif
 #else
   #error unknown arch
 #endif
 
 // ARM version
 #ifdef ARCH_ARM
-  #if defined(__ARM64_ARCH_8__)
+  #if defined(__ARM64_ARCH_8__) || defined(_M_ARM64)
     #define ARCH_ARM_v8
   #elif defined(__ARM_ARCH_7A__)
     #define ARCH_ARM_v7A
@@ -130,6 +135,10 @@
     defined(__powerpc64__) || \
     defined(__loongarch64) || \
     defined(__riscv64) || \
+    defined(__mips64) || \
+    defined(__mips64__) || \
+    (defined(_MIPS_SZPTR) && (_MIPS_SZPTR == 64)) || \
+    (defined(_MIPS_SIM) && (_MIPS_SIM == _ABI64)) || \
     defined(_M_X64) || \
     defined(_M_AMD64) || \
     defined(_M_IA64) || \

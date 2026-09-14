@@ -1,51 +1,53 @@
 #include "co/co.h"
-#include "co/cout.h"
+#include "co/flag.h"
+#include "co/print.h"
+#include <functional>
+#include <memory>
 
 void f0() {
-    co::print("f0()");
+    co::println("f0()");
 }
 
 void f1(int v) {
-    co::print("f1(", v, ")");
+    co::println("f1(", v, ")");
 }
 
 void f2(const std::string& s) {
-    co::print("f2(", s, ")");
+    co::println("f2(", s, ")");
 }
 
 void f3(void* s) {
     std::unique_ptr<std::string> p((std::string*)s);
-    co::print("f3(", *p, ")");
+    co::println("f3(", *p, ")");
 }
 
 void f4(int a, int b) {
-    co::print("f4(", a, ',', b, ")");
+    co::println("f4(", a, ',', b, ")");
 }
 
-class T {
-  public:
+struct T {
     T() = default;
     ~T() = default;
 
     void m0() {
-        co::print("m0()");
+        co::println("m0()");
     }
 
     void m1(int v) {
-        co::print("m1(", v, ")");
+        co::println("m1(", v, ")");
     }
 
     void m2(const std::string& s) {
-        co::print("m2(", s, ")");
+        co::println("m2(", s, ")");
     }
 
     void m3(void* s) {
         std::unique_ptr<std::string> p((std::string*)s);
-        co::print("m3(", *p, ")");
+        co::println("m3(", *p, ")");
     }
 
     void m4(int a, int b) {
-        co::print("m4(", a, ',', b, ")");
+        co::println("m4(", a, ',', b, ")");
     }
 };
 
@@ -78,13 +80,11 @@ int main(int argc, char** argv) {
     go(&T::m3, &o, new std::string("333"));
     go(std::bind(&T::m4, &o, 500, 511));
 
-    auto x = [](int v) {
-        co::print("[](", v, ")");
-    };
+    go([](int v) {
+        co::println("[](", v, ")");
+    }, 888);
 
-    go(&x, 888);
-    go(x, 888);
-    go([]() { co::print("[]()"); });
+    go([]() { co::println("[]()"); });
 
     co::sleep(100);
     return 0;

@@ -1,58 +1,101 @@
-#ifndef _WIN32
-
 #include "co/os.h"
-#include <stdio.h>
-#include <unistd.h>
 
+#ifndef _WIN32
+#include <stdio.h>      // popen, pclose
+#include <unistd.h>
 #ifdef __APPLE__
+#include <sys/sysctl.h> // sysctlbyname
 #include <mach-o/dyld.h>
 #endif
 
 namespace os {
 
-fastring env(const char* name) {
+co::string env(const char* name) {
     char* x = ::getenv(name);
-    return x ? fastring(x) : fastring();
+    return x ? co::string(x) : co::string();
 }
 
 bool env(const char* name, const char* value) {
-    if (value == NULL || *value == '\0') return ::unsetenv(name) == 0;
-    return ::setenv(name, value, 1) == 0;
+    if (value && *value) return ::setenv(name, value, 1) == 0;
+    return ::unsetenv(name) == 0;
 }
 
-fastring homedir() {
+co::string homedir() {
     return os::env("HOME");
 }
 
-fastring cwd() {
-    fastring s(128);
+co::string cwd() {
+    co::string s(128);
     while (true) {
-        if (::getcwd((char*)s.data(), s.capacity())) {
+        if (::getcwd(s.data(), s.capacity())) {
             s.resize(strlen(s.data()));
             return s;
         }
-        if (errno != ERANGE) return fastring();
+        if (errno != ERANGE) return co::string();
         s.reserve(s.capacity() << 1);
     }
 }
 
-fastring exedir() {
-    fastring s = os::exepath();
+#ifdef __APPLE__
+int cache_line_size() {
+    size_t n = 0;
+    size_t l = sizeof(n);
+    return (sysctlbyname("hw.cachelinesize", &n, &l, 0, 0) == 0) ? (int)n : 128;
+}
+
+co::string exepath() {
+    co::string s(128);
+    uint32_t n = 128;
+    while (true) {
+        if (_NSGetExecutablePath(s.data(), &n) == 0) {
+            s.resize(strlen(s.data()));
+            return s;
+        }
+        s.reserve(n);
+    }
+}
+
+#else
+int cache_line_size() {
+#ifdef _SC_LEVEL1_DCACHE_LINESIZE
+    const int n = (int) sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+    return n > 0 ? n : 128;
+#else
+    return 128;
+#endif
+}
+
+co::string exepath() {
+    co::string s(128);
+    while (true) {
+        auto r = readlink("/proc/self/exe", s.data(), s.capacity());
+        if (r < 0) return co::string();
+        if ((size_t)r != s.capacity()) {
+            s.resize(r);
+            return s;
+        }
+        s.reserve(s.capacity() << 1);
+    }
+}
+#endif
+
+co::string exedir() {
+    co::string s = os::exepath();
     size_t n = s.rfind('/');
     if (n != s.npos) {
         if (n != 0) {
             s[n] = '\0';
             s.resize(n);
         } else {
-            if (s.capacity() > 1) s[1] = '\0';
+            s[1] = '\0';
             s.resize(1);
         }
     }
     return s;
 }
 
-fastring exename() {
-    fastring s = os::exepath();
+co::string exename() {
+    co::string s = os::exepath();
     return s.substr(s.rfind('/') + 1);
 }
 
@@ -68,46 +111,9 @@ size_t pagesize() {
     return (size_t) sysconf(_SC_PAGESIZE);
 }
 
-#ifdef __linux__
-fastring exepath() {
-    fastring s(128);
-    while (true) {
-        auto r = readlink("/proc/self/exe", (char*)s.data(), s.capacity());
-        if (r < 0) return fastring();
-        if ((size_t)r != s.capacity()) {
-            s.resize(r);
-            return s;
-        }
-        s.reserve(s.capacity() << 1);
-    }
-}
-
-void daemon() {
-    const int r = ::daemon(1, 0); (void)r;
-}
-
-#else
-fastring exepath() {
-    fastring s(128);
-    uint32_t n = 128;
-    while (true) {
-        if (_NSGetExecutablePath((char*)s.data(), &n) == 0) {
-            s.resize(strlen(s.data()));
-            return s;
-        }
-
-        // this is not likely to happen
-        if (unlikely((size_t)n <= s.capacity())) return fastring();
-        s.reserve(n);
-    }
-}
-
-void daemon() {}
-#endif
-
 sig_handler_t signal(int sig, sig_handler_t handler, int flag) {
     struct sigaction sa, old;
-    memset(&sa, 0, sizeof(sa));
+    ::memset(&sa, 0, sizeof(sa));
     sigemptyset(&sa.sa_mask);
     if (flag > 0) sa.sa_flags = flag;
     sa.sa_handler = handler;
@@ -118,6 +124,166 @@ sig_handler_t signal(int sig, sig_handler_t handler, int flag) {
 bool system(const char* cmd) {
     FILE* f = popen(cmd, "w");
     return f ? pclose(f) != -1 : false;
+}
+
+} // os
+
+#else
+#include <algorithm>
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+namespace os {
+
+static co::string wchar2utf8(const wchar_t* p) {
+    co::string s;
+    int n = WideCharToMultiByte(CP_UTF8, 0, p, -1, NULL, 0, NULL, NULL);
+    if (n > 0) {
+        s.reserve(n);
+        WideCharToMultiByte(CP_UTF8, 0, p, -1, s.data(), n, NULL, NULL);
+        s.resize(n - 1);
+    }
+    return s;
+}
+
+co::string env(const char* name) {
+    co::string s(64);
+    DWORD r = GetEnvironmentVariableA(name, s.data(), 64);
+    s.resize(r);
+    if (r > 64) {
+        GetEnvironmentVariableA(name, s.data(), r);
+        s.resize(r - 1);
+    }
+    return s;
+}
+
+bool env(const char* name, const char* value) {
+    return SetEnvironmentVariableA(name, value) == TRUE;
+}
+
+inline void backslash_to_slash(co::string& s) {
+    std::for_each(s.data(), s.data() + s.size(), [](char& c){
+        if (c == '\\') c = '/';
+    });
+}
+
+co::string homedir() {
+    co::string s = os::env("USERPROFILE"); // SYSTEMDRIVE + HOMEPATH
+    backslash_to_slash(s);
+    return s;
+}
+
+co::string cwd() {
+    co::vector<wchar_t> v;
+    v.reserve(128);
+    *v.data() = 0;
+
+    DWORD r = GetCurrentDirectoryW(128, v.data());
+    if (r > 128) {
+        v.reserve(r);
+        GetCurrentDirectoryW(r, v.data());
+    }
+
+    co::string s = wchar2utf8(v.data());
+    if (!s.starts_with("\\\\")) backslash_to_slash(s);
+    return s;
+}
+
+static co::string _get_module_path() {
+    DWORD n = 128, r = 0;
+    co::vector<wchar_t> v;
+    v.reserve(n);
+    *v.data() = 0;
+
+    while (true) {
+        r = GetModuleFileNameW(NULL, v.data(), n);
+        if (r < n) break;
+        n <<= 1;
+        v.reserve(n);
+    }
+
+    return wchar2utf8(v.data());
+}
+
+co::string exepath() {
+    co::string s = _get_module_path();
+    if (!s.starts_with("\\\\")) backslash_to_slash(s);
+    return s;
+}
+
+co::string exedir() {
+    co::string s = _get_module_path();
+    size_t n = s.rfind('\\');
+    if (n != s.npos && n != 0) {
+        if (s[n - 1] != ':') {
+            s[n] = '\0';
+            s.resize(n);
+        } else {
+            s.resize(n + 1);
+            s[n + 1] = '\0';
+        }
+    }
+
+    if (!s.starts_with("\\\\")) backslash_to_slash(s);
+    return s;
+}
+
+co::string exename() {
+    co::string s = _get_module_path();
+    return s.substr(s.rfind('\\') + 1);
+}
+
+int pid() {
+    return (int) GetCurrentProcessId();
+}
+
+int cpunum() {
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return (int) info.dwNumberOfProcessors;
+}
+
+int cache_line_size() {
+    using Info = SYSTEM_LOGICAL_PROCESSOR_INFORMATION;
+    Info* v = 0;
+    DWORD n = 0, k = 0;
+    GetLogicalProcessorInformation(nullptr, &n);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || n == 0) goto err;
+
+    v = (Info*) ::malloc(n);
+    if (!GetLogicalProcessorInformation(v, &n)) goto err;
+
+    k = n / sizeof(Info);
+    for (DWORD i = 0; i < k; ++i) {
+        auto& info = v[i];
+        if (info.Relationship == RelationCache) {
+            if (info.Cache.Level == 1 && info.Cache.Type == CacheData) {
+                ::free(v);
+                return info.Cache.LineSize;
+            }
+        }
+    }
+
+err:
+    if (v) ::free(v);
+    return 128;
+}
+
+size_t pagesize() {
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return (size_t) info.dwPageSize;
+}
+
+sig_handler_t signal(int sig, sig_handler_t handler, int) {
+    return ::signal(sig, handler);
+}
+
+bool system(const char* cmd) {
+    return ::system(cmd) != -1;
 }
 
 } // os

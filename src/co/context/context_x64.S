@@ -192,7 +192,6 @@ function(tb_context_jump)
 
 endfunc
 
-
 #else
 
 /* make context (refer to boost.context)

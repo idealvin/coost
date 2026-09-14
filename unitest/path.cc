@@ -1,5 +1,4 @@
 #include "co/unitest.h"
-#include "co/str.h"
 #include "co/path.h"
 
 namespace test {
@@ -38,11 +37,11 @@ DEF_test(path) {
         EXPECT_EQ(path::join("x", "", "y"), "x/y");
         EXPECT_EQ(path::join("D:", "x"), "D:/x");
         EXPECT_EQ(path::join("D:/x/", "y"), "D:/x/y");
-        EXPECT_EQ(path::join("x", fastring("y"), std::string("z")), "x/y/z");
+        EXPECT_EQ(path::join("x", co::string("y"), std::string("z")), "x/y/z");
     }
 
     DEF_case(split) {
-        typedef std::pair<fastring, fastring> Pair;
+        typedef std::pair<co::string, co::string> Pair;
 
         EXPECT(path::split("") == Pair("", ""));
         EXPECT(path::split("a") == Pair("", "a"));

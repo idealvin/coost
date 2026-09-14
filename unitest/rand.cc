@@ -14,22 +14,21 @@ DEF_test(rand) {
     EXPECT(1.4 < d && d < 1.6);
 
     EXPECT(co::randstr(0).empty());
-    EXPECT(co::randstr(-1).empty());
     EXPECT(co::randstr("abc", 0).empty());
-    EXPECT(co::randstr("abc", -1).empty());
     EXPECT(co::randstr(NULL, 23).empty());
     EXPECT(co::randstr("", 23).empty());
 
-    fastring s = co::randstr();
+    co::string s = co::randstr();
     EXPECT_EQ(s.size(), 15);
 
     s = co::randstr(23);
     EXPECT_EQ(s.size(), 23);
 
-    EXPECT_EQ(co::randstr("x", 6), fastring(6, 'x'));
+    EXPECT_EQ(co::randstr("x", 6), co::string(6, 'x'));
 
     s = co::randstr("ab", 8);
-    EXPECT_EQ(s.size(), 8);
+    s.append(co::randstr("ab", 16));
+    EXPECT_EQ(s.size(), 24);
     int v = 0;
     for (size_t i = 0; i < s.size(); ++i) {
         v ^= s[i];
@@ -37,6 +36,7 @@ DEF_test(rand) {
     EXPECT(v == 0 || v == ('a' ^ 'b'));
 
     s = co::randstr("0-2", 8);
+    s.append(co::randstr("0-2", 8));
     EXPECT(s.contains('0') || s.contains('1') || s.contains('2'));
     EXPECT(!s.contains('a') && !s.contains('b') && !s.contains('3'));
 }

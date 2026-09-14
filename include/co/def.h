@@ -12,71 +12,59 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
-#define MAX_UINT8  ((uint8)  ~((uint8) 0))
-#define MAX_UINT16 ((uint16) ~((uint16)0))
-#define MAX_UINT32 ((uint32) ~((uint32)0))
-#define MAX_UINT64 ((uint64) ~((uint64)0))
-#define MAX_INT8   ((int8)  (MAX_UINT8  >> 1))
-#define MAX_INT16  ((int16) (MAX_UINT16 >> 1))
-#define MAX_INT32  ((int32) (MAX_UINT32 >> 1))
-#define MAX_INT64  ((int64) (MAX_UINT64 >> 1))
-#define MIN_INT8   ((int8)  ~MAX_INT8)
-#define MIN_INT16  ((int16) ~MAX_INT16)
-#define MIN_INT32  ((int32) ~MAX_INT32)
-#define MIN_INT64  ((int64) ~MAX_INT64)
+namespace co {
 
-#define DISALLOW_COPY_AND_ASSIGN(T) \
-    T(const T&) = delete; \
-    void operator=(const T&) = delete
+constexpr uint8  max_uint8  = (uint8)  ~((uint8) 0);
+constexpr uint16 max_uint16 = (uint16) ~((uint16)0);
+constexpr uint32 max_uint32 = (uint32) ~((uint32)0);
+constexpr uint64 max_uint64 = (uint64) ~((uint64)0);
+constexpr int8  max_int8  = (int8)  (max_uint8  >> 1);
+constexpr int16 max_int16 = (int16) (max_uint16 >> 1);
+constexpr int32 max_int32 = (int32) (max_uint32 >> 1);
+constexpr int64 max_int64 = (int64) (max_uint64 >> 1);
+constexpr int8  min_int8  = (int8)  ~max_int8;
+constexpr int16 min_int16 = (int16) ~max_int16;
+constexpr int32 min_int32 = (int32) ~max_int32;
+constexpr int64 min_int64 = (int64) ~max_int64;
+
+#if defined(__s390x__)
+constexpr int cache_line_size = 256;
+#elif defined(__powerpc64__) || defined(_M_PPC64)
+constexpr int cache_line_size = 128;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+constexpr int cache_line_size = 128;
+#else
+constexpr int cache_line_size = 64;
+#endif
+
+} // co
 
 #if SIZE_MAX == UINT64_MAX
 #define __arch64 1
-#else
+#elif SIZE_MAX == UINT32_MAX
 #define __arch32 1
+#else
+#error "platform not supported"
 #endif
 
-#ifdef _MSC_VER
+#ifndef __cacheline_aligned
+#define __cacheline_aligned alignas(co::cache_line_size)
+#endif
+
+#ifndef _MSC_VER
+#ifndef __forceinline
+#define __forceinline __attribute__((always_inline))
+#endif
+#else
 #ifndef __thread
 #define __thread __declspec(thread)
 #endif
-#else
-#ifndef __forceinline 
-#define __forceinline __attribute__((always_inline))
-#endif
 #endif
 
-#ifndef unlikely
+#ifndef __unlikely
 #if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__clang__)
-#define unlikely(x) __builtin_expect(!!(x), 0)
+#define __unlikely(x) (__builtin_expect(!!(x), 0))
 #else
-#define unlikely(x) (x)
+#define __unlikely(x) (x)
 #endif
-#endif
-
-#ifndef PP_STRIFY
-#define _PP_STRIFY(x) #x
-#define PP_STRIFY(x) _PP_STRIFY(x)
-#endif
-
-#ifndef PP_CONCAT
-#define _PP_CONCAT(x, y) x##y
-#define PP_CONCAT(x, y) _PP_CONCAT(x, y)
-#endif
-
-// generated from config.h.in
-#include "config.h"
-
-// __coapi: export symbols in shared library (libco.so or co.dll)
-#if COOST_SHARED > 0
-  #ifdef _WIN32
-    #ifdef BUILDING_CO_SHARED
-      #define __coapi __declspec(dllexport)
-    #else
-      #define __coapi __declspec(dllimport)
-    #endif
-  #else
-    #define __coapi __attribute__((visibility("default")))
-  #endif
-#else
-  #define __coapi
 #endif

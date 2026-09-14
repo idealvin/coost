@@ -230,8 +230,6 @@ function(tb_context_jump)
 
 endfunc
 
-
-//#if defined(TB_CONFIG_OS_MACOSX) || defined(TB_CONFIG_OS_IOS)
 #elif defined(__APPLE__)
 
 /* make context

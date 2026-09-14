@@ -9,15 +9,15 @@ namespace xx {
 struct XX {
     struct _unamed_s1 {
         int ii;
-        fastring ss;
+        co::string ss;
 
-        void from_json(const co::Json& _x_) {
+        void from_json(const json::any& _x_) {
             ii = (int)_x_.get("ii").as_int64();
             ss = _x_.get("ss").as_c_str();
         }
 
-        co::Json as_json() const {
-            co::Json _x_;
+        json::any as_json() const {
+            json::any _x_;
             _x_.add_member("ii", ii);
             _x_.add_member("ss", ss);
             return _x_;
@@ -26,15 +26,15 @@ struct XX {
 
     struct _unamed_s2 {
         int xx;
-        fastring yy;
+        co::string yy;
 
-        void from_json(const co::Json& _x_) {
+        void from_json(const json::any& _x_) {
             xx = (int)_x_.get("xx").as_int64();
             yy = _x_.get("yy").as_c_str();
         }
 
-        co::Json as_json() const {
-            co::Json _x_;
+        json::any as_json() const {
+            json::any _x_;
             _x_.add_member("xx", xx);
             _x_.add_member("yy", yy);
             return _x_;
@@ -43,12 +43,12 @@ struct XX {
 
     bool b;
     int i;
-    fastring s;
+    co::string s;
     _unamed_s1 data;
     co::vector<int> ai;
     co::vector<_unamed_s2> ao;
 
-    void from_json(const co::Json& _x_) {
+    void from_json(const json::any& _x_) {
         b = _x_.get("b").as_bool();
         i = (int)_x_.get("i").as_int64();
         s = _x_.get("s").as_c_str();
@@ -69,21 +69,21 @@ struct XX {
         } while (0);
     }
 
-    co::Json as_json() const {
-        co::Json _x_;
+    json::any as_json() const {
+        json::any _x_;
         _x_.add_member("b", b);
         _x_.add_member("i", i);
         _x_.add_member("s", s);
         _x_.add_member("data", data.as_json());
         do {
-            co::Json _unamed_v1;
+            json::any _unamed_v1;
             for (size_t i = 0; i < ai.size(); ++i) {
                 _unamed_v1.push_back(ai[i]);
             }
             _x_.add_member("ai", _unamed_v1);
         } while (0);
         do {
-            co::Json _unamed_v1;
+            json::any _unamed_v1;
             for (size_t i = 0; i < ao.size(); ++i) {
                 _unamed_v1.push_back(ao[i].as_json());
             }

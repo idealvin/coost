@@ -4,42 +4,42 @@
 namespace json {
 namespace xx {
 
-class Alloc {
-  public:
+struct Cache {
     static const uint32 R = Array::R;
-    static const uint32 N = 8192;
-    Alloc() : _stack(), _ustack(32), _fs(256) {}
+    static const uint32 N = 2048;// 2048;
+    Cache() : _stack(), _ustack(32 - R), _s(256) {}
 
     void* alloc() {
-        return !_a[0].empty() ? (void*)_a[0].pop_back() : co::alloc(16);
+        return !_a[0].empty() ? _a[0].pop_back() : co::alloc(16);
     }
 
     void free(void* p) {
         _a[0].size() < (8 * (N - R)) ? _a[0].push_back(p) : co::free(p, 16);
     }
 
+    // 0-16: 16, 17-32: 32, 33-64: 64, 65-128: 128
     void* alloc(uint32 n) {
         void* p;
         const uint32 x = (n - 1) >> 4;
         switch (x) {
-          case 0:
-            p = !_a[0].empty() ? (void*)_a[0].pop_back() : co::alloc(16);
-            break;
-          case 1:
-            p = !_a[1].empty() ? (void*)_a[1].pop_back() : co::alloc(32);
-            break;
-          case 2:
-          case 3:
-            p = !_a[2].empty() ? (void*)_a[2].pop_back() : co::alloc(64);
-            break;
-          case 4:
-          case 5:
-          case 6:
-          case 7:
-            p = !_a[3].empty() ? (void*)_a[3].pop_back() : co::alloc(128);
-            break;
-          default:
-            p = co::alloc(n);
+            case 0:
+                p = !_a[0].empty() ? _a[0].pop_back() : co::alloc(16);
+                break;
+            case 1:
+                p = !_a[1].empty() ? _a[1].pop_back() : co::alloc(32);
+                break;
+            case 2:
+            case 3:
+                p = !_a[2].empty() ? _a[2].pop_back() : co::alloc(64);
+                break;
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                p = !_a[3].empty() ? _a[3].pop_back() : co::alloc(128);
+                break;
+            default:
+                p = co::alloc(n);
         }
         return p;
     }
@@ -47,141 +47,141 @@ class Alloc {
     void free(void* p, uint32 n) {
         const uint32 x = (n - 1) >> 4;
         switch (x) {
-          case 0:
-            _a[0].size() < (8 * (N - R)) ? _a[0].push_back(p) : co::free(p, 16);
-            break;
-          case 1:
-            _a[1].size() < (4 * (N - R)) ? _a[1].push_back(p) : co::free(p, 32);
-            break;
-          case 2:
-          case 3:
-            _a[2].size() < (2 * (N - R)) ? _a[2].push_back(p) : co::free(p, 64);
-            break;
-          case 4:
-          case 5:
-          case 6:
-          case 7:
-            _a[3].size() < (N - R) ? _a[3].push_back(p) : co::free(p, 128);
-            break;
-          default:
-            co::free(p, n);
+            case 0:
+                _a[0].size() < (8 * (N - R)) ? _a[0].push_back(p) : co::free(p, 16);
+                break;
+            case 1:
+                _a[1].size() < (4 * (N - R)) ? _a[1].push_back(p) : co::free(p, 32);
+                break;
+            case 2:
+            case 3:
+                _a[2].size() < (2 * (N - R)) ? _a[2].push_back(p) : co::free(p, 64);
+                break;
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                _a[3].size() < (N - R) ? _a[3].push_back(p) : co::free(p, 128);
+                break;
+            default:
+                co::free(p, n);
         }
     }
 
     Array& stack() { return _stack; }
     Array& ustack() { return _ustack; }
-    fastream& stream() { _fs.clear(); return _fs; }
-    Json& null() { _null.reset(); return _null; }
+    co::string& stream() { _s.clear(); return _s; }
+    json::any& null() { _null.reset(); return _null; }
 
-  private:
     Array _a[4];
     Array _stack;
     Array _ustack;
-    fastream _fs;
-    Json _null;
+    co::string _s;
+    json::any _null;
 };
 
-static __thread Alloc* g_a;
+static __thread Cache* g_c;
 
-inline Alloc& jalloc() {
-    return g_a ? *g_a : *(g_a = co::_make_static<Alloc>()); 
+inline Cache& cache() {
+    return g_c ? *g_c : *(g_c = co::_make_static<Cache>()); 
 }
 
-void* alloc() {
-    return jalloc().alloc();
+
+void* alloc_header() {
+    return cache().alloc();
 }
 
-char* alloc_string(const void* p, size_t n) {
-    char* s = (char*) jalloc().alloc((uint32)n + 1);
-    memcpy(s, p, n);
+char* make_string(const void* p, size_t n) {
+    char* s = (char*) cache().alloc((uint32)n + 1);
+    ::memcpy(s, p, n);
     s[n] = '\0';
     return s;
 }
 
-inline void* alloc_array(void** p, uint32 n) {
-    auto h = (Array::_H*) co::alloc(sizeof(Array::_H) + sizeof(void*) * n);
+inline void* make_array(void** p, uint32 n) {
+    auto h = (Array::_H*) co::alloc(sizeof(void*) * (n + Array::R));
     h->cap = n;
     h->size = n;
-    memcpy(h->p, p, sizeof(void*) * n);
+    ::memcpy(h->p, p, sizeof(void*) * n);
     return h;
 }
 
 } // xx
 
-using _H = Json::_H;
-using _A = xx::Alloc;
-typedef const char* S;
-typedef void* void_ptr_t;
+using _H = any::_H;
+using C = xx::Cache;
+using P = xx::P;
+using S = const char*;
 inline S find_quote(S b, S e) { return (S) memchr(b, '"', e - b); }
 inline S find_slash(S b, S e) { return (S) memchr(b, '\\', e - b); }
 
-inline char* make_key(_A& a, const void* p, size_t n) {
-    char* s = (char*) a.alloc((uint32)n + 1);
+inline char* make_key(C& c, const void* p, size_t n) {
+    char* s = (char*) c.alloc((uint32)n + 1);
     memcpy(s, p, n);
     s[n] = '\0';
     return s;
 }
 
-inline char* make_key(_A& a, const char* p) {
-    return make_key(a, p, strlen(p));
+inline char* make_key(C& c, const char* p) {
+    return make_key(c, p, strlen(p));
 }
 
-inline _H* make_string(_A& a, const void* p, size_t n) {
-    return new(a.alloc()) _H(p, n);
+inline _H* make_string(C& c, const void* p, size_t n) {
+    return new(c.alloc()) _H(p, n);
 }
 
-inline _H* make_bool(_A& a, bool v) { return new(a.alloc()) _H(v); }
-inline _H* make_int(_A& a, int64 v) { return new(a.alloc()) _H(v); }
-inline _H* make_double(_A& a, double v) { return new(a.alloc()) _H(v); }
-inline _H* make_object(_A& a) { return new(a.alloc()) _H(Json::_obj_t()); }
-inline _H* make_array(_A& a)  { return new(a.alloc()) _H(Json::_arr_t()); }
+inline _H* make_bool(C& c, bool v) { return new(c.alloc()) _H(v); }
+inline _H* make_int(C& c, int64 v) { return new(c.alloc()) _H(v); }
+inline _H* make_double(C& c, double v) { return new(c.alloc()) _H(v); }
+inline _H* make_object(C& c) { return new(c.alloc()) _H(any::_obj_t()); }
+inline _H* make_array(C& c)  { return new(c.alloc()) _H(any::_arr_t()); }
 
 // json parser
 //   @b: beginning of the string
 //   @e: end of the string
 // return the current position, or NULL on any error
-class Parser {
-  public:
-    Parser() : _a(xx::jalloc()) {}
+struct Parser {
+    Parser() : _c(xx::cache()) {}
     ~Parser() = default;
 
-    bool parse(S b, S e, void_ptr_t& v);
-    S parse_string(S b, S e, void_ptr_t& v);
-    S parse_unicode(S b, S e, fastream& s);
-    S parse_number(S b, S e, void_ptr_t& v);
-    S parse_key(S b, S e, void_ptr_t& k);
-    S parse_false(S b, S e, void_ptr_t& v);
-    S parse_true(S b, S e, void_ptr_t& v);
-    S parse_null(S b, S e, void_ptr_t& v);
+    bool parse(S b, S e, P& v);
+    S parse_string(S b, S e, P& v);
+    S parse_unicode(S b, S e, co::string& s);
+    S parse_number(S b, S e, P& v);
+    S parse_key(S b, S e, P& k);
+    S parse_false(S b, S e, P& v);
+    S parse_true(S b, S e, P& v);
+    S parse_null(S b, S e, P& v);
 
-  private:
-    xx::Alloc& _a;
+    C& _c;
 };
 
-inline S Parser::parse_key(S b, S e, void_ptr_t& key) {
-    if (*b++ != '"') return 0;
-    S p = (S) memchr(b, '"', e - b);
-    if (p) key = make_key(_a, b, p - b);
-    return p;
+inline S Parser::parse_key(S b, S e, P& key) {
+    if (*b++ == '"') {
+        const S s = (S) memchr(b, '"', e - b);
+        if (s) key = make_key(_c, b, s - b);
+        return s;
+    }
+    return 0;
 }
 
-inline S Parser::parse_false(S b, S e, void_ptr_t& v) {
+inline S Parser::parse_false(S b, S e, P& v) {
     if (e - b >= 5 && b[1] == 'a' && b[2] == 'l' && b[3] == 's' && b[4] == 'e') {
-        v = make_bool(_a, false);
+        v = make_bool(_c, false);
         return b + 4;
     }
     return 0;
 }
 
-inline S Parser::parse_true(S b, S e, void_ptr_t& v) {
+inline S Parser::parse_true(S b, S e, P& v) {
     if (e - b >= 4 && b[1] == 'r' && b[2] == 'u' && b[3] == 'e') {
-        v = make_bool(_a, true);
+        v = make_bool(_c, true);
         return b + 3;
     }
     return 0;
 }
 
-inline S Parser::parse_null(S b, S e, void_ptr_t& v) {
+inline S Parser::parse_null(S b, S e, P& v) {
     if (e - b >= 4 && b[1] == 'u' && b[2] == 'l' && b[3] == 'l') {
         v = 0;
         return b + 3;
@@ -227,30 +227,33 @@ inline bool is_white_space(char c) {
     while (++b < e && is_white_space(*b));
 #endif
 
-// This is a non-recursive implement of json parser.
+// non-recursive json parser
 // stack: |prev size|prev state|val|....
-bool Parser::parse(S b, S e, void_ptr_t& val) {
+bool Parser::parse(S b, S e, P& val) {
     union { uint32 state; void* pstate; };
     union { uint32 size;  void* psize; };
-    void_ptr_t key;
-    auto& s = _a.stack();
-    auto& u = _a.ustack();
+    P key;
+    auto& s = _c.stack();
+    auto& u = _c.ustack();
     state = 0, size = 0;
 
     while (b < e && is_white_space(*b)) ++b;
-    if (unlikely(b == e)) return false;
+    if (b != e) goto beg;
+    return false;
+
+beg:
     if (*b == '{') goto obj_beg;
     if (*b == '[') goto arr_beg;
     goto val_beg;
 
-  obj_beg:
+obj_beg:
     u.push_back(psize);  // prev size
     u.push_back(pstate); // prev state
-    s.push_back(make_object(_a));
+    s.push_back(make_object(_c));
     size = s.size(); // current size
     state = '{';
 
-  obj_val_beg:
+obj_val_beg:
     skip_white_space(b, e);
     if (b == e) goto err;
     if (*b == '}') goto obj_end;
@@ -266,81 +269,81 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
     if (b == e) goto err;
 
     switch (*b) {
-      case '"':
-        b = parse_string(b, e, val);
-        break;
-      case '{':
-        goto obj_beg;
-      case '[':
-        goto arr_beg;
-      case 'f':
-        b = parse_false(b, e, val);
-        break;
-      case 't':
-        b = parse_true(b, e, val);
-        break;
-      case 'n':
-        b = parse_null(b, e, val);
-        break;
-      default:
-        b = parse_number(b, e, val);
+        case '"':
+            b = parse_string(b, e, val);
+            break;
+        case '{':
+            goto obj_beg;
+        case '[':
+            goto arr_beg;
+        case 'f':
+            b = parse_false(b, e, val);
+            break;
+        case 't':
+            b = parse_true(b, e, val);
+            break;
+        case 'n':
+            b = parse_null(b, e, val);
+            break;
+        default:
+            b = parse_number(b, e, val);
     }
     if (b == 0) goto err;
     s.push_back(val);
 
-  obj_val_end:
+obj_val_end:
     skip_white_space(b, e);
     if (b == e) goto err;
     if (*b == ',') goto obj_val_beg;
     if (*b == '}') goto obj_end;
     goto err;
 
-  arr_beg:
+arr_beg:
     u.push_back(psize);  // prev size
     u.push_back(pstate); // prev state
-    s.push_back(make_array(_a));
+    s.push_back(make_array(_c));
     size = s.size(); // current size
     state = '[';
 
-  arr_val_beg:
+arr_val_beg:
     skip_white_space(b, e);
     if (b == e) goto err;
     if (*b == ']') goto arr_end;
 
     switch (*b) {
-      case '"':
-        b = parse_string(b, e, val);
-        break;
-      case '{':
-        goto obj_beg;
-      case '[':
-        goto arr_beg;
-      case 'f':
-        b = parse_false(b, e, val);
-        break;
-      case 't':
-        b = parse_true(b, e, val);
-        break;
-      case 'n':
-        b = parse_null(b, e, val);
-        break;
-      default:
-        b = parse_number(b, e, val);
+        case '"':
+            b = parse_string(b, e, val);
+            break;
+        case '{':
+            goto obj_beg;
+        case '[':
+            goto arr_beg;
+        case 'f':
+            b = parse_false(b, e, val);
+            break;
+        case 't':
+            b = parse_true(b, e, val);
+            break;
+        case 'n':
+            b = parse_null(b, e, val);
+            break;
+        default:
+            b = parse_number(b, e, val);
     }
     if (b == 0) goto err;
     s.push_back(val);
 
-  arr_val_end:
+arr_val_end:
     skip_white_space(b, e);
     if (b == e) goto err;
     if (*b == ',') goto arr_val_beg;
     if (*b == ']') goto arr_end;
     goto err;
 
-  arr_end:
-  obj_end:
+arr_end:
+obj_end:
     if (s.size() > size) {
-        void* p = xx::alloc_array(s.data() + size, s.size() - size);
+        void* p = xx::make_array(s.data() + size, s.size() - size);
         s.resize(size);
         ((_H*)s.back())->p = p;
     }
@@ -352,36 +355,36 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
     val = s.pop_back();
     goto end;
 
-  val_beg:
+val_beg:
     switch (*b) {
-      case '"':
-        b = parse_string(b, e, val);
-        break;
-      case 'f':
-        b = parse_false(b, e, val);
-        break;
-      case 't':
-        b = parse_true(b, e, val);
-        break;
-      case 'n':
-        b = parse_null(b, e, val);
-        break;
-      default:
-        b = parse_number(b, e, val);
+        case '"':
+            b = parse_string(b, e, val);
+            break;
+        case 'f':
+            b = parse_false(b, e, val);
+            break;
+        case 't':
+            b = parse_true(b, e, val);
+            break;
+        case 'n':
+            b = parse_null(b, e, val);
+            break;
+        default:
+            b = parse_number(b, e, val);
     }
     if (b == 0) goto err;
 
-  end:
-    assert(s.size() == 0);
-    assert(u.size() == 0);
+end:
+    runtime_assert(s.size() == 0);
+    runtime_assert(u.size() == 0);
     while (++b < e && is_white_space(*b));
     return b == e;
 
-  err:
+err:
     while (s.size() > 0) {
         if (s.size() > size) {
             if (state == '{' && ((s.size() - size) & 1)) s.push_back(0);
-            void* p = xx::alloc_array(s.data() + size, s.size() - size);
+            void* p = xx::make_array(s.data() + size, s.size() - size);
             s.resize(size);
             ((_H*)s.back())->p = p;
         }
@@ -393,8 +396,8 @@ bool Parser::parse(S b, S e, void_ptr_t& val) {
             break;
         }
     }
-    assert(s.size() == 0);
-    assert(u.size() == 0);
+    runtime_assert(s.size() == 0);
+    runtime_assert(u.size() == 0);
     return false;
 }
 
@@ -405,7 +408,7 @@ static char g_hex_tb[256];
 
 namespace xx {
 
-Initializer::Initializer() {
+JsonInit::JsonInit() {
     if (g_nifty_counter++ == 0) {
         g_s2e_tb[(uint8)'r'] = '\r';
         g_s2e_tb[(uint8)'n'] = '\n';
@@ -434,16 +437,16 @@ Initializer::Initializer() {
 
 } // xx
 
-S Parser::parse_string(S b, S e, void_ptr_t& v) {
+S Parser::parse_string(S b, S e, P& v) {
     S p, q;
     if ((p = find_quote(++b, e)) == 0) return 0;
     q = find_slash(b, p);
     if (q == 0) {
-        v = make_string(_a, b, p - b);
+        v = make_string(_c, b, p - b);
         return p;
     }
 
-    fastream& s = _a.stream();
+    co::string& s = _c.stream();
     do {
         s.append(b, q - b);
         if (++q == e) return 0;
@@ -467,7 +470,7 @@ S Parser::parse_string(S b, S e, void_ptr_t& v) {
         q = find_slash(b, p);
         if (q == 0) {
             s.append(b, p - b);
-            v = make_string(_a, s.data(), s.size());
+            v = make_string(_c, s.data(), s.size());
             return p;
         }
     } while (true);
@@ -497,7 +500,7 @@ inline const char* parse_hex(const char* b, const char* e, uint32& u) {
 // \uXXXX\uYYYY
 //   D800 <= XXXX <= DBFF
 //   DC00 <= XXXX <= DFFF
-S Parser::parse_unicode(S b, S e, fastream& s) {
+S Parser::parse_unicode(S b, S e, co::string& s) {
     uint32 u = 0;
     b = parse_hex(b, e, u);
     if (b == 0) return 0;
@@ -525,7 +528,7 @@ S Parser::parse_unicode(S b, S e, fastream& s) {
         s.append((char) (0x80 | (0x3F & (u >> 6))));
         s.append((char) (0x80 | (0x3F & u)));
     } else {
-        assert(u <= 0x10FFFF);
+        runtime_assert(u <= 0x10FFFF);
         s.append((char) (0xF0 | (0xFF & (u >> 18))));
         s.append((char) (0x80 | (0x3F & (u >> 12))));
         s.append((char) (0x80 | (0x3F & (u >>  6))));
@@ -553,7 +556,7 @@ inline bool is_digit(char c) {
     return '0' <= c && c <= '9';
 }
 
-S Parser::parse_number(S b, S e, void_ptr_t& v) {
+S Parser::parse_number(S b, S e, P& v) {
     bool is_double = false;
     S p = b;
 
@@ -582,7 +585,7 @@ S Parser::parse_number(S b, S e, void_ptr_t& v) {
         while (++p < e && is_digit(*p));
     }
 
-  digit_end:
+digit_end:
     {
         size_t n = p - b;
         if (n == 0) return 0;
@@ -595,38 +598,38 @@ S Parser::parse_number(S b, S e, void_ptr_t& v) {
         int m = ::memcmp(b, (*b != '-' ? "18446744073709551615" : "-9223372036854775808"), 20);
         if (m < 0) goto to_int;
         if (m > 0) goto to_dbl;
-        v = make_int(_a, *b != '-' ? MAX_UINT64 : MIN_INT64);
+        v = make_int(_c, *b != '-' ? co::max_uint64 : co::min_int64);
         return p - 1;
     }
 
-  to_int:
-    v = make_int(_a, str2int(b, p));
+to_int:
+    v = make_int(_c, str2int(b, p));
     return p - 1;
 
-  to_dbl:
+to_dbl:
     double d;
     if (p == e && *p != '\0') {
-        fastream& fs = _a.stream();
-        fs.append(b, p - b);
-        b = fs.c_str();
+        co::string& s = _c.stream();
+        s.append(b, p - b);
+        b = s.c_str();
     }
     if (str2double(b, d)) {
-        v = make_double(_a, d);
+        v = make_double(_c, d);
         return p - 1;
     }
     return 0;
 }
 
-bool Json::parse_from(const char* s, size_t n) {
+bool any::parse_from(const char* s, size_t n) noexcept {
     if (_h) this->reset();
     Parser parser;
     bool r = parser.parse(s, s + n, *(void**)&_h);
-    if (unlikely(!r && _h)) this->reset();
+    if (!r && _h) this->reset();
     return r;
 }
 
 inline const char* find_escapse(const char* b, const char* e, char& c) {
-  #if 1
+#if 1
     char c0, c1, c2, c3, c4, c5, c6, c7;
     for (;;) {
         if (b + 8 <= e) {
@@ -653,71 +656,71 @@ inline const char* find_escapse(const char* b, const char* e, char& c) {
             return e;
         }
     }
-  #else
+#else
     for (const char* p = b; p < e; ++p) {
         if ((c = g_e2s_tb[(uint8)*p])) return p;
     }
     return e;
-  #endif
+#endif
 }
 
-fastream& Json::_json2str(fastream& fs, bool debug, int mdp) const {
+co::string& any::_json2str(co::string& fs, bool debug, int mdp) const {
     if (!_h) return fs.append("null", 4);
 
     switch (_h->type) {
-      case t_string: {
-        fs << '"';
-        const uint32 len = _h->size;
-        const bool trunc = debug && len > 512;
-        S s = _h->s;
-        S e = trunc ? s + 32 : s + len;
+        case t_string: {
+            fs << '"';
+            const uint32 len = _h->size;
+            const bool trunc = debug && len > 512;
+            S s = _h->s;
+            S e = trunc ? s + 32 : s + len;
 
-        char c;
-        for (S p; (p = find_escapse(s, e, c)) < e;) {
-            fs.append(s, p - s).append('\\').append(c);
-            s = p + 1;
-        }
-
-        if (s != e) fs.append(s, e - s);
-        if (trunc) fs.append(3, '.');
-        fs << '"';
-        break;
-      }
-
-      case t_object: {
-        fs << '{';
-        if (_h->p) {
-            auto& a = *(xx::Array*)&_h->p;
-            for (uint32 i = 0; i < a.size(); i += 2) {
-                fs << '"' << (S)a[i] << '"' << ':';
-                ((Json*)&a[i + 1])->_json2str(fs, debug, mdp) << ',';
+            char c;
+            for (S p; (p = find_escapse(s, e, c)) < e;) {
+                fs.append(s, p - s).append('\\').append(c);
+                s = p + 1;
             }
-        }
-        fs.back() == ',' ? (void)(fs.back() = '}') : (void)(fs.append('}'));
-        break;
-      }
 
-      case t_array: {
-        fs << '[';
-        if (_h->p) {
-            auto& a = *(xx::Array*)&_h->p;
-            for (uint32 i = 0; i < a.size(); ++i) {
-                ((Json*)&a[i])->_json2str(fs, debug, mdp) << ',';
+            if (s != e) fs.append(s, e - s);
+            if (trunc) fs.append(3, '.');
+            fs << '"';
+            break;
+        }
+
+        case t_object: {
+            fs << '{';
+            if (_h->p) {
+                auto& a = _h->ao;
+                for (uint32 i = 0; i < a.size(); i += 2) {
+                    fs << '"' << (S)a[i] << '"' << ':';
+                    ((any&)a[i + 1])._json2str(fs, debug, mdp) << ',';
+                }
             }
+            fs.back() == ',' ? (void)(fs.back() = '}') : (void)(fs.append('}'));
+            break;
         }
-        fs.back() == ',' ? (void)(fs.back() = ']') : (void)(fs.append(']'));
-        break;
-      }
 
-      case t_int:
-        fs << _h->i;
-        break;
-      case t_bool:
-        fs << _h->b;
-        break;
-      case t_double:
-        fs << dp::_n(_h->d, mdp);
-        break;
+        case t_array: {
+            fs << '[';
+            if (_h->p) {
+                auto& a = _h->ao;
+                for (uint32 i = 0; i < a.size(); ++i) {
+                    ((any&)a[i])._json2str(fs, debug, mdp) << ',';
+                }
+            }
+            fs.back() == ',' ? (void)(fs.back() = ']') : (void)(fs.append(']'));
+            break;
+        }
+
+        case t_int:
+            fs << _h->i;
+            break;
+        case t_bool:
+            fs << _h->b;
+            break;
+        case t_double:
+            fs << co::decimal(_h->d, mdp);
+            break;
     }
 
     return fs;
@@ -725,53 +728,53 @@ fastream& Json::_json2str(fastream& fs, bool debug, int mdp) const {
 
 // @indent:  4 spaces by default
 // @n:       number of spaces to insert at the beginning for the current line
-fastream& Json::_json2pretty(fastream& fs, int indent, int n, int mdp) const {
+co::string& any::_json2pretty(co::string& fs, int indent, int n, int mdp) const {
     if (!_h) return fs.append("null", 4);
 
     switch (_h->type) {
-      case t_object: {
-        fs << '{';
-        if (_h->p) {
-            auto& a = *(xx::Array*)&_h->p;
-            for (uint32 i = 0; i < a.size(); i += 2) {
-                fs.append('\n').append(n, ' ');
-                fs << '"' << (S)a[i] << '"' << ": ";
-                ((Json*)&a[i + 1])->_json2pretty(fs, indent, n + indent, mdp) << ',';
+        case t_object: {
+            fs << '{';
+            if (_h->p) {
+                auto& a = _h->ao;
+                for (uint32 i = 0; i < a.size(); i += 2) {
+                    fs.append('\n').append(n, ' ');
+                    fs << '"' << (S)a[i] << '"' << ": ";
+                    ((any&)a[i + 1])._json2pretty(fs, indent, n + indent, mdp) << ',';
+                }
             }
-        }
-        if (fs.back() == ',') {
-            fs.back() = '\n';
-            if (n > indent) fs.append(n - indent, ' ');
-        }
-        fs << '}';
-        break;
-      }
-
-      case t_array: {
-        fs << '[';
-        if (_h->p) {
-            auto& a = *(xx::Array*)&_h->p;
-            for (uint32 i = 0; i < a.size(); ++i) {
-                fs.append('\n').append(n, ' ');
-                ((Json*)&a[i])->_json2pretty(fs, indent, n + indent, mdp) << ',';
+            if (fs.back() == ',') {
+                fs.back() = '\n';
+                if (n > indent) fs.append(n - indent, ' ');
             }
+            fs << '}';
+            break;
         }
-        if (fs.back() == ',') {
-            fs.back() = '\n';
-            if (n > indent) fs.append(n - indent, ' ');
-        }
-        fs << ']';
-        break;
-      }
 
-      default:
-        _json2str(fs, false, mdp);
+        case t_array: {
+            fs << '[';
+            if (_h->p) {
+                auto& a = _h->ao;
+                for (uint32 i = 0; i < a.size(); ++i) {
+                    fs.append('\n').append(n, ' ');
+                    ((any&)a[i])._json2pretty(fs, indent, n + indent, mdp) << ',';
+                }
+            }
+            if (fs.back() == ',') {
+                fs.back() = '\n';
+                if (n > indent) fs.append(n - indent, ' ');
+            }
+            fs << ']';
+            break;
+        }
+
+        default:
+            _json2str(fs, false, mdp);
     }
 
     return fs;
 }
 
-bool Json::has_member(const char* key) const {
+bool any::has_member(const char* key) const noexcept {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
             if (strcmp(key, it.key()) == 0) return true;
@@ -780,50 +783,25 @@ bool Json::has_member(const char* key) const {
     return false;
 }
 
-Json& Json::operator[](const char* key) const {
-    assert(!_h || _h->type & t_object);
-    for (auto it = this->begin(); it != this->end(); ++it) {
-        if (strcmp(key, it.key()) == 0) return it.value();
-    }
-
-    if (!_h) {
-        ((Json*)this)->_h = make_object(xx::jalloc());
-        new (&_h->p) xx::Array(8);
-    }
-    if (!_h->p) new (&_h->p) xx::Array(8);
-
-    auto& a = _array();
-    a.push_back(make_key(xx::jalloc(), key));
-    a.push_back(0);
-    return *(Json*)&a.back();
-}
-
-Json& Json::get(uint32 i) const {
-    if (this->is_array() && _array().size() > i) {
-        return *(Json*)&_array()[i];
-    }
-    return xx::jalloc().null();
-}
-
-Json& Json::get(const char* key) const {
+any& any::get(const char* key) const noexcept {
     if (this->is_object()) {
         for (auto it = this->begin(); it != this->end(); ++it) {
             if (strcmp(key, it.key()) == 0) return it.value();
         }
     }
-    return xx::jalloc().null();
+    return xx::cache().null();
 }
 
-void Json::remove(const char* key) {
+void any::remove(const char* key) noexcept {
     if (this->is_object()) {
-        const uint32 n = _h->p ? _array().size() : 0;
+        const uint32 n = _h->p ? _h->ao.size() : 0;
         if (n > 0) {
-            auto& a = _array();
+            auto& a = _h->ao;
             for (uint32 i = 0; i < n; i += 2) {
                 const auto s = (const char*)a[i];
                 if (strcmp(key, s) == 0) {
-                    xx::jalloc().free((void*)s, (uint32)strlen(s) + 1);
-                    ((Json&)a[i + 1]).reset();
+                    xx::cache().free((void*)s, (uint32)strlen(s) + 1);
+                    ((any&)a[i + 1]).reset();
                     a.remove_pair(i);
                     return;
                 }
@@ -832,16 +810,16 @@ void Json::remove(const char* key) {
     }
 }
 
-void Json::erase(const char* key) {
+void any::erase(const char* key) noexcept {
     if (this->is_object()) {
-        const uint32 n = _h->p ? _array().size() : 0;
+        const uint32 n = _h->p ? _h->ao.size() : 0;
         if (n > 0) {
-            auto& a = _array();
+            auto& a = _h->ao;
             for (uint32 i = 0; i < n; i += 2) {
                 const auto s = (const char*)a[i];
                 if (strcmp(key, s) == 0) {
-                    xx::jalloc().free((void*)s, (uint32)strlen(s) + 1);
-                    ((Json&)a[i + 1]).reset();
+                    xx::cache().free((void*)s, (uint32)strlen(s) + 1);
+                    ((any&)a[i + 1]).reset();
                     a.erase_pair(i);
                     return;
                 }
@@ -850,150 +828,154 @@ void Json::erase(const char* key) {
     }
 }
 
-Json& Json::_set(uint32 i) {
-  beg:
+any& any::_set(uint32 i) {
+_beg:
     if (this->is_null()) {
         for (uint32 k = 0; k < i; ++k) {
-            this->push_back(Json());
+            this->push_back(any());
         }
-        this->push_back(Json());
-        return *(Json*)&_array()[i];
+        this->push_back(any());
+        return (any&) _h->ao[i];
     }
 
-    if (unlikely(!this->is_array())) {
-        this->reset();
-        goto beg;
-    }
+    if (_h->type == t_array) goto _arr;
+    this->reset();
+    goto _beg;
 
-    auto& a = _array();
-    if (i < a.size()) {
-        return *(Json*)&a[i];
+_arr:
+    const uint32 n = _h->p ? _h->ao.size() : 0;
+    if (i < n) {
+        return (any&) _h->ao[i];
     } else {
-        for (uint32 k = a.size(); k < i; ++k) {
-            this->push_back(Json());
+        for (uint32 k = n; k < i; ++k) {
+            this->push_back(any());
         }
-        this->push_back(Json());
-        return *(Json*)&_array()[i]; // don't use `a` here
+        this->push_back(any());
+        return (any&) _h->ao[i];
     }
 }
 
-Json& Json::_set(const char* key) {
-  beg:
+any& any::_set(const char* key) {
+_beg:
     if (this->is_null()) {
-        this->add_member(key, Json());
-        return *(Json*)&_array()[1];
+        this->add_member(key, any());
+        return (any&) _h->ao[1];
     }
 
-    if (unlikely(!this->is_object())) {
-        this->reset();
-        goto beg;
-    }
+    if (_h->type == t_object) goto _obj;
+    this->reset();
+    goto _beg;
 
+_obj:
     for (auto it = this->begin(); it != this->end(); ++it) {
         if (strcmp(key, it.key()) == 0) return it.value();
     }
 
-    this->add_member(key, Json());
-    return *(Json*)&_array().back();
+    this->add_member(key, any());
+    return (any&) _h->ao.back();
 }
 
-void Json::reset() {
+void any::reset() noexcept {
     if (_h) {
-        auto& a = xx::jalloc();
+        auto& a = xx::cache();
         switch (_h->type) {
-          case t_object:
-            for (auto it = this->begin(); it != this->end(); ++it) {
-                a.free((void*)it.key(), (uint32)strlen(it.key()) + 1);
-                it.value().reset();
-            }
-            if (_h->p) _array().~Array();
-            break;
+            case t_object:
+                for (auto it = this->begin(); it != this->end(); ++it) {
+                    a.free((void*)it.key(), (uint32)strlen(it.key()) + 1);
+                    it.value().reset();
+                }
+                if (_h->p) _h->ao.~Array();
+                break;
 
-          case t_array:
-            for (auto it = this->begin(); it != this->end(); ++it) {
-                (*it).reset();
-            }
-            if (_h->p) _array().~Array();
-            break;
-          
-          case t_string:
-            if (_h->s) a.free(_h->s, _h->size + 1);
-            break;
+            case t_array:
+                for (auto it = this->begin(); it != this->end(); ++it) {
+                    (*it).reset();
+                }
+                if (_h->p) _h->ao.~Array();
+                break;
+            
+            case t_string:
+                if (_h->s) a.free(_h->s, _h->size + 1);
+                break;
         }
         a.free(_h);
         _h = 0;
     }
 }
 
-void* Json::_dup() const {
+void* any::_dup() const {
     _H* h = 0;
     if (_h) {
         switch (_h->type) {
-          case t_object:
-            h = make_object(xx::jalloc());
-            if (_h->p) {
-                auto& a = *new(&h->p) xx::Array(_array().size());
-                for (auto it = this->begin(); it != this->end(); ++it) {
-                    a.push_back(make_key(xx::jalloc(), it.key()));
-                    a.push_back(it.value()._dup());
+            case t_object:
+                h = make_object(xx::cache());
+                if (_h->p) {
+                    auto& a = *new(&h->p) xx::Array(_h->ao.size());
+                    for (auto it = this->begin(); it != this->end(); ++it) {
+                        a.push_back(make_key(xx::cache(), it.key()));
+                        a.push_back(it.value()._dup());
+                    }
                 }
-            }
-            break;
-          case t_array:
-            h = make_array(xx::jalloc());
-            if (_h->p) {
-                auto& a = *new(&h->p) xx::Array(_array().size());
-                for (auto it = this->begin(); it != this->end(); ++it) {
-                    a.push_back((*it)._dup());
+                break;
+            case t_array:
+                h = make_array(xx::cache());
+                if (_h->p) {
+                    auto& a = *new(&h->p) xx::Array(_h->ao.size());
+                    for (auto it = this->begin(); it != this->end(); ++it) {
+                        a.push_back((*it)._dup());
+                    }
                 }
-            }
-            break;
-          case t_string:
-            h = make_string(xx::jalloc(), _h->s, _h->size);
-            break;
-          default:
-            h = (_H*) xx::jalloc().alloc();
-            h->type = _h->type;
-            h->i = _h->i;
+                break;
+            case t_string:
+                h = make_string(xx::cache(), _h->s, _h->size);
+                break;
+            default:
+                h = (_H*) xx::cache().alloc();
+                h->type = _h->type;
+                h->i = _h->i;
         }
     }
     return h;
 }
 
-Json::Json(std::initializer_list<Json> v) {
-    const bool is_obj = std::all_of(v.begin(), v.end(), [](const Json& x) {
+any& any::_null() {
+    return xx::cache().null();
+}
+
+any::any(std::initializer_list<any> v) noexcept {
+    const bool is_obj = std::all_of(v.begin(), v.end(), [](const any& x) {
         return x.is_array() && x.array_size() == 2 && x[0].is_string();
     });
 
     if (is_obj) {
-        _h = make_object(xx::jalloc());
+        _h = make_object(xx::cache());
         const uint32 n = (uint32)(v.size() << 1);
         if (n > 0) {
-            auto& a = *new(&_h->p) xx::Array(n);
+            auto& a = *new(&_h->ao) ao_t(n);
             for (auto& x : v) {
                 a.push_back(x[0]._h->s); x[0]._h->s = 0;
-                a.push_back(x[1]._h); x[1]._h = 0;
+                a.push_back(x[1]._h); ((any&)x[1])._h = 0;
             }
         }
 
     } else {
-        _h = make_array(xx::jalloc());
+        _h = make_array(xx::cache());
         const uint32 n = (uint32)v.size();
         if (n > 0) {
-            auto& a = *new(&_h->p) xx::Array(n);
+            auto& a = *new(&_h->ao) ao_t(n);
             for (auto& x : v) {
-                a.push_back(x._h); ((Json*)&x)->_h = 0;
+                a.push_back(x._h); ((any*)&x)->_h = 0;
             }
         }
     }
 }
 
-Json array(std::initializer_list<Json> v) {
-    Json r = json::array();
+any array(std::initializer_list<any> v) noexcept {
+    any r = json::array();
     _H* h = *(_H**)&r;
     const uint32 n = (uint32)v.size();
     if (n > 0) {
-        auto& a = *new(&h->p) xx::Array(n);
+        auto& a = *new(&h->ao) any::ao_t(n);
         for (auto& x : v) {
             a.push_back(*(_H**)&x);
             *(_H**)&x = 0;
@@ -1002,15 +984,15 @@ Json array(std::initializer_list<Json> v) {
     return r;
 }
 
-Json object(std::initializer_list<Json> v) {
-    Json r = json::object();
+any object(std::initializer_list<any> v) noexcept {
+    any r = json::object();
     _H* h = *(_H**)&r;
     const uint32 n = (uint32)(v.size() << 1);
     if (n > 0) {
-        auto& a = *new(&h->p) xx::Array(n);
+        auto& a = *new(&h->ao) any::ao_t(n);
         for (auto& x : v) {
-            assert(x.is_array() && x.size() == 2 && x[0].is_string());
-            a.push_back((*(Json::_H**)&x[0])->s);
+            runtime_assert(x.is_array() && x.size() == 2 && x[0].is_string());
+            a.push_back((*(any::_H**)&x[0])->s);
             (*(_H**)&x[0])->s = 0;
             a.push_back(*(_H**)&x[1]);
             *(_H**)&x[1] = 0;

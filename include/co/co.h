@@ -2,228 +2,234 @@
 
 #include "def.h"
 #include "closure.h"
-#include "flag.h"
-#include "log.h"
-#include "stl.h"
-#include "./co/thread.h"
-#include "./co/sock.h"
-#include "./co/event.h"
-#include "./co/mutex.h"
-#include "./co/pool.h"
-#include "./co/chan.h"
-#include "./co/io_event.h"
-#include "./co/wait_group.h"
+#include "sock.h"
 
 namespace co {
+namespace xx {
 
-/**
- * add a task, which will run as a coroutine 
- *   - It is thread-safe and can be called from anywhere. 
- *   - Closure created by new_closure() will delete itself after Closure::run() 
- *     is done. Users MUST NOT delete it manually.
- *   - Closure is an abstract base class, users are free to implement their own 
- *     subtype of Closure. This may be useful if users do not want a Closure to 
- *     delete itself. See details in co/closure.h.
- * 
- * @param cb  a pointer to a Closure created by new_closure(), or an user-defined Closure.
- */
-__coapi void go(Closure* cb);
-
-/**
- * add a task, which will run as a coroutine 
- *   - eg.
- *     go(f);               // void f(); 
- *     go([]() { ... });    // lambda 
- *     go(std::bind(...));  // std::bind 
- * 
- *     std::function<void()> x(std::bind(...)); 
- *     go(x);               // std::function<void()> 
- *     go(&x);              // std::function<void()>* 
- *
- *   - If f is a pointer to std::function<void()>, users MUST ensure that the 
- *     object f points to is valid when Closure::run() is running. 
- * 
- * @param f  any runnable object, as long as we can call f() or (*f)().
- */
-template<typename F>
-inline void go(F&& f) {
-    go(new_closure(std::forward<F>(f)));
-}
-
-/**
- * add a task, which will run as a coroutine 
- *   - eg.
- *     go(f, 8);   // void f(int);
- *     go(f, p);   // void f(void*);   void* p;
- *     go(f, o);   // void (T::*f)();  T* o;
- * 
- *     std::function<void(P)> x(std::bind(...));
- *     go(x, p);   // P p;
- *     go(&x, p);  // P p; 
- *
- *   - If f is a pointer to std::function<void(P)>, users MUST ensure that the 
- *     object f points to is valid when Closure::run() is running. 
- *
- * @param f  any runnable object, as long as we can call f(p), (*f)(p) or (p->*f)().
- * @param p  parameter of f, or a pointer to an object of class P if f is a method.
- */
-template<typename F, typename P>
-inline void go(F&& f, P&& p) {
-    go(new_closure(std::forward<F>(f), std::forward<P>(p)));
-}
-
-/**
- * add a task, which will run as a coroutine 
- *   - eg.
- *     go(f, o, p);   // void (T::*f)(P);  T* o;  P p;
- 
- * @param f  a pointer to a method with a parameter in class T.
- * @param t  a pointer to an object of class T.
- * @param p  parameter of f.
- */
-template<typename F, typename T, typename P>
-inline void go(F&& f, T* t, P&& p) {
-    go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
-}
-
-// define main function
-//   - make code in main function also runs in coroutine
-#define DEF_main(argc, argv) \
-int _co_main(int argc, char** argv); \
-int main(int argc, char** argv) { \
-    flag::parse(argc, argv); \
-    int r; \
-    co::wait_group wg(1); \
-    go([&](){ \
-        r = _co_main(argc, argv); \
-        wg.done(); \
-    }); \
-    wg.wait(); \
-    return r; \
-} \
-int _co_main(int argc, char** argv)
-
-
-class __coapi Sched {
-  public:
-    Sched() = delete;
-    ~Sched() = delete;
-
-    void go(Closure* cb);
-
-    template<typename F>
-    inline void go(F&& f) {
-        this->go(new_closure(std::forward<F>(f)));
-    }
-
-    template<typename F, typename P>
-    inline void go(F&& f, P&& p) {
-        this->go(new_closure(std::forward<F>(f), std::forward<P>(p)));
-    }
-
-    template<typename F, typename T, typename P>
-    inline void go(F&& f, T* t, P&& p) {
-        this->go(new_closure(std::forward<F>(f), t, std::forward<P>(p)));
-    }
+struct CoInit {
+    CoInit();
+    ~CoInit();
 };
 
-class __coapi MainSched {
-  public:
-    MainSched() = delete;
-    ~MainSched() = delete;
+static CoInit g_co_init;
 
-    void loop();
-};
+} // xx
 
-// get all the schedulers
-__coapi const co::vector<Sched*>& scheds();
+void go(once_closure&& c);
 
-// get number of the schedulers
-__coapi int sched_num();
+inline void go(void (*f)()) {
+    go(once_closure(f));
+}
 
-// get the current scheduler
-__coapi Sched* sched();
+template<typename F, typename = std::enable_if_t<
+    !std::is_convertible_v<std::decay_t<F>, void(*)()>>, typename ... A>
+inline void go(F&& f, A&& ... a) {
+    go(once_closure(std::forward<F>(f), std::forward<A>(a)...));
+}
 
-// get next scheduler
-//   - It is useful when users want to create coroutines in the same scheduler.
-//   - eg. 
-//     auto s = co::next_sched();
-//     s->go(f);     // void f();
-//     s->go(g, 7);  // void g(int);
-__coapi Sched* next_sched();
+typedef void coro_t;
+typedef void sched_t;
 
-// mark the main thread as a scheduler
-//   - It is useful when users want to run the main thread as a scheduler.
-//   - Call this function in the main function before any coroutine starts, 
-//     and then call MainSched::loop() with the returned result.
-//   - e.g. 
-//     auto s = co::main_sched();
-//     go(xx);    /* start coroutines here */
-//     s->loop(); /* loop in main thread */
-__coapi MainSched* main_sched();
+// get number of schedulers
+int sched_num();
 
-// return a pointer to the current coroutine
-__coapi void* coroutine();
+// get the current scheduler, NULL if called from non-scheduler thread
+sched_t* sched();
+
+// get the current coroutine
+coro_t* coroutine();
 
 // return id of the current scheduler, or -1 if called from non-scheduler thread
-__coapi int sched_id();
+int sched_id();
 
 // return id of the current coroutine, or -1 if called from non-coroutine
-__coapi int coroutine_id();
-
-// add a timer for the current coroutine 
-//   - It MUST be called in coroutine.
-//   - Users MUST call yield() to suspend the coroutine after a timer was added.
-//     When the timer expires, the scheduler will resume the coroutine.
-__coapi void add_timer(uint32 ms);
-
-// add an IO event on a socket to the epoll 
-//   - It MUST be called in coroutine.
-//   - Users MUST call yield() to suspend the coroutine after an event was added.
-//     When the event is present, the scheduler will resume the coroutine.
-// 
-//   - @fd: the socket.
-//   - @ev: either ev_read or ev_write.
-//   - @return: true on success, false on error.
-__coapi bool add_io_event(sock_t fd, _ev_t ev);
-
-// remove an IO event from epoll
-//   - It MUST be called in coroutine.
-__coapi void del_io_event(sock_t fd, _ev_t ev);
-
-// remove all IO events on the socket 
-//   - It MUST be called in coroutine.
-__coapi void del_io_event(sock_t fd);
+int coroutine_id();
 
 // suspend the current coroutine 
-//   - It MUST be called in coroutine. 
-//   - Usually, users should add an IO event, or a timer, or both in a coroutine, 
-//     and then call yield() to suspend the coroutine. When the event is present 
-//     or the timer expires, the scheduler will resume the coroutine. 
-__coapi void yield();
+void yield();
 
-// resume the coroutine
-//   - It is thread safe and can be called anywhere.
-//   - @co: a pointer to the coroutine (result of co::coroutine())
-__coapi void resume(void* co);
+// resume a coroutine, @c is the result of co::coroutine()
+void resume(coro_t* c);
 
-// sleep for milliseconds
-//   - It is equal to sleep::ms() if called from non-coroutines.
-__coapi void sleep(uint32 ms);
+// sleep for milliseconds in coroutine
+void sleep(uint32 ms);
 
 // check whether the current coroutine has timed out 
-//   - It MUST be called in coroutine.
-//   - When a coroutine returns from an API with a timeout like co::recv, users may 
-//     call co::timeout() to check whether the API call has timed out. 
-__coapi bool timeout();
+bool timeout();
 
-// check whether a pointer is on the stack of the current coroutine 
-//   - It MUST be called in coroutine. 
-__coapi bool on_stack(const void* p);
+// check if the memory @p points to is on the stack of the current coroutine 
+bool on_stack(const void* p);
 
-// stop all schedulers
-__coapi void stop_scheds();
+// add a timer for the current coroutine 
+void add_timer(uint32 ms);
 
-} // namespace co
+// add an IO event to the socket
+void add_io_event(sock_t fd, ev_t ev);
+
+// remove an IO event from the socket
+void del_io_event(sock_t fd, ev_t ev);
+
+// remove all IO events from the socket 
+void del_io_event(sock_t fd);
+
+// mutex lock for coroutines
+struct mutex {
+    mutex();
+    ~mutex();
+
+    mutex(mutex&& c) noexcept : _p(c._p) { c._p = 0; }
+
+    // copy constructor, increment the reference count only
+    mutex(const mutex& c);
+
+    void operator=(const mutex&) = delete;
+    void operator=(mutex&&) = delete;
+
+    void lock() const;
+
+    void unlock() const;
+
+    bool try_lock() const;
+
+    void* _p;
+};
+
+struct mutex_guard {
+    explicit mutex_guard(const mutex& m) : _m(m) {
+        _m.lock();
+    }
+
+    ~mutex_guard() {
+        _m.unlock();
+    }
+
+    mutex_guard(const mutex_guard&) = delete;
+    mutex_guard(mutex_guard&&) = delete;
+    void operator=(const mutex_guard&) = delete;
+    void operator=(mutex_guard&&) = delete;
+
+    const co::mutex& _m;
+};
+
+// for communications between coroutines and/or threads
+struct event {
+    explicit event(bool manual_reset=false, bool signaled=false);
+    ~event();
+
+    event(event&& e) noexcept : _p(e._p) {
+        e._p = 0;
+    }
+
+    // copy constructor, increment the reference count only
+    event(const event& e);
+
+    void operator=(const event&) = delete;
+    void operator=(event&&) = delete;
+
+    void wait() const;
+
+    // return false if timedout
+    bool wait(uint32 ms) const ;
+
+    void notify_one() const;
+    void notify_all() const;
+    void reset() const;
+
+    void* _p;
+};
+
+struct wait_group {
+    explicit wait_group(uint32 n);
+
+    wait_group() : wait_group(0) {}
+
+    ~wait_group();
+
+    wait_group(wait_group&& wg) noexcept : _p(wg._p) {
+        wg._p = 0;
+    }
+
+    // copy constructor, increment the reference count only
+    wait_group(const wait_group& wg);
+
+    void operator=(const wait_group&) = delete;
+    void operator=(wait_group&&) = delete;
+
+    // increase the counter by n (1 by default)
+    void add(uint32 n=1) const;
+
+    // decrease the counter by 1, wake up all the waiters if it becomes 0
+    void done() const;
+
+    // blocks until the counter becomes 0
+    void wait() const;
+
+    void* _p;
+};
+
+// pool used in coroutines
+struct pool {
+    using create_cb_t = void* (*)();
+    using destroy_cb_t = void (*)(void*);
+
+    pool();
+    ~pool();
+
+    // @c    callback used to create an element
+    //       eg.  []() { return (void*) new T; }
+    // @d    callback used to destroy an element
+    //       eg.  [](void* p) { delete (T*)p; }
+    // @cap  max capacity of the pool per thread
+    pool(create_cb_t c, destroy_cb_t d, uint32 cap=(uint32)-1);
+
+    pool(pool&& p) : _p(p._p) { p._p = 0; }
+
+    // copy constructor, increment the reference count only
+    pool(const pool& p);
+
+    void operator=(const pool&) = delete;
+    void operator=(pool&&) = delete;
+
+    // pop an element from the pool of the current thread 
+    void* pop() const;
+
+    // push an element to the pool of the current thread, ignored if e is NULL
+    void push(void* e) const;
+
+    void* _p;
+};
+
+// pop and hold a pointer from co::pool when constructed,
+// and push it back when destructed
+template<typename T>
+struct pool_guard {
+    explicit pool_guard(const pool& p) : _p(p) {
+        _e = (T*) _p.pop();
+    }
+
+    explicit pool_guard(const pool* p) : pool_guard(*p) {}
+
+    ~pool_guard() { _p.push(_e); }
+
+    pool_guard(const pool_guard&) = delete;
+    pool_guard(pool_guard&&) = delete;
+    void operator=(const pool_guard&) = delete;
+    void operator=(pool_guard&&) = delete;
+
+    T* operator->() const noexcept { runtime_assert(_e); return _e; }
+    T& operator*()  const noexcept { runtime_assert(_e); return *_e; }
+
+    bool operator==(T* e) const noexcept { return _e == e; }
+    bool operator!=(T* e) const noexcept { return _e != e; }
+    explicit operator bool() const noexcept { return _e != nullptr; }
+
+    T* get() const noexcept { return _e; }
+
+    const pool& _p;
+    T* _e;
+};
+
+} // co
 
 using co::go;

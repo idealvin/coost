@@ -1,66 +1,39 @@
 #pragma once
 
-#include "def.h"
-#include <functional>
+#include "closure.h"
 
 namespace co {
 
-/**
- * A timed task scheduler
- *   - All tasks will run in a single thread.
- */
-class __coapi Tasked {
-  public:
-    typedef std::function<void()> F;
+// timed task scheduler
+struct tasked {
+    tasked();
+    ~tasked();
 
-    Tasked();
-    ~Tasked();
-
-    Tasked(const Tasked&) = delete;
-    void operator=(const Tasked&) = delete;
-
-    Tasked(Tasked&& t) : _p(t._p) {
+    tasked(tasked&& t) : _p(t._p) {
         t._p = 0;
     }
 
-    // run f() once @sec seconds later
-    void run_in(F&& f, int sec);
+    tasked(const tasked&) = delete;
+    void operator=(const tasked&) = delete;
+    void operator=(tasked&&) = delete;
 
-    // run f() once @sec seconds later
-    void run_in(const F& f, int sec) {
-        this->run_in(F(f), sec);
-    }
+    // run c() once @sec seconds later
+    void run_in(closure&& c, int sec);
 
-    // run f() every @sec seconds
-    void run_every(F&& f, int sec);
+    // run c() every @sec seconds
+    void run_every(closure&& c, int sec);
 
-    // run f() every @sec seconds
-    void run_every(const F& f, int sec) {
-        this->run_every(F(f), sec);
-    }
-
-    // run f() once at hour:minute:second
+    // run c() once at hour:minute:second
     // hour: 0-23, mimute & second: 0-59
-    void run_at(F&& f, int hour, int minute=0, int second=0);
+    void run_at(closure&& c, int hour, int minute=0, int second=0);
 
-    // run f() once at hour:minute:second
-    void run_at(const F& f, int hour, int minute=0, int second=0) {
-        this->run_at(F(f), hour, minute, second);
-    }
-
-    // run f() at hour:minute:second every day
+    // run c() at hour:minute:second every day
     // hour: 0-23, mimute & second: 0-59
-    void run_daily(F&& f, int hour=0, int minute=0, int second=0);
-
-    // run f() at hour:minute:second every day
-    void run_daily(const F& f, int hour=0, int minute=0, int second=0) {
-        this->run_daily(F(f), hour, minute, second);
-    }
+    void run_daily(closure&& c, int hour=0, int minute=0, int second=0);
 
     // stop this task scheduler
     void stop();
 
-  private:
     void* _p;
 };
 

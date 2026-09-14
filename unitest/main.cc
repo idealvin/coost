@@ -1,8 +1,7 @@
 #include "co/unitest.h"
-#include "co/co.h"
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-    unitest::run_tests();
+    co::run_unitests();
     return 0;
 }

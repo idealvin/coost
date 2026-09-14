@@ -1,16 +1,17 @@
 #include "co/co.h"
-#include "co/cout.h"
+#include "co/print.h"
+#include "co/flag.h"
 #include "co/time.h"
 
-void* gco = 0;
+co::coro_t* gco = 0;
 co::wait_group wg;
 
 void f() {
-    co::print("coroutine starts: ", co::coroutine_id());
+    co::println("coroutine starts: ", co::coroutine_id());
     gco = co::coroutine();
-    co::print("yield coroutine: ", gco);
+    co::println("yield coroutine: ", gco);
     co::yield();
-    co::print("coroutine ends: ", co::coroutine_id());
+    co::println("coroutine ends: ", co::coroutine_id());
     wg.done();
 }
 
@@ -19,9 +20,9 @@ int main(int argc, char** argv) {
 
     wg.add(1);
     go(f);
-    sleep::ms(10);
+    time::sleep(1000);
     if (gco) {
-        co::print("resume coroutine: ", gco);
+        co::println("resume coroutine: ", gco);
         co::resume(gco);
     }
 

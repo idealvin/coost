@@ -1,28 +1,23 @@
 #pragma once
 
-#include "cout.h"
+#include "print.h"
 #include "flag.h"
-#include "vector.h"
-#include "fastring.h"
 
-namespace unitest {
+namespace co {
 
 // return number of failed test cases
-__coapi int run_tests();
+int run_unitests();
 
-// deprecated, use run_tests() instead
-inline int run_all_tests() { return run_tests(); }
-
-namespace xx {
+namespace ut {
 
 struct Failed {
-    Failed(const char* c, const char* file, int line, fastring&& msg)
+    Failed(const char* c, const char* file, int line, co::string&& msg)
         : c(c), file(file), line(line), msg(std::move(msg)) {
     }
     const char* c; // case name
     const char* file;
     int line;
-    fastring msg;
+    co::string msg;
 };
 
 struct Test {
@@ -36,48 +31,48 @@ struct Test {
     co::vector<Failed> failed;
 };
 
-__coapi bool add_test(const char* name, bool& e, void(*f)(Test&));
+bool add_test(const char* name, bool& e, void(*f)(Test&));
 
-} // xx
-} // unitest
+} // ut
+} // co
 
 // define a test unit
-#define DEF_test(_name_) \
-    DEF_bool(_name_, false, "enable this test if true"); \
-    void _co_ut_##_name_(unitest::xx::Test&); \
-    static bool _co_ut_v_##_name_ = unitest::xx::add_test(#_name_, FLG_##_name_, _co_ut_##_name_); \
-    void _co_ut_##_name_(unitest::xx::Test& _t_)
+#define DEF_test(name) \
+    DEF_bool(name, false, "enable this test if true"); \
+    void _co_ut_##name(co::ut::Test&); \
+    static bool _co_ut_v_##name = co::ut::add_test(#name, FLG_##name, _co_ut_##name); \
+    void _co_ut_##name(co::ut::Test& _t_)
 
 // define a test case in the current unit
-#define DEF_case(name) _t_.c = #name; cout << " case " << #name << ':' << endl;
+#define DEF_case(name) _t_.c = #name; co::print(" case ", #name, ':', '\n');
 
 #define EXPECT(x) \
-{ \
+do { \
     if (x) { \
-        cout << color::green << "  EXPECT(" << #x << ") passed" << color::deflt << endl; \
+        co::print(co::color::green, "  EXPECT(", #x, ") passed", co::color::deflt, '\n'); \
     } else { \
-        fastring _U_s(32); \
-        _U_s << "EXPECT(" << #x << ") failed"; \
-        cout << color::red << "  " << _U_s << color::deflt << endl; \
-        _t_.failed.push_back(unitest::xx::Failed(_t_.c, __FILE__, __LINE__, std::move(_U_s))); \
+        co::string _s_(32); \
+        _s_.cat("EXPECT(", #x, ") failed"); \
+        co::print(co::color::red, "  ", _s_, co::color::deflt, '\n'); \
+        _t_.failed.push_back(co::ut::Failed(_t_.c, __FILE__, __LINE__, std::move(_s_))); \
     } \
-}
+} while (0);
 
 #define EXPECT_OP(x, y, op, opname) \
-{ \
-    auto _U_x = (x); \
-    auto _U_y = (y); \
-    if (_U_x op _U_y) { \
-        cout << color::green << "  EXPECT_" << opname << "(" << #x << ", " << #y << ") passed"; \
-        if (strcmp("==", #op) != 0) cout << ": " << _U_x << " vs " << _U_y; \
-        cout << color::deflt << endl; \
+do { \
+    auto _V_x = (x); \
+    auto _V_y = (y); \
+    if (_V_x op _V_y) { \
+        co::print(co::color::green, "  EXPECT_", opname, '(', #x, ", ", #y, ") passed"); \
+        if (strcmp(#op, "==") != 0) co::print(": ", _V_x, " vs ", _V_y); \
+        co::print(co::color::deflt, '\n'); \
     } else { \
-        fastring _U_s(128); \
-        _U_s << "EXPECT_" << opname << "(" << #x << ", " << #y << ") failed: " << _U_x << " vs " << _U_y; \
-        cout << color::red << "  " << _U_s << color::deflt << endl; \
-        _t_.failed.push_back(unitest::xx::Failed(_t_.c, __FILE__, __LINE__, std::move(_U_s))); \
+        co::string _s_(128); \
+        _s_.cat("EXPECT_", opname, '(', #x, ", ", #y, ") failed: ", _V_x, " vs ", _V_y); \
+        co::print(co::color::red, "  ", _s_, co::color::deflt, '\n'); \
+        _t_.failed.push_back(co::ut::Failed(_t_.c, __FILE__, __LINE__, std::move(_s_))); \
     } \
-}
+} while (0);
 
 #define EXPECT_EQ(x, y) EXPECT_OP(x, y, ==, "EQ")
 #define EXPECT_NE(x, y) EXPECT_OP(x, y, !=, "NE")

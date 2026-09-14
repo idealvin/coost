@@ -3,91 +3,52 @@
 [English](readme.md) | 简体中文
 [![Linux Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/linux.yml?branch=master&logo=linux)](https://github.com/idealvin/coost/actions?query=workflow%3ALinux)
 [![Windows Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindows)
+[![FreeBSD Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/freebsd.yml?branch=master&logo=freebsd)](https://github.com/idealvin/coost/actions?query=workflow%3AFreeBSD)
+[![Windows ARM64](https://img.shields.io/github/actions/workflow/status/idealvin/coost/win-arm64.yml?branch=master&logo=windows)](https://github.com/idealvin/coost/actions?query=workflow%3AWindowsARM64)
 [![Mac Build](https://img.shields.io/github/actions/workflow/status/idealvin/coost/macos.yml?branch=master&logo=apple)](https://github.com/idealvin/coost/actions?query=workflow%3AmacOS)
 [![Release](https://img.shields.io/github/release/idealvin/coost.svg)](https://github.com/idealvin/coost/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
-**[A tiny boost library in C++11.](https://github.com/idealvin/coost)**
-
+**[A tiny, minimalist Swiss Army knife for C++.](https://github.com/idealvin/coost)**
 
 
 ## 0. coost 简介
 
 **[coost](https://github.com/idealvin/coost)** 是一个**兼具性能与易用性**的跨平台 C++ 基础库，其目标是打造一把 C++ 开发神器，让 C++ 编程变得简单、轻松、愉快。
 
-coost 简称为 co，曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了不少强大的功能：
-
-<table>
-<tr><td width=33% valign=top>
-
-- 命令行与配置文件解析(flag)
-- **高性能日志库(log)**
-- 单元测试框架
-- 基准测试框架
-- **go-style 协程**
-- 基于协程的网络编程框架
-- **基于 JSON 的 RPC 框架**
-
-</td><td width=34% valign=top>
-
-- 原子操作(atomic)
-- **高效字符流(fastream)**
-- 高效字符串(fastring)
-- 字符串操作(str)
-- 时间库(time)
-- 线程库(thread)
-- 定时任务调度器
-
-</td><td valign=top>
-
-- **面向玄学编程**
-- 高效 JSON 库
-- hash 库
-- path 库
-- 文件系统操作(fs)
-- 系统操作(os)
-- **高性能内存分配器**
-
-</td></tr>
-</table>
+coost 简称为 co，网上有人称之为C++中的瑞士军刀，也曾被称为小型 [boost](https://www.boost.org/) 库，与 boost 相比，coost 小而精美，在 **linux 与 mac 上编译出来的静态库仅 1M 左右大小**，却包含了命令行与配置文件解析(flag)、高性能日志库(log)、单元测试框架(unitest)、性能基准测试框架(benchmark)、高性能内存分配器、go-style协程(co)、基于协程的网络编程框架与 RPC 框架等众多强大的功能。
 
 
-## 1. 赞助
 
-coost 的发展离不开大家的帮助，如果您在使用或者喜欢 coost，可以考虑赞助本项目，非常感谢。
+## 1. 赞助与付费服务
 
-- [Github Sponsors](https://github.com/sponsors/idealvin)
-- [给作者来杯咖啡](https://coostdocs.gitee.io/cn/about/sponsor/)
+**[给作者来杯茶](https://coostdocs.github.io/cn/about/sponsor/)**
 
+coost 持续维护需要成本。如果它帮到了您，欢迎赞助；如果您需要定制开发、架构适配（Windows ARM64 / RISC-V / MIPS）、协程 hook、性能优化等深度支持，作者也提供如下付费服务，包括但不限于：
+- coost 定制功能开发；
+- coost 使用培训；
+- coost 适配适配 Windows ARM64、RISC-V、MIPS 等架构；
+- 针对特定平台的协程 hook 功能，以支持在协程中直接使用三方网络库；
+- 技术咨询与技术培训；
+- 性能优化；
+- 解决复杂技术问题；
+
+有需要的朋友可以通过 [GitHub Issues](https://github.com/idealvin/coost/issues) 或邮件(idealvin@qq.com) 联系我，感谢！
 
 
 
 ## 2. 参考文档
 
-- 简体中文: [github](https://coostdocs.github.io/cn/about/co/) | [gitee](https://coostdocs.gitee.io/cn/about/co/)
-- English: [github](https://coostdocs.github.io/en/about/co/) | [gitee](https://coostdocs.gitee.io/en/about/co/)
+**目前文档已落后于最新版本 coost，请以[最新代码](https://github.com/idealvin/coost)与 [include/co](https://github.com/idealvin/coost/tree/master/include/co) 头文件为准**。
+
+- [简体中文](https://coostdocs.github.io/cn/about/co/) 
+- [English](https://coostdocs.github.io/en/about/co/)
 
 
 
 
 ## 3. 核心组件
-
-
-### 3.0 面向玄学编程
-
-[co/god.h](https://github.com/idealvin/coost/blob/master/include/co/god.h) 提供模板相关的一些功能。模板用到深处有点玄，有些 C++ 程序员称之为面向玄学编程。
-
-```cpp
-#include "co/god.h"
-
-void f() {
-    god::bless_no_bugs();
-    god::is_same<T, int, bool>(); // T is int or bool?
-}
-```
-
-
 
 ### 3.1 flag
 
@@ -97,80 +58,33 @@ void f() {
 - 支持 flag 别名。
 - 整数类型的 flag，值可以带单位 `k,m,g,t,p`，不分大小写。
 
-```cpp
-// xx.cc
-#include "co/flag.h"
-#include "co/cout.h"
-
-DEF_bool(x, false, "x");
-DEF_bool(y, true, "y");
-DEF_bool(debug, false, "dbg", d);
-DEF_uint32(u, 0, "xxx");
-DEF_string(s, "", "xx");
-
-int main(int argc, char** argv) {
-    flag::parse(argc, argv);
-    cout << "x: " << FLG_x << '\n';
-    cout << "y: " << FLG_y << '\n';
-    cout << "debug: " << FLG_debug << '\n';
-    cout << "u: " << FLG_u << '\n';
-    cout << FLG_s << "|" << FLG_s.size() << '\n';
-    return 0;
-}
-```
-
-上述代码中 `DEF_` 开头的宏定义了 4 个 flag，每个 flag 对应一个全局变量，变量名是 `FLG_` 加 flag 名，其中 flag `debug` 还有一个别名 `d`。上述代码编译后，可以按如下方式运行：
-
-```sh
-./xx                  # 按默认配置运行
-./xx -x -s good       # x -> true, s -> "good"
-./xx -debug           # debug -> true
-./xx -xd              # x -> true, debug -> true
-./xx -u 8k            # u -> 8192, 整数可带单位(k,m,g,t,p), 不分大小写
-
-./xx -mkconf          # 自动生成配置文件 xx.conf
-./xx xx.conf          # 从配置文件传入参数
-./xx -conf xx.conf    # 与上同
-```
-
+用法参考[test/flag.cc](https://github.com/idealvin/coost/blob/master/test/flag.cc)。
 
 
 ### 3.2 log
 
-**[log](https://coostdocs.github.io/cn/co/log/)** 是一个高性能日志组件，coost 中的一些组件用它打印日志。
-
-log 支持两种类型的日志：一种是 level log，分为 debug, info, warning, error, fatal 5 个级别，**打印 fatal 级别的日志会终止程序的运行**；另一种是 topic log，日志按 topic 分类，不同 topic 的日志写入不同的文件。
+**[log](https://coostdocs.github.io/cn/co/log/)** 是一个高性能日志组件，支持在程序崩溃时打印堆栈信息。用起来非常简单：
 
 ```cpp
 #include "co/log.h"
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-
-    TLOG("xx") << "s" << 23; // topic log
-    DLOG << "hello " << 23;  // debug
-    LOG << "hello " << 23;   // info
-    WLOG << "hello " << 23;  // warning
-    ELOG << "hello " << 23;  // error
-    FLOG << "hello " << 23;  // fatal
-
+    log::debug("hello ", 23);  // debug
+    log::info("hello ", 23);   // info
+    log::warn("hello ", 23);   // warning
+    log::error("hello ", 23);  // error
+    log::fatal("hello", 23);   // fatal, 会终止程序运行
+    log::check(1+1==2, "xx");  // 运行时断言，断言失败时，打印堆栈信息并退出程序
     return 0;
 }
-```
-
-log 还提供了一系列 `CHECK` 宏，可以视为加强版的 `assert`，它们在 debug 模式下也不会被清除。CHECK 断言失败时，log 会打印函数调用栈信息，然后终止程序的运行。
-
-```cpp
-void* p = malloc(32);
-CHECK(p != NULL) << "malloc failed..";
-CHECK_NE(p, NULL) << "malloc failed..";
 ```
 
 log 速度非常快，下面是一些测试结果：
 
 | platform | glog | co/log | speedup |
 | ------ | ------ | ------ | ------ |
-| win2012 HHD | 1.6MB/s | 180MB/s | 112.5 |
+| win2012 HDD | 1.6MB/s | 180MB/s | 112.5 |
 | win10 SSD | 3.7MB/s | 560MB/s | 151.3 |
 | mac SSD | 17MB/s | 450MB/s | 26.4 |
 | linux SSD | 54MB/s | 1023MB/s | 18.9 |
@@ -208,25 +122,26 @@ DEF_test(os) {
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-    unitest::run_tests();
+    co::run_unitests();
     return 0;
 }
 ```
 
-上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数(类中的方法)。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。
+上面是一个简单的例子，`DEF_test` 宏定义了一个测试单元，实际上就是一个函数。`DEF_case` 宏定义了测试用例，每个测试用例实际上就是一个代码块。
 
-[unitest](https://github.com/idealvin/coost/tree/master/unitest) 目录下面是 coost 中的单元测试代码，编译后可执行下述命令运行：
+[unitest](https://github.com/idealvin/coost/tree/master/unitest) 目录下面是 coost 中的单元测试代码，执行如下命令构建及运行：
 
 ```sh
+xmake b unitest
 xmake r unitest      # 运行所有单元测试用例
-xmake r unitest -os  # 仅运行 os 单元中的测试用例
+xmake r unitest -os  # 仅运行 os 单元中的测试用例, os 即测试单元名
 ```
 
 
 
 ### 3.4 JSON
 
-coost v3.0 中，**[Json](https://github.com/idealvin/coost/blob/master/include/co/json.h)** 采用**流畅(fluent)接口设计**，用起来更加方便。
+**[Json](https://github.com/idealvin/coost/blob/master/include/co/json.h)** 采用**流畅(fluent)接口设计**，用起来更加方便。
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
@@ -254,10 +169,6 @@ x.get("s").as_int();       // 123, string -> int
 x.get("v", 0).as_int();    // 1
 x.get("v", 2).as_int();    // 3
 x.get("o", "xx").as_int(); // 0
-
-x["a"] == 23;          // true
-x["s"] == "123";       // true
-x.get("o", "xx") != 0; // false
 ```
 
 下面是 co/json 与 rapidjson 的性能对比：
@@ -276,46 +187,32 @@ x.get("o", "xx") != 0; // false
 
 coost 实现了类似 golang 中 goroutine 的协程机制，它有如下特性：
 
-- 支持多线程调度，默认线程数为系统 CPU 核数。
+- 支持多线程调度，默认调度线程数为系统 CPU 核数。
 - 共享栈，同一线程中的协程共用若干个栈(大小默认为 1MB)，内存占用低。
 - 各协程之间为平级关系，可以在任何地方(包括在协程中)创建新的协程。
-- 支持协程同步事件、协程锁、channel、waitgroup 等协程同步机制。
+- 支持协程同步事件、协程锁、waitgroup 等协程同步机制。
 
 ```cpp
 #include "co/co.h"
+#include "co/print.h"
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
 
-    co::wait_group wg;
-    wg.add(2);
+    co::wait_group wg(2);
 
     go([wg](){
-        LOG << "hello world";
+        co::println("hello world");
         wg.done();
     });
 
     go([wg](){
-        LOG << "hello again";
+        co::println("hello again");
         wg.done();
     });
 
     wg.wait();
     return 0;
-}
-```
-
-上面的代码中，`go()` 创建的协程会分配到不同的调度线程中。用户也可以自行控制协程的调度：
-
-```cpp
-// run f1 and f2 in the same scheduler
-auto s = co::next_sched();
-s->go(f1);
-s->go(f2);
-
-// run f in all schedulers
-for (auto& s : co::scheds()) {
-    s->go(f);
 }
 ```
 
@@ -326,96 +223,7 @@ for (auto& s : co::scheds()) {
 coost 提供了一套基于协程的网络编程框架:
 
 - **[协程化的 socket API](https://coostdocs.github.io/cn/co/net/sock/)**，形式上与系统 socket API 类似，熟悉 socket 编程的用户，可以轻松的用同步的方式写出高性能的网络程序。
-- [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[HTTP](https://coostdocs.github.io/cn/co/net/http/)、[RPC](https://coostdocs.github.io/cn/co/net/rpc/) 等高层网络编程组件，兼容 IPv6，同时支持 SSL，用起来比 socket API 更方便。
-
-
-**RPC server**
-
-```cpp
-#include "co/co.h"
-#include "co/rpc.h"
-#include "co/time.h"
-
-int main(int argc, char** argv) {
-    flag::parse(argc, argv);
-
-    rpc::Server()
-        .add_service(new xx::HelloWorldImpl)
-        .start("127.0.0.1", 7788, "/xx");
-
-    for (;;) sleep::sec(80000);
-    return 0;
-}
-```
-
-rpc::Server 同时支持 HTTP 协议，可以用 HTTP 的 POST 方法调用 RPC 服务：
-
-```sh
-curl http://127.0.0.1:7788/xx --request POST --data '{"api":"ping"}'
-```
-
-
-**静态 web server**
-
-```cpp
-#include "co/flag.h"
-#include "co/http.h"
-
-DEF_string(d, ".", "root dir"); // docroot for the web server
-
-int main(int argc, char** argv) {
-    flag::parse(argc, argv);
-    so::easy(FLG_d.c_str()); // mum never have to worry again
-    return 0;
-}
-```
-
-
-**HTTP server**
-
-```cpp
-void cb(const http::Req& req, http::Res& res) {
-    if (req.is_method_get()) {
-        if (req.url() == "/hello") {
-            res.set_status(200);
-            res.set_body("hello world");
-        } else {
-            res.set_status(404);
-        }
-    } else {
-        res.set_status(405); // method not allowed
-    }
-}
-
-// http
-http::Server().on_req(cb).start("0.0.0.0", 80);
-
-// https
-http::Server().on_req(cb).start(
-    "0.0.0.0", 443, "privkey.pem", "certificate.pem"
-);
-```
-
-
-**HTTP client**
-
-```cpp
-void f() {
-    http::Client c("https://github.com");
-
-    c.get("/");
-    LOG << "response code: "<< c.status();
-    LOG << "body size: "<< c.body().size();
-    LOG << "Content-Length: "<< c.header("Content-Length");
-    LOG << c.header();
-
-    c.post("/hello", "data xxx");
-    LOG << "response code: "<< c.status();
-}
-
-go(f);
-```
-
+- [TCP](https://coostdocs.github.io/cn/co/net/tcp/)、[RPC](https://coostdocs.github.io/cn/co/net/rpc/) 等高层网络编程组件，兼容 IPv6，用起来比 socket API 更方便。
 
 
 
@@ -428,6 +236,10 @@ go(f);
 - [src](https://github.com/idealvin/coost/tree/master/src)  
 
   coost 的源代码，编译生成 libco。
+
+- [benchmark](https://github.com/idealvin/coost/tree/master/benchmark)  
+
+  性能基准测试代码，每个 `.cc` 文件对应不同的测试单元，所有代码都会编译到单个测试程序中。
 
 - [test](https://github.com/idealvin/coost/tree/master/test)  
 
@@ -448,11 +260,11 @@ go(f);
 
 ### 5.1 编译器要求
 
-编译 coost 需要编译器支持 C++11：
+**最新版本 coost 需要编译器支持 C++17**：
 
-- Linux: [gcc 4.8+](https://gcc.gnu.org/projects/cxx-status.html#cxx11)
-- Mac: [clang 3.3+](https://clang.llvm.org/cxx_status.html)
-- Windows: [vs2015+](https://visualstudio.microsoft.com/)
+- Linux: [gcc](https://gcc.gnu.org/projects/cxx-status.html#cxx17)
+- Mac: [clang](https://clang.llvm.org/cxx_status.html)
+- Windows: [MSVC](https://visualstudio.microsoft.com/)
 
 
 ### 5.2 用 xmake 构建
@@ -465,35 +277,22 @@ coost 推荐使用 [xmake](https://github.com/xmake-io/xmake) 作为构建工具
 ```sh
 # 所有命令都在 coost 根目录执行，后面不再说明
 xmake       # 默认构建 libco
-xmake -a    # 构建所有项目 (libco, gen, test, unitest)
+xmake -a    # 构建所有项目 (libco, benchmark, gen, test, unitest)
 ```
 
+#### 5.2.2 启用backtrace特性
 
-#### 5.2.2 构建动态库
+在linux、mac上打印程序崩溃的堆栈信息，需要[libbacktrace](https://github.com/ianlancetaylor/libbacktrace)，linux上较新版本的gcc已经内置了backtrace库，mac上一般需要手动安装。
 
 ```sh
-xmake f -k shared
-xmake -v
+xmake f --with_backtrace=true
+xmake b stack   # test/stack.cc
+xmake r stack   # 运行stack测试程序
 ```
 
 
-#### 5.2.3 基于 mingw 构建
 
-```sh
-xmake f -p mingw
-xmake -v
-```
-
-
-#### 5.2.4 启用 HTTP/SSL 特性
-
-```sh
-xmake f --with_libcurl=true --with_openssl=true
-xmake -v
-```
-
-
-#### 5.2.5 安装 libco
+#### 5.2.3 安装 libco
 
 ```sh
 xmake install -o pkg          # 打包安装到 pkg 目录
@@ -502,23 +301,12 @@ xmake install -o /usr/local   # 安装到 /usr/local 目录
 ```
 
 
-#### 5.2.6 从 xrepo 安装 libco
-
-```sh
-xrepo install -f "openssl=true,libcurl=true" coost
-```
-
-
-
 ### 5.3 用 cmake 构建
-
-[izhengfan](https://github.com/izhengfan) 帮忙提供了 cmake 支持，[SpaceIm](https://github.com/SpaceIm) 进一步完善了 cmake 脚本。
-
 
 #### 5.3.1 构建 libco
 
 ```sh
-mkdir build && cd build
+mkdir cmakebuild && cd cmakebuild
 cmake ..
 make -j8
 ```
@@ -527,49 +315,20 @@ make -j8
 #### 5.3.2 构建所有项目
 
 ```sh
-mkdir build && cd build
+mkdir cmakebuild && cd cmakebuild
 cmake .. -DBUILD_ALL=ON -DCMAKE_INSTALL_PREFIX=/usr/local
 make -j8
-make install
+cd bin
+./unitest  # 运行单元测试程序
 ```
 
-
-#### 5.3.3 启用 HTTP/SSL 特性
+#### 5.3.3 启用backtrace特性
 
 ```sh
-mkdir build && cd build
-cmake .. -DWITH_LIBCURL=ON -DWITH_OPENSSL=ON
+mkdir cmakebuild && cd cmakebuild
+cmake .. -DWITH_BACKTRACE=ON
 make -j8
 ```
-
-
-#### 5.3.4 构建动态库
-
-```sh
-cmake .. -DBUILD_SHARED_LIBS=ON
-make -j8
-```
-
-
-#### 5.3.5 cmake 中查找 coost 包
-
-```cmake
-find_package(coost REQUIRED CONFIG)
-target_link_libraries(userTarget coost::co)
-```
-
-
-#### 5.3.6 vcpkg & conan
-
-```sh
-vcpkg install coost:x64-windows
-
-# 启用 HTTP & SSL
-vcpkg install coost[libcurl,openssl]:x64-windows
-
-conan install coost
-```
-
 
 
 
@@ -579,12 +338,10 @@ The MIT license. coost 包含了一些其他项目的代码，可能使用了不
 
 
 
-
 ## 7. 特别致谢
 
-- [context](https://github.com/idealvin/coost/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，特别表示感谢！
-- [Leedehai](https://github.com/Leedehai) 与 [daidai21](https://github.com/daidai21) 早期帮忙将 coost 的中文参考文档翻译成英文，特别表示感谢！
-- [ruki](https://github.com/waruqi) 帮忙改进了 xmake 构建脚本，特别表示感谢！
+- [context](https://github.com/idealvin/coost/tree/master/src/co/context) 的相关代码取自 [ruki](https://github.com/waruqi) 的 [tbox](https://github.com/tboox/tbox)，另外ruki也帮忙改进了 xmake 构建脚本，特别表示感谢！
 - [izhengfan](https://github.com/izhengfan) 提供了 cmake 构建脚本，特别表示感谢！
 - [SpaceIm](https://github.com/SpaceIm) 完善了 cmake 构建脚本，提供了 `find_package` 的支持，特别表示感谢！
+- [Leedehai](https://github.com/Leedehai) 与 [daidai21](https://github.com/daidai21) 早期帮忙将 coost 的中文参考文档翻译成英文，特别表示感谢！
 

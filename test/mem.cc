@@ -1,5 +1,4 @@
 #include "co/all.h"
-#include "co/mem.h"
 
 DEF_bool(s, false, "use system allocator");
 DEF_int32(n, 50000, "n");
@@ -7,11 +6,15 @@ DEF_int32(m, 200, "m");
 DEF_int32(t, 1, "thread num");
 DEF_bool(xfree, false, "test xfree");
 
+co::wait_group wg;
+
 void test_fun(int id) {
     int N = FLG_n;
-    co::vector<void*> v(N);
-    fastream s(1024);
-    co::Timer t;
+    co::vector<void*> v;
+    v.reserve(N);
+
+    co::string s(1024);
+    time::timer t;
     int64 us;
     double avg;
     double vavg;
@@ -66,27 +69,27 @@ void test_fun(int id) {
         s << "::free avg: " << avg << " ns\n";
     }
 
-    co::print("thread ", id, ":\n", s);
-    v.reset();
+    co::println("thread ", id, ":\n", s);
+    wg.done();
 }
 
 void test_string() {
     int N = FLG_n;
-    fastream s(1024);
-    co::Timer t;
+    co::string s(1024);
+    time::timer t;
     int64 us;
     double avg = 0;
 
     t.restart();
     for (int i = 0; i < N; ++i) {
-        fastring x;
+        co::string x;
         for (int k = 0; k < 64; ++k) {
             x.append(32, 'x');
         }
     }
     us = t.us();
     avg = us * 1000.0 / N;
-    s << "fastring " << " avg: " << avg << " ns\n";
+    s << "co::string " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {
@@ -98,13 +101,13 @@ void test_string() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::string " << " avg: " << avg << " ns";
-    co::print(s);
+    co::println(s);
 }
 
 void test_vector() {
     int N = 10000;
-    fastream s(1024);
-    co::Timer t;
+    co::string s(1024);
+    time::timer t;
     int64 us;
     double avg = 0;
 
@@ -126,13 +129,13 @@ void test_vector() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::vector " << " avg: " << avg << " ns";
-    co::print(s);
+    co::println(s);
 }
 
 void test_map() {
     int N = FLG_n;
-    fastream s(1024);
-    co::Timer t;
+    co::string s(1024);
+    time::timer t;
     int64 us;
     double avg = 0;
 
@@ -154,13 +157,13 @@ void test_map() {
     us = t.us();
     avg = us * 1000.0 / N;
     s << "std::map " << " avg: " << avg << " ns";
-    co::print(s);
+    co::println(s);
 }
 
 void test_unordered_map() {
     int N = FLG_n;
-    fastream s(1024);
-    co::Timer t;
+    co::string s(1024);
+    time::timer t;
     int64 us;
     double avg = 0;
 
@@ -181,53 +184,33 @@ void test_unordered_map() {
     }
     us = t.us();
     avg = us * 1000.0 / N;
-    s << "std::unordered_map " << " avg: " << avg << " ns";
-    co::print(s << '\n');
+    s << "std::unordered_map " << " avg: " << avg << " ns" << '\n';
+    co::println(s);
 }
 
-auto& gMtx = *co::make_static<std::mutex>();
-auto& gA = *co::make_static<co::vector<void*>>(1024 * 1024);
-auto& gB = *co::make_static<co::vector<void*>>(1024 * 1024);
+auto& gA = *co::make_static<co::vector<void*>>();
 
 void test_xalloc() {
-    co::Timer t;
+    gA.reserve(50 * 1024);
+    time::timer t;
     for (int i = 0; i < FLG_n; ++i) {
-        for (int k = 0; k < FLG_m; ++k) {
-            void* p = co::alloc(32);
-            {
-                std::lock_guard<std::mutex> g(gMtx);
-                gA.push_back(p);
-            }
-        }
-        if (i % 100 == 0) co::sleep(1);
+        gA.push_back(co::alloc(32));
     }
-    co::print("xalloc done in ", t.ms(), "ms");
+    auto us = t.us();
+    co::println(co::sched_id(), " xalloc done in ", us, "us, avg: ", us * 1000.0 / FLG_n, "ns");
+    wg.done();
 }
 
 void test_xfree() {
-    size_t n = FLG_m * FLG_n;
-    co::Timer t;
-    while (true) {
-        {
-            std::lock_guard<std::mutex> g(gMtx);
-            gB.swap(gA);
-        }
-        if (!gB.empty()) {
-            for (auto& x : gB) {
-                co::free(x, 32);
-            }
-            n -= gB.size();
-            gB.clear();
-            if (n == 0) break;
-        } else {
-            co::sleep(1);
-        }
-    }
-    co::print("xfree done in ", t.ms(), "ms");
+    time::timer t;
+    for (auto& x : gA) { co::free(x, 32); }
+    auto us = t.us();
+    co::println(co::sched_id(), " xfree done in ", us, "us, avg: ", us * 1000.0 / FLG_n, "ns");
+    wg.done();
 }
 
 int main(int argc, char** argv) {
-    flag::parse(argc, argv);
+    flag::parse(argc, argv, true);
 
     if (!FLG_xfree) {
         test_string();
@@ -235,15 +218,20 @@ int main(int argc, char** argv) {
         test_map();
         test_unordered_map();
 
+        wg.add(FLG_t);
         for (int i = 0; i < FLG_t; ++i) {
             std::thread(test_fun, i).detach();
         }
+        wg.wait();
     } else {
+        wg.add(1);
         go(test_xalloc);
-        go(test_xfree);
-    }
+        wg.wait();
 
-    while (true) sleep::sec(8);
+        wg.add(1);
+        go(test_xfree);
+        wg.wait();
+    }
 
     return 0;
 }

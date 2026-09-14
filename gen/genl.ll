@@ -2,7 +2,6 @@
 #define YY_NO_UNISTD_H 1
 #include "gen.h"
 #include "geny.hh"
-#include "co/str.h"
 inline int isatty(int) { return 0; }
 %}
 
@@ -30,19 +29,20 @@ literal_begin (['\"])
     while (state < 2) {
         const int c = yyinput();
         switch (c) {
-          case '*':
-            if (state != 1) state = 1;
-            break;
-          case '/':
-            if (state == 1) state = 2;
-            break;
-          case EOF:
-            cout << "unexpected end of file while parsing multiline comment at line: "
-                 << yylineno << endl;
-            exit(0);
-          default:
-            if (state != 0) state = 0;
-            break;
+            case '*':
+                if (state != 1) state = 1;
+                break;
+            case '/':
+                if (state == 1) state = 2;
+                break;
+            case EOF:
+                co::println(
+                    "unexpected end of file while parsing multiline comment at line: ", yylineno
+                );
+                exit(0);
+            default:
+                if (state != 0) state = 0;
+                break;
         }
     }
 }
@@ -65,25 +65,27 @@ literal_begin (['\"])
 "object"   { return tok_object; }
 
 {intconstant} {
-    yylval.iconst = str::to_int64(yytext);
-    if (co::error() != 0) {
-        cout << "integer overflow: " << yytext << " at line " << yylineno << endl;
+    int e;
+    yylval.iconst = co::stoi64(yytext, &e);
+    if (e != 0) {
+        co::println("integer overflow: ", yytext, " at line ", yylineno);
         exit(0);
     }
     return tok_int_constant;
 }
 
 {hexconstant} {
-    yylval.iconst = str::to_int64(yytext);
-    if (co::error() != 0) {
-        cout << "integer overflow: " << yytext << " at line " << yylineno << endl;
+    int e;
+    yylval.iconst = co::stoi64(yytext, &e);
+    if (e != 0) {
+        co::println("integer overflow: ", yytext, " at line ", yylineno);
         exit(0);
     }
     return tok_int_constant;
 }
 
 {dblconstant} {
-    yylval.dconst = str::to_double(yytext);
+    yylval.dconst = co::stod(yytext);
     return tok_dbl_constant;
 }
 
@@ -94,15 +96,15 @@ literal_begin (['\"])
 
 {literal_begin} {
     char q = yytext[0];
-    fastring s;
+    co::string s;
     for (;;) {
         int c = yyinput();
         switch (c) {
           case EOF:
-            cout << "missing " << q << " at line " << yylineno << endl;
+            co::println("missing ", q, " at line ", yylineno);
             exit(0);
           case '\n':
-            cout << "missing " << q << " at line " << (yylineno - 1) << endl;
+            co::println("missing ", q, " at line ", (yylineno - 1));
             exit(0);
           case '\\':
             c = yyinput();
@@ -126,7 +128,7 @@ literal_begin (['\"])
                 s.append('\\');
                 continue;
               default:
-                cout << "invalid escape character: " << c << " at line " << yylineno << endl;
+                co::println("invalid escape character: ", c, " at line ", yylineno);
                 exit(0);
             }
             break;
@@ -141,7 +143,7 @@ literal_begin (['\"])
 }
 
 . {
-    cout << "unexpected token: " << yytext << " at line " << yylineno << endl;
+    co::println("unexpected token: ", yytext, " at line ", yylineno);
     exit(0);
 }
 

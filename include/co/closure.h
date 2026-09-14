@@ -1,187 +1,166 @@
 #pragma once
 
-#include "def.h"
 #include "mem.h"
-
-#include <functional>
+#include <utility>
+#include <tuple>
 #include <type_traits>
 
 namespace co {
 
-class __coapi Closure {
-  public:
-    Closure() = default;
-    virtual ~Closure() = default;
-    
-    virtual void run() = 0;
-};
+// closure called once only
+struct once_closure {
+    constexpr once_closure() noexcept : _p(0) {}
+    once_closure(void (*f)()) noexcept : _p((void*)f) {}
 
-namespace xx {
-
-template<typename F>
-class Function0 : public Closure {
-  public:
-    Function0(F&& f) : _f(std::forward<F>(f)) {}
-    virtual ~Function0() = default;
-
-    virtual void run() {
-        _f();
-        co::del(this);
+    once_closure(once_closure&& c) noexcept
+        : _p(c._p) {
+        c._p = 0;
     }
 
-  private:
-    typename std::remove_reference<F>::type _f;
-};
+    once_closure(const once_closure&) = delete;
+    void operator=(const once_closure&) = delete;
+    void operator=(once_closure&&) = delete;
 
-template<typename F>
-class Function0p : public Closure {
-  public:
-    Function0p(F* f) : _f(f) {}
-    virtual ~Function0p() = default;
+    template<typename F, typename = std::enable_if_t<
+        !std::is_convertible_v<std::decay_t<F>, void(*)()>>, typename ... A>
+    once_closure(F&& f, A&& ... a) {
+        struct S {
+            S(F&& f, A&& ... a)
+                : _f(std::forward<F>(f)), _a(std::forward<A>(a)...) {
+                static_assert(offsetof(Header, magic) == 0);
+                _header.magic = 0xdeadbeef;
+                _header.off = offsetof(Header, fp);
+                _header.fp = [](void* p) {
+                    S* const s = (S*)p;
+                    std::apply(s->_f, s->_a);
+                    s->~S();
+                    co::free(s, sizeof(S));
+                };
+            }
 
-    virtual void run() {
-        (*_f)();
-        co::del(this);
+            ~S() = default;
+
+            struct Header {
+                uint32 magic;
+                uint32 off;
+                void (*fp)(void*);
+            } _header;
+            std::decay_t<F> _f;
+            std::tuple<std::decay_t<A>...> _a;
+        };
+
+        _p = co::alloc(sizeof(S), alignof(S));
+        runtime_assert(_p);
+        new (_p) S(std::forward<F>(f), std::forward<A>(a)...);
     }
 
-  private:
-    typename std::remove_reference<F>::type* _f;
-};
+    ~once_closure() = default;
 
-template<typename F, typename P>
-class Function1 : public Closure {
-  public:
-    Function1(F&& f, P&& p) : _f(std::forward<F>(f)), _p(std::forward<P>(p)) {}
-    virtual ~Function1() = default;
-
-    virtual void run() {
-        _f(_p);
-        co::del(this);
+    void operator()() {
+        typedef void (*_F)();
+        typedef void (*_FP)(void*);
+        void* const p = (void*)_p;
+        if (p) {
+            _p = 0;
+            if (((size_t)p & 15) != 0 || *(uint32*)p != 0xdeadbeef) {
+                ((_F)p)();
+            } else {
+                (*(_FP*)((char*)p + ((uint32*)p)[1]))(p);
+            }
+        }
     }
 
-  private:
-    typename std::remove_reference<F>::type _f;
-    typename std::remove_reference<P>::type _p;
-};
-
-template<typename F, typename P>
-class Function1p : public Closure {
-  public:
-    Function1p(F* f, P&& p) : _f(f), _p(std::forward<P>(p)) {}
-    virtual ~Function1p() = default;
-
-    virtual void run() {
-        (*_f)(_p);
-        co::del(this);
+    explicit operator bool() const noexcept {
+        return _p != nullptr;
     }
 
-  private:
-    typename std::remove_reference<F>::type* _f;
-    typename std::remove_reference<P>::type _p;
+    void* _p;
 };
 
-template<typename T>
-class Method0 : public Closure {
-  public:
-    typedef void (T::*F)();
+// closure can be called repeatedly
+struct closure {
+    using _F = void (*)();
+    using _FP = void (*)(void*);
 
-    Method0(F f, T* o) : _f(f), _o(o) {}
-    virtual ~Method0() = default;
+    constexpr closure() noexcept : _p(0) {}
+    closure(void (*f)()) noexcept : _p((void*)f) {}
 
-    virtual void run() {
-        (_o->*_f)();
-        co::del(this);
+    closure(closure&& c) noexcept
+        : _p(c._p) {
+        c._p = 0;
     }
 
-  private:
-    F _f;
-    T* _o;
+    closure& operator=(closure&& c) {
+        closure x(std::move(*this));
+        new (this) closure(std::move(c));
+        return *this;
+    }
+
+    closure(const closure&) = delete;
+    void operator=(const closure&) = delete;
+
+    template<typename F, typename = std::enable_if_t<
+        !std::is_convertible_v<std::decay_t<F>, void(*)()>>, typename ... A>
+    closure(F&& f, A&& ... a) {
+        struct S {
+            S(F&& f, A&& ... a)
+                : _f(std::forward<F>(f)), _a(std::forward<A>(a)...) {
+                static_assert(offsetof(Header, magic) == 0);
+                _header.magic = 0xdeadbeef;
+                _header.off = offsetof(Header, fp);
+                _header.fp = [](void* p) {
+                    S* const s = (S*) ((size_t)p & ~(size_t)1);
+                    if (((size_t)p & 1) == 0) {
+                        std::apply(s->_f, s->_a);
+                    } else {
+                        s->~S();
+                        co::free(s, sizeof(S));
+                    }
+                };
+            }
+
+            ~S() = default;
+
+            struct Header {
+                uint32 magic;
+                uint32 off;
+                void (*fp)(void*);
+            } _header;
+            std::decay_t<F> _f;
+            std::tuple<std::decay_t<A>...> _a;
+        };
+
+        _p = co::alloc(sizeof(S), alignof(S));
+        runtime_assert(_p);
+        new (_p) S(std::forward<F>(f), std::forward<A>(a)...);
+    }
+
+    ~closure() {
+        void* const p = _p;
+        if (p) {
+            if (((size_t)p & 15) == 0 && *(uint32*)p == 0xdeadbeef) {
+                (*(_FP*)((char*)p + ((uint32*)p)[1]))((void*)((size_t)p | 1));
+            }
+            _p = 0;
+        }
+    }
+
+    void operator()() {
+        void* const p = _p;
+        if (p) {
+            if (((size_t)p & 15) != 0 || *(uint32*)p != 0xdeadbeef) {
+                ((_F)p)();
+            } else {
+                (*(_FP*)((char*)p + ((uint32*)p)[1]))(p);
+            }
+        }
+    }
+
+    explicit operator bool() const noexcept {
+        return _p != nullptr;
+    }
+
+    void* _p;
 };
-
-template<typename F, typename T, typename P>
-class Method1 : public Closure {
-  public:
-    Method1(F&& f, T* o, P&& p)
-        : _f(std::forward<F>(f)), _o(o), _p(std::forward<P>(p)) {
-    }
-    
-    virtual ~Method1() = default;
-
-    virtual void run() {
-        (_o->*_f)(_p);
-        co::del(this);
-    }
-
-  private:
-    typename std::remove_reference<F>::type _f;
-    T* _o;
-    typename std::remove_reference<P>::type _p;
-};
-
-} // xx
-
-/**
- * @param f  any runnable object, as long as we can call f().
- */
-template<typename F>
-inline Closure* new_closure(F&& f) {
-    return co::make<xx::Function0<F>>(std::forward<F>(f));
-}
-
-/**
- * @param f  pointer to any runnable object, as long as we can call (*f)().
- */
-template<typename F>
-inline Closure* new_closure(F* f) {
-    return co::make<xx::Function0p<F>>(f);
-}
-
-/**
- * function with a single parameter 
- *
- * @param f  any runnable object, as long as we can call f(p).
- * @param p  parameter of f.
- */
-template<typename F, typename P>
-inline Closure* new_closure(F&& f, P&& p) {
-    return co::make<xx::Function1<F, P>>(std::forward<F>(f), std::forward<P>(p));
-}
-
-/**
- * function with a single parameter 
- *
- * @param f  any runnable object, as long as we can call (*f)(p).
- * @param p  parameter.
- */
-template<typename F, typename P>
-inline Closure* new_closure(F* f, P&& p) {
-    return co::make<xx::Function1p<F, P>>(f, std::forward<P>(p));
-}
-
-/**
- * method (function in a class) without parameter
- * 
- * @param f  pointer to a method without parameter in class T.
- * @param o  pointer to an object of T.
- */
-template<typename T>
-inline Closure* new_closure(void (T::*f)(), T* o) {
-    return co::make<xx::Method0<T>>(f, o);
-}
-
-/**
- * method (function in a class) with a single parameter 
- * 
- * @tparam F  method type, void (T::*)(P).
- * @tparam T  type of the class.
- * @tparam P  type of the parameter.
- * @param f   pointer to a method with a parameter in class T.
- * @param o   pointer to an object of T.
- * @param p   parameter of f.
- */
-template<typename F, typename T, typename P>
-inline Closure* new_closure(F&& f, T* o, P&& p) {
-    return co::make<xx::Method1<F, T, P>>(std::forward<F>(f), o, std::forward<P>(p));
-}
 
 } // co

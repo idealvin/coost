@@ -1,62 +1,51 @@
 #pragma once
 
-#include "fastring.h"
+#include "string.h"
 #include <signal.h>
 
 namespace os {
 
-// get value of an environment variable
-__coapi fastring env(const char* name);
+// get value of environment variable
+co::string env(const char* name);
 
-// set value of an environment variable
-__coapi bool env(const char* name, const char* value);
-
-/**
- * We try to use `/` as the path separator on all platforms. 
- * On windows, `\` in results of the following APIs will be converted to `/`, if 
- * the result does not start with `\\`. 
- *   - homedir()
- *   - cwd()
- *   - exepath()
- */
+// set value of environment variable
+bool env(const char* name, const char* value);
 
 // get home dir of current user
-__coapi fastring homedir();
+co::string homedir();
 
-// get current working directory
-__coapi fastring cwd();
+// current working directory
+co::string cwd();
 
-// get executable path
-__coapi fastring exepath();
+// executable path
+co::string exepath();
 
-// get executable directory
-__coapi fastring exedir();
+// executable directory
+co::string exedir();
 
-// get executable name
-__coapi fastring exename();
+// executable name
+co::string exename();
 
-// get current process id
-__coapi int pid();
+// current process id
+int pid();
 
-// get number of processors
-__coapi int cpunum();
+// number of CPU cores
+int cpunum();
+
+int cache_line_size();
 
 // get size of a page in bytes
-__coapi size_t pagesize();
-
-// run as a daemon
-__coapi void daemon();
+size_t pagesize();
 
 typedef void (*sig_handler_t)(int);
 
-// set a handler for the specified signal
-// return the old handler.
-__coapi sig_handler_t signal(int sig, sig_handler_t handler, int flag = 0);
+// set signal handler, return the old handler
+sig_handler_t signal(int sig, sig_handler_t handler, int flag=0);
 
 // execute a shell command
-__coapi bool system(const char* cmd);
+bool system(const char* cmd);
 
-inline bool system(const fastring& cmd) {
+inline bool system(const co::string& cmd) {
     return os::system(cmd.c_str());
 }
 

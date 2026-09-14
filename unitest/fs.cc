@@ -6,13 +6,13 @@ namespace test {
 DEF_test(fs) {
     DEF_case(file) {
         fs::file fx(128);
-        EXPECT_EQ(fastring(), fx.path());
+        EXPECT_EQ(co::string(), fx.path());
 
         fs::file fo("xxx", 'w');
         EXPECT(fo);
         fo.write("99999");
         EXPECT_EQ(fo.size(), 5);
-        EXPECT_EQ(fastring("xxx"), fo.path());
+        EXPECT_EQ(co::string("xxx"), fo.path());
         fo.close();
 
         EXPECT(!fo.open("", 'a'));
@@ -21,12 +21,11 @@ DEF_test(fs) {
         EXPECT_EQ(fo.size(), 5);
         fo.close();
 
-        fs::fstream s;
-        s.open("xxx", 'w');
-        s << 1234567 << 'x';
-        s.flush();
-        s.close();
-
+        fo.open("xxx", 'w');
+        fo.write("1234567");
+        fo.write('x');
+        fo.close();
+         
         fo.open("xxx", 'm');
         EXPECT_EQ(fo.size(), 8);
 
@@ -36,16 +35,16 @@ DEF_test(fs) {
         fo.open("xxx", 'r');
         char buf[32];
         size_t r = fo.read(buf, 32);
-        EXPECT_EQ(fastring(buf, r), "12345678");
+        EXPECT_EQ(co::string(buf, r), "12345678");
         fo.close();
 
-        s.open("xxx", 'a');
-        s << 90;
-        s.flush();
+        fo.open("xxx", 'a');
+        fo.write("90");
+        fo.close();
 
         fo.open("xxx", 'r');
         r = fo.read(buf, 32);
-        EXPECT_EQ(fastring(buf, r), "1234567890");
+        EXPECT_EQ(co::string(buf, r), "1234567890");
 
         fo.open("xxplus", '+');
         fo.seek(0);
@@ -61,7 +60,7 @@ DEF_test(fs) {
         fo.seek(8);
         r = fo.read(buf + 8, 8);
         EXPECT_EQ(r, 3);
-        EXPECT_EQ(fastring(buf, 11), "hello123456");
+        EXPECT_EQ(co::string(buf, 11), "hello123456");
     }
 
     DEF_case(attr) {
@@ -79,11 +78,43 @@ DEF_test(fs) {
         EXPECT(fs::exists("xxd/a/b"));
     }
 
-    DEF_case(rename) {
-        fs::rename("xxx", "yyy");
-        EXPECT(!fs::exists("xxx"));
-        EXPECT(fs::exists("yyy"));
-        fs::rename("yyy", "xxx");
+    DEF_case(dir) {
+        EXPECT(fs::mkdir("xxreaddir"));
+        fs::file x("xxreaddir/xx.txt", 'w');
+        fs::file y("xxreaddir/yy.txt", 'w');
+        EXPECT(x);
+        EXPECT(y);
+        x.close();
+        y.close();
+
+        fs::dir d("xxreaddir");
+        auto v = d.all();
+        EXPECT_EQ(v.size(), 2)
+        if (v[0] < v[1]) {
+            EXPECT_EQ(v[0], "xx.txt")
+            EXPECT_EQ(v[1], "yy.txt")
+        } else {
+            EXPECT_EQ(v[0], "yy.txt")
+            EXPECT_EQ(v[1], "xx.txt")
+        }
+        d.close();
+
+        d.open("xxreaddir");
+        v.clear();
+        for (auto it = d.begin(); it != d.end(); ++it) {
+            v.push_back(*it);
+        }
+        EXPECT_EQ(v.size(), 2)
+        if (v[0] < v[1]) {
+            EXPECT_EQ(v[0], "xx.txt")
+            EXPECT_EQ(v[1], "yy.txt")
+        } else {
+            EXPECT_EQ(v[0], "yy.txt")
+            EXPECT_EQ(v[1], "xx.txt")
+        }
+
+        fs::rm("xxreaddir", true);
+        EXPECT(!fs::exists("xxreaddir"))
     }
 
     DEF_case(mv) {
@@ -106,7 +137,7 @@ DEF_test(fs) {
 
         fs::mkdir("xxd/xxx");
         EXPECT_EQ(fs::mv("xxx", "xxd"), false);
-        fs::remove("xxd/xxx");
+        fs::rm("xxd/xxx");
 
         EXPECT_EQ(fs::mkdir("xxs"), true);
         EXPECT_EQ(fs::mkdir("xxd/xxs"), true);
@@ -117,7 +148,7 @@ DEF_test(fs) {
         EXPECT_EQ(fs::mkdir("xxs"), true);
         EXPECT_EQ(fs::mv("xxs", "xxd"), false);
 
-        fs::remove("xxd/xxs", true);
+        fs::rm("xxd/xxs", true);
         EXPECT(!fs::exists("xxd/xxs"));
 
         o.open("xxd/xxs", 'w');
@@ -137,14 +168,14 @@ DEF_test(fs) {
     }
   #endif
 
-    DEF_case(remove) {
-        EXPECT(fs::remove("xxx"));
-        EXPECT(fs::remove("xxx.lnk"));
-        EXPECT(fs::remove("xxd.lnk"));
-        EXPECT(fs::remove("xxplus"));
-        EXPECT(!fs::remove("xxd"));
-        EXPECT(fs::remove("xxd", true));
-        EXPECT(fs::remove("xxs"));
+    DEF_case(rm) {
+        EXPECT(fs::rm("xxx"));
+        EXPECT(fs::rm("xxx.lnk"));
+        EXPECT(fs::rm("xxd.lnk"));
+        EXPECT(fs::rm("xxplus"));
+        EXPECT(!fs::rm("xxd"));
+        EXPECT(fs::rm("xxd", true));
+        EXPECT(fs::rm("xxs"));
         EXPECT(!fs::exists("xxx"));
         EXPECT(!fs::exists("xxx.lnk"));
         EXPECT(!fs::exists("xxd.lnk"));

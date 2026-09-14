@@ -1,0 +1,30 @@
+name: FreeBSD
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & test on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          version: '14.1'
+          usesh: true
+          prepare: |
+            pkg install -y cmake gmake git
+          run: |
+            mkdir -p cmakebuild
+            cd cmakebuild
+            cmake .. -DBUILD_ALL=ON
+            make -j8
+            ./bin/unitest

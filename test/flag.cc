@@ -1,5 +1,5 @@
 #include "co/flag.h"
-#include "co/cout.h"
+#include "co/print.h"
 
 DEF_bool(boo, false, "bool flag");
 DEF_bool(x, false, "bool x");
@@ -16,28 +16,29 @@ DEF_double(dbl, 3.14, "double");
 DEF_string(s, "hello world", "string");
 
 int main(int argc, char** argv) {
-    FLG_version = "v3.1.4";
+    flag::set_program_version("v3.1.4");
     flag::alias("version", "v");
     auto args = flag::parse(argc, argv);
 
-    co::print("boo: ", FLG_boo);
-    co::print("x: ", FLG_x);
-    co::print("y: ", FLG_y);
-    co::print("z: ", FLG_z);
-    co::print("n: ", FLG_n);
+    co::println("boo: ", FLG_boo);
+    co::println("x: ", FLG_x);
+    co::println("y: ", FLG_y);
+    co::println("z: ", FLG_z);
+    co::println("n: ", FLG_n);
 
-    co::print("i32: ", FLG_i32);
-    co::print("i64: ", FLG_i64);
-    co::print("u32: ", FLG_u32);
-    co::print("u64: ", FLG_u64);
+    co::println("i32: ", FLG_i32);
+    co::println("i64: ", FLG_i64);
+    co::println("u32: ", FLG_u32);
+    co::println("u64: ", FLG_u64);
 
-    co::print("dbl: ", FLG_dbl);
-    co::print(FLG_s, "|", FLG_s.size());
+    co::println("dbl: ", FLG_dbl);
+    co::println("s: ", FLG_s, "|", FLG_s.size());
 
     if (argc == 1) {
-        co::print("\nYou may try running ", argv[0], " as below:");
-        co::print(argv[0], "  -xz -i32 4k i64=8M u32=1g -s=xxx");
-        co::print(argv[0], "  -v");
+        co::println("\nYou may try running with following args:");
+        co::println("  --help");
+        co::println("  -v");
+        co::println("  -xz -i32 4k -i64 8M -u32 1g -s xxx");
     }
 
     return 0;

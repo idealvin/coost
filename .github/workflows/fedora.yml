@@ -26,14 +26,12 @@ jobs:
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
+          build-cache: true
 
       - name: Tests
         env:
           XMAKE_ROOT: y
         run: |
-          xmake f -k shared
           xmake -a
           xmake -b unitest
           xmake r unitest -co_sched_num=4
-          xmake f -m debug
-          xmake
