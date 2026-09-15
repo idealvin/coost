@@ -142,11 +142,11 @@ xmake r unitest -os  # 仅运行 os 单元中的测试用例, os 即单元测试
 
 ### 3.4 JSON
 
-**[Json](https://github.com/idealvin/coost/blob/master/include/co/json.h)** 采用**流畅(fluent)接口设计**，用起来更加方便。
+**[JSON](https://github.com/idealvin/coost/blob/master/include/co/json.h)** 采用**流畅(fluent)接口设计**，用起来更加方便。
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
-co::Json x = {
+json::any x = {
     { "a", 23 },
     { "b", false },
     { "s", "123" },
@@ -157,7 +157,7 @@ co::Json x = {
 };
 
 // equal to x
-co::Json y = Json()
+json::any y = Json()
     .add_member("a", 23)
     .add_member("b", false)
     .add_member("s", "123")

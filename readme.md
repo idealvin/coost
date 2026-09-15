@@ -147,7 +147,7 @@ xmake r unitest -os  # run only the test cases in the os unit; os is the unit na
 
 ```cpp
 // {"a":23,"b":false,"s":"123","v":[1,2,3],"o":{"xx":0}}
-co::Json x = {
+json::any x = {
     { "a", 23 },
     { "b", false },
     { "s", "123" },
@@ -158,7 +158,7 @@ co::Json x = {
 };
 
 // equal to x
-co::Json y = Json()
+json::any y = Json()
     .add_member("a", 23)
     .add_member("b", false)
     .add_member("s", "123")
