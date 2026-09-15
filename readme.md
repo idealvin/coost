@@ -23,7 +23,7 @@ coost is abbreviated as **co**. Some people call it the Swiss Army knife of C++,
 
 ## 1. Sponsorship and Paid Services
 
-**[Buy the author a cup of tea](https://coostdocs.github.io/cn/about/sponsor/)**
+**[Buy the author a cup of tea](https://coostdocs.github.io/en/about/sponsor/)**
 
 Maintaining coost takes time and effort. If it has helped you, please consider sponsoring the project. If you need in-depth support such as custom development, architecture porting (Windows ARM64 / RISC-V / MIPS), coroutine hooks, or performance optimization, the author also offers the following paid services, including but not limited to:
 
