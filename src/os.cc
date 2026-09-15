@@ -1,11 +1,13 @@
 #include "co/os.h"
 
 #ifndef _WIN32
-#include <stdio.h>      // popen, pclose
+#include <stdio.h>       // popen, pclose
 #include <unistd.h>
 #ifdef __APPLE__
-#include <sys/sysctl.h> // sysctlbyname
-#include <mach-o/dyld.h>
+#include <mach-o/dyld.h> // _NSGetExecutablePath
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 namespace os {
@@ -37,12 +39,6 @@ co::string cwd() {
 }
 
 #ifdef __APPLE__
-int cache_line_size() {
-    size_t n = 0;
-    size_t l = sizeof(n);
-    return (sysctlbyname("hw.cachelinesize", &n, &l, 0, 0) == 0) ? (int)n : 128;
-}
-
 co::string exepath() {
     co::string s(128);
     uint32_t n = 128;
@@ -51,20 +47,26 @@ co::string exepath() {
             s.resize(strlen(s.data()));
             return s;
         }
-        s.reserve(n);
+        s.reserve(n); // n contains '\0'
+    }
+}
+
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+co::string exepath() {
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+    co::string s(128);
+    size_t n = 128;
+    while (true) {
+        if (sysctl(mib, 4, s.data(), &n, NULL, 0) == 0) {
+            s.resize(strlen(s.data()));
+            return s;
+        }
+        if (errno != ENOMEM) return co::string();
+        s.reserve(n); // FreeBSD updates n to needed size on ENOMEM
     }
 }
 
 #else
-int cache_line_size() {
-#ifdef _SC_LEVEL1_DCACHE_LINESIZE
-    const int n = (int) sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
-    return n > 0 ? n : 128;
-#else
-    return 128;
-#endif
-}
-
 co::string exepath() {
     co::string s(128);
     while (true) {
@@ -244,32 +246,6 @@ int cpunum() {
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return (int) info.dwNumberOfProcessors;
-}
-
-int cache_line_size() {
-    using Info = SYSTEM_LOGICAL_PROCESSOR_INFORMATION;
-    Info* v = 0;
-    DWORD n = 0, k = 0;
-    GetLogicalProcessorInformation(nullptr, &n);
-    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || n == 0) goto err;
-
-    v = (Info*) ::malloc(n);
-    if (!GetLogicalProcessorInformation(v, &n)) goto err;
-
-    k = n / sizeof(Info);
-    for (DWORD i = 0; i < k; ++i) {
-        auto& info = v[i];
-        if (info.Relationship == RelationCache) {
-            if (info.Cache.Level == 1 && info.Cache.Type == CacheData) {
-                ::free(v);
-                return info.Cache.LineSize;
-            }
-        }
-    }
-
-err:
-    if (v) ::free(v);
-    return 128;
 }
 
 size_t pagesize() {

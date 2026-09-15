@@ -54,11 +54,9 @@ if(FPIC)
     set_target_properties(co PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
-find_package(Threads REQUIRED)
-target_link_libraries(co
-    PUBLIC Threads::Threads
-    PRIVATE ${CMAKE_DL_LIBS}
-)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    target_compile_definitions(co PRIVATE OS_IOS)
+endif()
 
 if(WIN32)
     target_compile_definitions(co
@@ -73,6 +71,12 @@ if(APPLE)
     target_include_directories(co SYSTEM PRIVATE "/usr/local/include")
     target_link_directories(co PUBLIC "/usr/local/lib")
 endif()
+
+find_package(Threads REQUIRED)
+target_link_libraries(co
+    PUBLIC Threads::Threads
+    PRIVATE ${CMAKE_DL_LIBS}
+)
 
 # Installation
 

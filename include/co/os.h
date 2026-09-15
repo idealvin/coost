@@ -32,8 +32,6 @@ int pid();
 // number of CPU cores
 int cpunum();
 
-int cache_line_size();
-
 // get size of a page in bytes
 size_t pagesize();
 

@@ -41,10 +41,6 @@ DEF_test(os) {
     DEF_case(cpunum) {
         EXPECT_GT(os::cpunum(), 0);
     }
-
-    DEF_case(cache_line_size) {
-        EXPECT_NE(os::cache_line_size(), 0);
-    }
 }
 
 } // namespace test
