@@ -50,7 +50,7 @@ static uint32 g_day;         // current day
 static uint32 g_last_day;    // last day
 static char g_last_time[24]; // time before day changed
 
-namespace _xx {
+namespace __co {
 namespace log {
 namespace xx {
 
@@ -772,10 +772,10 @@ void close() {
 }
 
 } // log
-} // _xx
+} // __co
 
 #ifdef _WIN32
 LONG WINAPI _co_on_exception(PEXCEPTION_POINTERS p) {
-    return _xx::log::xx::on_exception(p);
+    return __co::log::xx::on_exception(p);
 }
 #endif

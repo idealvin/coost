@@ -14,19 +14,20 @@ extern int yylineno;
 extern char yytext[];
 extern FILE* yyin;
 
+template<>
+inline co::string& co::string::assign(void* && p) noexcept {
+    char* const s = (char*) p;
+    const size_t n = strlen(s);
+    _cap = n + 1;
+    _size = n;
+    _p = s;
+    return *this;
+}
+
 // @s is the result of co::strdup()
 inline co::string S(char* s) {
-    struct X {
-        size_t cap;
-        size_t size;
-        char* p;
-    };
-    static_assert(sizeof(X) == sizeof(co::string));
-
-    const size_t n = strlen(s);
     co::string r;
-    new (&r) X{n + 1, n, s};
-    runtime_assert(r.size() == n && r.data() == s);
+    r.assign((void*)s);
     return r;
 }
 

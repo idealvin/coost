@@ -752,7 +752,29 @@ DEF_test(string) {
         }
     }
 
-    DEF_case(remove_prefix|remove_suffix) {
+    DEF_case(remove_outer|remove_prefix|remove_suffix) {
+        {
+            co::string x("123456789");
+            x.remove_outer(1);
+            EXPECT_EQ(x, "2345678");
+
+            x.remove_prefix(2);
+            EXPECT_EQ(x, "45678");
+
+            x.remove_suffix(2);
+            EXPECT_EQ(x, "456");
+
+            x.remove_suffix(5);
+            EXPECT(x.empty());
+
+            x = "123456";
+            x.remove_prefix(7);
+            EXPECT(x.empty());
+
+            x = "123456";
+            x.remove_outer(4);
+            EXPECT(x.empty());
+        }
         {
             co::string s("xxhello");
             EXPECT_EQ(s.remove_prefix("xx"), "hello");
@@ -772,29 +794,6 @@ DEF_test(string) {
             std::string e(".exe");
             EXPECT_EQ(s.remove_suffix(e), "xx");
         }
-    }
-
-    DEF_case(remove_outer|remove_prefix|remove_suffix) {
-        co::string x("123456789");
-        x.remove_outer(1);
-        EXPECT_EQ(x, "2345678");
-
-        x.remove_prefix(2);
-        EXPECT_EQ(x, "45678");
-
-        x.remove_suffix(2);
-        EXPECT_EQ(x, "456");
-
-        x.remove_suffix(5);
-        EXPECT(x.empty());
-
-        x = "123456";
-        x.remove_prefix(7);
-        EXPECT(x.empty());
-
-        x = "123456";
-        x.remove_outer(4);
-        EXPECT(x.empty());
     }
 
     DEF_case(shrink_to_fit) {

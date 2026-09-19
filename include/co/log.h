@@ -4,7 +4,7 @@
 
 DEC_uint32(min_log_level);
 
-namespace _xx {
+namespace __co {
 namespace log {
 namespace xx {
 
@@ -265,6 +265,6 @@ void set_write_cb(void(*cb)(const void*, size_t), bool also_log2local=false);
 void close();
 
 } // namespace log
-} // namespace _xx
+} // namespace __co
 
-using namespace _xx;
+using namespace __co;

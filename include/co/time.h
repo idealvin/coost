@@ -5,15 +5,6 @@
 namespace co {
 namespace xx {
 
-#ifdef _WIN32
-struct TimeInit {
-    TimeInit();
-    ~TimeInit() = default;
-};
-
-static TimeInit g_time_init;
-#endif
-
 // time since epoch (the unix time)
 struct Now {
     // nanoseconds since epoch, may overflow at the year 2262

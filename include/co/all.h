@@ -1,65 +1,87 @@
 #pragma once
 
-// align_up & align_down
-#include "align.h"
+// basic types and macros
+#include "def.h"
 
 // runtime_assert
 #include "assert.h"
 
+// align_up & align_down
+#include "align.h"
+
+// co::error, co::strerror
+#include "error.h"
+
 // intrusive linked list
 #include "clist.h"
-
-#include "def.h"
-#include "defer.h"
-#include "error.h"
 
 // memory allocator
 #include "mem.h"
 
-// co::string & string utility
-#include "string.h"
+// Go-style defer for C++
+#include "defer.h"
 
 // non-template closure without return value
 #include "closure.h"
 
-// scheduled task
-#include "tasked.h"
+// co::string and string utilities
+#include "string.h"
 
-// thread-safe console output
-#include "print.h"
-
-// standard containers using optimized memory allocator
+// STL containers using the optimized allocator
 #include "stl.h"
 
-// time utility
-#include "time.h"
+// Go-style path manipulation
+#include "path.h"
 
-// command line and config parser
-#include "flag.h"
+// JSON library with a fluent interface
+#include "json.h"
 
-// performance testing
-#include "benchmark.h"
-
-// unit testing
-#include "unitest.h"
-
-// logging
-#include "log.h"
-
-// concurrent & networking
-#include "atomic.h"
-#include "thread.h"
-#include "co.h"      // coroutine & socket APIs
-#include "tcp.h"
-#include "rpc.h"
-
-// base64, md5, sha256
+// base64 / md5 / sha256
 #include "base64.h"
 #include "md5.h"
 #include "sha256.h"
 
-#include "path.h"
-#include "fs.h"
-#include "json.h"
-#include "os.h"
+// random numbers and strings
 #include "rand.h"
+
+// time utilities
+#include "time.h"
+
+// OS utilities
+#include "os.h"
+
+// filesystem operations
+#include "fs.h"
+
+// thread-safe console output
+#include "print.h"
+
+// command-line and config parser
+#include "flag.h"
+
+// logging
+#include "log.h"
+
+// scheduled task
+#include "tasked.h"
+
+// atomic operations & memory order
+#include "atomic.h"
+
+// co::thread_id & co::sync_event
+#include "thread.h"
+
+// coroutines and socket APIs
+#include "co.h"
+
+// co::tcp_client & co::tcp_server
+#include "tcp.h"
+
+// RPC
+#include "rpc.h"
+
+// benchmarking
+#include "benchmark.h"
+
+// unit testing
+#include "unitest.h"

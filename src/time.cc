@@ -1,5 +1,6 @@
 #include "co/time.h"
 #include <time.h>
+#include <chrono>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -8,26 +9,18 @@
 #include <windows.h>
 #else
 #include <sys/time.h>
-#ifndef CLOCK_MONOTONIC
-#include <chrono>
-#endif
 #endif // ifdef _WIN32
 
 namespace co {
 namespace xx {
 
-#ifdef _WIN32
-static int g_nifty_counter;
-static int64 g_freq;
-
-TimeInit::TimeInit() {
-    if (g_nifty_counter++ == 0) {
-        LARGE_INTEGER x;
-        QueryPerformanceFrequency(&x);
-        g_freq = x.QuadPart;
-    }
+int64 MonoTime::ns() {
+    return static_cast<int64>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
+#ifdef _WIN32
 inline int64 _filetime() {
     FILETIME ft;
     LARGE_INTEGER x;
@@ -59,17 +52,6 @@ co::string Now::str(const char* fmt) {
     return co::string(buf, r);
 }
 
-inline int64 _query_counts() {
-    LARGE_INTEGER x;
-    QueryPerformanceCounter(&x);
-    return x.QuadPart;
-}
-
-int64 MonoTime::ns() {
-    const int64 count = _query_counts();
-    return count / g_freq * 1000000000 + count % g_freq * 1000000000 / g_freq;
-}
-
 #else
 int64 Now::ns() {
     struct timeval t;
@@ -98,21 +80,6 @@ co::string Now::str(const char* fmt) {
     const size_t r = strftime(buf, sizeof(buf), fmt, &t);
     return co::string(buf, r);
 }
-
-#ifdef CLOCK_MONOTONIC
-int64 MonoTime::ns() {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return static_cast<int64>(t.tv_sec) * 1000000000 + t.tv_nsec;
-}
-
-#else
-int64 MonoTime::ns() {
-    return static_cast<int64>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()).count());
-}
-#endif // ifdef CLOCK_MONOTONIC
 #endif // ifdef _WIN32
 
 } // xx

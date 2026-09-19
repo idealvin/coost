@@ -90,9 +90,11 @@ struct closure {
         c._p = 0;
     }
 
-    closure& operator=(closure&& c) {
-        closure x(std::move(*this));
-        new (this) closure(std::move(c));
+    closure& operator=(closure&& c) noexcept {
+        if (&c != this) {
+            closure x(std::move(*this));
+            new (this) closure(std::move(c));
+        }
         return *this;
     }
 

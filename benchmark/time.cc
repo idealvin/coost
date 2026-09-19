@@ -4,6 +4,7 @@
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
+#include <chrono>
 
 // speed testing
 // mac: 
@@ -14,7 +15,7 @@ BM_group(time) {
     int64 v;
     co::string s;
     BM_add(co::now.str()) {
-        s = co::now.str("%Y");
+        s = co::now.str();
     }
     BM_use(s);
 
@@ -24,13 +25,8 @@ BM_group(time) {
     }
     BM_use(v);
 
-    BM_add(co::mono_time.us()) {
-        v = co::mono_time.us();
-    }
-    BM_use(v);
-
-    BM_add(co::mono_time.ms()) {
-        v = co::mono_time.ms();
+    BM_add(co::mono_time.ns()) {
+        v = co::mono_time.ns();
     }
     BM_use(v);
 

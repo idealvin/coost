@@ -1,6 +1,5 @@
 #include "co/print.h"
 #include "co/closure.h"
-#include "co/co.h"
 
 void f() {
     co::println("f()");
@@ -19,10 +18,6 @@ int main(int argc, char** argv) {
         co::println("e called: ", v);
     }, 8);
     e();
-
-    go([]() {
-        co::println("hello");
-    });
 
     return 0;
 }
