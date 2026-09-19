@@ -11,7 +11,7 @@
 
 
 
-**[A tiny, minimalist Swiss Army knife for C++.](https://github.com/idealvin/coost)**
+**[A tasteful, minimal C++ base library.](https://github.com/idealvin/coost)**
 
 
 ## 简介
