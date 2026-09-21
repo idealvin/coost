@@ -52,14 +52,16 @@ name:
     .global name ;\
 name:
 
-#else
+#elif defined(__APPLE__) || defined(_WIN32)
 #   define function(name) \
     .text ;\
     .align CPU_BYTE_SIZE ; \
     .global _##name ;\
 _##name:
+
+#else
+#   error "Unsupported platform for context_x86/x64 assembly"
 #endif
 
 // end function
 #define endfunc
-

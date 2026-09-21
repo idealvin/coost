@@ -466,6 +466,7 @@ void Mod::make_config(const co::string& exe) {
         co::print(ss(e_open_failed), ": ", fname, '\n').flush();
         return;
     }
+    f.write(s);
     f.close();
 }
 
