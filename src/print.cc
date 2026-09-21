@@ -42,6 +42,7 @@ static int g_nifty_counter;
 inline void write_to_console(const char* s, size_t n) {
     std::lock_guard<std::mutex> g(*g_mtx);
     ::fwrite(s, 1, n, stderr);
+    ::fflush(stderr);
 }
 
 stream& stream::operator<<(color::_text&& t) {
