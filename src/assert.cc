@@ -47,31 +47,59 @@ int _itos(int n, char* buf) {
     return (int)(p - buf);
 }
 
-void _assert_failed(const char* c, const char* file, int line, const char* e) {
-    int n = 0;
-    const char* p = _fname(file, &n);
-    ::fwrite(p, 1, n, stderr);
-
-    char buf[16];
-    buf[0] = ':';
-    const int len = _itos(line, buf + 1);
-    buf[len + 1] = ']';
-    buf[len + 2] = ' ';
-    ::fwrite(buf, 1, len + 3, stderr);
-
-    ::fwrite("runtime_assert(", 1, 15, stderr);
-    ::fwrite(c, 1, _strlen(c), stderr);
-    ::fwrite(") failed! ", 1, 10, stderr);
-
-    int l = _strlen(e);
-    if (l > 0) {
-        if (*e == '"') {
-            ::fwrite(e + 1, 1, l - 2, stderr);
-        } else {
-            ::fwrite(e, 1, l, stderr);
-        }
+char* _strcat(char* dst, const char* src, int n) {
+    for (size_t i = 0; i < n; ++i) {
+        dst[i] = src[i];
     }
-    ::fwrite("\n", 1, 1, stderr);
+    return dst + n;
+}
+
+void _assert_failed(const char* c, const char* file, int line, const char* e) {
+    int fn_len = 0;
+    const char* fn = _fname(file, &fn_len);
+
+    char line_buf[12];
+    int line_len = _itos(line, line_buf);
+    int c_len = _strlen(c);
+
+    int e_len = _strlen(e);
+    if (e_len > 0 && *e == '"') {
+        ++e;
+        e_len -= 2;
+        if (e_len < 0) e_len = 0;
+    }
+
+    // layout:
+    //   <file> ':' <line> "] runtime_assert(" <cond> ") failed! " <desc> '\n'
+    //   fn_len  1  line_len         17         c_len      10       e_len  1
+    const int total = fn_len + 1 + line_len + 17 + c_len + 10 + e_len + 1;
+    char buf[512];
+
+    if (total <= (int)sizeof(buf)) {
+        char* p = buf;
+        p = _strcat(p, fn, fn_len);
+        *p++ = ':';
+        p = _strcat(p, line_buf, line_len);
+        p = _strcat(p, "] runtime_assert(", 17);
+        p = _strcat(p, c, c_len);
+        p = _strcat(p, ") failed! ", 10);
+        if (e_len > 0) p = _strcat(p, e, e_len);
+        *p++ = '\n';
+
+        // single fwrite
+        ::fwrite(buf, 1, (size_t)(p - buf), stderr);
+
+    } else {
+        // extremely long expression / description: fallback to segmented writes
+        ::fwrite(fn, 1, (size_t)fn_len, stderr);
+        ::fwrite(":", 1, 1, stderr);
+        ::fwrite(line_buf, 1, (size_t)line_len, stderr);
+        ::fwrite("] runtime_assert(", 1, 17, stderr);
+        ::fwrite(c, 1, (size_t)c_len, stderr);
+        ::fwrite(") failed! ", 1, 10, stderr);
+        if (e_len > 0) ::fwrite(e, 1, (size_t)e_len, stderr);
+        ::fwrite("\n", 1, 1, stderr);
+    }
 
 #ifdef _WIN32
     RaiseException(0xE880E233, 0, 0, NULL);
