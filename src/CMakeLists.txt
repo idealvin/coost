@@ -65,6 +65,8 @@ if(WIN32)
             _WINSOCK_DEPRECATED_NO_WARNINGS
     )
     target_link_libraries(co PUBLIC ws2_32)
+else()
+    target_compile_definitions(co PRIVATE _FILE_OFFSET_BITS=64)
 endif()
 
 if(APPLE)

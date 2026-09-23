@@ -1,12 +1,7 @@
-#include <cerrno>
 #ifndef _WIN32
-
 #include "co/fs.h"
-#include "co/mem.h"
 #include "close.h"
-#include <assert.h>
 #include <stdio.h>
-#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -39,7 +34,7 @@ bool mkdir(const char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
     const char* s = strrchr(path, '/');
-    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
+    if (!s || s == path) return ::mkdir(path, 0755) == 0;
 
     co::string parent(path, s - path);
     if (fs::exists(parent.c_str())) return ::mkdir(path, 0755) == 0;
@@ -50,7 +45,7 @@ bool mkdir(char* path, bool p) {
     if (!p) return ::mkdir(path, 0755) == 0;
 
     char* s = (char*) strrchr(path, '/');
-    if (s == 0 || s == path) return ::mkdir(path, 0755) == 0;
+    if (!s || s == path) return ::mkdir(path, 0755) == 0;
 
     *s = '\0';
     if (fs::exists(path)) {
@@ -72,11 +67,11 @@ bool _rmdir(co::string& s) {
     if (!d) return errno == ENOENT;
 
     const size_t n = s.size();
-    struct dirent* e;
-    while ((e = ::readdir(d))) {
-        if (is_dot_or_dotdot(e->d_name)) continue; // ignore . and ..
+    struct dirent* de;
+    while ((de = ::readdir(d))) {
+        if (is_dot_or_dotdot(de->d_name)) continue; // ignore . and ..
         s.resize(n);
-        s.append('/').append(e->d_name);
+        s.append('/').append(de->d_name);
         if (fs::isdir(s.c_str())) {
             if (!_rmdir(s)) goto err;
         } else {
@@ -89,28 +84,47 @@ bool _rmdir(co::string& s) {
     return ::rmdir(s.c_str()) == 0;
 
 err:
+    const int e = errno;
     ::closedir(d);
+    errno = e;
     return false;
 }
 
 bool rm(const char* path, bool r) {
     struct stat attr;
-    if (::lstat(path, &attr) != 0) return true; // not exists
+    if (::lstat(path, &attr) != 0) return errno == ENOENT;
     if (!S_ISDIR(attr.st_mode)) return ::unlink(path) == 0;
+
+    // rm / is not allowed 
+    if (path[0] == '/' && path[1] == '\0') {
+        errno = EPERM;
+        return false;
+    }
+
     if (!r) return ::rmdir(path) == 0;
 
     co::string s(path);
     s.trim_right('/');
-    return !s.empty() ? _rmdir(s) : false;
+    if (!s.empty()) return _rmdir(s);
+
+    // path contains only '/'
+    errno = EPERM;
+    return false;
 }
 
 bool mv(const char* from, const char* to) {
     co::string s(from);
     s.trim_right('/');
-    if (s.empty()) return false;
+    if (*from && s.empty()) { /* from contains only '/' */
+        errno = EPERM;
+        return false;
+    }
 
     struct stat attr;
-    if (::lstat(to, &attr) != 0 || !S_ISDIR(attr.st_mode)) {
+    const int r = ::lstat(to, &attr);
+    if (r != 0 && errno != ENOENT) return false;
+
+    if (r != 0 || !S_ISDIR(attr.st_mode)) {
         return ::rename(s.c_str(), to) == 0;
     }
 
@@ -132,37 +146,36 @@ bool symlink(const char* dst, const char* lnk) {
 
 #define nullfd -1
 
-struct fctx {
+struct _fctx {
     uint32 n;
-    int err;
     int fd;
-    int dummy;
 };
 
 file::file(size_t n) : _p(0) {
-    const size_t x = n + sizeof(fctx) + !n;
-    _p = co::alloc(x); assert(_p);
-    fctx* p = (fctx*)_p;
-    p->n = (uint32)x;
-    p->fd = nullfd;
-    *(char*)(p + 1) = '\0';
+    const size_t x = n + sizeof(_fctx) + !n;
+    _p = co::alloc(x);
+    runtime_assert(_p);
+    _fctx* fctx = (_fctx*)_p;
+    fctx->n = (uint32)x;
+    fctx->fd = nullfd;
+    *(char*)(fctx + 1) = '\0';
 }
 
 file::~file() {
     if (_p) {
         this->close();
-        co::free(_p, ((fctx*)_p)->n);
+        co::free(_p, ((_fctx*)_p)->n);
         _p = 0;
     }
 }
 
-file::operator bool() const {
-    fctx* p = (fctx*)_p;
-    return p && p->fd != nullfd;
+file::operator bool() const noexcept {
+    const auto fctx = (_fctx*)_p;
+    return fctx && fctx->fd != nullfd;
 }
 
-const char* file::path() const {
-    return _p ? ((char*)_p + sizeof(fctx)) : "";
+const char* file::path() const noexcept {
+    return _p ? ((char*)_p + sizeof(_fctx)) : "";
 }
 
 inline int _open(const char* path, char mode) {
@@ -178,76 +191,79 @@ inline int _open(const char* path, char mode) {
         case '+':
             return ::open(path, O_RDWR | O_CREAT, 0644);
         default:
+            errno = EINVAL;
             return nullfd;
     }
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
-    if (!path || !*path) return false;
-
-    const uint32 n = (uint32)strlen(path) + 1;
-    const uint32 x = n + sizeof(fctx);
-    fctx* p = (fctx*)_p;
-
-    if (!p || p->n < x) {
-        _p = co::realloc(_p, p ? p->n : 0, x); assert(_p);
-        p = (fctx*)_p;
-        ::memcpy(p + 1, path, n);
-        p->n = x;
-    } else {
-        ::memcpy(p + 1, path, n);
+    if (!path || !*path) {
+        errno = EINVAL;
+        return false;
     }
 
-    p->fd = _open(path, mode);
-    return p->fd != nullfd;
+    const uint32 n = (uint32)strlen(path) + 1;
+    const uint32 x = n + sizeof(_fctx);
+    _fctx* fctx = (_fctx*)_p;
+
+    if (!fctx || fctx->n < x) {
+        _p = co::realloc(_p, fctx ? fctx->n : 0, x);
+        runtime_assert(_p);
+        fctx = (_fctx*)_p;
+        ::memcpy(fctx + 1, path, n);
+        fctx->n = x;
+    } else {
+        ::memcpy(fctx + 1, path, n);
+    }
+
+    fctx->fd = _open(path, mode);
+    return fctx->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        _close(p->fd);
-        p->fd = nullfd;
+    _fctx* fctx = (_fctx*)_p;
+    if (fctx && fctx->fd != nullfd) {
+        _close(fctx->fd);
+        fctx->fd = nullfd;
     }
 }
 
-static int g_seekfrom[3] = { SEEK_SET, SEEK_CUR, SEEK_END };
+constexpr int g_seekfrom[3] = { SEEK_SET, SEEK_CUR, SEEK_END };
 
-void file::seek(int64 off, int whence) {
-    fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        ::lseek(p->fd, off, g_seekfrom[whence]);
+bool file::seek(int64 off, _seekfrom_t whence) {
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        errno = EBADF;
+        return false;
     }
-}
 
-int file::error() {
-    fctx* p = (fctx*)_p;
-    return (p && p->fd != nullfd) ? p->err : 0;
+    static_assert(sizeof(off_t) == sizeof(int64));
+    return ::lseek(fctx->fd, off, g_seekfrom[whence]) != (off_t)-1;
 }
 
 size_t file::read(void* s, size_t n) {
-    fctx* p = (fctx*)_p;
-    if (!p || p->fd == nullfd) return 0;
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        errno = EBADF;
+        return 0;
+    }
 
-    char* c = (char*)s;
-    size_t remain = n;
+    errno = 0;
     const size_t N = 1u << 30; // 1G
-    p->err = 0;
+    char* buf = (char*)s;
+    size_t remain = n;
 
     while (true) {
-        size_t toread = (remain < N ? remain : N);
-        auto r = ::read(p->fd, c, toread);
+        auto r = ::read(fctx->fd, buf, remain < N ? remain : N);
         if (r > 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
-            c += (size_t)r;
+            buf += (size_t)r;
         } else if (r == 0) { /* end of file */
             return n - remain;
         } else {
-            if (errno != EINTR) {
-                p->err = errno;
-                return n - remain;
-            }
+            if (errno != EINTR) return n - remain;
         }
     }
 }
@@ -259,33 +275,32 @@ co::string file::read(size_t n) {
 }
 
 size_t file::write(const void* s, size_t n) {
-    fctx* p = (fctx*)_p;
-    if (!p || p->fd == nullfd) return 0;
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        errno = EBADF;
+        return 0;
+    }
 
-    const char* c = (const char*)s;
-    size_t remain = n;
+    errno = 0;
     const size_t N = 1u << 30; // 1G
-    p->err = 0;
+    const char* buf = (const char*)s;
+    size_t remain = n;
 
     while (true) {
-        size_t towrite = (remain < N ? remain : N);
-        auto r = ::write(p->fd, c, towrite);
+        auto r = ::write(fctx->fd, buf, remain < N ? remain : N);
         if (r >= 0) {
             remain -= (size_t)r;
             if (remain == 0) return n;
-            c += (size_t)r;
+            buf += (size_t)r;
         } else {
-            if (errno != EINTR) {
-                p->err = errno;
-                return n - remain;
-            }
+            if (errno != EINTR) return n - remain;
         }
     }
 }
 
 #undef nullfd
 
-struct dctx {
+struct _dctx {
     size_t n;
     DIR* d;
     struct dirent* e;
@@ -294,93 +309,96 @@ struct dctx {
 dir::~dir() {
     if (_p) {
         this->close();
-        co::free(_p, ((dctx*)_p)->n);
+        co::free(_p, ((_dctx*)_p)->n);
         _p = 0;
     }
 }
 
 bool dir::open(const char* path) {
     this->close();
-    if (!path || !*path) return false;
-
-    const size_t n = strlen(path) + 1;
-    const size_t x = n + sizeof(dctx);
-    dctx* d = (dctx*)_p;
-
-    if (!d || d->n < x) {
-        _p = co::realloc(_p, d ? d->n : 0, x); assert(_p);
-        d = (dctx*)_p;
-        ::memcpy(d + 1, path, n);
-        d->n = x;
-    } else {
-        ::memcpy(d + 1, path, n);
+    if (!path || !*path) {
+        errno = EINVAL;
+        return false;
     }
 
-    d->d = ::opendir(path);
-    d->e = NULL;
-    return d->d;
+    const size_t n = strlen(path) + 1;
+    const size_t x = n + sizeof(_dctx);
+    _dctx* dctx = (_dctx*)_p;
+
+    if (!dctx || dctx->n < x) {
+        _p = co::realloc(_p, dctx ? dctx->n : 0, x);
+        runtime_assert(_p);
+        dctx = (_dctx*)_p;
+        ::memcpy(dctx + 1, path, n);
+        dctx->n = x;
+    } else {
+        ::memcpy(dctx + 1, path, n);
+    }
+
+    dctx->d = ::opendir(path);
+    dctx->e = nullptr;
+    return dctx->d;
 }
 
 void dir::close() {
-    dctx* d = (dctx*)_p;
-    if (d && d->d) {
-        ::closedir(d->d);
-        d->d = NULL;
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx && dctx->d) {
+        ::closedir(dctx->d);
+        dctx->d = nullptr;
     }
 }
 
-const char* dir::path() const {
-    return _p ? ((char*)_p + sizeof(dctx)) : "";
+const char* dir::path() const noexcept {
+    return _p ? ((char*)_p + sizeof(_dctx)) : "";
 }
 
 co::vector<co::string> dir::all() const {
-    dctx* d = (dctx*)_p;
-    if (!d || !d->d) return co::vector<co::string>();
+    _dctx* dctx = (_dctx*)_p;
+    if (!dctx || !dctx->d) return co::vector<co::string>();
 
     co::vector<co::string> r;
     r.reserve(128);
-    while ((d->e = ::readdir(d->d))) {
-        char* const p = d->e->d_name;
-        if (!is_dot_or_dotdot(p)) r.push_back(p);
+    while ((dctx->e = ::readdir(dctx->d))) {
+        char* const p = dctx->e->d_name;
+        if (!is_dot_or_dotdot(p)) r.emplace_back(p);
     }
     return r;
 }
 
 co::string dir::iterator::operator*() const {
-    assert(_p);
-    return ((dctx*)_p)->e->d_name;
+    runtime_assert(_p);
+    return co::string(((_dctx*)_p)->e->d_name);
 }
 
 dir::iterator& dir::iterator::operator++() {
-    dctx* d = (dctx*)_p;
-    if (d) {
-        assert(d->d);
-        while ((d->e = ::readdir(d->d))) {
-            char* const p = d->e->d_name;
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx) {
+        runtime_assert(dctx->d);
+        while ((dctx->e = ::readdir(dctx->d))) {
+            char* const p = dctx->e->d_name;
             if (!is_dot_or_dotdot(p)) break;
         }
-        if (!d->e) _p = NULL;
+        if (!dctx->e) _p = nullptr;
     }
     return *this;
 }
 
 dir::iterator dir::begin() const {
-    dctx* d = (dctx*)_p;
-    if (d && d->d) {
-        while ((d->e = ::readdir(d->d))) {
-            char* const p = d->e->d_name;
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx && dctx->d) {
+        while ((dctx->e = ::readdir(dctx->d))) {
+            char* const p = dctx->e->d_name;
             if (!is_dot_or_dotdot(p)) break;
         }
-        if (d->e) return dir::iterator(_p);
+        if (dctx->e) return dir::iterator(_p);
     }
-    return dir::iterator(NULL);
+    return dir::iterator(nullptr);
 }
 
 } // namespace fs
 
 #else
 #include "co/fs.h"
-#include "co/mem.h"
 
 #ifdef _MSC_VER
 #pragma warning (disable:4800)
@@ -399,14 +417,14 @@ inline co::string& cache() {
 }
 
 inline int nwc(const char* p) {
-    return MultiByteToWideChar(CP_UTF8, 0, p, -1, NULL, 0);
+    return MultiByteToWideChar(CP_UTF8, 0, p, -1, nullptr, 0);
 }
 
 inline void utf82wc(const char* p, wchar_t* w, int n) {
     MultiByteToWideChar(CP_UTF8, 0, p, -1, w, n);
 }
 
-static wchar_t* widen(const char* p, co::string* x=NULL) {
+static wchar_t* widen(const char* p, co::string* x=nullptr) {
     co::string& s = x ? *x : cache();
     const int n = nwc(p);
     if (n > 0) {
@@ -423,18 +441,18 @@ static wchar_t* widen(const char* p, co::string* x=NULL) {
 
 static co::string narrow(const wchar_t* p) {
     co::string s;
-    int n = WideCharToMultiByte(CP_UTF8, 0, p, -1, NULL, 0, NULL, NULL);
+    int n = WideCharToMultiByte(CP_UTF8, 0, p, -1, nullptr, 0, nullptr, nullptr);
     if (n > 0) {
         s.reserve(n);
-        WideCharToMultiByte(CP_UTF8, 0, p, -1, s.data(), n, NULL, NULL);
+        WideCharToMultiByte(CP_UTF8, 0, p, -1, s.data(), n, nullptr, nullptr);
         s.resize(n - 1);
     }
     return s;
 }
 
-const DWORD g_bad_attr = INVALID_FILE_ATTRIBUTES;
-const DWORD g_attr_dir = FILE_ATTRIBUTE_DIRECTORY;
-const DWORD g_attr_lnk = FILE_ATTRIBUTE_REPARSE_POINT;
+constexpr DWORD g_bad_attr = INVALID_FILE_ATTRIBUTES;
+constexpr DWORD g_attr_dir = FILE_ATTRIBUTE_DIRECTORY;
+constexpr DWORD g_attr_lnk = FILE_ATTRIBUTE_REPARSE_POINT;
 
 inline DWORD _getattr(const wchar_t* path) {
     return GetFileAttributesW(path);
@@ -446,7 +464,7 @@ inline bool _isdir(const wchar_t* path) {
 }
 
 inline bool _mkdir(const wchar_t* path) {
-    return CreateDirectoryW(path, 0);
+    return CreateDirectoryW(path, nullptr);
 }
 
 bool exists(const char* path) {
@@ -476,8 +494,8 @@ bool mkdir(const char* path, bool p) {
     if (!p) return _mkdir(widen(path));
 
     const char* s = strrchr(path, '/');
-    if (s == 0) s = strrchr(path, '\\');
-    if (s == 0) return _mkdir(widen(path));
+    if (!s) s = strrchr(path, '\\');
+    if (!s) return _mkdir(widen(path));
 
     co::string parent(path, s - path);
     if (fs::exists(parent.c_str())) return _mkdir(widen(path));
@@ -488,8 +506,8 @@ bool mkdir(char* path, bool p) {
     if (!p) return _mkdir(widen(path));
 
     char* s = (char*) strrchr(path, '/');
-    if (s == 0) s = (char*) strrchr(path, '\\');
-    if (s == 0) return _mkdir(widen(path));
+    if (!s) s = (char*) strrchr(path, '\\');
+    if (!s) return _mkdir(widen(path));
 
     const char c = *s;
     *s = '\0';
@@ -519,8 +537,8 @@ static bool _rmdir(co::string& s, wchar_t c) {
     s.append(&c, sizeof(c));
     _append(s, L"*");
 
-    WIN32_FIND_DATAW e;
-    HANDLE h = FindFirstFileW((wchar_t*)s.data(), &e);
+    WIN32_FIND_DATAW data;
+    HANDLE h = FindFirstFileW((wchar_t*)s.data(), &data);
     if (h == INVALID_HANDLE_VALUE) {
         s.resize(n);
         return GetLastError() == ERROR_FILE_NOT_FOUND;
@@ -528,17 +546,17 @@ static bool _rmdir(co::string& s, wchar_t c) {
 
     do {
         s.resize(n + sizeof(c));
-        if (e.dwFileAttributes & g_attr_dir) {
-            if (is_dot_or_dotdot(e.cFileName)) continue;
-            _append(s, e.cFileName);
+        if (data.dwFileAttributes & g_attr_dir) {
+            if (is_dot_or_dotdot(data.cFileName)) continue;
+            _append(s, data.cFileName);
             if (!_rmdir(s, c)) goto err;
         } else {
-            _append(s, e.cFileName);
+            _append(s, data.cFileName);
             if (!DeleteFileW((wchar_t*)s.data()) && GetLastError() != ERROR_FILE_NOT_FOUND) {
                 goto err;
             }
         }
-    } while (FindNextFileW(h, &e));
+    } while (FindNextFileW(h, &data));
 
     FindClose(h);
     s.resize(n);
@@ -546,14 +564,19 @@ static bool _rmdir(co::string& s, wchar_t c) {
     return RemoveDirectoryW((wchar_t*)s.data());
 
 err:
+    const auto e = GetLastError();
     FindClose(h);
+    SetLastError(e);
     return false;
 }
 
 bool rm(const char* path, bool r) {
     const wchar_t* wpath = widen(path);
     const DWORD attr = _getattr(wpath);
-    if (attr == g_bad_attr) return true; // not exists
+    if (attr == g_bad_attr) {
+        return GetLastError() == ERROR_FILE_NOT_FOUND;
+    }
+
     if (!(attr & g_attr_dir)) return DeleteFileW(wpath);
     if (!r) return RemoveDirectoryW(wpath);
 
@@ -563,18 +586,18 @@ bool rm(const char* path, bool r) {
 
 bool mv(const char* from, const char* to) {
     co::string sfrom, sto;
-    wchar_t* x = widen(from, &sfrom);
-    wchar_t* y = widen(to, &sto);
+    wchar_t* wfrom = widen(from, &sfrom);
+    wchar_t* wto = widen(to, &sto);
 
-    const DWORD a = _getattr(x);
-    const DWORD b = _getattr(y);
-    if (a == g_bad_attr || b == g_bad_attr) {
-        return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
+    const DWORD attr_from = _getattr(wfrom);
+    const DWORD attr_to = _getattr(wto);
+    if (attr_from == g_bad_attr || attr_to == g_bad_attr) {
+        return MoveFileExW(wfrom, wto, MOVEFILE_COPY_ALLOWED);
     }
-    if (!(b & g_attr_dir)) {
+    if (!(attr_to & g_attr_dir)) {
         DWORD f = MOVEFILE_COPY_ALLOWED;
-        if (!(a & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
-        return MoveFileExW(x, y, f);
+        if (!(attr_from & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
+        return MoveFileExW(wfrom, wto, f);
     }
 
     const char* p = strrchr(from, '/');
@@ -584,69 +607,66 @@ bool mv(const char* from, const char* to) {
     if (!s.ends_with(c)) s.append(c);
     s.append(p ? p + 1 : from);
 
-    y = widen(s.c_str(), &sto);
-    const DWORD w = _getattr(y);
-    if (w == g_bad_attr) {
-        return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
+    wto = widen(s.c_str(), &sto);
+    const DWORD attr = _getattr(wto);
+    if (attr == g_bad_attr) {
+        return MoveFileExW(wfrom, wto, MOVEFILE_COPY_ALLOWED);
     }
 
-    if (!(w & g_attr_dir)) {
+    if (!(attr & g_attr_dir)) {
         DWORD f = MOVEFILE_COPY_ALLOWED;
-        if (!(a & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
-        return MoveFileExW(x, y, f);
+        if (!(attr_from & g_attr_dir)) f |= MOVEFILE_REPLACE_EXISTING;
+        return MoveFileExW(wfrom, wto, f);
     }
 
-    if (a & g_attr_dir) RemoveDirectoryW(y); // remove dir y if it is empty
-    return MoveFileExW(x, y, MOVEFILE_COPY_ALLOWED);
+    if (attr_from & g_attr_dir) RemoveDirectoryW(wto); // remove dir wto if it is empty
+    return MoveFileExW(wfrom, wto, MOVEFILE_COPY_ALLOWED);
 }
 
 bool symlink(const char* dst, const char* lnk) {
     co::string sdst, slnk;
-    wchar_t* x = widen(dst, &sdst);
-    wchar_t* y = widen(lnk, &slnk);
-    const DWORD a = _getattr(y);
-    if (a != g_bad_attr && (a & g_attr_lnk)) {
-        (a & g_attr_dir) ? RemoveDirectoryW(y) : DeleteFileW(y);
+    wchar_t* wdst = widen(dst, &sdst);
+    wchar_t* wlnk = widen(lnk, &slnk);
+    const DWORD attr = _getattr(wlnk);
+    if (attr != g_bad_attr && (attr & g_attr_lnk)) {
+        (attr & g_attr_dir) ? RemoveDirectoryW(wlnk) : DeleteFileW(wlnk);
     }
-    const DWORD d = _isdir(x) ? 1 : 0;
-    return CreateSymbolicLinkW(y, x, d);
+    const DWORD d = _isdir(wdst) ? 1 : 0;
+    return CreateSymbolicLinkW(wlnk, wdst, d);
 }
 
 #define nullfd INVALID_HANDLE_VALUE
 
-struct fctx {
+struct _fctx {
     uint32 n;
-    int err;
-    union {
-        HANDLE fd;
-        uint64 dummy;
-    };
+    HANDLE fd;
 };
 
 file::file(size_t n) : _p(0) {
-    const size_t x = n + sizeof(fctx) + !n;
-    _p = co::alloc(x); assert(_p);
-    fctx* p = (fctx*)_p;
-    p->n = (uint32)x;
-    p->fd = nullfd;
-    *(char*)(p + 1) = '\0';
+    const size_t x = n + sizeof(_fctx) + !n;
+    _p = co::alloc(x);
+    runtime_assert(_p);
+    _fctx* fctx = (_fctx*)_p;
+    fctx->n = (uint32)x;
+    fctx->fd = nullfd;
+    *(char*)(fctx + 1) = '\0';
 }
 
 file::~file() {
     if (_p) {
         this->close();
-        co::free(_p, ((fctx*)_p)->n);
+        co::free(_p, ((_fctx*)_p)->n);
         _p = 0;
     }
 }
 
-file::operator bool() const {
-    fctx* p = (fctx*) _p;
-    return p && p->fd != nullfd;
+file::operator bool() const noexcept {
+    _fctx* fctx = (_fctx*) _p;
+    return fctx && fctx->fd != nullfd;
 }
 
-const char* file::path() const {
-    return _p ? ((char*)_p + sizeof(fctx)) : "";
+const char* file::path() const noexcept {
+    return _p ? ((char*)_p + sizeof(_fctx)) : "";
 }
 
 inline HANDLE _open_file(const char* path, char mode) {
@@ -663,77 +683,78 @@ inline HANDLE _open_file(const char* path, char mode) {
         case '+':
             return CreateFileW(s, GENERIC_READ | GENERIC_WRITE, 7, 0, OPEN_ALWAYS, 0, 0);
         default:
+            co::error(EINVAL);
             return nullfd;
     }
 }
 
 bool file::open(const char* path, char mode) {
     this->close();
-    if (!path || !*path) return false;
-
-    const uint32 n = (uint32)strlen(path) + 1;
-    const uint32 x = n + sizeof(fctx);
-    fctx* p = (fctx*)_p;
-
-    if (!p || p->n < x) {
-        _p = co::realloc(_p, p ? p->n : 0, x); assert(_p);
-        p = (fctx*)_p;
-        ::memcpy(p + 1, path, n);
-        p->n = x;
-    } else {
-        ::memcpy(p + 1, path, n);
+    if (!path || !*path) {
+        co::error(EINVAL);
+        return false;
     }
 
-    p->fd = _open_file(path, mode);
-    return p->fd != nullfd;
+    const uint32 n = (uint32)strlen(path) + 1;
+    const uint32 x = n + sizeof(_fctx);
+    _fctx* fctx = (_fctx*)_p;
+
+    if (!fctx || fctx->n < x) {
+        _p = co::realloc(_p, fctx ? fctx->n : 0, x);
+        runtime_assert(_p);
+        fctx = (_fctx*)_p;
+        ::memcpy(fctx + 1, path, n);
+        fctx->n = x;
+    } else {
+        ::memcpy(fctx + 1, path, n);
+    }
+
+    fctx->fd = _open_file(path, mode);
+    return fctx->fd != nullfd;
 }
 
 void file::close() {
-    fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        CloseHandle(p->fd);
-        p->fd = nullfd;
+    _fctx* fctx = (_fctx*)_p;
+    if (fctx && fctx->fd != nullfd) {
+        CloseHandle(fctx->fd);
+        fctx->fd = nullfd;
     }
 }
 
-static int g_seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
+constexpr int g_seekfrom[3] = { FILE_BEGIN, FILE_CURRENT, FILE_END };
 
-void file::seek(int64 off, int whence) {
-    fctx* p = (fctx*)_p;
-    if (p && p->fd != nullfd) {
-        if (off < (1LL << 31)) {
-            SetFilePointer(p->fd, (LONG)off, 0, g_seekfrom[whence]);
-        } else {
-            LARGE_INTEGER li;
-            li.QuadPart = off;
-            SetFilePointer(p->fd, li.LowPart, &li.HighPart, g_seekfrom[whence]);
-        }
+bool file::seek(int64 off, _seekfrom_t whence) {
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        co::error(EBADF);
+        return false;
     }
-}
 
-int file::error() {
-    fctx* p = (fctx*)_p;
-    return (p && p->fd != nullfd) ? p->err : 0;
+    LARGE_INTEGER li;
+    li.QuadPart = off;
+    return SetFilePointerEx(fctx->fd, li, nullptr, g_seekfrom[whence]) != 0;
 }
 
 size_t file::read(void* s, size_t n) {
-    fctx* p = (fctx*)_p;
-    if (!p || p->fd == nullfd) return 0;
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        co::error(EBADF);
+        return 0;
+    }
 
-    char* c = (char*)s;
-    size_t remain = n;
+    co::error(0);
     const size_t N = 1u << 30; // 1G
-    p->err = 0;
+    char* buf = (char*)s;
+    size_t remain = n;
 
     while (true) {
         DWORD r = 0;
         DWORD toread = (DWORD)(remain < N ? remain : N);
-        if (ReadFile(p->fd, c, toread, &r, 0) == TRUE) {
+        if (ReadFile(fctx->fd, buf, toread, &r, nullptr) == TRUE) {
             remain -= r;
-            if (r < toread || remain == 0) return n - remain;
-            c += r;
+            if (remain == 0 || r < toread) return n - remain;
+            buf += r;
         } else {
-            p->err = GetLastError();
             return n - remain;
         }
     }
@@ -746,23 +767,25 @@ co::string file::read(size_t n) {
 }
 
 size_t file::write(const void* s, size_t n) {
-    fctx* p = (fctx*)_p;
-    if (!p || p->fd == nullfd) return 0;
+    _fctx* fctx = (_fctx*)_p;
+    if (!fctx || fctx->fd == nullfd) {
+        co::error(EBADF);
+        return 0;
+    }
 
-    const char* c = (const char*)s;
-    size_t remain = n;
+    co::error(0);
     const size_t N = 1u << 30; // 1G
-    p->err = 0;
+    const char* buf = (const char*)s;
+    size_t remain = n;
 
     while (true) {
         DWORD r = 0;
         DWORD towrite = (DWORD)(remain < N ? remain : N);
-        if (WriteFile(p->fd, c, towrite, &r, 0) == TRUE) {
+        if (WriteFile(fctx->fd, buf, towrite, &r, nullptr) == TRUE) {
             remain -= r;
-            if (r < towrite || remain == 0) return n - remain;
-            c += r;
+            if (remain == 0) return n;
+            buf += r;
         } else {
-            p->err = GetLastError();
             return n - remain;
         }
     }
@@ -770,7 +793,7 @@ size_t file::write(const void* s, size_t n) {
 
 #undef nullfd
 
-struct dctx {
+struct _dctx {
     size_t n;
     HANDLE d;
     WIN32_FIND_DATAW e;
@@ -779,30 +802,34 @@ struct dctx {
 dir::~dir() {
     if (_p) {
         this->close();
-        co::free(_p, ((dctx*)_p)->n);
+        co::free(_p, ((_dctx*)_p)->n);
         _p = 0;
     }
 }
 
 bool dir::open(const char* path) {
     this->close();
-    if (!path || !*path) return false;
+    if (!path || !*path) {
+        co::error(EINVAL);
+        return false;
+    }
 
     const char c = strchr(path, '/') ? '/' : '\\';
     const size_t n = strlen(path);
-    const size_t x = n + sizeof(dctx) + 3; // append "/*"
-    dctx* d = (dctx*)_p;
+    const size_t x = n + sizeof(_dctx) + 3; // append "/*"
+    _dctx* dctx = (_dctx*)_p;
 
-    if (!d || d->n < x) {
-        _p = co::realloc(_p, d ? d->n : 0, x); assert(_p);
-        d = (dctx*)_p;
-        ::memcpy(d + 1, path, n);
-        d->n = x;
+    if (!dctx || dctx->n < x) {
+        _p = co::realloc(_p, dctx ? dctx->n : 0, x);
+        runtime_assert(_p);
+        dctx = (_dctx*)_p;
+        ::memcpy(dctx + 1, path, n);
+        dctx->n = x;
     } else {
-        ::memcpy(d + 1, path, n);
+        ::memcpy(dctx + 1, path, n);
     }
 
-    char* p = (char*)(d + 1);
+    char* p = (char*)(dctx + 1);
     if (p[n - 1] != c) {
         p[n] = c;
         p[n + 1] = '*';
@@ -811,66 +838,66 @@ bool dir::open(const char* path) {
         p[n] = '*';
         p[n + 1] = '\0';
     }
-    d->d = FindFirstFileW(widen(p), &d->e); 
+
+    const auto h = FindFirstFileW(widen(p), &dctx->e);
+    dctx->d = (h != INVALID_HANDLE_VALUE ? h : nullptr);
     p[n] = '\0';
-    return d->d != INVALID_HANDLE_VALUE;
+    return dctx->d;
 }
 
 void dir::close() {
-    dctx* p = (dctx*)_p;
-    if (p && p->d != INVALID_HANDLE_VALUE) {
-        FindClose(p->d);
-        p->d = INVALID_HANDLE_VALUE;
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx && dctx->d) {
+        FindClose(dctx->d);
+        dctx->d = nullptr;
     }
 }
 
-const char* dir::path() const {
-    return _p ? ((char*)_p + sizeof(dctx)) : "";
+const char* dir::path() const noexcept {
+    return _p ? ((char*)_p + sizeof(_dctx)) : "";
 }
 
 co::vector<co::string> dir::all() const {
-    dctx* d = (dctx*)_p;
-    if (!d || d->d == INVALID_HANDLE_VALUE) return co::vector<co::string>();
+    _dctx* dctx = (_dctx*)_p;
+    if (!dctx || !dctx->d) return co::vector<co::string>();
 
     co::vector<co::string> r;
     r.reserve(128);
     do {
-        wchar_t* const p = d->e.cFileName;
-        if (!is_dot_or_dotdot(p)) {
-            r.push_back(narrow(p));
-        }
-    } while (FindNextFileW(d->d, &d->e));
+        wchar_t* const p = dctx->e.cFileName;
+        if (!is_dot_or_dotdot(p)) r.emplace_back(narrow(p));
+    } while (FindNextFileW(dctx->d, &dctx->e));
     return r;
 }
 
 co::string dir::iterator::operator*() const {
-    assert(_p);
-    return narrow(((dctx*)_p)->e.cFileName);
+    runtime_assert(_p);
+    return narrow(((_dctx*)_p)->e.cFileName);
 }
 
 dir::iterator& dir::iterator::operator++() {
-    dctx* d = (dctx*)_p;
-    if (d) {
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx) {
         BOOL x;
-        assert(d->d != INVALID_HANDLE_VALUE);
-        while ((x = ::FindNextFileW(d->d, &d->e))) {
-            if (!is_dot_or_dotdot(d->e.cFileName)) break;
+        runtime_assert(dctx->d);
+        while ((x = ::FindNextFileW(dctx->d, &dctx->e))) {
+            if (!is_dot_or_dotdot(dctx->e.cFileName)) break;
         }
-        if (!x) _p = NULL;
+        if (!x) _p = nullptr;
     }
     return *this;
 }
 
 dir::iterator dir::begin() const {
-    dctx* d = (dctx*)_p;
-    if (d && d->d != INVALID_HANDLE_VALUE) {
+    _dctx* dctx = (_dctx*)_p;
+    if (dctx && dctx->d) {
         BOOL x = 1;
         do {
-            if (!is_dot_or_dotdot(d->e.cFileName)) break;
-        } while ((x = ::FindNextFileW(d->d, &d->e)));
+            if (!is_dot_or_dotdot(dctx->e.cFileName)) break;
+        } while ((x = ::FindNextFileW(dctx->d, &dctx->e)));
         if (x) return dir::iterator(_p);
     }
-    return dir::iterator(NULL);
+    return dir::iterator(nullptr);
 }
 
 } // namespace fs

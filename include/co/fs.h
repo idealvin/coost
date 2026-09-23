@@ -1,6 +1,6 @@
 #pragma once
 
-#include "def.h"
+#include "error.h"
 #include "string.h"
 
 namespace fs {
@@ -102,24 +102,31 @@ inline bool symlink(const std::string& dst, const std::string& lnk) {
 //   'm': modify       like 'w', but not truncated if exists
 //   '+': read/write   created if not exists
 struct file {
-    static const int seek_beg = 0;
-    static const int seek_cur = 1;
-    static const int seek_end = 2;
+    enum _seekfrom_t {
+        seek_beg = 0,
+        seek_cur = 1,
+        seek_end = 2,
+    };
 
-    file() : _p(0) {}
+    constexpr file() noexcept : _p(nullptr) {}
     ~file();
 
     // @n: reserve n bytes of memory for the path
     explicit file(size_t n);
 
-    file(const char* path, char mode) : _p(0) {
+    file(const char* path, char mode) : _p(nullptr) {
         this->open(path, mode);
     }
 
-    file(const co::string& path, char mode)  : file(path.c_str(), mode) {}
-    file(const std::string& path, char mode) : file(path.c_str(), mode) {}
+    file(const co::string& path, char mode)
+        : file(path.c_str(), mode) {
+    }
 
-    file(file&& f) : _p(f._p) {
+    file(const std::string& path, char mode)
+        : file(path.c_str(), mode) {
+    }
+
+    file(file&& f) noexcept : _p(f._p) {
         f._p = 0;
     }
 
@@ -127,16 +134,16 @@ struct file {
     void operator=(const file& x) = delete;
     void operator=(file&& x) = delete;
 
-    explicit operator bool() const;
+    explicit operator bool() const noexcept;
     
-    bool operator!() const {
+    bool operator!() const noexcept {
         return !(bool)(*this);
     }
 
-    const char* path() const;
+    const char* path() const noexcept;
 
-    int64 size()  const { return fs::fsize (this->path()); }
-    bool exists() const { return fs::exists(this->path()); }
+    int64 size()  const noexcept { return fs::fsize (this->path()); }
+    bool exists() const noexcept { return fs::exists(this->path()); }
 
     bool open(const char* path, char mode);
 
@@ -150,10 +157,7 @@ struct file {
 
     void close();
 
-    void seek(int64 off, int whence=seek_beg);
-
-    // read or write error, 0 for success
-    int error();
+    bool seek(int64 off, _seekfrom_t whence=seek_beg);
 
     size_t read(void* buf, size_t n);
 
@@ -181,45 +185,44 @@ struct file {
 };
 
 struct dir {
-    dir() : _p(0) {}
+    constexpr dir() noexcept : _p(nullptr) {}
     ~dir();
 
-    explicit dir(const char* path) : _p(0) {
+    explicit dir(const char* path) : _p(nullptr) {
         this->open(path);
     }
 
-    explicit dir(const co::string& path) : dir(path.c_str()) {}
+    explicit dir(const co::string& path)  : dir(path.c_str()) {}
     explicit dir(const std::string& path) : dir(path.c_str()) {}
 
-    dir(dir&& d) : _p(d._p) { d._p = 0; }
+    dir(dir&& d) noexcept : _p(d._p) { d._p = 0; }
 
     dir(const dir&) = delete;
     void operator=(const dir&) = delete;
     void operator=(dir&&) = delete;
 
     bool open(const char* path);
-    bool open(const co::string& path) { return this->open(path.c_str()); }
+    bool open(const co::string& path)  { return this->open(path.c_str()); }
     bool open(const std::string& path) { return this->open(path.c_str()); }
-
     void close();
 
-    const char* path() const;
+    const char* path() const noexcept;
 
     // return all entries
     co::vector<co::string> all() const;
 
     struct iterator {
-        explicit iterator(void* p) : _p(p) {}
+        explicit iterator(void* p) noexcept : _p(p) {}
         ~iterator() = default;
 
         co::string operator*() const;
-        iterator& operator++();
+        iterator& operator++(); // ++it
 
-        bool operator==(const iterator& it) const {
+        bool operator==(const iterator& it) const noexcept {
             return _p == it._p;
         }
 
-        bool operator!=(const iterator& it) const {
+        bool operator!=(const iterator& it) const noexcept {
             return !this->operator==(it);
         }
 
@@ -227,7 +230,7 @@ struct dir {
     };
 
     iterator begin() const;
-    iterator end() const { return iterator(NULL); }
+    iterator end() const { return iterator(nullptr); }
 
     void* _p;
 };

@@ -157,7 +157,7 @@ DEF_test(fs) {
         EXPECT_EQ(fs::mv("xxs", "xxd/xxs"), false);
     }
 
-  #ifndef _WIN32
+#ifndef _WIN32
     DEF_case(symlink) {
         fs::symlink("xxx", "xxx.lnk");
         fs::symlink("xxd", "xxd.lnk");
@@ -166,7 +166,7 @@ DEF_test(fs) {
         EXPECT_EQ(fs::symlink("xxx", "xxx.lnk"), true);
         EXPECT_EQ(fs::symlink("xxd", "xxd.lnk"), true);
     }
-  #endif
+#endif
 
     DEF_case(rm) {
         EXPECT(fs::rm("xxx"));

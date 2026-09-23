@@ -32,6 +32,7 @@ target("libco")
             add_syslinks("ws2_32", { public = true })
         end
     else
+        add_defines("_FILE_OFFSET_BITS=64")
         if is_os("ios") then
             add_defines("OS_IOS")
         end
