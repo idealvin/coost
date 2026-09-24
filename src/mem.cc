@@ -1,3 +1,7 @@
+#ifdef __linux__
+#define _GNU_SOURCE  // mremap
+#endif
+
 #include "co/mem.h"
 #include "co/align.h"
 #include "co/clist.h"
@@ -78,6 +82,17 @@ inline void _vm_decommit(void* p, size_t n) {
 
 inline void _vm_free(void* p, size_t n) {
     ::munmap(p, n);
+}
+#endif
+
+#ifdef __linux__
+inline void* _vm_realloc(void* p, size_t o, size_t n) {
+    void* const x = ::mremap(p, o, n, MREMAP_MAYMOVE);
+    return x != MAP_FAILED ? x : nullptr;
+}
+#else
+inline void* _vm_realloc(void*, size_t, size_t) {
+    return nullptr;
 }
 #endif
 
@@ -220,13 +235,15 @@ constexpr uint32 g_su_bits = 4;               // bits of small alloc units
 constexpr uint32 g_lu_bits = 12;              // bits of large alloc units
 constexpr uint32 g_su_size = 1 << g_su_bits;  // small alloc units (16)
 constexpr uint32 g_lu_size = 1 << g_lu_bits;  // large alloc units (4k)
-constexpr uint32 g_sb_bits = 16;              // bits of small block
-constexpr uint32 g_lb_bits = g_sb_bits + B;   // bits of large block
-constexpr uint32 g_hb_bits = g_lb_bits + B;   // bits of huge block
-constexpr uint32 g_sb_size = 1 << g_sb_bits;  // size of small block
-constexpr uint32 g_lb_size = 1 << g_lb_bits;  // size of large block
-constexpr uint32 g_hb_size = 1 << g_hb_bits;  // size of huge block
-constexpr size_t g_max_alloc_size = 1u << 17; // 128k
+constexpr uint32 g_sb_bits = 16;               // bits of small block
+constexpr uint32 g_lb_bits = g_sb_bits + B;    // bits of large block
+constexpr uint32 g_hb_bits = g_lb_bits + B;    // bits of huge block
+constexpr uint32 g_sb_size = 1 << g_sb_bits;   // size of small block
+constexpr uint32 g_lb_size = 1 << g_lb_bits;   // size of large block
+constexpr uint32 g_hb_size = 1 << g_hb_bits;   // size of huge block
+constexpr size_t g_max_small_size = 3584;      // 3.5k
+constexpr size_t g_max_medium_size = 1u << 17; // 128k
+using xx::g_max_align;
 
 template<typename T, typename V>
 inline T _fetch_add(T* p, V v) {
@@ -591,7 +608,6 @@ struct __cacheline_aligned ThreadAlloc {
     void* alloc(size_t n, size_t align);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
-    void* try_realloc(void* p, size_t o, size_t n);
     void* salloc(size_t n, size_t a) { return _s.alloc(n, a); }
 
     union { LargeBlock* _lb; co::clist _llb; };
@@ -635,7 +651,8 @@ inline ThreadAlloc::ThreadAlloc(GlobalAlloc* ga)
 }
 
 inline ThreadAlloc* talloc() {
-    return g_ta ? g_ta : (g_ta = g_root->make<ThreadAlloc>(g_ga));
+    const auto ta = g_ta;
+    return ta ? ta : (g_ta = g_root->make<ThreadAlloc>(g_ga));
 }
 
 #define _try_alloc(l, n, k) \
@@ -711,7 +728,7 @@ inline SmallAlloc* make_small_alloc(LargeBlock* lb, ThreadAlloc* ta) {
 }
 
 template<uint32 N, uint32 Bits>
-constexpr uint32 _nb(uint32 x) noexcept {
+constexpr uint32 nblk(uint32 x) noexcept {
     static_assert(N == (1u << Bits));
     return (x >> Bits) + !!(x & (N - 1));
 }
@@ -719,8 +736,8 @@ constexpr uint32 _nb(uint32 x) noexcept {
 inline void* ThreadAlloc::alloc(size_t n) {
     void* p = 0;
     SmallAlloc* sa;
-    if (n <= 2048) {
-        const uint32 u = n > g_su_size ? _nb<g_su_size, g_su_bits>((uint32)n) : 1;
+    if (n <= g_max_small_size) {
+        const uint32 u = n > g_su_size ? nblk<g_su_size, g_su_bits>((uint32)n) : 1;
         if (_sa && (p = _sa->alloc(u))) goto end;
 
         if (_sa && _sa->next) {
@@ -760,8 +777,8 @@ inline void* ThreadAlloc::alloc(size_t n) {
             goto end;
         }
 
-    } else if (n <= g_max_alloc_size) {
-        const uint32 u = _nb<g_lu_size, g_lu_bits>((uint32)n);
+    } else if (n <= g_max_medium_size) {
+        const uint32 u = nblk<g_lu_size, g_lu_bits>((uint32)n);
         if (_la && (p = _la->alloc(u))) goto end;
 
         if (_la && _la->next) {
@@ -783,7 +800,7 @@ inline void* ThreadAlloc::alloc(size_t n) {
         }
 
     } else {
-        p = ::malloc(n);
+        p = _vm_alloc(n);
     }
 
 end:
@@ -792,13 +809,13 @@ end:
 
 inline void* ThreadAlloc::alloc(size_t n, size_t align) {
     if (align <= (g_su_size)) return this->alloc(n);
-    runtime_assert(align <= 256 && !(align & (align - 1)));
+    runtime_assert(align <= g_max_align && !(align & (align - 1)));
 
     void* p = 0;
     SmallAlloc* sa;
-    if (n <= 2048) {
+    if (n <= g_max_small_size) {
         const uint32 a = (uint32)align >> g_su_bits;
-        const uint32 u = n > g_su_size ? _nb<g_su_size, g_su_bits>((uint32)n) : 1;
+        const uint32 u = n > g_su_size ? nblk<g_su_size, g_su_bits>((uint32)n) : 1;
         if (_sa && (p = _sa->alloc(u, a))) goto end;
 
         if (_lb && (sa = make_small_alloc(_lb, this))) {
@@ -828,7 +845,9 @@ inline void* ThreadAlloc::alloc(size_t n, size_t align) {
             }
             goto end;
         }
+
     } else {
+        static_assert(g_max_align <= g_lu_size, "");
         p = this->alloc(n);
     }
 
@@ -838,7 +857,7 @@ end:
 
 inline void ThreadAlloc::free(void* p, size_t n) {
     if (p) {
-        if (n <= 2048) {
+        if (n <= g_max_small_size) {
             const auto sa = (SmallAlloc*) co::align_down<g_sb_size>(p);
             const auto ta = sa->talloc();
             if (ta == this) {
@@ -854,7 +873,7 @@ inline void ThreadAlloc::free(void* p, size_t n) {
                 sa->xfree(p);
             }
 
-        } else if (n <= g_max_alloc_size) {
+        } else if (n <= g_max_medium_size) {
             const auto la = (LargeAlloc*) co::align_down<g_lb_size>(p);
             const auto ta = la->talloc();
             if (ta == this) {
@@ -867,37 +886,40 @@ inline void ThreadAlloc::free(void* p, size_t n) {
             }
 
         } else {
-            ::free(p);
+            _vm_free(p, n);
         }
     }
 }
 
 inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     if (!p) return this->alloc(n);
-    if (o > g_max_alloc_size) return ::realloc(p, n);
     runtime_assert(o < n, "old size must be less than new size in realloc");
 
-    if (o <= 2048) {
+    if (o <= g_max_small_size) {
         const uint32 k = (o > g_su_size ? co::align_up<g_su_size>((uint32)o) : g_su_size);
         if (n <= (size_t)k) return p;
 
         const auto sa = (SmallAlloc*) co::align_down<g_sb_size>(p);
-        if (sa == _sa && n <= 2048) {
-            const uint32 l = _nb<g_su_size, g_su_bits>((uint32)n);
+        if (sa == _sa && n <= g_max_small_size) {
+            const uint32 l = nblk<g_su_size, g_su_bits>((uint32)n);
             auto x = sa->realloc(p, k >> g_su_bits, l);
             if (x) return x;
         }
 
-    } else {
+    } else if (o <= g_max_medium_size) {
         const uint32 k = co::align_up<g_lu_size>((uint32)o);
         if (n <= (size_t)k) return p;
 
         const auto la = (LargeAlloc*) co::align_down<g_lb_size>(p);
-        if (la == _la && n <= g_max_alloc_size) {
-            const uint32 l = _nb<g_lu_size, g_lu_bits>((uint32)n);
+        if (la == _la && n <= g_max_medium_size) {
+            const uint32 l = nblk<g_lu_size, g_lu_bits>((uint32)n);
             auto x = la->realloc(p, k >> g_lu_bits, l);
             if (x) return x;
         }
+
+    } else {
+        auto x = _vm_realloc(p, o, n);
+        if (x) return x;
     }
 
     auto x = this->alloc(n);
@@ -905,36 +927,8 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
     return x;
 }
 
-inline void* ThreadAlloc::try_realloc(void* p, size_t o, size_t n) {
-    if (!p || o > g_max_alloc_size) return NULL;
-    runtime_assert(o < n, "old size must be less than new size in realloc");
-
-    if (o <= 2048) {
-        const uint32 k = (o > g_su_size ? co::align_up<g_su_size>((uint32)o) : g_su_size);
-        if (n <= (size_t)k) return p;
-
-        const auto sa = (SmallAlloc*) co::align_down<g_sb_size>(p);
-        if (sa == _sa && n <= 2048) {
-            const uint32 l = _nb<g_su_size, g_su_bits>((uint32)n);
-            return sa->realloc(p, k >> g_su_bits, l);
-        }
-
-    } else {
-        const uint32 k = co::align_up<g_lu_size>((uint32)o);
-        if (n <= (size_t)k) return p;
-
-        const auto la = (LargeAlloc*) co::align_down<g_lb_size>(p);
-        if (la == _la && n <= g_max_alloc_size) {
-            const uint32 l = _nb<g_lu_size, g_lu_bits>((uint32)n);
-            return la->realloc(p, k >> g_lu_bits, l);
-        }
-    }
-
-    return NULL;
-}
-
 void* _static_alloc(size_t n, size_t align) {
-    runtime_assert(align <= 256 && !(align & (align - 1)));
+    runtime_assert(align <= g_max_align && !(align & (align - 1)));
     return talloc()->salloc(n, align);
 }
 
@@ -958,27 +952,24 @@ void* realloc(void* p, size_t o, size_t n) {
     return talloc()->realloc(p, o, n);
 }
 
-void* try_realloc(void* p, size_t o, size_t n) {
-    return talloc()->try_realloc(p, o, n);
-}
-
 void* zalloc(size_t size) {
-    if (size <= g_max_alloc_size) {
+    if (size <= g_max_medium_size) {
         auto p = co::alloc(size);
         if (p) ::memset(p, 0, size);
         return p;
     }
-    return ::calloc(1, size);
+    return _vm_alloc(size);
 }
 
 void* valloc(size_t n) { return _vm_alloc(n); }
 
-void vfree(void* p, size_t n) { return _vm_free(p, n); }
+void vfree(void* p, size_t n) { _vm_free(p, n); }
 
 char* strdup(const char* s) {
-    const size_t n = strlen(s);
-    char* const p = (char*) co::alloc(n + 1);
-    ::memcpy(p, s, n + 1);
+    const size_t n = strlen(s) + 1;
+    char* const p = (char*) co::alloc(n);
+    runtime_assert(p);
+    ::memcpy(p, s, n);
     return p;
 }
 
