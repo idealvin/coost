@@ -176,7 +176,7 @@ struct string {
         }
     }
 
-    void ensure(size_t n) {
+    void ensure(size_t n) noexcept {
         if (_cap <= _size + n) {
             const size_t cap = _cap;
             _cap += ((_cap >> 1) + n + 1);
@@ -941,26 +941,26 @@ inline string replace(
 template<class T, class Alloc = co::stl_allocator<T>>
 using vector = std::vector<T, Alloc>;
 
-vector<string> split(const char* s, size_t n, char c, size_t t=0);
+vector<string> split(const char* s, size_t n, char c, size_t t=0) noexcept;
 
-vector<string> split(const char* s, size_t n, const char* c, size_t m, size_t t=0);
+vector<string> split(const char* s, size_t n, const char* c, size_t m, size_t t=0) noexcept;
 
 // co::split("|x|y|", '|');    ->  [ "", "x", "y" ]
 // co::split("xooy", 'o');     ->  [ "x", "", "y" ]
 // co::split("xooy", 'o', 1);  ->  [ "x", "oy" ]
-inline vector<string> split(const char* s, char c, size_t t=0) {
+inline vector<string> split(const char* s, char c, size_t t=0) noexcept {
     return split(s, strlen(s), c, t);
 }
 
-inline vector<string> split(const string& s, char c, size_t t=0) {
+inline vector<string> split(const string& s, char c, size_t t=0) noexcept {
     return split(s.data(), s.size(), c, t);
 }
 
-inline vector<string> split(const char* s, const char* c, size_t t=0) {
+inline vector<string> split(const char* s, const char* c, size_t t=0) noexcept {
     return split(s, strlen(s), c, strlen(c), t);
 }
 
-inline vector<string> split(const string& s, const char* c, size_t t=0) {
+inline vector<string> split(const string& s, const char* c, size_t t=0) noexcept {
     return split(s.data(), s.size(), c, strlen(c), t);
 }
 

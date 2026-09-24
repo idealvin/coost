@@ -32,7 +32,7 @@ struct clist {
     }
 
     // merge another list to the front, l will be cleared after merged
-    void push_front(clist& l) {
+    void push_front(clist& l) noexcept {
         if (!l.empty()) {
             if (_head) {
                 const auto tail = _head->prev;
@@ -59,7 +59,7 @@ struct clist {
     }
 
     // merge another list to the back, l will be cleared after merged
-    void push_back(clist& l) {
+    void push_back(clist& l) noexcept {
         if (!l.empty()) {
             if (_head) {
                 const auto tail = l._head->prev;

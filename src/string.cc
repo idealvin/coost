@@ -558,7 +558,7 @@ string replace(
     return x;
 }
 
-vector<string> split(const char* s, size_t n, char c, size_t t) {
+vector<string> split(const char* s, size_t n, char c, size_t t) noexcept {
     vector<string> v;
     v.reserve(8);
 
@@ -575,7 +575,7 @@ vector<string> split(const char* s, size_t n, char c, size_t t) {
     return v;
 }
 
-vector<string> split(const char* s, size_t n, const char* c, size_t m, size_t t) {
+vector<string> split(const char* s, size_t n, const char* c, size_t m, size_t t) noexcept {
     vector<string> v;
     if (m == 0) return v;
     v.reserve(8);
