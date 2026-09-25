@@ -38,6 +38,7 @@ struct rpc_server {
 
     rpc_server& add_service(co::unique<rpc_service>&& s);
     void start();
+    void stop();
 
     void* _p;
 };

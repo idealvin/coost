@@ -57,7 +57,7 @@ struct rpc_server_impl {
     void on_connection(sock_t fd);
 
     void start();
-
+    void stop() { _tcp_serv.stop(); }
     void process(json::any& req, json::any& res);
 
     co::tcp_server _tcp_serv;
@@ -195,9 +195,9 @@ rpc_server& rpc_server::add_service(co::unique<rpc_service>&& s) {
     return *this;
 }
 
-void rpc_server::start() {
-    static_cast<rpc_server_impl*>(_p)->start();
-}
+void rpc_server::start() { static_cast<rpc_server_impl*>(_p)->start(); }
+
+void rpc_server::stop() { static_cast<rpc_server_impl*>(_p)->stop(); }
 
 
 void rpc_client::call(const json::any& req, json::any& res) {

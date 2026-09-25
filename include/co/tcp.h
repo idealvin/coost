@@ -25,7 +25,6 @@ struct tcp_client {
     void operator=(tcp_client&& c) = delete;
 
     bool connected() const { return _fd != (sock_t)-1; }
-
     bool connect(int ms);
     void disconnect();
     void close() { this->disconnect(); }
@@ -66,7 +65,7 @@ struct tcp_server {
     }
 
     void start();
-
+    void stop();
     uint32 conn_num();
 
     void* _p;
