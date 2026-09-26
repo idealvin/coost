@@ -819,7 +819,7 @@ void any::erase(const char* key) noexcept {
                 const auto s = (const char*)a[i];
                 if (strcmp(key, s) == 0) {
                     xx::cache().free((void*)s, (uint32)strlen(s) + 1);
-                    ((any&)a[i + 1]).reset();
+                    (*(any*)&a[i + 1]).reset();
                     a.erase_pair(i);
                     return;
                 }
@@ -835,7 +835,7 @@ _beg:
             this->push_back(any());
         }
         this->push_back(any());
-        return (any&) _h->ao[i];
+        return *(any*)&_h->ao[i];
     }
 
     if (_h->type == t_array) goto _arr;
@@ -845,13 +845,13 @@ _beg:
 _arr:
     const uint32 n = _h->p ? _h->ao.size() : 0;
     if (i < n) {
-        return (any&) _h->ao[i];
+        return *(any*)&_h->ao[i];
     } else {
         for (uint32 k = n; k < i; ++k) {
             this->push_back(any());
         }
         this->push_back(any());
-        return (any&) _h->ao[i];
+        return *(any*)&_h->ao[i];
     }
 }
 
@@ -859,7 +859,7 @@ any& any::_set(const char* key) {
 _beg:
     if (this->is_null()) {
         this->add_member(key, any());
-        return (any&) _h->ao[1];
+        return *(any*)&_h->ao[1];
     }
 
     if (_h->type == t_object) goto _obj;
