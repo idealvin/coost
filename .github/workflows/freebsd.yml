@@ -30,3 +30,4 @@ jobs:
             ./bin/unitest
             ./bin/co
             ./bin/os
+            ./bin/tcp

@@ -90,7 +90,6 @@ void client_with_pool() {
             break;
         } else {
             co::println("client recv: ", co::string(buf, r), '\n');
-            co::sleep(500);
         }
     }
 }
@@ -119,7 +118,7 @@ int main(int argc, char** argv) {
         go(client_fun);
     }
 
-    while (true) time::sleep(10000);
-
+    time::sleep(2000);
+    s.stop();
     return 0;
 }

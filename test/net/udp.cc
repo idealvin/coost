@@ -13,10 +13,11 @@ void udp_server_fun() {
 
     co::sockaddr cli;
     char buf[4];
-    char pong[4]; memcpy(pong, "pong", 4);
+    char pong[4];
+    memcpy(pong, "pong", 4);
 
     co::println("server start: ", FLG_ip, ':', FLG_port);
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         int r = co::recvfrom(fd, buf, 4, cli);
         if (r >= 0) {
             co::println("server recv ", co::string(buf, r), " from ", cli);
@@ -44,9 +45,10 @@ void udp_client_fun() {
     co::sockaddr peer;
 
     char buf[4];
-    char ping[4]; memcpy(ping, "ping", 4);
+    char ping[4];
+    memcpy(ping, "ping", 4);
 
-    while (true) {
+    for (int i = 0; i < 3; ++i) {
         int r = co::sendto(fd, ping, 4, addr);
         if (r == -1) {
             co::println("client sendto error: ", co::strerror());
@@ -59,7 +61,6 @@ void udp_client_fun() {
                 break;
             } else {
                 co::println("client recv ", co::string(buf, r), " from ", peer, '\n');
-                co::sleep(3000);
             }
         }
     }
@@ -69,12 +70,9 @@ void udp_client_fun() {
 
 int main(int argc, char** argv) {
     flag::parse(argc, argv);
-
     go(udp_server_fun);
     co::sleep(32);
     go(udp_client_fun);
-
-    while (true) co::sleep(100000);
-
+    co::sleep(2000);
     return 0;
 }

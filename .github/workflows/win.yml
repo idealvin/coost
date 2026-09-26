@@ -31,3 +31,4 @@ jobs:
           xmake r unitest
           xmake r co
           xmake r os
+          xmake r tcp

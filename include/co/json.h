@@ -255,7 +255,7 @@ struct any {
     //     the return value is a reference to null object.
     any& get() const noexcept { return *(any*)this; }
     any& get(uint32 i) const noexcept {
-        return i < this->array_size() ? (any&)_h->ao[i] : _null();
+        return i < this->array_size() ? *(any*)(&_h->ao[i]) : _null();
     }
     any& get(int i) const noexcept { return this->get((uint32)i); }
     any& get(const char* key) const noexcept;
@@ -308,7 +308,7 @@ struct any {
     // the last element will be moved to the ith place
     void remove(uint32 i) noexcept {
         if (i < this->array_size()) {
-            ((any&)_h->ao[i]).reset();
+            (*(any*)(&_h->ao[i])).reset();
             _h->ao.remove(i);
         }
     }
@@ -319,7 +319,7 @@ struct any {
     // erase the ith element from an array
     void erase(uint32 i) noexcept {
         if (i < this->array_size()) {
-            ((any&)_h->ao[i]).reset();
+            (*(any*)(&_h->ao[i])).reset();
             _h->ao.erase(i);
         }
     }
@@ -401,8 +401,8 @@ struct any {
         iterator operator++(int) = delete;
 
         const char* key() const noexcept { return (const char*)_p[0]; }
-        any& value() const noexcept { return (any&)_p[1]; }
-        any& operator*() const noexcept { return (any&)_p[0]; }
+        any& value() const noexcept { return *(any*)(&_p[1]); }
+        any& operator*() const noexcept { return *(any*)_p; }
 
     private:
         T* _p;

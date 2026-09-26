@@ -355,7 +355,7 @@ void Mod::print_help(const co::string& exe) {
     co::print(" [-flag [value]] [-flag=value]...\n\n", c.deflt);
 
     size_t m = 0;
-    Flag* ff[3];
+    Flag* ff[3] = { 0 };
     for (auto it = _flags.begin(); it != _flags.end(); ++it) {
         auto& f = *(it->second);
         size_t n = strlen(f.name) + 3;

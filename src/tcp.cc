@@ -140,6 +140,7 @@ void tcp_server_impl::loop() {
 
     co::close(_fd);
     atomic_store(&_x.state, 2, mo_release);
+    log::info("server stopped: ", _ip, ':', _port);
 }
 
 tcp_server::tcp_server(const char* ip, uint16 port) {

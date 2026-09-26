@@ -31,3 +31,4 @@ jobs:
           .\unitest.exe
           .\co.exe
           .\os.exe
+          .\tcp.exe
