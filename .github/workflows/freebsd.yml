@@ -29,3 +29,4 @@ jobs:
             make -j8
             ./bin/unitest
             ./bin/co
+            ./bin/os

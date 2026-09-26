@@ -30,3 +30,4 @@ jobs:
           xmake -a
           xmake r unitest
           xmake r co
+          xmake r os
