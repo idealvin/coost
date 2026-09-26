@@ -313,7 +313,7 @@ bool event_impl::wait(uint32 ms) {
 
         if (s->timeout()) {
             _mutex_guard g(_m);
-            if (w->prev) _wq.erase((clink*)w); // w is still in the list
+            if (((clink*)w)->prev) _wq.erase((clink*)w); // w is still in the list
         }
 
         co::free(w, sizeof(Waitx));
@@ -341,7 +341,7 @@ bool event_impl::wait(uint32 ms) {
                 t = (uint32) timer.ms();
                 if (t < ms) continue; // spurious wakeup, continue waiting
             }
-            _wq.erase(&w);
+            _wq.erase((clink*)&w);
             return false; // timedout
         }
     }
@@ -368,7 +368,7 @@ void event_impl::notify_one() {
                 }
 
                 // timedout, if w->prev is NULL, w is not in the list
-                w->prev = nullptr;
+                ((clink*)w)->prev = nullptr;
 
             } else {
                 _cv* cv = (_cv*) w->ud;
@@ -404,7 +404,7 @@ void event_impl::notify_all() {
                     co->sched->add_ready_task(co);
                     if (!notified) notified = true;
                 } else { /* timedout */
-                    w->prev = nullptr;
+                    ((clink*)w)->prev = nullptr;
                 }
             } else {
                 _cv* cv = (_cv*) w->ud;

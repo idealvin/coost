@@ -50,7 +50,8 @@ inline co::string& operator<<(co::string& s, const timer_id_t& id) {
 }
 
 // waiting context, for co::event
-struct __cacheline_aligned Waitx : co::clink {
+struct __cacheline_aligned Waitx {
+    co::clink lnk;
     Coroutine* co;
     union {
         uint8 state;

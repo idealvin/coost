@@ -25,7 +25,7 @@ jobs:
       - name: Build
         run: cmake --build cmakebuild --config Release --parallel 8
 
-      - name: Run unitest
+      - name: Run tests
         run: |
           cd cmakebuild\bin\Release
           .\unitest.exe

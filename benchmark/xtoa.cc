@@ -1,5 +1,6 @@
 #include "co/benchmark.h"
 #include "co/string.h"
+#include <cinttypes>
 
 DEF_uint64(beg, 1000, "beg");
 DEF_uint64(end, 9999, "end");
@@ -11,7 +12,7 @@ BM_group(xtoa) {
     BM_sub_group_begin;
     BM_add(snprintf(%llu)) {
         for (uint64 i = FLG_beg; i < FLG_end; i++) {
-            snprintf(buf, 32, "%llu", i);
+            snprintf(buf, 32, "%" PRIu64, i);
         }
     }
     BM_use(buf);
@@ -26,7 +27,7 @@ BM_group(xtoa) {
     BM_sub_group_begin;
     BM_add(snprintf(0x%llx)) {
         for (uint64 i = FLG_beg; i < FLG_end; i++) {
-            snprintf(buf, 32, "0x%llx", i);
+            snprintf(buf, 32, "0x" PRIx64, i);
         }
     }
     BM_use(buf);

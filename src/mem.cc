@@ -1,5 +1,5 @@
-#ifdef __linux__
-#define _GNU_SOURCE  // mremap
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE  // for mremap in sys/mman.h
 #endif
 
 #include "co/mem.h"

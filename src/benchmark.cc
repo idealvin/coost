@@ -89,7 +89,7 @@ void print_results(Group& g) {
         '|', '\n'
     );
 
-    double bench_ns;
+    double bench_ns = 0;
     for (size_t i = 0; i < g.res.size(); ++i) {
         auto& r = g.res[i];
         const size_t bmlen = ::strlen(r.bm);

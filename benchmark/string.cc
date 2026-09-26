@@ -46,20 +46,6 @@ BM_group(string) {
     BM_use(cs);
 
     BM_sub_group_begin;
-    cs = co::string(8191, 'x');
-    ss = std::string(8191, 'x');
-
-    BM_add(std::string=.c_str()+1) {
-        ss = ss.c_str() + 1;
-    }
-    BM_use(ss);
-
-    BM_add(co::string=.c_str()+1) {
-        cs = cs.c_str() + 1;
-    }
-    BM_use(cs);
-
-    BM_sub_group_begin;
     size_t p;
     std::string s(FLG_s.data(), FLG_s.size());
     BM_add(std::string::find) {

@@ -61,7 +61,7 @@ _sockaddr::_sockaddr(const char* host, uint16 port) {
 
         len = (socklen_t)rp->ai_addrlen;
         runtime_assert(len < sizeof(p));
-        ::memcpy(this, rp->ai_addr, len);
+        ::memcpy((void*)this, rp->ai_addr, len);
         ::freeaddrinfo(ai);
 
     } else {

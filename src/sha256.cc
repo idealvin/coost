@@ -30,7 +30,7 @@ void sha256_init(sha256_ctx_t* p) {
 #define s1(x) (rotrFixed(x,17) ^ rotrFixed(x,19) ^ (x >> 10))
 
 #define blk0(i) (W[i] = data[i])
-#define blk2(i) (W[i&15] += s1(W[(i-2)&15]) + W[(i-7)&15] + s0(W[(i-15)&15]))
+#define blk2(i) (W[(i)&15] += s1(W[(i-2)&15]) + W[(i-7)&15] + s0(W[(i-15)&15]))
 
 #define Ch(x,y,z) (z^(x&(y^z)))
 #define Maj(x,y,z) ((x&y)|(z&(x|y)))
