@@ -27,7 +27,7 @@ BM_group(xtoa) {
     BM_sub_group_begin;
     BM_add(snprintf(0x%llx)) {
         for (uint64 i = FLG_beg; i < FLG_end; i++) {
-            snprintf(buf, 32, "0x" PRIx64, i);
+            snprintf(buf, 32, "0x%" PRIx64, i);
         }
     }
     BM_use(buf);

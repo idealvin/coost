@@ -693,7 +693,7 @@ co::string& any::_json2str(co::string& fs, bool debug, int mdp) const {
                 auto& a = _h->ao;
                 for (uint32 i = 0; i < a.size(); i += 2) {
                     fs << '"' << (S)a[i] << '"' << ':';
-                    ((any&)a[i + 1])._json2str(fs, debug, mdp) << ',';
+                    (*(any*)&a[i + 1])._json2str(fs, debug, mdp) << ',';
                 }
             }
             fs.back() == ',' ? (void)(fs.back() = '}') : (void)(fs.append('}'));
@@ -705,7 +705,7 @@ co::string& any::_json2str(co::string& fs, bool debug, int mdp) const {
             if (_h->p) {
                 auto& a = _h->ao;
                 for (uint32 i = 0; i < a.size(); ++i) {
-                    ((any&)a[i])._json2str(fs, debug, mdp) << ',';
+                    (*(any*)&a[i])._json2str(fs, debug, mdp) << ',';
                 }
             }
             fs.back() == ',' ? (void)(fs.back() = ']') : (void)(fs.append(']'));
@@ -739,7 +739,7 @@ co::string& any::_json2pretty(co::string& fs, int indent, int n, int mdp) const 
                 for (uint32 i = 0; i < a.size(); i += 2) {
                     fs.append('\n').append(n, ' ');
                     fs << '"' << (S)a[i] << '"' << ": ";
-                    ((any&)a[i + 1])._json2pretty(fs, indent, n + indent, mdp) << ',';
+                    (*(any*)&a[i + 1])._json2pretty(fs, indent, n + indent, mdp) << ',';
                 }
             }
             if (fs.back() == ',') {
@@ -756,7 +756,7 @@ co::string& any::_json2pretty(co::string& fs, int indent, int n, int mdp) const 
                 auto& a = _h->ao;
                 for (uint32 i = 0; i < a.size(); ++i) {
                     fs.append('\n').append(n, ' ');
-                    ((any&)a[i])._json2pretty(fs, indent, n + indent, mdp) << ',';
+                    (*(any*)&a[i])._json2pretty(fs, indent, n + indent, mdp) << ',';
                 }
             }
             if (fs.back() == ',') {
@@ -801,7 +801,7 @@ void any::remove(const char* key) noexcept {
                 const auto s = (const char*)a[i];
                 if (strcmp(key, s) == 0) {
                     xx::cache().free((void*)s, (uint32)strlen(s) + 1);
-                    ((any&)a[i + 1]).reset();
+                    (*(any*)&a[i + 1]).reset();
                     a.remove_pair(i);
                     return;
                 }
