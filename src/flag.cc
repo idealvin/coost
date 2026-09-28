@@ -106,7 +106,7 @@ struct Flag {
     char iden;
     char attr;
     bool inco; // defined in coost
-    int n;
+    int len;
     const char* name;
     const char* alias;
     const char* value; // default value
@@ -360,7 +360,7 @@ void Mod::print_help(const co::string& exe) {
         auto& f = *(it->second);
         size_t n = strlen(f.name) + 3;
         if (*f.alias) n += strlen(f.alias) + 1;
-        f.n = (int)n;
+        f.len = (int)n;
         if (n <= 21 && m < n) m = n;
 
         if (f.addr == &FLG_help) {
@@ -377,9 +377,9 @@ void Mod::print_help(const co::string& exe) {
         c.deflt
     );
 
-    ff[0]->print(m, ff[0]->n);
-    ff[1]->print(m, ff[1]->n);
-    if (!g_command_line_only) ff[2]->print(m, ff[2]->n);
+    ff[0]->print(m, ff[0]->len);
+    ff[1]->print(m, ff[1]->len);
+    if (!g_command_line_only) ff[2]->print(m, ff[2]->len);
     co::print().flush();
 
     for (auto it = _flags.begin(); it != _flags.end(); ++it) {
@@ -387,7 +387,7 @@ void Mod::print_help(const co::string& exe) {
         if (f.inco) {
             if (&f == ff[0] || &f == ff[1] || &f == ff[2]) continue;
             if (*f.alias && strcmp(it->first, f.name) != 0) continue;
-            f.print(m, f.n);
+            f.print(m, f.len);
         }
     }
 
@@ -398,7 +398,7 @@ void Mod::print_help(const co::string& exe) {
             if (&f == ff[0] || &f == ff[1] || &f == ff[2]) continue;
             if (*f.alias && strcmp(it->first, f.name) != 0) continue;
             if (i++ == 0) co::print('\n').flush();
-            f.print(m, f.n);
+            f.print(m, f.len);
         }
     }
     co::print().flush();

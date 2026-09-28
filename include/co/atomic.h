@@ -78,14 +78,14 @@ template<typename T, typename V>
 inline T atomic_add(T* p, V v, memorder_t mo=mo_seq_cst) {
     static_assert(sizeof(T) == sizeof(std::atomic<T>), "");
     static_assert(alignof(T) == alignof(std::atomic<T>), "");
-    return ((std::atomic<T>*)p)->fetch_add(v, mo) + v;
+    return ((std::atomic<T>*)p)->fetch_add((T)v, mo) + (T)v;
 }
 
 template<typename T, typename V>
 inline T atomic_sub(T* p, V v, memorder_t mo=mo_seq_cst) {
     static_assert(sizeof(T) == sizeof(std::atomic<T>), "");
     static_assert(alignof(T) == alignof(std::atomic<T>), "");
-    return ((std::atomic<T>*)p)->fetch_sub(v, mo) - v;
+    return ((std::atomic<T>*)p)->fetch_sub((T)v, mo) - (T)v;
 }
 
 template<typename T>
@@ -102,14 +102,14 @@ template<typename T, typename V>
 inline T atomic_fetch_add(T* p, V v, memorder_t mo=mo_seq_cst) {
     static_assert(sizeof(T) == sizeof(std::atomic<T>), "");
     static_assert(alignof(T) == alignof(std::atomic<T>), "");
-    return ((std::atomic<T>*)p)->fetch_add(v, mo);
+    return ((std::atomic<T>*)p)->fetch_add((T)v, mo);
 }
 
 template<typename T, typename V>
 inline T atomic_fetch_sub(T* p, V v, memorder_t mo=mo_seq_cst) {
     static_assert(sizeof(T) == sizeof(std::atomic<T>), "");
     static_assert(alignof(T) == alignof(std::atomic<T>), "");
-    return ((std::atomic<T>*)p)->fetch_sub(v, mo);
+    return ((std::atomic<T>*)p)->fetch_sub((T)v, mo);
 }
 
 template<typename T>

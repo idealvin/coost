@@ -40,7 +40,7 @@ inline void _vm_decommit(void* p, size_t n) {
     VirtualFree(p, n, MEM_DECOMMIT);
 }
 
-inline void _vm_free(void* p, size_t n) {
+inline void _vm_free(void* p, size_t) {
     VirtualFree(p, 0, MEM_RELEASE);
 }
 

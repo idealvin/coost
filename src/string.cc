@@ -11,7 +11,7 @@ static bool _match(const char* s, size_t n, const char* p, size_t m) {
     }
     if (m == 0) return n == 0;
 
-    size_t si = 0, pi = 0, sl = -1, pl = -1;
+    size_t si = 0, pi = 0, sl = (size_t)-1, pl = (size_t)-1;
     while (si < n && pi < m) {
         c = p[pi];
         if (c == '*') {
@@ -375,7 +375,7 @@ static int _memicmp(const void* s, const void* t, size_t n) {
 #define RETURN_TYPE void*
 #define AVAILABLE(h, h_l, j, n_l) ((j) <= (h_l) - (n_l))
 #define FN_NAME(x) x##_i
-#define CANON_ELEMENT(c) ::tolower(c)
+#define CANON_ELEMENT(c) ((unsigned char)::tolower(c))
 #define CMP_FUNC _memicmp
 #include "two_way.h"
 

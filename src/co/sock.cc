@@ -579,7 +579,7 @@ wait_for_connect:
 
         // check if the socket is connected every x ms
         uint32 x = 1;
-        int r, sec = 0, len = sizeof(int);
+        int sec = 0, len = sizeof(int);
         while (true) {
             r = co::getsockopt(_fd, SOL_SOCKET, SO_CONNECT_TIME, &sec, &len);
             if (r != 0) return false;
@@ -710,7 +710,7 @@ int connect(sock_t fd, const co::sockaddr& addr, int ms) {
     do {
         co::sockaddr a;
         ::memset(&a, 0, sizeof(sockaddr_in6));
-        ((::sockaddr&)a).sa_family = addr.af();
+        ((::sockaddr&)a).sa_family =(decltype(::sockaddr::sa_family)) addr.af();
 
         // WSAEINVAL is returned if the socket s is already bound to an address.
         if (co::bind(fd, a) != 0) {

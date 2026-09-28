@@ -72,8 +72,8 @@ void rpc_server_impl::add_service(co::unique<rpc_service>&& s) {
     log::check(r.second, "service already added: ", service_name);
 
     for (auto& method : methods) {
-        auto r = _methods.emplace(method.first, method.second);
-        log::check(r.second, "method already added: ", method.first);
+        auto x = _methods.emplace(method.first, method.second);
+        log::check(x.second, "method already added: ", method.first);
     }
 }
 

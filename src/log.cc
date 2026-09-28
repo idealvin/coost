@@ -483,7 +483,7 @@ static LONG WINAPI on_exception(PEXCEPTION_POINTERS p) {
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
-static void on_sigabrt(int sig) {
+static void on_sigabrt(int) {
     RaiseException(0xE880E235, 0, 0, NULL);
 }
 
