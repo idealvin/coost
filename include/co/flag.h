@@ -20,8 +20,8 @@ void hide(const char* name);
 // opposite to hide
 void unhide(const char* name);
 
-// set value of a flag
-void set_value(const char* flag_name, const char* value);
+// set value of a flag, return false on error
+bool set_value(const char* flag_name, const char* value);
 
 // add a callback to be called after command line args are parsed
 void run_after_parse(void(*cb)());

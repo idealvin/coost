@@ -38,7 +38,6 @@ DEF_bool(mkconf, false, s_mkconf);
 static bool g_command_line_only = false;
 static int g_lang = -1;
 
-
 namespace flag {
 namespace xx {
 
@@ -797,9 +796,10 @@ void unhide(const char* name) {
     if (!e.empty()) co::println("flag::unhide error: ", e);
 }
 
-void set_value(const char* name, const char* value) {
+bool set_value(const char* name, const char* value) {
     auto e = xx::mod().set_flag_value(name, value);
     if (!e.empty()) co::println("flag::set_value error: ", e);
+    return e.empty();
 }
 
 void run_after_parse(void(*cb)()) {
