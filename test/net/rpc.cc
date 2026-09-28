@@ -89,9 +89,9 @@ void test_ping() {
 }
 
 int main(int argc, char** argv) {
-    flag::parse(argc, argv);
     flag::set_value("also_log2console", "true");
     flag::set_value("rpc_log", "true");
+    flag::parse(argc, argv);
 
     // initialize the proto client, other client can simply copy from it.
     proto = co::make_unique<rpc::client>(FLG_serv_ip.c_str(), FLG_serv_port);

@@ -95,8 +95,8 @@ void client_with_pool() {
 }
 
 int main(int argc, char** argv) {
-    flag::parse(argc, argv);
     flag::set_value("also_log2console", "true");
+    flag::parse(argc, argv);
 
     g_pool = co::make_static<co::pool>(
         []() {

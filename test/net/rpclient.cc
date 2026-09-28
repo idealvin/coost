@@ -11,9 +11,9 @@ DEF_int32(port, 7788, "server port");
 DEF_string(data, "{\"api\":\"ping\"}", "JSON body");
 
 int main(int argc, char** argv) {
-    flag::parse(argc, argv);
     flag::set_value("also_log2console", "true");
     flag::set_value("rpc_log", "true");
+    flag::parse(argc, argv);
 
     co::wait_group wg;
     wg.add();
