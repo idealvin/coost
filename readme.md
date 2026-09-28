@@ -35,8 +35,6 @@ Contact the author via [GitHub Issues](https://github.com/idealvin/coost/issues)
 
 ## Documentation
 
-**The documentation currently lags behind the latest version of coost. Please refer to the [latest code](https://github.com/idealvin/coost) and the [include/co](https://github.com/idealvin/coost/tree/master/include/co) headers for the most accurate information.**
-
 - [English](https://coostdocs.github.io/en/about/co/)
 - [简体中文](https://coostdocs.github.io/cn/about/co/)
 

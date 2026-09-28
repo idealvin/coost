@@ -35,8 +35,6 @@ coost 本身保持开源。如果在生产环境使用 coost，并需要定制�
 
 ## 参考文档
 
-**目前文档已落后于最新版本 coost，请以[最新代码](https://github.com/idealvin/coost)与 [include/co](https://github.com/idealvin/coost/tree/master/include/co) 头文件为准**。
-
 - [简体中文](https://coostdocs.github.io/cn/about/co/) 
 - [English](https://coostdocs.github.io/en/about/co/)
 
