@@ -26,7 +26,7 @@ struct __cacheline_aligned Kqueue {
     int _kq;
     int _n;
     void* _events;
-    constexpr static int N = 256;
+    constexpr static int N = 1024;
 };
 
 using Epoll = Kqueue;

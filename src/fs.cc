@@ -413,7 +413,7 @@ namespace fs {
 __thread co::string* g_s;
 
 inline co::string& cache() {
-    return g_s ? *g_s : *(g_s = co::_make_static<co::string>(512));
+    return g_s ? *g_s : *(g_s = co::_make_rootic<co::string>(512));
 }
 
 inline int nwc(const char* p) {

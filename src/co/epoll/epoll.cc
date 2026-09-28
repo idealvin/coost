@@ -21,13 +21,14 @@ Epoll::Epoll() : _signaled(0), _n(0) {
     runtime_assert(_efd != -1);
     runtime_assert(this->add_ev_read(_efd, nullptr));
 
-    _events = (Ev*) co::_static_alloc(N * sizeof(Ev), co::cache_line_size);
-    ::memset(_events, 0, N * sizeof(Ev));
+    _events = (Ev*) co::valloc(N * sizeof(Ev));
+    runtime_assert(_events);
 }
 
 Epoll::~Epoll() {
     _close(_efd);
     _close(_ep);
+    co::vfree(_events, N * sizeof(Ev));
 }
 
 bool Epoll::add_ev_read(sock_t fd, void* c) {

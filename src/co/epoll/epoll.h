@@ -28,7 +28,7 @@ struct __cacheline_aligned Epoll {
     int _efd;
     int _n;
     void* _events;
-    constexpr static int N = 256;
+    constexpr static int N = 1024;
 };
 
 } // co

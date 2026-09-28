@@ -12,12 +12,13 @@ Iocp::Iocp()
     : _signaled(0), _n(0) {
     _iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
     runtime_assert(_iocp != NULL);
-    _events = (Ev*) co::_static_alloc(N * sizeof(Ev), co::cache_line_size);
-    ::memset(_events, 0, N * sizeof(Ev));
+    _events = (Ev*) co::valloc(N * sizeof(Ev));
+    runtime_assert(_events);
 }
 
 Iocp::~Iocp() {
     if (_iocp) { CloseHandle(_iocp); _iocp = NULL; }
+    co::vfree(_events, N * sizeof(Ev));
 }
 
 // if @fd is already binded to another IOCP, CreateIoCompletionPort returns NULL,

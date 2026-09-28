@@ -17,7 +17,7 @@ Sched::Sched(uint32 id)
       _wait_ms(-1), _running(0) {
     _epoll = co::_new<Epoll>();
     _main_co = this->new_coroutine(nullptr);
-    _stack = (Stack*) co::zalloc(g_stack_num * sizeof(Stack));
+    _stack = (Stack*) co::zalloc(g_stack_num * sizeof(Stack), co::cache_line_size);
 }
 
 Sched::~Sched() {
@@ -72,6 +72,7 @@ void Sched::resume(Coroutine* co) {
     // the stack is not allocated yet
     if (s->p == nullptr) {
         s->p = (char*) co::valloc(g_stack_size);
+        runtime_assert(s->p);
         s->top = s->p + g_stack_size;
         s->co = co; // bind co to this stack
     }

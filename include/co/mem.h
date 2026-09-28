@@ -43,6 +43,9 @@ void* realloc(void* p, size_t o, size_t n);
 // alloc and zero-clear the memory
 void* zalloc(size_t n);
 
+// @align: must be power of 2, and its maximum value is 256
+void* zalloc(size_t n, size_t align);
+
 // virtual alloc, the memory is page-aligned and zero-cleared
 void* valloc(size_t n);
 

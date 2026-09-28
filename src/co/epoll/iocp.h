@@ -37,7 +37,7 @@ struct __cacheline_aligned Iocp {
     int _n;
     HANDLE _iocp;
     OVERLAPPED_ENTRY* _events;
-    constexpr static int N = 256;
+    constexpr static int N = 1024;
 };
 
 using Epoll = Iocp;

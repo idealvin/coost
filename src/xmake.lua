@@ -28,6 +28,7 @@ target("libco")
             end
         else
             add_defines("__MINGW_USE_VC2005_COMPAT=1") -- use 64bit time_t
+            add_defines("_FILE_OFFSET_BITS=64")
             add_files("co/context/context.S")
             add_syslinks("ws2_32", { public = true })
         end
@@ -40,11 +41,13 @@ target("libco")
         --if is_plat("macosx", "iphoneos") then
         --    add_files("hook/fishhook/fishhook.c")
         --end
+
         add_options("with_backtrace")
         if has_config("with_backtrace") then
             add_defines("WITH_BACKTRACE")
             add_syslinks("backtrace", { public = true })
         end
+
         if not is_plat("android") then
             add_syslinks("pthread", { public = true })
             add_syslinks("dl")

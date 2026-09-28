@@ -104,7 +104,7 @@ struct Destruct {
     };
 
     static_assert(alignof(_D) == sizeof(void*), "");
-    static const size_t BLK_SIZE = 8192;
+    static const size_t BLK_SIZE = 8 * 1024;
     static const size_t MAX_POS = (BLK_SIZE - sizeof(_Memb)) / sizeof(_D);
 
     Destruct() : _h(0), _pos(0) {}
@@ -147,7 +147,10 @@ struct StaticAlloc {
     StaticAlloc() : _h(0), _pos(0) {}
 
     ~StaticAlloc() {
-        _l.for_each([](co::clink* c) { ::free(c); });
+        _l.for_each([](co::clink* c) {
+            _Memb* m = (_Memb*)c;
+            _vm_free(m, m->blk_size);
+        });
         _l.clear();
     }
 
@@ -164,40 +167,38 @@ void* StaticAlloc::alloc(size_t n, size_t align) {
     if (align < sizeof(void*)) align = sizeof(void*);
     n = co::align_up(n, align);
 
-    if (_l.empty()) goto new_block;
-    {
+    if (!_l.empty()) {
         char* p = _h->p + _pos;
         if (align != sizeof(void*)) p = co::align_up(p, align);
-        if ((char*)_h + _h->blk_size < p + n) goto new_block;
-        _pos = (size_t)(p - _h->p + n);
-        return p;
+        if (p + n <= (char*)_h + _h->blk_size) {
+            _pos = (size_t)(p - _h->p + n);
+            return p;
+        }
     }
 
-new_block:
-    if (n <= 8192) {
-        const size_t blk_size = n <= 4096 ? 8192 : 16 * 1024;
-        _Memb* m = (_Memb*) ::malloc(blk_size);
+    if (n <= (16 * 1024 - xx::g_max_align)) {
+        const size_t blk_size = 16 * 1024;
+        _Memb* m = (_Memb*) _vm_alloc(blk_size);
         runtime_assert(m);
         _l.push_front(m);
         m->blk_size = blk_size;
-        char* p = align != sizeof(void*) ? co::align_up(m->p, align) : m->p;
+        char* p = m->p;
+        if (align != sizeof(void*)) p = co::align_up(p, align);
         _pos = (size_t)(p - _h->p + n);
         return p;
     }
 
-    {
-        const size_t blk_size = n + align + sizeof(_Memb);
-        _Memb* m = (_Memb*) ::malloc(blk_size);
-        runtime_assert(m);
-        _l.push_back(m);
-        m->blk_size = blk_size;
-        _pos = n + align;
-        return align != sizeof(void*) ? co::align_up(m->p, align) : m->p;
-    }
+    const size_t blk_size = n + align + sizeof(_Memb);
+    _Memb* m = (_Memb*) _vm_alloc(blk_size);
+    runtime_assert(m);
+    if (_l.empty()) _pos = n + align;
+    _l.push_back(m);
+    m->blk_size = blk_size;
+    return align != sizeof(void*) ? co::align_up(m->p, align) : m->p;
 }
 
 struct Root {
-    Root() : _mtx(), _sa() {}
+    Root() : _mtx(), _sa(), _da(), _sx() {}
     ~Root() = default;
 
     template<typename T, typename... Args>
@@ -211,6 +212,11 @@ struct Root {
         return new(p) T(std::forward<Args>(args)...);
     }
 
+    void* static_alloc(size_t n, size_t align) {
+        std::lock_guard<std::mutex> g(_mtx);
+        return _sx.alloc(n, align);
+    }
+
     void add_destructor(_D&& d, int i) {
         std::lock_guard<std::mutex> g(_mtx);
         _dx[i].add_destructor(std::forward<_D>(d));
@@ -219,6 +225,7 @@ struct Root {
     std::mutex _mtx;
     StaticAlloc _sa; // alloc memory for GlobalAlloc and ThreadAlloc
     Destruct _da;    // used to destruct GlobalAlloc and ThreadAlloc
+    StaticAlloc _sx; // alloc memory for other static objects
     Destruct _dx[4]; // 0: _rootic, 1: _static, 2: rootic, 3: static 
 };
 
@@ -244,6 +251,7 @@ constexpr uint32 g_hb_size = 1 << g_hb_bits;   // size of huge block
 constexpr size_t g_max_small_size = 3584;      // 3.5k
 constexpr size_t g_max_medium_size = 1u << 17; // 128k
 using xx::g_max_align;
+static_assert(g_max_align == 256, "");
 
 template<typename T, typename V>
 inline T _fetch_add(T* p, V v) {
@@ -608,14 +616,12 @@ struct __cacheline_aligned ThreadAlloc {
     void* alloc(size_t n, size_t align);
     void free(void* p, size_t n);
     void* realloc(void* p, size_t o, size_t n);
-    void* salloc(size_t n, size_t a) { return _s.alloc(n, a); }
 
     union { LargeBlock* _lb; co::clist _llb; };
     union { LargeAlloc* _la; co::clist _lla; };
     union { SmallAlloc* _sa; co::clist _lsa; };
     uint32 _id;
     GlobalAlloc* _ga;
-    StaticAlloc _s;
 };
 
 struct __cacheline_aligned {
@@ -646,7 +652,7 @@ MemInit::~MemInit() {
 } // xx
 
 inline ThreadAlloc::ThreadAlloc(GlobalAlloc* ga)
-    : _lb(0), _la(0), _sa(0), _ga(ga), _s() {
+    : _lb(0), _la(0), _sa(0), _ga(ga) {
     _id = co::atomic_inc(&g_buf.alloc_id, mo_relaxed);
 }
 
@@ -929,7 +935,7 @@ inline void* ThreadAlloc::realloc(void* p, size_t o, size_t n) {
 
 void* _static_alloc(size_t n, size_t align) {
     runtime_assert(align <= g_max_align && !(align & (align - 1)));
-    return talloc()->salloc(n, align);
+    return g_root->static_alloc(n, align);
 }
 
 void _add_destructor(_D&& d, int x) {
@@ -955,6 +961,15 @@ void* realloc(void* p, size_t o, size_t n) {
 void* zalloc(size_t size) {
     if (size <= g_max_medium_size) {
         auto p = co::alloc(size);
+        if (p) ::memset(p, 0, size);
+        return p;
+    }
+    return _vm_alloc(size);
+}
+
+void* zalloc(size_t size, size_t align) {
+    if (size <= g_max_medium_size) {
+        auto p = co::alloc(size, align);
         if (p) ::memset(p, 0, size);
         return p;
     }

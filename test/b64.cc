@@ -6,13 +6,13 @@ DEF_bool(d, false, "decode");
 int main(int argc, char** argv) {
     auto v = flag::parse(argc, argv);
     if (v.size() != 1) {
-        co::print("usage: \n\tb64 xx.txt\n\tb64 -d xx.txt\n");
+        co::println("usage: \n\tb64 xx.txt\n\tb64 -d xx.txt");
         return 0;
     }
 
     fs::file f(v[0], 'r');
     if (!f) {
-        co::print("cannot open file: ", v[0], '\n');
+        co::println("cannot open file: ", v[0]);
         return 0;
     }
 
@@ -26,13 +26,13 @@ int main(int argc, char** argv) {
     f.close();
 
     if (!f.open(v[0], 'w')) {
-        co::print("cannot open file: ", v[0], '\n');
+        co::println("cannot open file: ", v[0]);
         return 0;
     }
 
     auto n = f.write(s);
     if (n != s.size()) {
-        co::print("write file failed\n");
+        co::println("write file failed");
     }
 
     f.close();

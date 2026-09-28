@@ -9,7 +9,7 @@ struct S {
     ~S() = default;
 
     void run() {
-        co::print("S: ", _v);
+        co::println("S: ", _v);
     }
 
     int get_id() {

@@ -21,12 +21,13 @@ Kqueue::Kqueue() : _signaled(0), _n(0) {
     EV_SET(&ev, 0, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, nullptr);
     runtime_assert(::kevent(_kq, &ev, 1, nullptr, 0, nullptr) != -1);
 
-    _events = (Ev*) co::_static_alloc(N * sizeof(Ev), co::cache_line_size);
-    ::memset(_events, 0, N * sizeof(Ev));
+    _events = (Ev*) co::valloc(N * sizeof(Ev));
+    runtime_assert(_events);
 }
 
 Kqueue::~Kqueue() {
     _close(_kq);
+    co::vfree(_events, N * sizeof(Ev));
 }
 
 // EV_CLEAR for edge-triggered

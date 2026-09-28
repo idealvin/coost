@@ -83,7 +83,7 @@ struct Cache {
 static __thread Cache* g_c;
 
 inline Cache& cache() {
-    return g_c ? *g_c : *(g_c = co::_make_static<Cache>()); 
+    return g_c ? *g_c : *(g_c = co::_make_rootic<Cache>()); 
 }
 
 
@@ -872,7 +872,7 @@ _obj:
     }
 
     this->add_member(key, any());
-    return (any&) _h->ao.back();
+    return *(any*)&_h->ao.back();
 }
 
 void any::reset() noexcept {

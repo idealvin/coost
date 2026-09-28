@@ -15,7 +15,7 @@ void test_fun(int id) {
 
     co::string s(1024);
     co::timer t;
-    int64 us;
+    int64 ns;
     double avg;
     double vavg;
     int x;
@@ -30,24 +30,24 @@ void test_fun(int id) {
     for (int i = 0; i < N; ++i) {
         v[i] = (void*)p;
     }
-    us = t.us();
-    vavg = us * 1000.0 / N;
+    ns = t.ns();
+    vavg = ns * 1.0 / N;
 
     v.clear();
     t.restart();
     for (int i = 0; i < N; ++i) {
         v[i] = co::alloc(32);
     }
-    us = t.us();
-    avg = us * 1000.0 / N - vavg;
+    ns = t.ns();
+    avg = ns * 1.0 / N - vavg;
     s << "co::alloc avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = N - 1; i >= 0; --i) {
         co::free(v[i], 32);
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "co::free avg: " << avg << " ns\n";
 
     if (FLG_s) {
@@ -56,16 +56,16 @@ void test_fun(int id) {
         for (int i = 0; i < N; ++i) {
             v[i] = ::malloc(32);
         }
-        us = t.us();
-        avg = us * 1000.0 / N - vavg;
+        ns = t.ns();
+        avg = ns * 1.0 / N - vavg;
         s << "::malloc avg: " << avg << " ns\n";
 
         t.restart();
         for (int i = 0; i < N; ++i) {
             ::free(v[i]);
         }
-        us = t.us();
-        avg = us * 1000.0 / N;
+        ns = t.ns();
+        avg = ns * 1.0 / N;
         s << "::free avg: " << avg << " ns\n";
     }
 
@@ -77,7 +77,7 @@ void test_string() {
     int N = FLG_n;
     co::string s(1024);
     co::timer t;
-    int64 us;
+    int64 ns;
     double avg = 0;
 
     t.restart();
@@ -87,8 +87,8 @@ void test_string() {
             x.append(32, 'x');
         }
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "co::string " << " avg: " << avg << " ns\n";
 
     t.restart();
@@ -98,8 +98,8 @@ void test_string() {
             x.append(32, 'x');
         }
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "std::string " << " avg: " << avg << " ns";
     co::println(s);
 }
@@ -108,7 +108,7 @@ void test_vector() {
     int N = 10000;
     co::string s(1024);
     co::timer t;
-    int64 us;
+    int64 ns;
     double avg = 0;
 
     co::vector<int> cv;
@@ -118,16 +118,16 @@ void test_vector() {
     for (int i = 0; i < N; ++i) {
         cv.push_back(i);
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "co::vector " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {
         sv.push_back(i);
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "std::vector " << " avg: " << avg << " ns";
     co::println(s);
 }
@@ -136,7 +136,7 @@ void test_map() {
     int N = FLG_n;
     co::string s(1024);
     co::timer t;
-    int64 us;
+    int64 ns;
     double avg = 0;
 
     co::map<int, int> cm;
@@ -146,16 +146,16 @@ void test_map() {
     for (int i = 0; i < N; ++i) {
         cm.insert(std::make_pair(i, i));
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "co::map " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {
         sm.insert(std::make_pair(i, i));
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "std::map " << " avg: " << avg << " ns";
     co::println(s);
 }
@@ -164,7 +164,7 @@ void test_unordered_map() {
     int N = FLG_n;
     co::string s(1024);
     co::timer t;
-    int64 us;
+    int64 ns;
     double avg = 0;
 
     co::hash_map<int, int> cm;
@@ -174,16 +174,16 @@ void test_unordered_map() {
     for (int i = 0; i < N; ++i) {
         cm.insert(std::make_pair(i, i));
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "co::hash_map " << " avg: " << avg << " ns\n";
 
     t.restart();
     for (int i = 0; i < N; ++i) {
         sm.insert(std::make_pair(i, i));
     }
-    us = t.us();
-    avg = us * 1000.0 / N;
+    ns = t.ns();
+    avg = ns * 1.0 / N;
     s << "std::unordered_map " << " avg: " << avg << " ns" << '\n';
     co::println(s);
 }
@@ -196,16 +196,16 @@ void test_xalloc() {
     for (int i = 0; i < FLG_n; ++i) {
         gA.push_back(co::alloc(32));
     }
-    auto us = t.us();
-    co::println(co::sched_id(), " xalloc done in ", us, "us, avg: ", us * 1000.0 / FLG_n, "ns");
+    auto ns = t.ns();
+    co::println(co::sched_id(), " xalloc done in ", ns, "ns, avg: ", ns * 1.0 / FLG_n, "ns");
     wg.done();
 }
 
 void test_xfree() {
     co::timer t;
     for (auto& x : gA) { co::free(x, 32); }
-    auto us = t.us();
-    co::println(co::sched_id(), " xfree done in ", us, "us, avg: ", us * 1000.0 / FLG_n, "ns");
+    auto ns = t.ns();
+    co::println(co::sched_id(), " xfree done in ", ns, "ns, avg: ", ns * 1.0 / FLG_n, "ns");
     wg.done();
 }
 
