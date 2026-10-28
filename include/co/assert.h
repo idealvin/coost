@@ -10,4 +10,4 @@ void _assert_failed(const char* c, const char* file, int line, const char* e);
 do { \
     if (c) break; \
     co::_assert_failed(#c, __FILE__, __LINE__, ""#__VA_ARGS__); \
-} while (0);
+} while (0)

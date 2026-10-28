@@ -3,13 +3,10 @@
 #include <random>
 
 BM_group(rand) {
-    int a = ::rand();
-    int b = co::rand();
-    BM_use(a);
-    BM_use(b);
+    uint32 x = ::rand();
+    x += co::rand();
 
     BM_sub_group_begin;
-    int x;
     BM_add(::rand) {
         x = ::rand();
     }
