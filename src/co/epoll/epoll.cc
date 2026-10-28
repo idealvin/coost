@@ -40,7 +40,7 @@ bool Epoll::add_ev_read(sock_t fd, void* c) {
     if (r == 0) return true;
 
     const int e = errno;
-    runtime_assert(e != EEXIST, "Coroutines concurrently reading/writing a socket?")
+    runtime_assert(e != EEXIST, "Coroutines concurrently reading/writing a socket?");
     log::error("epoll add ev_read error: ", co::strerror(e), ", fd: ", fd, " co: ", c);
     return false;
 }
@@ -54,7 +54,7 @@ bool Epoll::add_ev_write(sock_t fd, void* c) {
     if (r == 0) return true;
 
     const int e = errno;
-    runtime_assert(e != EEXIST, "Coroutines concurrently reading/writing a socket?")
+    runtime_assert(e != EEXIST, "Coroutines concurrently reading/writing a socket?");
     log::error("epoll add ev_write error: ", co::strerror(e), ", fd: ", fd, " co: ", c);
     return false;
 }
