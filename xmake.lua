@@ -51,5 +51,9 @@ if is_plat("macosx") then
     add_linkdirs("/usr/local/lib")
 end
 
+-- install header files
+add_installfiles("(include/**)", {prefixdir = ""})
+--add_installfiles("*.md", {prefixdir = "include/co"})
+
 -- include sub-projects
-includes("src", "benchmark", "gen", "test", "unitest")
+includes("src", "benchmark", "gen", "test", "unitest", "bms")
