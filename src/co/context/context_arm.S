@@ -40,6 +40,14 @@
 #   define TB_CONTEXT_SJLJ_BYTES    0
 #endif
 
+// d8 - d15 are callee-saved per AAPCS, save them if the compiler may emit
+// VFP instructions (hard-float, softfp, or NEON builds)
+#if defined(ARCH_VFP) || defined(ARCH_ARM_NEON)
+#   define TB_CONTEXT_VFP_BYTES    64
+#else
+#   define TB_CONTEXT_VFP_BYTES    0
+#endif
+
 /* //////////////////////////////////////////////////////////////////////////////////////
  * implementation
  */
@@ -52,46 +60,23 @@
  *             --------------------------------------------------------------------------------------
  *                                                                                              (16-align)
  *
- * for macho (ios):
+ * context-data layout (low -> high address, sjlj is saved only for macho/ios,
+ * d8-d15 take 64 bytes only when TB_CONTEXT_VFP_BYTES is 64):
  *
- * save and restore the sjlj(setjmp/longjmp) exception handler on tls
+ *             -----------------------------------------------------------------------------------------
+ * context:   |  d8-d15  |  sjlj  |  retval |   r4    |   r5    |   r6    |   r7    |   r8    |   r9   |
+ *             -----------------------------------------------------------------------------------------
+ *            0         64       68       72        76        80        84        88        92
  *
- *             -------------------------------------------------------
- * context:   |  sjlj  | retval |   r4    |   r5    |   r6   |   r7   |
- *             -------------------------------------------------------
- *            0        4    |   8         12        16       20                             
- *                          |
- *                           ------------------------------------------------
- *                                                                          \|/
- *                                                    __end     func      retval(from)
- *             --------------------------------------------------------------------------------------
- *            |   r8   |   r9   |   r10   |   r11   |   lr   |   pc   | context |  priv  |  padding  |
- *             --------------------------------------------------------------------------------------
- *            24       28       32        36        40       44       48        52       |     
- *                                                                    |                  |
- *                                                                    |              16-align
- *                                                                    |
- *                                                         sp when jump to function
- *
- * for elf (linux, ..):
- *
- *             -----------------------------------------------
- * context:   |  retval |   r4    |   r5    |   r6   |   r7   |
- *             -----------------------------------------------
- *            0    |   4        8         12        16                                  
- *                 |        
- *                  ---------------------------------------------------------
- *                                                                          \|/
- *                                                    __end     func      retval(from)
- *             --------------------------------------------------------------------------------------
- *            |   r8   |   r9   |   r10   |   r11   |   lr   |   pc   | context |  priv  |  padding  |
- *             --------------------------------------------------------------------------------------
- *            20       24       28        32        36       40       44        48       |     
- *                                                                    |                  |
- *                                                                    |              16-align
- *                                                                    |
- *                                                         sp when jump to function
- *
+ *                                                               __end     func      retval(from)
+ *             -----------------------------------------------------------------------------------------
+ *            |   r10   |   r11   |   lr   |   pc   | context |  priv  | padding |
+ *             -----------------------------------------------------------------------------------------
+ *            96        100       104      108       112       116
+ *                                          |                          |
+ *                                          |                      8/16-align
+ *                                          |
+ *                              sp when jump to function
  *
  * @param stackdata     the stack data (r0)
  * @param stacksize     the stack size (r1)
@@ -109,27 +94,37 @@ function tb_context_make, export=1
 
     /* reserve space for context-data on context-stack
      *
-     * 64 = align8(52 + TB_CONTEXT_SJLJ_BYTES)
+     * VFP(64) + sjlj(4, ios) + retval, r4-r11, lr(40) + pc(4) + from(8)
+     *
+     * the reserved size keeps sp 8-byte aligned when the context function starts
      */
-#ifdef OS_IOS
-    sub r0, r0, #64
+#if TB_CONTEXT_VFP_BYTES
+  #ifdef OS_IOS
+    sub r0, r0, #120
+  #else
+    sub r0, r0, #116
+  #endif
 #else
+  #ifdef OS_IOS
+    sub r0, r0, #64
+  #else
     sub r0, r0, #68
+  #endif
 #endif
 
     // context.pc = func
-    str r2, [r0, #40 + TB_CONTEXT_SJLJ_BYTES]
+    str r2, [r0, #(40 + TB_CONTEXT_VFP_BYTES + TB_CONTEXT_SJLJ_BYTES)]
 
     /* init retval = a writeable space (context)
      *
      * it will write retval(context, priv) when jump to a new context function entry first
      */
-    add r1, r0, #44 + TB_CONTEXT_SJLJ_BYTES
-    str r1, [r0, #0 + TB_CONTEXT_SJLJ_BYTES]
+    add r1, r0, #(44 + TB_CONTEXT_VFP_BYTES + TB_CONTEXT_SJLJ_BYTES)
+    str r1, [r0, #(TB_CONTEXT_VFP_BYTES + TB_CONTEXT_SJLJ_BYTES)]
 
     // context.lr = address of label __end
     adr r1, __end
-    str r1, [r0, #36 + TB_CONTEXT_SJLJ_BYTES]
+    str r1, [r0, #(36 + TB_CONTEXT_VFP_BYTES + TB_CONTEXT_SJLJ_BYTES)]
 
     // return pointer to context-data
     bx lr 
@@ -171,11 +166,21 @@ function tb_context_jump, export=1
     push {r4}
 #endif
 
+#if TB_CONTEXT_VFP_BYTES
+    // save d8 - d15 (callee-saved)
+    vpush {d8 - d15}
+#endif
+
     // save the old context(sp) to r0
     mov r0, sp
 
     // switch to the new context(sp) and stack
     mov sp, r1
+
+#if TB_CONTEXT_VFP_BYTES
+    // restore d8 - d15 (initial values for a new context)
+    vpop {d8 - d15}
+#endif
 
 #ifdef OS_IOS
     // restore sjlj handler
