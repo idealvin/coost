@@ -57,6 +57,7 @@
  *                                                                        |                  
  *                                                                    16-align
  *
+ * followed by 64 bytes for d8 - d15
  *
  * @param stackdata     the stack data (x0)
  * @param stacksize     the stack size (x1)
@@ -74,9 +75,9 @@ function tb_context_make, export=1
 
     /* reserve space for context-data on context-stack
      *
-     * 112 = align16(13 * 8)
+     * 176 = 112 + 64, the extra 64 bytes hold d8 - d15
      */
-    sub x0, x0, #112
+    sub x0, x0, #176
 
     // context.pc = func
     str x2, [x0, #96]
@@ -127,9 +128,9 @@ function tb_context_jump, export=1
 
     /* prepare stack space first
      *
-     * 0x70 = align16(13 * 8)
+     * 0xb0 = 0x70 + 0x40, the extra 0x40 bytes hold d8 - d15
      */
-    sub sp, sp, #0x70
+    sub sp, sp, #0xb0
 
     // save x19 - x30
     stp x19, x20, [sp, #0x00]
@@ -150,6 +151,12 @@ function tb_context_jump, export=1
     str x30, [sp, #0x60]
 #endif
 
+    // save d8 - d15 (callee-saved, the low 64 bits of v8 - v15)
+    stp d8,  d9,  [sp, #0x70]
+    stp d10, d11, [sp, #0x80]
+    stp d12, d13, [sp, #0x90]
+    stp d14, d15, [sp, #0xa0]
+
     // save the old context(sp) to x4
     mov x4, sp
 
@@ -168,6 +175,12 @@ function tb_context_jump, export=1
     ldp x29, x30, [sp, #0x50]
 #endif
 
+    // restore d8 - d15
+    ldp d8,  d9,  [sp, #0x70]
+    ldp d10, d11, [sp, #0x80]
+    ldp d12, d13, [sp, #0x90]
+    ldp d14, d15, [sp, #0xa0]
+
     /* pass old-context(context: x0, priv: x1) arguments to the context function
      *
      * and return from-context: retval(context: x0, priv: x1) from jump 
@@ -178,7 +191,7 @@ function tb_context_jump, export=1
     ldr x4, [sp, #0x60]
 
     // restore stack space
-    add sp, sp, #0x70
+    add sp, sp, #0xb0
 
     // jump to the return or entry address(pc)
     ret x4
